@@ -284,7 +284,7 @@ body.gated header.bar,body.gated main{display:none}
       <button class="btn primary" id="btn-q-estimate" hidden>Start pre-estimate</button></div>
   </div>
   <div class="panel stack">
-    <h2 class="sec">All requests</h2>
+    <div class="row"><h2 class="sec">All requests</h2><select class="per" id="per-req" aria-label="Period" style="width:auto"></select></div>
     <div id="reqList"></div>
   </div>
 </section>
@@ -358,7 +358,7 @@ body.gated header.bar,body.gated main{display:none}
 
 <!-- SAVED -->
 <section id="view-saved" class="panel stack" hidden>
-  <div class="row"><h2 class="sec">Purchase orders</h2><input id="saved-q" placeholder="Search PO No., supplier, Job No." style="max-width:280px"><span style="flex:1"></span><span class="note" id="saved-n"></span></div>
+  <div class="row"><h2 class="sec">Purchase orders</h2><input id="saved-q" placeholder="Search PO No., supplier, Job No." style="max-width:280px"><select class="per" id="per-saved" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><span class="note" id="saved-n"></span></div>
   <div id="savedList"></div>
 </section>
 
@@ -374,7 +374,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="note">Select a PO when material arrives. The GRN is filled in from the PO lines; enter what was actually received and any rejections.</div>
     <div id="grnPOs"></div></div>
   <div class="panel stack" id="grnForm" hidden></div>
-  <div class="panel stack"><h2 class="sec">GRNs created</h2><div id="grnList"></div></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">GRNs created</h2><select class="per" id="per-grn" aria-label="Period" style="width:auto"></select></div><div id="grnList"></div></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Returnable challans</h2><span class="note">Material sent out for job work, repair or trial. Stays open until all of it is received back.</span><span style="flex:1"></span><button class="btn primary" id="btn-rgp-new">New returnable challan</button></div>
     <div id="rgpList"></div></div>
   <div class="panel stack" id="rgpForm" hidden></div>
@@ -402,7 +402,7 @@ body.gated header.bar,body.gated main{display:none}
     <div id="vendList"></div></div>
   <div class="panel stack" id="vendDetail" hidden></div>
   <div class="panel stack"><h2 class="sec">Booked and paid GRNs</h2><div id="acctDone"></div></div>
-  <div class="panel stack"><div class="row"><h2 class="sec">Debit notes to suppliers</h2><span style="flex:1"></span><button class="btn primary" type="button" id="btn-dn-new">+ Debit note</button></div><div class="note">For material rejected or returned, rate differences or short supply. Pick the GRN and the lines fill in. Returns after acceptance reduce what you owe and take the quantity out of stock.</div><div id="dnList"></div></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Debit notes to suppliers</h2><select class="per" id="per-dn" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" id="btn-dn-new">+ Debit note</button></div><div class="note">For material rejected or returned, rate differences or short supply. Pick the GRN and the lines fill in. Returns after acceptance reduce what you owe and take the quantity out of stock.</div><div id="dnList"></div></div>
   <div class="panel stack" id="dnForm" hidden></div>
 </section>
 
@@ -469,9 +469,9 @@ body.gated header.bar,body.gated main{display:none}
 </section>
 
 <!-- SALES DOCUMENTS -->
-<section id="view-so" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Sales orders</h2><input id="so-q" placeholder="Search" style="max-width:220px"><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="so">+ New sales order</button></div><div class="note">Make a sales order from a won quotation (open it on the Sales page), or start one here. Challans and invoices are made from the order, so you can see what is still to dispatch and bill.</div><div id="so-list"></div></div><div class="panel stack" id="so-form" hidden></div></section>
-<section id="view-dc" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Delivery challans</h2><input id="dc-q" placeholder="Search" style="max-width:220px"><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="dc">+ New challan</button></div><div class="note">Open a sales order and press "Make challan" to send part or all of it. Pending quantity is tracked per line.</div><div id="dc-list"></div></div><div class="panel stack" id="dc-form" hidden></div></section>
-<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search" style="max-width:220px"><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Make the invoice from a challan or a sales order. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div><div class="panel stack" id="agePanel"></div></section>
+<section id="view-so" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Sales orders</h2><input id="so-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-so" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="so">+ New sales order</button></div><div class="note">Make a sales order from a won quotation (open it on the Sales page), or start one here. Challans and invoices are made from the order, so you can see what is still to dispatch and bill.</div><div id="so-list"></div></div><div class="panel stack" id="so-form" hidden></div></section>
+<section id="view-dc" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Delivery challans</h2><input id="dc-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-dc" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="dc">+ New challan</button></div><div class="note">Open a sales order and press "Make challan" to send part or all of it. Pending quantity is tracked per line.</div><div id="dc-list"></div></div><div class="panel stack" id="dc-form" hidden></div></section>
+<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-inv" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Make the invoice from a challan or a sales order. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div><div class="panel stack" id="agePanel"></div></section>
 
 <!-- PRODUCTION -->
 <section id="view-prod" class="stack" hidden>
@@ -487,7 +487,7 @@ body.gated header.bar,body.gated main{display:none}
 </section>
 <datalist id="opnames"></datalist><datalist id="allusers"></datalist>
 
-<section id="view-cn" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Credit notes to customers</h2><span style="flex:1"></span><button class="btn primary" type="button" id="btn-cn-new">+ Credit note</button></div><div class="note">For sales returns, rate differences or discounts after billing. Open an invoice and press "Credit note" to fill the lines. Credit notes reduce what the customer owes and go into the e-invoice export.</div><div id="cnList"></div></div><div class="panel stack" id="cnForm" hidden></div></section>
+<section id="view-cn" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Credit notes to customers</h2><select class="per" id="per-cn" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" id="btn-cn-new">+ Credit note</button></div><div class="note">For sales returns, rate differences or discounts after billing. Open an invoice and press "Credit note" to fill the lines. Credit notes reduce what the customer owes and go into the e-invoice export.</div><div id="cnList"></div></div><div class="panel stack" id="cnForm" hidden></div></section>
 <!-- MASTERS -->
 <section id="view-mast" class="stack" hidden>
   <div class="note">These lists feed the drop-downs in the purchase request. Edit any cell directly. Set a project to Closed to hide it from new requests. Users are managed on the Users &amp; rights page.</div>
@@ -603,6 +603,14 @@ cloudStart();
 const fmt=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmt0=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{maximumFractionDigits:2});
 const key=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+/* period filter on document lists */
+const PERIODS=[["all","All dates"],["d1","Today"],["w1","Last 7 days"],["m1","Last 30 days"],["tm","This month"],["lm","Last month"],["fy","This year (Apr-Mar)"],["ly","Last year (Apr-Mar)"]];
+function perRange(v){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),p=n=>String(n).padStart(2,"0"),fy=m>=4?y:y-1;
+  return{d1:[t,t],w1:[addDays(t,-6),t],m1:[addDays(t,-29),t],tm:[t.slice(0,7)+"-01",t],lm:(()=>{const ly=m===1?y-1:y,lmm=m===1?12:m-1;return[`${ly}-${p(lmm)}-01`,`${ly}-${p(lmm)}-31`]})(),fy:[`${fy}-04-01`,`${fy+1}-03-31`],ly:[`${fy-1}-04-01`,`${fy}-03-31`]}[v]}
+const perOf=k=>{const el=$("#per-"+k);return el?el.value:"all"};
+const inPer=(d,k)=>{const v=perOf(k);if(v==="all")return true;const r=perRange(v),x=String(d||"").slice(0,10);return!!x&&x>=r[0]&&x<=r[1]};
+document.querySelectorAll("select.per").forEach(el=>{el.innerHTML=PERIODS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");el.addEventListener("change",()=>{const k=el.id.slice(4);
+  ({saved:renderSaved,so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv"),cn:()=>renderNotes("cn"),dn:()=>renderNotes("dn"),req:renderReqList,grn:renderGRN})[k]()})});
 const today=()=>new Date().toISOString().slice(0,10);
 const dmy=iso=>{if(!iso)return"";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -906,7 +914,7 @@ $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
 function renderSaved(){
   const L=$("#savedList");
   if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
-  const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>!q||key([s.no,s.sup,s.ref,s.reqNo,s.status].join(" ")).includes(q)).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
+  const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&(!q||key([s.no,s.sup,s.ref,s.reqNo,s.status].join(" ")).includes(q))).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
   L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
 }
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
@@ -982,7 +990,7 @@ function renderAttach(box,a,rm){const L=attList(a);
     return x.type==="image"?`<figure><img src="${x.data}" alt="Attached request: ${esc(x.name)}"><figcaption>${esc(x.name)}${del}</figcaption></figure>`:`<span class="filechip">${x.type==="pdf"?"PDF":"Excel"} · ${esc(x.name)}${x.note?` · ${esc(x.note)}`:""}${del}</span>`}).join("");
 }
 function renderReqList(){
-  const vis=visibleReqs();
+  const vis=visibleReqs().filter(r=>inPer(r.date,"req"));
   $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No HOD-approved requests yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
 }
 $("#reqList").addEventListener("click",e=>{const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
@@ -1054,7 +1062,7 @@ let grn=null;
 function renderGRN(){
   const open=saved.filter(p=>p.status==="Approved"&&pendingLines(p).length);
   $("#grnPOs").innerHTML=open.length?open.map(p=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(p.no)}</b><span class="wide">${esc(p.sup)} · ${esc(p.ref||"")} · <span class="note">${pendingLines(p).length} of ${p.lines.length} lines pending</span>${p.needBy?` · <span style="${p.needBy<today()?"color:var(--danger);font-weight:600":""}">need by ${dmy(p.needBy)}${p.needBy<today()?" (late)":""}</span>`:""}</span><span>${p.recv?stChip(p.recv):stChip("Approved")}</span><span class="note">${dmy(p.approvedAt)}</span>${has("grn.create")?`<button class="btn primary" data-grnpo="${esc(p.no)}">Receive</button>`:`<span class="note">View only</span>`}</div>`).join(""):`<div class="empty">No approved POs are waiting for material.</div>`;
-  $("#grnList").innerHTML=grns.length?grns.map(g=>`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">PO ${esc(g.poNo)} · ${esc(g.sup)} · <span class="note">DC ${esc(g.dc||"-")} · Inv ${esc(g.inv||"-")}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><span class="note">${dmy(g.date)}</span></div>`).join(""):`<div class="empty">No GRNs yet.</div>`;
+  const GL=grns.filter(g=>inPer(g.date,"grn"));$("#grnList").innerHTML=GL.length?GL.map(g=>`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">PO ${esc(g.poNo)} · ${esc(g.sup)} · <span class="note">DC ${esc(g.dc||"-")} · Inv ${esc(g.inv||"-")}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><span class="note">${dmy(g.date)}</span></div>`).join(""):`<div class="empty">No GRNs yet.</div>`;
   renderGRNForm();
 }
 function renderGRNForm(){
@@ -1934,7 +1942,7 @@ function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.n
 function sdFromDC(d){if(d.inv){const v=invoices.find(x=>sdId("inv",x)===d.inv);if(v){sdOpen("inv",v,false);toast(`Already billed on ${invNo(v)}`);return}}
   const s=sorders.find(x=>String(x.no)===String(d.so));
   sdOpen("inv",sdNew("inv",{cust:d.cust,so:d.so||"",dc:[d.no],custPO:s?s.custPO:"",custPODate:s?s.custPODate:"",vehicle:d.vehicle,gst:s?s.gst:18,lines:d.lines.map(l=>({i:l.i,desc:l.desc,hsn:l.hsn,qty:+l.qty,unit:l.unit,rate:s&&l.i!=null&&s.lines[l.i]?s.lines[l.i].rate:l.rate}))}),true)}
-function renderSDList(t){const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>!q||key(sdNo(t,x)+" "+x.cust+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
+function renderSDList(t){const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>inPer(x.date,t)).filter(x=>!q||key(sdNo(t,x)+" "+x.cust+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
   if(t==="inv"){const due=invoices.reduce((a,x)=>a+invDue(x),0),mo=today().slice(0,7),thisM=invoices.filter(x=>x.date.slice(0,7)===mo).reduce((a,x)=>a+invTot(x),0),od=invoices.filter(x=>invDue(x)>0.5&&x.date<addDays(today(),-60)).reduce((a,x)=>a+invDue(x),0);
     $("#inv-tiles").innerHTML=[{n:fmtL(thisM),t:"Billed this month",d:"Including GST"},{n:fmtL(due),t:"To collect",d:"Invoices not fully paid",zero:!due},{n:fmtL(od),t:"Over 60 days",d:"Follow up for payment",warn:od>0,zero:!od}].map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("")}
   const row=x=>{if(t==="so"){const st=soStatus(x);return`<b style="font-family:var(--mono)">${sdNo(t,x)}</b><span class="wide">${esc(x.cust)}${x.custPO?" · PO "+esc(x.custPO):""}${x.job?" · Job "+esc(x.job):""}<br><span class="note">${dmy(x.date)}${x.due?" · Delivery "+dmy(x.due):""}</span></span><span><span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span></span><span class="num">₹ ${fmt0(sdSub(x))}</span>`}
@@ -2115,7 +2123,7 @@ function ntNew(t,extra){return Object.assign(t==="dn"?{no:nextDN(),date:today(),
 function ntFromGRN(g,why){const rej=g.lines.some(l=>+l.rej>0);why=why||(rej?"Rejected at GRN":"Returned after acceptance");const R=why==="Rejected at GRN";ntCur={t:"dn",isNew:true,rec:ntNew("dn",{party:g.sup,grn:g.no,reason:why,_rs:!!arguments[1],
   lines:g.lines.map(l=>({desc:l.desc,hsn:l.hsn||"",qty:R?(+l.rej||0):0,unit:l.unit,rate:r2(lineNet(l)),tax:+l.tax||18})).filter(l=>!R||l.qty>0)})};show("acct");renderNoteForm();$("#dnForm").scrollIntoView({block:"start"})}
 function ntFromInv(v){ntCur={t:"cn",isNew:true,rec:ntNew("cn",{party:v.cust,inv:ntInvId(v),lines:v.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:0,unit:l.unit,rate:r2((+l.rate||0)*(1-(+l.dis||0)/100)),tax:l.tax===""||l.tax==null?+v.gst:+l.tax}))})};show("cn");renderNoteForm();$("#cnForm").scrollIntoView({block:"start"})}
-function renderNotes(t){const A=NT[t].arr(),box=$(t==="dn"?"#dnList":"#cnList");if(!box)return;
+function renderNotes(t){const A=NT[t].arr().filter(x=>inPer(x.date,t)),box=$(t==="dn"?"#dnList":"#cnList");if(!box)return;
   box.innerHTML=A.slice(0,100).map(x=>{const k=ntCalc(t,x),ref=t==="dn"?(x.grn?"GRN "+x.grn:""):(x.inv?"Inv "+invNo(invoices.find(v=>ntInvId(v)===x.inv)||{fy:"",no:""}):"");
     return`<div class="listrow"><b style="font-family:var(--mono)">${esc(ntNo(t,x))}</b><span class="wide">${esc(x.party)}${ref?" · "+esc(ref):""}<br><span class="note">${dmy(x.date)} · ${esc(x.reason)}</span></span><span>${t==="cn"?(x.irn?`<span class="chip calc">IRN</span>`:`<span class="chip sugg">IRN pending</span>`):x.reason==="Rejected at GRN"?`<span class="chip calc">For record</span>`:`<span class="chip sugg">Reduces payable</span>`}</span><span class="num">₹ ${fmt0(k.grand)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" type="button" data-ntopen="${esc(ntId(t,x))}">Open</button><button class="btn" type="button" data-ntpdf="${esc(ntId(t,x))}">PDF</button></span></div>`}).join("")||`<div class="empty">None yet.</div>`;
   renderNoteForm()}
