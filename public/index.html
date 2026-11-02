@@ -444,7 +444,7 @@ body.gated header.bar,body.gated main{display:none}
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
-    <div class="panel stack" id="rightsPanel">
+    <div class="panel stack" id="rightsPanel" style="grid-column:1/-1">
       <div class="row"><h2 class="sec">Rights for</h2><select id="r-user" style="width:auto"></select><span id="r-badge"></span><span style="flex:1"></span><button class="btn" id="btn-r-reset" type="button">Reset to role defaults</button></div>
       <div id="rightsBox" class="stack"></div>
     </div>
@@ -675,12 +675,32 @@ const RIGHTS=[
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.approve","Approve or send back requests","For their own department"],["Actions","req.all","See all departments' requests","Approve any department if also allowed to approve"],
  ["Actions","po.create","Create POs and send for approval","Includes pre-estimate and direct PO"],["Actions","po.approve","Approve and sign POs","Their signature goes on the PO"],["Actions","po.delete","Delete POs","Including approved POs, if no material received yet"],
  ["Actions","grn.create","Create GRN","Receive material against approved POs"],["Actions","acct.book","Book and mark GRNs paid","Voucher and payment reference"],["Actions","rgp.manage","Returnable challans","Send material out and receive it back"],["Actions","stock.issue","Issue and return material","Issue slips, returns to store, opening stock, bin locations"],["Actions","sales.edit","Manage enquiries, quotations and customers","Add and update the sales pipeline and follow-ups"],["Actions","prod.edit","Update job cards and inspection reports","Operations, hours, status, trial reports"],["Actions","sales.all","See all salespeople's enquiries","Otherwise only their own"]];
-const ROLE_RIGHTS={Requester:["page.req","req.create"],HOD:["page.req","req.create","req.approve"],Purchaser:["page.req","page.est","page.po","page.saved","page.rates","po.create"],
- Approver:["page.po","page.saved","page.appr","page.rep","page.stock","page.sales","sales.all","page.prod","po.approve","po.delete"],Store:["page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.acct","acct.book"],Sales:["page.sales","sales.edit"],Production:["page.prod","prod.edit","page.stock"],Admin:RIGHTS.map(r=>r[1])};
-const rightsOf=u=>u?(u.rights||ROLE_RIGHTS[u.role]||[]):[];
-const has=r=>rightsOf(me).includes(r);
+/* rights v2: View / Create / Edit / Delete per module */
+const MODS=[["Purchase","req","Purchase requests","vced"],["Purchase","est","Pre-estimates","vced"],["Purchase","po","Purchase orders and PO list","vced"],["Purchase","rates","Rate list","ve"],
+  ["Store","grn","GRN (material receipt)","vce"],["Store","rgp","Returnable challans","vce"],["Store","stock","Stock issue and return","vce"],
+  ["Accounts","acct","GRN booking and vendor payments","vce"],["Accounts","dn","Debit notes","vced"],
+  ["Sales","sales","RFQs, quotations and customers","vced"],["Sales","so","Sales orders","vced"],["Sales","dc","Delivery challans","vced"],["Sales","inv","Tax invoices","vced"],["Sales","cn","Credit notes","vced"],
+  ["Production","prod","Production and job cards","vce"],["Admin","rep","Reports","v"],["Admin","mast","Masters (items, suppliers, plants)","ve"],["Admin","users","Users and rights","ve"]];
+const ACTS=[["v","view","View"],["c","create","Create"],["e","edit","Edit"],["d","delete","Delete"]];
+const APPROVALS=[["req.approve","Approve or send back purchase requests","For their own department"],["req.all","See all departments' requests","Approve any department if also allowed to approve"],["po.approve","Approve and sign POs","Their signature goes on the PO"],["sales.all","See all salespeople's enquiries","Otherwise only their own"]];
+const ALL_KEYS=[...MODS.flatMap(([,m,,a])=>ACTS.filter(([c])=>a.includes(c)).map(([,x])=>m+"."+x)),...APPROVALS.map(a=>a[0])];
+const LEG2NEW={"page.req":["req.view"],"req.create":["req.create","req.edit"],"page.est":["est.view"],"page.po":["po.view"],"page.saved":["po.view"],"page.rates":["rates.view"],
+  "po.create":["est.create","est.edit","po.create","po.edit","rates.edit"],"po.delete":["po.delete","est.delete"],"page.grn":["grn.view","rgp.view"],"grn.create":["grn.create","grn.edit"],"rgp.manage":["rgp.create","rgp.edit"],
+  "page.stock":["stock.view"],"stock.issue":["stock.create","stock.edit"],"page.acct":["acct.view","dn.view"],"acct.book":["acct.create","acct.edit","dn.create","dn.edit"],
+  "page.sales":["sales.view","so.view","dc.view","inv.view","cn.view"],"sales.edit":["sales.create","sales.edit","so.create","so.edit","dc.create","dc.edit","inv.create","inv.edit","cn.create","cn.edit"],
+  "page.prod":["prod.view"],"prod.edit":["prod.create","prod.edit"],"page.rep":["rep.view"],"page.mast":["mast.view","mast.edit"],"page.users":["users.view","users.edit"],"page.appr":[]};
+const legToNew=arr=>[...new Set(arr.flatMap(k=>LEG2NEW[k]||[k]))].filter(k=>ALL_KEYS.includes(k));
+const ROLE_RIGHTS_OLD={Requester:["page.req","req.create"],HOD:["page.req","req.create","req.approve"],Purchaser:["page.req","page.est","page.po","page.saved","page.rates","po.create"],
+ Approver:["page.po","page.saved","page.appr","page.rep","page.stock","page.sales","sales.all","page.prod","po.approve","po.delete"],Store:["page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.acct","acct.book"],Sales:["page.sales","sales.edit"],Production:["page.prod","prod.edit","page.stock"]};
+const ROLE_RIGHTS=Object.fromEntries(Object.entries(ROLE_RIGHTS_OLD).map(([r,a])=>[r,legToNew(a)]));ROLE_RIGHTS.Admin=ALL_KEYS.slice();
+const rightsOf=u=>{if(!u)return[];if(Array.isArray(u.rights))return u.rights.includes("v2")?u.rights.filter(k=>ALL_KEYS.includes(k)):legToNew(u.rights);return ROLE_RIGHTS[u.role]||[]};
+const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view"],"page.saved":["po.view"],"page.appr":["po.approve"],"page.rates":["rates.view"],"page.grn":["grn.view","rgp.view"],"page.stock":["stock.view"],"page.acct":["acct.view","dn.view"],
+  "page.sales":["sales.view","so.view","dc.view","inv.view","cn.view"],"page.prod":["prod.view"],"page.rep":["rep.view"],"page.mast":["mast.view"],"page.users":["users.view"],
+  "req.create":["req.create"],"po.create":["po.create","po.edit","est.create"],"grn.create":["grn.create"],"rgp.manage":["rgp.create","rgp.edit"],"stock.issue":["stock.create","stock.edit"],"acct.book":["acct.create","acct.edit"],
+  "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
+const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Requester","HOD","Purchaser","Admin"],est:["Purchaser","Admin"],po:["Purchaser","Approver","Admin"],saved:["Purchaser","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchaser","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||has("page."+(["so","dc","inv","cn"].includes(v)?"sales":v));
+const can=v=>v==="home"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
@@ -850,7 +870,7 @@ function renderPO(){
   renderTotals();poControls();
 }
 function poControls(){
-  const st=po?po.status||"Draft":"";const editable=!!po&&["Draft","Sent back","Pending approval"].includes(st)&&has("po.create");
+  const st=po?po.status||"Draft":"";const editable=!!po&&["Draft","Sent back","Pending approval"].includes(st)&&(saved.some(x=>String(x.no)===String(po.no))?has("po.edit"):has("po.create"));
   const review=!!po&&st==="Pending approval"&&has("po.approve");
   $("#btn-save").hidden=!editable;$("#btn-send").hidden=!editable||st==="Pending approval";$("#btn-save").textContent=st==="Pending approval"?"Save changes":"Save draft";
   const inList=!!po&&saved.some(x=>String(x.no)===String(po.no));const hasGrn=!!po&&grns.some(g=>String(g.poNo)===String(po.no));
@@ -972,7 +992,7 @@ function renderReq(){
   $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
   if(!cur){$("#reqNone").innerHTML=`No purchase requests approved by an HOD yet. Approved requests appear here for purchase. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
   const r=cur;const mine=r.status==="Draft"||r.by===me.name||has("req.all");
-  const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&has("req.create"));
+  const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&(reqs.includes(r)?has("req.edit"):has("req.create")));
   const canApprove=r.status==="Submitted"&&has("req.approve")&&(has("req.all")||me.dept===r.dept);
   $("#reqBanner").hidden=!(r.status==="Sent back"&&r.comment);$("#reqBanner").className="banner back";$("#reqBanner").textContent=`Sent back by ${r.backBy||"HOD"}: ${r.comment||""}`;
   $("#reqTitle").textContent=r.status==="Draft"?"New purchase request":`Purchase request ${r.no}`;
@@ -1623,17 +1643,22 @@ function renderRights(){
   $("#r-user").innerHTML=M.users.map((u,i)=>`<option value="${i}"${u===rUser?" selected":""}>${esc(u.name)} (${esc(u.role)})</option>`).join("");
   $("#r-badge").innerHTML=rUser.rights?`<span class="chip sugg">Custom rights</span>`:`<span class="chip calc">${esc(rUser.role)} defaults</span>`;
   $("#btn-r-reset").disabled=!rUser.rights;
-  const mine=rightsOf(rUser);
-  $("#rightsBox").innerHTML=["Pages","Actions"].map(g=>`<h3 class="rg">${g==="Pages"?"Pages they can open":"What they can do"}</h3><div class="rgroup">${RIGHTS.filter(r=>r[0]===g).map(([,k,lab,hint])=>`<label><input type="checkbox" id="rt-${k.replace(".","-")}" data-right="${k}"${mine.includes(k)?" checked":""}><span>${esc(lab)}${hint?`<small>${esc(hint)}</small>`:""}</span></label>`).join("")}</div>`).join("");
+  const mine=new Set(rightsOf(rUser));let g0="";
+  $("#rightsBox").innerHTML=`<div class="tablebox"><table class="mt rmx" style="min-width:560px;max-width:820px"><thead><tr><th>Module</th>${ACTS.map(([,,l])=>`<th class="num">${l}</th>`).join("")}<th class="num">All</th></tr></thead><tbody>${MODS.map(([g,m,lab,a])=>{const head=g!==g0?`<tr><td colspan="6" class="rg" style="padding-top:12px"><b>${g}</b></td></tr>`:"";g0=g;
+    return head+`<tr><td>${esc(lab)}</td>${ACTS.map(([c,x])=>a.includes(c)?`<td class="num"><input type="checkbox" id="rt-${m}-${x}" data-right="${m}.${x}" aria-label="${esc(lab)} ${x}"${mine.has(m+"."+x)?" checked":""}></td>`:`<td class="num note">–</td>`).join("")}<td class="num"><input type="checkbox" data-rowall="${m}" aria-label="All rights for ${esc(lab)}"${ACTS.filter(([c])=>a.includes(c)).every(([,x])=>mine.has(m+"."+x))?" checked":""}></td></tr>`}).join("")}</tbody></table></div>
+  <div class="note">Create also lets them save the new document. Edit is for changing documents already saved. Ticking Create, Edit or Delete also ticks View.</div>
+  <h3 class="rg">Approvals</h3><div class="rgroup">${APPROVALS.map(([k,lab,hint])=>`<label><input type="checkbox" id="rt-${k.replace(".","-")}" data-right="${k}"${mine.has(k)?" checked":""}><span>${esc(lab)}<small>${esc(hint)}</small></span></label>`).join("")}</div>`;
 }
 $("#r-user").onchange=e=>{rUser=M.users[+e.target.value];renderRights()};
-$("#rightsBox").addEventListener("change",e=>{const k=e.target.dataset.right;if(!k)return;
-  if(rUser===me&&k==="page.users"&&!e.target.checked){e.target.checked=true;toast("You cannot remove your own access to this page");return}
-  const set=new Set(rightsOf(rUser));e.target.checked?set.add(k):set.delete(k);
-  const def=ROLE_RIGHTS[rUser.role]||[];const arr=RIGHTS.map(r=>r[1]).filter(x=>set.has(x));
-  rUser.rights=(arr.length===def.length&&def.every(x=>set.has(x)))?undefined:arr;if(!rUser.rights)delete rUser.rights;
+$("#rightsBox").addEventListener("change",e=>{const k=e.target.dataset.right,row=e.target.dataset.rowall;if(!k&&!row)return;
+  const set=new Set(rightsOf(rUser));
+  if(row){const md=MODS.find(x=>x[1]===row);ACTS.filter(([c])=>md[3].includes(c)).forEach(([,x])=>e.target.checked?set.add(row+"."+x):set.delete(row+"."+x))}
+  else{const [m,x]=k.split(".");if(e.target.checked){set.add(k);if(x!=="view"&&ALL_KEYS.includes(m+".view"))set.add(m+".view")}else{set.delete(k);if(x==="view")ACTS.forEach(([,y])=>set.delete(m+"."+y))}}
+  if(rUser===me&&!set.has("users.edit")){toast("You cannot remove your own access to Users and rights");renderRights();return}
+  const arr=ALL_KEYS.filter(x=>set.has(x));const def=ROLE_RIGHTS[rUser.role]||[];
+  if(arr.length===def.length&&def.every(x=>set.has(x)))delete rUser.rights;else rUser.rights=[...arr,"v2",...(set.has("users.edit")?["page.users"]:[])];
   saveM();renderRights();if(rUser===me)views.forEach(v=>$("#tab-"+v).hidden=!can(v));toast(`Rights updated for ${rUser.name}`)});
-$("#btn-r-reset").onclick=()=>{if(!rUser)return;if(rUser===me&&!(ROLE_RIGHTS[me.role]||[]).includes("page.users")){toast("Resetting would remove your own access to this page");return}delete rUser.rights;saveM();renderRights();if(rUser===me)views.forEach(v=>$("#tab-"+v).hidden=!can(v));toast(`${rUser.name} is back on ${rUser.role} defaults`)};
+$("#btn-r-reset").onclick=()=>{if(!rUser)return;if(rUser===me&&!(ROLE_RIGHTS[me.role]||[]).includes("users.edit")){toast("Resetting would remove your own access to this page");return}delete rUser.rights;saveM();renderRights();if(rUser===me)views.forEach(v=>$("#tab-"+v).hidden=!can(v));toast(`${rUser.name} is back on ${rUser.role} defaults`)};
 function refreshWho(){
   $("#who").innerHTML=M.users.map(u=>`<option value="${esc(u.name)}"${me&&u.name===me.name?" selected":""}>${esc(u.name)} (${esc(u.role)})</option>`).join("");
 }
@@ -1819,7 +1844,7 @@ function salesTiles(){const D=deals.filter(myDeal),t=today(),mo=t.slice(0,7),d90
     {n:av?Math.round(wv*100/av)+"%":"-",t:"Win rate",d:"Last 90 days, by value",zero:!av},
     {n:sorders.filter(s=>["Open","Part dispatched"].includes(soStatus(s))).length,t:"Orders to dispatch",d:"Sales orders not fully sent"},
     {n:fmtL(invoices.reduce((a,x)=>a+invDue(x),0)),t:"To collect",d:"Invoices not fully paid"}]}
-function renderSales(){
+function renderSales(){{const b=$("#btn-deal-new");if(b)b.hidden=!has("sales.create")}
   if(!$("#view-sales")||$("#view-sales").hidden)return;
   $("#salesTiles").innerHTML=salesTiles().map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("");
   const os=$("#sb-owner"),ov=os.value;os.hidden=!seeAllSales();
@@ -1838,13 +1863,13 @@ function renderSales(){
 $("#sb-owner").onchange=()=>renderSales();$("#sb-q").oninput=()=>renderSales();
 $("#sb-board").addEventListener("click",e=>{const b=e.target.closest("[data-deal]");if(!b)return;openDeal(b.dataset.deal)});
 function openDeal(no){const d=deals.find(x=>String(x.no)===String(no));if(!d)return;dealCur=JSON.parse(JSON.stringify(d));dealCur._new=false;renderDealForm();$("#dealForm").scrollIntoView({block:"start"})}
-$("#btn-deal-new").onclick=()=>{if(!has("sales.edit")){toast("You can view sales but not add enquiries");return}
+$("#btn-deal-new").onclick=()=>{if(!has("sales.create")){toast("You can view sales but not add enquiries");return}
   dealCur={_new:true,no:nextDealNo(),plant:defPlant(),date:today(),cust:"",title:"",stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:QT_TERMS,log:[]};renderDealForm();$("#dealForm").scrollIntoView({block:"start"});$("#dl-cust").focus()};
-function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.innerHTML="";return}F.hidden=false;const d=dealCur,ro=!has("sales.edit");
+function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.innerHTML="";return}F.hidden=false;const d=dealCur,ro=d._new?!has("sales.create"):!has("sales.edit");
   const owners=[...new Set([...salesOwners(),d.owner].filter(Boolean))];const tot=(d.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0);
   const my=fups.filter(f=>String(f.deal)===String(d.no)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   F.innerHTML=`<div class="row"><h2 class="sec">${d._new?"New RFQ / enquiry":"RFQ"} RFQ-${esc(d.no)} · Quotation QT-${esc(d.no)}${+d.rev?" R"+d.rev:""}</h2>${d._new?"":`<span class="chip ${d.stage==="Won"?"st-PO":d.stage==="Lost"?"st-Back":"sugg"}">${esc(d.stage)}</span>`}<span style="flex:1"></span>
-    ${d._new?"":`<button class="btn" id="dl-pdf" type="button">Quotation PDF</button>`}${!d._new&&has("sales.edit")?`<button class="btn" id="dl-so" type="button">${d.so?"Open sales order":"Make sales order"}</button>`:""}${!d._new&&!ro&&(isRole("Admin")||d.owner===me.name)?`<button class="btn" id="dl-del" type="button">Delete</button>`:""}<button class="btn" id="dl-close" type="button">Close</button>${ro?"":`<button class="btn primary" id="dl-save" type="button">Save</button>`}</div>
+    ${d._new?"":`<button class="btn" id="dl-pdf" type="button">Quotation PDF</button>`}${!d._new&&(d.so?has("so.view"):has("so.create"))?`<button class="btn" id="dl-so" type="button">${d.so?"Open sales order":"Make sales order"}</button>`:""}${!d._new&&has("sales.delete")?`<button class="btn" id="dl-del" type="button">Delete</button>`:""}<button class="btn" id="dl-close" type="button">Close</button>${ro?"":`<button class="btn primary" id="dl-save" type="button">Save</button>`}</div>
   <div class="grid-fields">
     <label class="f">Customer<input id="dl-cust" list="custnames" value="${esc(d.cust)}" placeholder="Type or pick a customer"></label>
     <label class="f">Enquiry for<input id="dl-title" value="${esc(d.title)}" placeholder="e.g. Door trim mould, 2 cavity"></label>
@@ -1929,7 +1954,7 @@ function renderCusts(){const q=key($("#cu-q").value),y=today().slice(0,4);const 
   const last=n=>{let a="";deals.filter(d=>key(d.cust)===key(n)).forEach(d=>(d.log||[]).forEach(l=>{if(l.at>a)a=l.at}));fups.filter(f=>f.done&&key(f.cust)===key(n)).forEach(f=>{if(f.doneAt>a)a=f.doneAt});return a};
   $("#cu-body").innerHTML=L.slice(0,200).map(([c,i])=>{const D=deals.filter(d=>key(d.cust)===key(c.name)),lc=last(c.name);
     return`<tr data-ci="${i}"><td><input id="cu${i}-n" data-cf="name" value="${esc(c.name)}" style="font-weight:600;min-width:180px"></td><td><input id="cu${i}-c" data-cf="contact" value="${esc(c.contact)}" style="min-width:130px"></td><td><input id="cu${i}-p" data-cf="phone" value="${esc(c.phone)}" style="width:120px"></td><td><input id="cu${i}-e" data-cf="email" value="${esc(c.email)}" style="min-width:170px"></td><td><input id="cu${i}-t" data-cf="city" value="${esc(c.city)}" style="width:110px"></td><td><input id="cu${i}-z" data-cf="pin" value="${esc(c.pin)}" style="width:80px"></td><td><input id="cu${i}-g" data-cf="gstin" value="${esc(c.gstin)}" style="font-family:var(--mono);width:150px"></td><td><input id="cu${i}-a" data-cf="addr" value="${esc((c.addr||"").replace(/\n/g,", "))}" style="min-width:200px"></td>
-      <td class="num">${D.filter(d=>!["Won","Lost"].includes(d.stage)).length}</td><td class="num" style="white-space:nowrap">${fmtL(D.filter(d=>d.stage==="Won"&&(d.closedAt||"").startsWith(y)).reduce((a,d)=>a+dealVal(d),0))}</td><td>${lc?dmy(lc.slice(0,10)):"-"}</td><td>${has("sales.edit")?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="12" class="empty">${customers.length?"No customer matches.":"No customers yet. Add them above or import your customer list from Excel."}</td></tr>`;
+      <td class="num">${D.filter(d=>!["Won","Lost"].includes(d.stage)).length}</td><td class="num" style="white-space:nowrap">${fmtL(D.filter(d=>d.stage==="Won"&&(d.closedAt||"").startsWith(y)).reduce((a,d)=>a+dealVal(d),0))}</td><td>${lc?dmy(lc.slice(0,10)):"-"}</td><td>${has("sales.delete")?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="12" class="empty">${customers.length?"No customer matches.":"No customers yet. Add them above or import your customer list from Excel."}</td></tr>`;
   if(!has("sales.edit"))$("#cu-body").querySelectorAll("input").forEach(x=>x.disabled=true)}
 $("#cu-q").oninput=()=>renderCusts();
 $("#cu-body").addEventListener("change",e=>{const f=e.target.dataset.cf,tr=e.target.closest("tr");if(!f||!tr)return;const c=customers[+tr.dataset.ci],v=e.target.value.trim(),old=c.name;
@@ -2034,7 +2059,7 @@ function sdNew(t,extra){const pl=(extra&&extra.plant)||defPlant();const c={so:{n
   dc:{no:nextDC(),date:today(),cust:"",so:"",job:"",vehicle:"",transporter:"",lr:"",remark:"",lines:[]},
   inv:{fy:fyOf(today()),no:nextInvNo(fyOf(today()),pl),date:today(),cust:"",so:"",dc:[],custPO:"",custPODate:"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:salesCfg().invTerms,lines:[],rcpts:[],irn:"",ackNo:"",ackDt:"",qr:""}}[t];
   return Object.assign(c,{by:me.name,plant:pl},extra||{})}
-document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has("sales.edit")){toast("You can view but not create sales documents");return}const t=b.dataset.sdnew;sdOpen(t,sdNew(t,{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true)});
+document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has(b.dataset.sdnew+".create")){toast("You can view but not create sales documents");return}const t=b.dataset.sdnew;sdOpen(t,sdNew(t,{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true)});
 function sdFromDeal(d){const o=sorders.find(s=>String(s.deal)===String(d.no));if(o){sdOpen("so",o,false);toast(`${sdNo("so",o)} already made for this quotation`);return}
   sdOpen("so",sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:d.no,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
 function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.no,i):billQ(s.no,i);const q=+((+l.qty||0)-done).toFixed(3);return{i,desc:l.desc,hsn:l.hsn,qty:q>0?q:0,unit:l.unit,rate:l.rate,ord:+l.qty||0,done}}).filter(l=>l.qty>0);
@@ -2043,7 +2068,7 @@ function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.n
 function sdFromDC(d){if(d.inv){const v=invoices.find(x=>sdId("inv",x)===d.inv);if(v){sdOpen("inv",v,false);toast(`Already billed on ${invNo(v)}`);return}}
   const s=sorders.find(x=>String(x.no)===String(d.so));
   sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,so:d.so||"",dc:[d.no],custPO:s?s.custPO:"",custPODate:s?s.custPODate:"",vehicle:d.vehicle,gst:s?s.gst:18,lines:d.lines.map(l=>({i:l.i,desc:l.desc,hsn:l.hsn,qty:+l.qty,unit:l.unit,rate:s&&l.i!=null&&s.lines[l.i]?s.lines[l.i].rate:l.rate}))}),true)}
-function renderSDList(t){const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>!q||key(sdNo(t,x)+" "+x.cust+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
+function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>!q||key(sdNo(t,x)+" "+x.cust+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
   if(t==="inv"){const due=invoices.reduce((a,x)=>a+invDue(x),0),mo=today().slice(0,7),thisM=invoices.filter(x=>x.date.slice(0,7)===mo).reduce((a,x)=>a+invTot(x),0),od=invoices.filter(x=>invDue(x)>0.5&&x.date<addDays(today(),-60)).reduce((a,x)=>a+invDue(x),0);
     $("#inv-tiles").innerHTML=[{n:fmtL(thisM),t:"Billed this month",d:"Including GST"},{n:fmtL(due),t:"To collect",d:"Invoices not fully paid",zero:!due},{n:fmtL(od),t:"Over 60 days",d:"Follow up for payment",warn:od>0,zero:!od}].map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("")}
   const row=x=>{if(t==="so"){const st=soStatus(x);return`<b style="font-family:var(--mono)">${sdNo(t,x)}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.cust)}${x.custPO?" · PO "+esc(x.custPO):""}${x.job?" · Job "+esc(x.job):""}<br><span class="note">${dmy(x.date)}${x.due?" · Delivery "+dmy(x.due):""}</span></span><span><span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span></span><span class="num">₹ ${fmt0(sdSub(x))}</span>`}
@@ -2055,7 +2080,7 @@ function renderSDList(t){const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr()
     if(o){sdOpen(t,x,false)}else savePDF(sdDoc(t,x),`${SD[t].name.replace(/ /g,"-")}-${sdNo(t,x).replace(/\//g,"-")}.pdf`)})});
 function renderSD(t){renderSDList(t);renderSDForm()}
 function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if(!sdCur||sdCur.t!==t){F.hidden=true;F.innerHTML="";return}});if(!sdCur)return;
-  const {t,rec:x,isNew}=sdCur,F=$(`#${t}-form`),ro=!has("sales.edit");F.hidden=false;const link=t!=="so"&&x.so;
+  const {t,rec:x,isNew}=sdCur,F=$(`#${t}-form`),ro=isNew?!has(t+".create"):!has(t+".edit");F.hidden=false;const link=t!=="so"&&x.so;
   const fld=(k,lab,type,extra)=>`<label class="f">${lab}<input id="sd-${k}" data-sf="${k}"${type?` type="${type}"`:""} value="${esc(x[k]??"")}"${extra||""}></label>`;
   const plS=`<label class="f">Plant<select id="sd-plant" data-sf="plant"${t==="inv"&&!isNew?" disabled title=\"Invoice number already given for this plant\"":""}>${plantOpts(x.plant)}</select></label>`;
   const head0={so:fld("cust","Customer","",` list="custnames"`)+fld("date","Order date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("job","Job No.","",` list="projects"`)+fld("due","Delivery date","date"),
@@ -2066,8 +2091,8 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   const sdT=t==="dc"?sdSub(x):invCalc(x).grand;
   const so=t==="so"&&!isNew?x:null,st=so?soStatus(so):"";
   F.innerHTML=`<div class="row"><h2 class="sec">${SD[t].name} · ${esc(sdNo(t,x))}</h2>${st?`<span class="chip sugg">${st}</span>`:""}<span style="flex:1"></span>
-    ${!isNew&&t==="so"&&x.job&&can("prod")?`<button class="btn" type="button" id="sd-job">Job card</button>`:""}${!isNew&&t==="so"&&!ro?`<button class="btn" type="button" id="sd-mkdc">Make challan</button><button class="btn" type="button" id="sd-mkinv">Make invoice</button>`:""}${!isNew&&t==="dc"&&!ro?`<button class="btn" type="button" id="sd-mkinv">${x.inv?"Open invoice":"Make invoice"}</button>`:""}
-    ${!isNew&&t==="inv"?`<button class="btn" type="button" id="sd-json">E-invoice JSON</button>`:""}${!isNew&&t==="inv"&&has("sales.edit")?`<button class="btn" type="button" id="sd-mkcn">Credit note</button>`:""}${isNew?"":`<button class="btn" type="button" id="sd-pdf">PDF</button>`}${!isNew&&isRole("Admin")?`<button class="btn" type="button" id="sd-del">Delete</button>`:""}<button class="btn" type="button" id="sd-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="sd-save">${isNew?"Save":"Save changes"}</button>`}</div>
+    ${!isNew&&t==="so"&&x.job&&can("prod")?`<button class="btn" type="button" id="sd-job">Job card</button>`:""}${!isNew&&t==="so"&&!ro?`${has("dc.create")?`<button class="btn" type="button" id="sd-mkdc">Make challan</button>`:""}${has("inv.create")?`<button class="btn" type="button" id="sd-mkinv">Make invoice</button>`:""}`:""}${!isNew&&t==="dc"&&!ro?`<button class="btn" type="button" id="sd-mkinv">${x.inv?"Open invoice":"Make invoice"}</button>`:""}
+    ${!isNew&&t==="inv"?`<button class="btn" type="button" id="sd-json">E-invoice JSON</button>`:""}${!isNew&&t==="inv"&&has("cn.create")?`<button class="btn" type="button" id="sd-mkcn">Credit note</button>`:""}${isNew?"":`<button class="btn" type="button" id="sd-pdf">PDF</button>`}${!isNew&&has(t+".delete")?`<button class="btn" type="button" id="sd-del">Delete</button>`:""}<button class="btn" type="button" id="sd-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="sd-save">${isNew?"Save":"Save changes"}</button>`}</div>
   <div class="grid-fields">${head}</div>${lines}
   <div class="row">${ro||link?"":`<button class="btn" type="button" id="sd-addline">+ Add line</button>`}${t!=="dc"?`<label class="f" style="flex-direction:row;align-items:center;gap:6px">GST %<select id="sd-gst" data-sf="gst" style="width:auto">${[18,12,5,28,0].map(g=>`<option${+x.gst===g?" selected":""}>${g}</option>`).join("")}</select></label>`:""}<span style="flex:1"></span>
     <span class="total"><span>${t==="dc"?"Value":"Total with GST"}</span><b id="sd-tot">${fmt(sdT)}</b></span></div>
@@ -2226,19 +2251,19 @@ function ntNew(t,extra){return Object.assign(t==="dn"?{no:nextDN(),date:today(),
 function ntFromGRN(g,why){const rej=g.lines.some(l=>+l.rej>0);why=why||(rej?"Rejected at GRN":"Returned after acceptance");const R=why==="Rejected at GRN";ntCur={t:"dn",isNew:true,rec:ntNew("dn",{plant:g.plant||defPlant(),party:g.sup,grn:g.no,reason:why,_rs:!!arguments[1],
   lines:g.lines.map(l=>({desc:l.desc,hsn:l.hsn||"",qty:R?(+l.rej||0):0,unit:l.unit,rate:r2(lineNet(l)),tax:+l.tax||18})).filter(l=>!R||l.qty>0)})};show("acct");renderNoteForm();$("#dnForm").scrollIntoView({block:"start"})}
 function ntFromInv(v){ntCur={t:"cn",isNew:true,rec:ntNew("cn",{plant:v.plant||defPlant(),party:v.cust,inv:ntInvId(v),lines:v.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:0,unit:l.unit,rate:r2((+l.rate||0)*(1-(+l.dis||0)/100)),tax:l.tax===""||l.tax==null?+v.gst:+l.tax}))})};show("cn");renderNoteForm();$("#cnForm").scrollIntoView({block:"start"})}
-function renderNotes(t){const A=NT[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)),box=$(t==="dn"?"#dnList":"#cnList");if(!box)return;
+function renderNotes(t){{const pn=($(t==="dn"?"#dnList":"#cnList")||{}).closest;const box0=$(t==="dn"?"#dnList":"#cnList");if(box0){box0.closest(".panel").hidden=!has(t+".view");const nb=$(t==="dn"?"#btn-dn-new":"#btn-cn-new");if(nb)nb.hidden=!has(t+".create")}}const A=NT[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)),box=$(t==="dn"?"#dnList":"#cnList");if(!box)return;
   box.innerHTML=A.slice(0,100).map(x=>{const k=ntCalc(t,x),ref=t==="dn"?(x.grn?"GRN "+x.grn:""):(x.inv?"Inv "+invNo(invoices.find(v=>ntInvId(v)===x.inv)||{fy:"",no:""}):"");
     return`<div class="listrow"><b style="font-family:var(--mono)">${esc(ntNo(t,x))}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.party)}${ref?" · "+esc(ref):""}<br><span class="note">${dmy(x.date)} · ${esc(x.reason)}</span></span><span>${t==="cn"?(x.irn?`<span class="chip calc">IRN</span>`:`<span class="chip sugg">IRN pending</span>`):x.reason==="Rejected at GRN"?`<span class="chip calc">For record</span>`:`<span class="chip sugg">Reduces payable</span>`}</span><span class="num">₹ ${fmt0(k.grand)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" type="button" data-ntopen="${esc(ntId(t,x))}">Open</button><button class="btn" type="button" data-ntpdf="${esc(ntId(t,x))}">PDF</button></span></div>`}).join("")||`<div class="empty">None yet.</div>`;
   renderNoteForm()}
 ["dn","cn"].forEach(t=>{const L=$(t==="dn"?"#dnList":"#cnList");L.addEventListener("click",e=>{const o=e.target.dataset.ntopen,p=e.target.dataset.ntpdf;const x=NT[t].arr().find(r=>ntId(t,r)===(o||p));if(!x)return;
   if(o){ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(x))};renderNoteForm();$(t==="dn"?"#dnForm":"#cnForm").scrollIntoView({block:"start"})}else savePDF(docNote(t,x),`${NT[t].name.replace(/ /g,"-")}-${ntNo(t,x).replace(/\//g,"-")}.pdf`)})});
-$("#btn-dn-new").onclick=()=>{if(!has("acct.book")){toast("Only accounts can make debit notes");return}ntCur={t:"dn",isNew:true,rec:ntNew("dn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
-$("#btn-cn-new").onclick=()=>{if(!has("sales.edit")){toast("You can view but not make credit notes");return}ntCur={t:"cn",isNew:true,rec:ntNew("cn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
+$("#btn-dn-new").onclick=()=>{if(!has("dn.create")){toast("Only accounts can make debit notes");return}ntCur={t:"dn",isNew:true,rec:ntNew("dn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
+$("#btn-cn-new").onclick=()=>{if(!has("cn.create")){toast("You can view but not make credit notes");return}ntCur={t:"cn",isNew:true,rec:ntNew("cn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
 function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"#cnForm");if(!ntCur||ntCur.t!==t){F.hidden=true;F.innerHTML=""}});if(!ntCur)return;
-  const {t,rec:x,isNew}=ntCur,F=$(t==="dn"?"#dnForm":"#cnForm"),k=ntCalc(t,x),ro=t==="dn"?!has("acct.book"):!has("sales.edit");F.hidden=false;
+  const {t,rec:x,isNew}=ntCur,F=$(t==="dn"?"#dnForm":"#cnForm"),k=ntCalc(t,x),ro=isNew?!has(t+".create"):!has(t+".edit");F.hidden=false;
   const refs=t==="dn"?grns.filter(g=>key(g.sup)===key(x.party)).map(g=>[String(g.no),`GRN ${g.no} · PO ${g.poNo} · ${dmy(g.date)}`]):invoices.filter(v=>key(v.cust)===key(x.party)).map(v=>[ntInvId(v),`${invNo(v)} · ${dmy(v.date)} · ₹ ${fmt0(invTot(v))}`]);
   const rk=t==="dn"?"grn":"inv";
-  F.innerHTML=`<div class="row"><h2 class="sec">${NT[t].name} · ${esc(ntNo(t,x))}</h2><span style="flex:1"></span>${!isNew&&t==="cn"?`<button class="btn" type="button" id="nt-json">E-invoice JSON</button>`:""}${isNew?"":`<button class="btn" type="button" id="nt-pdf">PDF</button>`}${!isNew&&isRole("Admin")?`<button class="btn" type="button" id="nt-del">Delete</button>`:""}<button class="btn" type="button" id="nt-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="nt-save">Save</button>`}</div>
+  F.innerHTML=`<div class="row"><h2 class="sec">${NT[t].name} · ${esc(ntNo(t,x))}</h2><span style="flex:1"></span>${!isNew&&t==="cn"?`<button class="btn" type="button" id="nt-json">E-invoice JSON</button>`:""}${isNew?"":`<button class="btn" type="button" id="nt-pdf">PDF</button>`}${!isNew&&has(t+".delete")?`<button class="btn" type="button" id="nt-del">Delete</button>`:""}<button class="btn" type="button" id="nt-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="nt-save">Save</button>`}</div>
   <div class="grid-fields"><label class="f">${t==="dn"?"Supplier":"Customer"}<input id="nt-party" data-nf="party" value="${esc(x.party)}" list="${t==="dn"?"suppliers":"custnames"}"></label><label class="f">Date<input id="nt-date" data-nf="date" type="date" value="${esc(x.date)}"></label><label class="f">Plant<select id="nt-plant" data-nf="plant">${plantOpts(x.plant)}</select></label>
   <label class="f">Against ${t==="dn"?"GRN":"invoice"}<select id="nt-ref" data-nf="${rk}"><option value="">Not linked</option>${refs.map(([v,l])=>`<option value="${esc(v)}"${String(x[rk])===v?" selected":""}>${esc(l)}</option>`).join("")}</select></label>
   <label class="f">Reason<select id="nt-reason" data-nf="reason">${(t==="dn"?DN_WHY:CN_WHY).map(r=>`<option${r===x.reason?" selected":""}>${r}</option>`).join("")}</select></label><label class="f">Remark<input id="nt-remark" data-nf="remark" value="${esc(x.remark)}"></label></div>
@@ -2394,8 +2419,8 @@ $("#pj-running").addEventListener("click",e=>{const n=e.target.dataset.jopen;if(
 function openJob(no){const j=jobs.find(x=>String(x.no)===String(no));if(!j)return;jobCur={rec:JSON.parse(JSON.stringify(j)),isNew:false};if($("#view-prod").hidden)show("prod");else renderJobForm();$("#jobForm").scrollIntoView({block:"start"})}
 function jobFor(no,extra){const j=jobs.find(x=>key(x.no)===key(no));if(j){openJob(j.no);return}
   jobCur={rec:Object.assign({no:String(no||"").toUpperCase(),cust:"",desc:"",so:"",start:today(),due:"",status:"Planned",ops:[],qc:[],log:[]},extra||{}),isNew:true};show("prod");$("#jobForm").scrollIntoView({block:"start"})}
-$("#btn-job-new").onclick=()=>{if(!has("prod.edit")){toast("You can view production but not create job cards");return}jobCur={rec:{no:"",cust:"",desc:"",so:"",start:today(),due:"",status:"Planned",ops:[],qc:[],log:[]},isNew:true};renderJobForm();$("#jobForm").scrollIntoView({block:"start"});$("#jb-no").focus()};
-function renderJobForm(){const F=$("#jobForm");if(!jobCur){F.hidden=true;F.innerHTML="";return}F.hidden=false;const j=jobCur.rec,isNew=jobCur.isNew,ro=!has("prod.edit"),MS=machines();
+$("#btn-job-new").onclick=()=>{if(!has("prod.create")){toast("You can view production but not create job cards");return}jobCur={rec:{no:"",cust:"",desc:"",so:"",start:today(),due:"",status:"Planned",ops:[],qc:[],log:[]},isNew:true};renderJobForm();$("#jobForm").scrollIntoView({block:"start"});$("#jb-no").focus()};
+function renderJobForm(){const F=$("#jobForm");if(!jobCur){F.hidden=true;F.innerHTML="";return}F.hidden=false;const j=jobCur.rec,isNew=jobCur.isNew,ro=jobCur.isNew?!has("prod.create"):!has("prod.edit"),MS=machines();
   const lab=jobLabour(j),pc=projCost().find(r=>key(r.job)===key(j.no))||{po:0,iss:0,ret:0};
   F.innerHTML=`<div class="row"><h2 class="sec">Job card · ${esc(j.no||"new")}</h2><span class="chip sugg">${esc(j.status)}</span><span class="note">${jobPct(j)}% done</span><span style="flex:1"></span>${isNew?"":`<button class="btn" type="button" id="jb-pdf">Job card PDF</button>`}<button class="btn" type="button" id="jb-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="jb-save">Save</button>`}</div>
   <div class="grid-fields"><label class="f">Job No.<input id="jb-no" data-jf="no" value="${esc(j.no)}" list="projects" ${isNew?"":"disabled"} placeholder="e.g. ZT2350"></label><label class="f">Customer<input id="jb-cust" data-jf="cust" value="${esc(j.cust)}" list="custnames"></label><label class="f">Mould / part<input id="jb-desc" data-jf="desc" value="${esc(j.desc)}"></label><label class="f">Sales order<input value="${j.so?"SO-"+esc(j.so):"-"}" disabled></label><label class="f">Start date<input id="jb-start" data-jf="start" type="date" value="${esc(j.start)}"></label><label class="f">Due date<input id="jb-due" data-jf="due" type="date" value="${esc(j.due)}"></label><label class="f">Status<select id="jb-status" data-jf="status">${JOB_ST.map(s=>`<option${s===j.status?" selected":""}>${s}</option>`).join("")}</select></label></div>
