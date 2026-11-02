@@ -233,6 +233,7 @@ body.gated header.bar,body.gated main{display:none}
     <button id="tab-so" data-view="so">Sales orders</button>
     <button id="tab-dc" data-view="dc">Delivery challans</button>
     <button id="tab-inv" data-view="inv">Tax invoices</button>
+    <button id="tab-cn" data-view="cn">Credit notes</button>
 </nav></header>
 
 <div id="gate" hidden></div>
@@ -243,6 +244,7 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-home" class="stack">
   <div class="row"><h2 class="sec" id="homeHello">Your work</h2><span class="note" id="homeDate"></span></div>
   <div class="cards" id="homeCards"></div>
+  <div class="panel stack" id="ownerPanel" hidden></div>
   <div class="panel stack" id="homeBackup" hidden></div>
   <div class="panel stack" id="homeFlow"><h2 class="sec">Purchase cycle at a glance</h2><div class="flow" id="flowBox"></div></div>
 </section>
@@ -380,6 +382,7 @@ body.gated header.bar,body.gated main{display:none}
 <!-- STOCK -->
 <section id="view-stock" class="stack" hidden>
   <div class="cards" id="stkCards"></div>
+  <div class="panel stack" id="reorderPanel"></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Stock register</h2><input id="stk-q" placeholder="Search item" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sl-open">Opening stock</button><button class="btn" id="btn-sl-ret">Return to store</button><button class="btn primary" id="btn-sl-issue">Issue material</button></div>
     <div class="note">Accepted GRN quantities come in automatically. Issues to a mould or project take stock out at the average rate; returns put it back.</div>
     <div class="tablebox" id="stkTable"></div></div>
@@ -398,6 +401,8 @@ body.gated header.bar,body.gated main{display:none}
     <div id="vendList"></div></div>
   <div class="panel stack" id="vendDetail" hidden></div>
   <div class="panel stack"><h2 class="sec">Booked and paid GRNs</h2><div id="acctDone"></div></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Debit notes to suppliers</h2><span style="flex:1"></span><button class="btn primary" type="button" id="btn-dn-new">+ Debit note</button></div><div class="note">For material rejected or returned, rate differences or short supply. Pick the GRN and the lines fill in. Returns after acceptance reduce what you owe and take the quantity out of stock.</div><div id="dnList"></div></div>
+  <div class="panel stack" id="dnForm" hidden></div>
 </section>
 
 <!-- REPORTS -->
@@ -410,6 +415,8 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack"><h2 class="sec">Supplier delivery</h2><div class="tablebox" id="repSup"></div></div>
   </div>
   <div class="panel stack"><h2 class="sec">Material cost by project</h2><div class="note">PO value ordered for the job (before GST) against material issued from store, less returns.</div><div class="tablebox" id="repProj"></div></div>
+  <div class="panel stack" id="jobCostPanel"></div>
+  <div class="panel stack" id="gstPanel"></div>
 </section>
 
 <!-- RATES -->
@@ -463,7 +470,7 @@ body.gated header.bar,body.gated main{display:none}
 <!-- SALES DOCUMENTS -->
 <section id="view-so" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Sales orders</h2><input id="so-q" placeholder="Search" style="max-width:220px"><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="so">+ New sales order</button></div><div class="note">Make a sales order from a won quotation (open it on the Sales page), or start one here. Challans and invoices are made from the order, so you can see what is still to dispatch and bill.</div><div id="so-list"></div></div><div class="panel stack" id="so-form" hidden></div></section>
 <section id="view-dc" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Delivery challans</h2><input id="dc-q" placeholder="Search" style="max-width:220px"><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="dc">+ New challan</button></div><div class="note">Open a sales order and press "Make challan" to send part or all of it. Pending quantity is tracked per line.</div><div id="dc-list"></div></div><div class="panel stack" id="dc-form" hidden></div></section>
-<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search" style="max-width:220px"><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Make the invoice from a challan or a sales order. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div></section>
+<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search" style="max-width:220px"><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Make the invoice from a challan or a sales order. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div><div class="panel stack" id="agePanel"></div></section>
 
 <!-- PRODUCTION -->
 <section id="view-prod" class="stack" hidden>
@@ -479,6 +486,7 @@ body.gated header.bar,body.gated main{display:none}
 </section>
 <datalist id="opnames"></datalist><datalist id="allusers"></datalist>
 
+<section id="view-cn" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Credit notes to customers</h2><span style="flex:1"></span><button class="btn primary" type="button" id="btn-cn-new">+ Credit note</button></div><div class="note">For sales returns, rate differences or discounts after billing. Open an invoice and press "Credit note" to fill the lines. Credit notes reduce what the customer owes and go into the e-invoice export.</div><div id="cnList"></div></div><div class="panel stack" id="cnForm" hidden></div></section>
 <!-- MASTERS -->
 <section id="view-mast" class="stack" hidden>
   <div class="note">These lists feed the drop-downs in the purchase request. Edit any cell directly. Set a project to Closed to hide it from new requests. Users are managed on the Users &amp; rights page.</div>
@@ -527,7 +535,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -554,14 +562,14 @@ async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pendi
     await cloudPull();cloudBadge(cloud.pending.size?"saving":errs.length?"error":"ok");if(cloud.pending.size)cloudSoon(200);
   }catch(e){cloud.busy=false;if(e.auth)return;batch.forEach(c=>{const kk=c.coll+"\u0001"+c.id;if(!cloud.pending.has(kk))cloud.pending.set(kk,c)});cloudBadge("offline");cloudSoon(15000)}}
 async function cloudRenumber(list){
-  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>nextDealNo(),sorders:()=>nextSO(),dchallans:()=>nextDC()};
+  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>nextDealNo(),sorders:()=>nextSO(),dchallans:()=>nextDC(),dnotes:()=>nextDN()};
   for(const c of list){const k=c.coll,arr=cloud.cache[k];const obj=arr.find(r=>SYNC[k].id(r)===c.id);if(!obj)continue;const old=obj.no;
-    delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):k==="invoices"?nextInvNo(obj.fy):nexts[k]();
+    delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):k==="invoices"?nextInvNo(obj.fy):k==="cnotes"?nextCN(obj.fy):nexts[k]();
     if(k==="saved"&&po&&String(po.no)===String(old)){po.no=obj.no;store.set("po",po)}
     if(k==="reqs"&&est&&est.reqNo===old){est.reqNo=obj.no;saveEst()}
     if(k==="sorders"){[dchallans,invoices].forEach(A=>A.forEach(r=>{if(String(r.so)===String(old))r.so=obj.no}));deals.forEach(d=>{if(String(d.so)===String(old))d.so=obj.no});store.set("dchallans",dchallans);store.set("invoices",invoices);saveDeals()}
     if(k==="dchallans"){invoices.forEach(v=>{if(v.dc)v.dc=v.dc.map(n=>String(n)===String(old)?obj.no:n)});store.set("invoices",invoices)}
-    if(k==="invoices"){dchallans.forEach(d=>{if(d.inv===c.id)d.inv=obj.fy+"-"+obj.no});store.set("dchallans",dchallans)}
+    if(k==="invoices"){cnotes.forEach(n=>{if(n.inv===c.id)n.inv=obj.fy+"-"+obj.no});store.set("cnotes",cnotes);dchallans.forEach(d=>{if(d.inv===c.id)d.inv=obj.fy+"-"+obj.no});store.set("dchallans",dchallans)}
     if(sdCur&&SD[sdCur.t].coll===k&&String(sdCur.rec.no)===String(old)){sdCur.rec.no=obj.no;renderSDForm()}
     if(k==="deals"){fups.forEach(f=>{if(String(f.deal)===String(old))f.deal=obj.no});saveFups();if(dealCur&&String(dealCur.no)===String(old)){dealCur.no=obj.no;renderDealForm()}}
     cloud.set(k,arr);toast(`Number ${old} was just used by another user, so this was saved as ${obj.no}`)}
@@ -580,7 +588,7 @@ function cloudRefresh(){
   if(me){const nm=me.name;const u=M.users.find(x=>x.name===nm);if(u&&u!==me){me=u;views.forEach(v=>$("#tab-"+v).hidden=!can(v))}}
   renderBadges();const v=views.find(x=>!$("#view-"+x).hidden);const a=document.activeElement;
   const busy=a&&a!==document.body&&a.matches&&a.matches("input,select,textarea")&&a.closest("main");
-  const forms=["#grnForm","#rgpForm","#slipForm","#acctDetail","#vendDetail","#dealForm","#jobForm","#so-form","#dc-form","#inv-form"].some(s=>$(s)&&!$(s).hidden);
+  const forms=["#grnForm","#rgpForm","#slipForm","#acctDetail","#vendDetail","#dealForm","#jobForm","#dnForm","#cnForm","#so-form","#dc-form","#inv-form"].some(s=>$(s)&&!$(s).hidden);
   if(busy||forms||["est","po"].includes(v)||(v==="req"&&cur&&["Draft","Sent back"].includes(cur.status)))return;
   const y=window.scrollY;show(v);window.scrollTo(0,y)}
 function cloudStart(){if(!CLOUD)return;cloudLoad(BOOT.data);
@@ -634,7 +642,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","rep","rates","mast","users"];
+const views=["home","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.approve","Approve or send back requests","For their own department"],["Actions","req.all","See all departments' requests","Approve any department if also allowed to approve"],
@@ -645,12 +653,12 @@ const ROLE_RIGHTS={Requester:["page.req","req.create"],HOD:["page.req","req.crea
 const rightsOf=u=>u?(u.rights||ROLE_RIGHTS[u.role]||[]):[];
 const has=r=>rightsOf(me).includes(r);
 const TABS={req:["Requester","HOD","Purchaser","Admin"],est:["Purchaser","Admin"],po:["Purchaser","Approver","Admin"],saved:["Purchaser","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchaser","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||has("page."+(["so","dc","inv"].includes(v)?"sales":v));
+const can=v=>v==="home"||has("page."+(["so","dc","inv","cn"].includes(v)?"sales":v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users")renderMasters();if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);syncGroups(v);window.scrollTo(0,0)}
-const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv"]};
+function show(v){if(!can(v))v=landing();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users")renderMasters();if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
+const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 function syncGroups(v){Object.keys(GROUPS).forEach(g=>{const M=GROUPS[g],any=M.some(x=>can(x)),on=M.includes(v);const b=$("#tab-"+g);b.hidden=!any;b.classList.toggle("grp-on",on);b.setAttribute("aria-expanded",on?"true":"false");$("#subnav-"+g).hidden=!on||!any;
   const old=b.querySelector(".badge");if(old)old.remove();const n=M.reduce((a,x)=>{const e=$("#tab-"+x).querySelector(".badge");return a+(e?+e.textContent||0:0)},0);if(n&&!on)b.insertAdjacentHTML("beforeend",`<span class="badge">${n}</span>`)})}
@@ -1195,11 +1203,12 @@ function movements(){
   const mv=[];
   grns.forEach(g=>g.lines.forEach(l=>{const q=(+l.recv||0)-(+l.rej||0);if(q>0)mv.push({date:g.date,t:g.createdAt||g.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:q,rate:lineNet(l),doc:"GRN "+g.no,type:"GRN",job:g.job,party:g.sup})}));
   slips.forEach(s=>s.lines.forEach(l=>mv.push({date:s.date,t:s.createdAt||s.date,k:l.k,desc:l.desc,unit:l.unit,qty:SLIP[s.type].sign*(+l.qty||0),rate:+l.rate||0,doc:SLIP[s.type].pre+s.no,type:s.type,job:s.job,party:s.to||""})));
+  dnotes.filter(d=>d.reason==="Returned after acceptance").forEach(d=>d.lines.forEach(l=>mv.push({date:d.date,t:d.createdAt||d.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:-(+l.qty||0),rate:+l.rate||0,doc:"DN-"+d.no,type:"DN",job:"",party:d.party})));
   return mv.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.t<b.t?-1:a.t>b.t?1:0));
 }
 function stockItems(){
   const m={};movements().forEach(v=>{const it=m[v.k]||(m[v.k]={k:v.k,desc:v.desc,unit:v.unit,recv:0,iss:0,ret:0,bal:0,inQ:0,inV:0});
-    if(v.type==="GRN"||v.type==="Opening"){it.recv+=v.qty;it.inQ+=v.qty;it.inV+=v.qty*v.rate}else if(v.type==="Issue")it.iss-=v.qty;else it.ret+=v.qty;it.bal+=v.qty});
+    if(v.type==="GRN"||v.type==="Opening"||v.type==="DN"){it.recv+=v.qty;it.inQ+=v.qty;it.inV+=v.qty*v.rate}else if(v.type==="Issue")it.iss-=v.qty;else it.ret+=v.qty;it.bal+=v.qty});
   return Object.values(m).map(it=>{it.avg=it.inQ?it.inV/it.inQ:0;it.value=Math.max(0,it.bal)*it.avg;it.loc=bins[it.k]||"";return it}).sort((a,b)=>a.desc.localeCompare(b.desc));
 }
 const nextSlip=t=>Math.max(SLIP[t].base,...slips.filter(s=>s.type===t).map(s=>+s.no||0))+1;
@@ -1374,8 +1383,10 @@ function backupBook(){
   add("Customers",customers.map(c=>({Customer:c.name,"Contact person":c.contact||"",Mobile:c.phone||"",Email:c.email||"",City:c.city||"",GSTIN:c.gstin||"",Address:c.addr||""})));
   add("Enquiries",deals.map(d=>({"QT No":"QT-"+d.no,Date:d.date,Customer:d.cust,"Enquiry for":d.title,Stage:d.stage,Salesperson:d.owner||"",Value:Math.round(dealVal(d)),"Customer PO":d.custPO||"","Job No":d.job||"","Lost reason":d.lostWhy||""})));
   add("Sales orders",sorders.map(x=>({"SO No":"SO-"+x.no,Date:x.date,Customer:x.cust,"Customer PO":x.custPO||"","Job No":x.job||"",Status:soStatus(x),Value:Math.round(sdSub(x))})));
-  add("Invoices",invoices.map(x=>({"Invoice No":invNo(x),Date:x.date,Customer:x.cust,"Before GST":Math.round(sdSub(x)+(+x.freight||0)),Total:Math.round(invTot(x)),Received:+x.recd||0,"To collect":Math.round(invDue(x))})));
+  add("Invoices",invoices.map(x=>({"Invoice No":invNo(x),Date:x.date,Customer:x.cust,"Before GST":Math.round(sdSub(x)+(+x.freight||0)),Total:Math.round(invTot(x)),Received:recdOf(x),"To collect":Math.round(invDue(x))})));
   add("Jobs",jobs.map(j=>({"Job No":j.no,Customer:j.cust||"",Part:j.desc||"",Status:j.status,"% done":jobPct(j),Due:j.due||"","Actual hours":(j.ops||[]).reduce((a,o)=>a+(+o.act||0),0),"Labour ₹":Math.round(jobLabour(j))})));
+  add("Debit notes",dnotes.map(d=>({"DN No":"DN-"+d.no,Date:d.date,Supplier:d.party,GRN:d.grn||"",Reason:d.reason,Total:ntCalc("dn",d).grand})));
+  add("Credit notes",cnotes.map(d=>({"CN No":ntNo("cn",d),Date:d.date,Customer:d.party,Reason:d.reason,Total:ntCalc("cn",d).grand,IRN:d.irn||""})));
   add("Stock",stockItems().map(i=>({Item:i.desc,Unit:i.unit,Location:i.loc,Received:i.recv,Issued:i.iss,Returned:i.ret,"In stock":i.bal,"Avg rate":Math.round(i.avg*100)/100,Value:Math.round(i.value*100)/100})));
   add("Issue slips",slips.flatMap(s=>s.lines.map(l=>({Slip:SLIP[s.type].pre+s.no,Type:s.type,Date:dmy(s.date),"Job No":s.job,Person:s.to,Item:l.desc,Qty:l.qty,Unit:l.unit,Rate:l.rate}))));
   add("Challans",rgps.map(c=>({No:"RC-"+c.no,Date:dmy(c.date),Party:c.party,Purpose:c.purpose,"Return by":dmy(c.expected),Status:c.status,Pending:rgpPend(c)})));
@@ -1407,8 +1418,8 @@ setInterval(()=>{if(!me)return;if(backupDue()){if(!inFrame&&!backupDue.busy){bac
 let acctSel=null,vendSel=null;
 let pays=store.get("pays",[]);const savePays=()=>store.set("pays",pays);
 const grnPaid=g=>pays.reduce((a,p)=>a+p.alloc.filter(x=>x.grn===g.no).reduce((b,x)=>b+x.amt,0),0);
-const grnBal=g=>Math.round((grnCalc(g).total-grnPaid(g))*100)/100;
-function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").forEach(g=>{const v=m[g.sup]||(m[g.sup]={sup:g.sup,booked:0,paid:0,overdue:0,due7:0});const b=grnBal(g);v.booked+=grnCalc(g).total;v.paid+=grnPaid(g);
+const grnBal=g=>Math.round((grnCalc(g).total-grnPaid(g)-dnAdj(g))*100)/100;
+function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").forEach(g=>{const v=m[g.sup]||(m[g.sup]={sup:g.sup,booked:0,paid:0,overdue:0,due7:0});const b=grnBal(g);v.booked+=grnCalc(g).total-dnAdj(g);v.paid+=grnPaid(g);
   const d=dueDate(g);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});return Object.values(m)}
 function addDays(iso,n){const t=new Date(iso);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
 function payChip(p){const gs=grns.filter(g=>String(g.poNo)===String(p.no)&&g.status!=="With accounts");if(!gs.length)return"";const bal=gs.reduce((a,g)=>a+grnBal(g),0),tot=gs.reduce((a,g)=>a+grnCalc(g).total,0);
@@ -1442,6 +1453,7 @@ function renderVend(){
   const D=$("#vendDetail");if(!vendSel){D.hidden=true;return}D.hidden=false;
   const open=grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts"&&grnBal(g)>0.004).sort((a,b)=>(dueDate(a)||"").localeCompare(dueDate(b)||""));
   const led=[];grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts").forEach(g=>led.push({d:g.bookedAt||g.date,t:`GRN ${g.no} booked (${g.voucher}) · PO ${g.poNo}`,cr:grnCalc(g).total,dr:0}));
+  dnotes.filter(d=>key(d.party)===key(vendSel)&&d.reason!=="Rejected at GRN").forEach(d=>led.push({d:d.date,t:`Debit note DN-${d.no} · ${d.reason}${d.grn?" · GRN "+d.grn:""}`,cr:0,dr:ntCalc("dn",d).grand}));
   pays.filter(p=>p.sup===vendSel).forEach(p=>led.push({d:p.date,t:`Payment ${p.no} · ${p.mode} ${p.ref} · GRN ${p.alloc.map(x=>x.grn).join(", ")}`,cr:0,dr:p.amount}));
   led.sort((a,b)=>a.d.localeCompare(b.d));let bal=0;
   D.innerHTML=`<div class="row"><h2 class="sec">${esc(vendSel)}</h2><span style="flex:1"></span><button class="btn" id="btn-v-close" type="button">Close</button></div>
@@ -1514,7 +1526,7 @@ function workItems(){
   if(has("page.prod")){const t=today(),A=jobs.filter(j=>j.status!=="Completed");add(A.filter(j=>j.due&&j.due<t).length,"Jobs past due date","Production behind plan","prod",true);add(A.filter(j=>j.status==="In progress"||j.status==="Trial").length,"Jobs in progress","Job cards on the shop floor","prod")}
   if(has("page.sales")){const t=today(),F=fups.filter(f=>!f.done&&myFup(f)&&f.date<=t);add(F.length,"Sales follow-ups due",F.some(f=>f.date<t)?"Some are overdue":"Calls and visits for today","sales",true);
     add(deals.filter(d=>myDeal(d)&&!["Won","Lost"].includes(d.stage)).length,"Open enquiries","Quote and follow up","sales")}
-  if(has("stock.issue")){const I=stockItems();W.push({n:I.filter(i=>i.bal>0.0001).length,t:"Items in stock",d:"Issue material against a Job No.",v:"stock"});W.push({n:"₹"+fmt0(Math.round(I.reduce((a,i)=>a+i.value,0))),t:"Stock value",d:"At average purchase rate",v:"stock"})}
+  if(has("stock.issue")){const I=stockItems();W.push({n:I.filter(i=>i.bal>0.0001).length,t:"Items in stock",d:"Issue material against a Job No.",v:"stock"});W.push({n:"₹"+fmt0(Math.round(I.reduce((a,i)=>a+i.value,0))),t:"Stock value",d:"At average purchase rate",v:"stock"});const lo=lowStock().length;W.push({n:lo,t:"Below minimum stock",d:"Raise a purchase request",v:"stock",warn:true})}
   if(has("acct.book")||has("page.acct")){const vs=vendSummary();
     add(grns.filter(g=>g.status==="With accounts").length,"GRNs to book","Enter voucher number","acct",true);
     const od=vs.reduce((a,v)=>a+v.overdue,0),d7=vs.reduce((a,v)=>a+v.due7,0),out=vs.reduce((a,v)=>a+v.booked-v.paid,0);
@@ -1903,12 +1915,12 @@ const sentQ=(so,i)=>dchallans.filter(d=>String(d.so)===String(so)).reduce((a,d)=
 const billQ=(so,i)=>invoices.filter(v=>String(v.so)===String(so)).reduce((a,v)=>a+v.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
 function soStatus(s){if(s.closed)return"Closed";const L=s.lines.map((l,i)=>({q:+l.qty||0,s:sentQ(s.no,i),b:billQ(s.no,i)}));
   if(L.every(x=>x.b>=x.q-1e-9))return"Billed";if(L.every(x=>x.s>=x.q-1e-9))return"Dispatched";if(L.some(x=>x.s>0||x.b>0))return"Part dispatched";return"Open"}
-const invDue=x=>Math.max(0,invTot(x)-(+x.recd||0));
+const invDue=x=>Math.max(0,invTot(x)-recdOf(x)-cnAdj(x));
 let sdCur=null;// {t, rec, isNew}
 function sdOpen(t,rec,isNew){sdCur={t,rec:JSON.parse(JSON.stringify(rec)),isNew};show(t);renderSDForm();$(`#${t}-form`).scrollIntoView({block:"start"})}
 function sdNew(t,extra){const c={so:{no:nextSO(),date:today(),cust:"",deal:"",custPO:"",custPODate:"",job:"",due:"",gst:18,terms:salesCfg().soTerms,lines:[]},
   dc:{no:nextDC(),date:today(),cust:"",so:"",job:"",vehicle:"",transporter:"",lr:"",remark:"",lines:[]},
-  inv:{fy:fyOf(today()),no:nextInvNo(fyOf(today())),date:today(),cust:"",so:"",dc:[],custPO:"",custPODate:"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:salesCfg().invTerms,lines:[],recd:"",recdDate:"",recdRef:"",irn:"",ackNo:"",ackDt:"",qr:""}}[t];
+  inv:{fy:fyOf(today()),no:nextInvNo(fyOf(today())),date:today(),cust:"",so:"",dc:[],custPO:"",custPODate:"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:salesCfg().invTerms,lines:[],rcpts:[],irn:"",ackNo:"",ackDt:"",qr:""}}[t];
   return Object.assign(c,{by:me.name},extra||{})}
 document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has("sales.edit")){toast("You can view but not create sales documents");return}const t=b.dataset.sdnew;sdOpen(t,sdNew(t,{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true)});
 function sdFromDeal(d){const o=sorders.find(s=>String(s.deal)===String(d.no));if(o){sdOpen("so",o,false);toast(`${sdNo("so",o)} already made for this quotation`);return}
@@ -1924,7 +1936,7 @@ function renderSDList(t){const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr()
     $("#inv-tiles").innerHTML=[{n:fmtL(thisM),t:"Billed this month",d:"Including GST"},{n:fmtL(due),t:"To collect",d:"Invoices not fully paid",zero:!due},{n:fmtL(od),t:"Over 60 days",d:"Follow up for payment",warn:od>0,zero:!od}].map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("")}
   const row=x=>{if(t==="so"){const st=soStatus(x);return`<b style="font-family:var(--mono)">${sdNo(t,x)}</b><span class="wide">${esc(x.cust)}${x.custPO?" · PO "+esc(x.custPO):""}${x.job?" · Job "+esc(x.job):""}<br><span class="note">${dmy(x.date)}${x.due?" · Delivery "+dmy(x.due):""}</span></span><span><span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span></span><span class="num">₹ ${fmt0(sdSub(x))}</span>`}
     if(t==="dc")return`<b style="font-family:var(--mono)">${sdNo(t,x)}</b><span class="wide">${esc(x.cust)}${x.so?" · SO-"+esc(x.so):""}${x.vehicle?" · "+esc(x.vehicle):""}<br><span class="note">${dmy(x.date)} · ${x.lines.length} item${x.lines.length===1?"":"s"}</span></span><span>${x.inv?`<span class="chip calc">Billed</span>`:`<span class="chip sugg">Not billed</span>`}</span><span class="num">₹ ${fmt0(sdSub(x))}</span>`;
-    const d=invDue(x);return`<b style="font-family:var(--mono)">${invNo(x)}</b><span class="wide">${esc(x.cust)}${x.dc&&x.dc.length?" · DC-"+x.dc.join(", DC-"):""}<br><span class="note">${dmy(x.date)}${x.custPO?" · PO "+esc(x.custPO):""}</span></span><span>${d<0.5?`<span class="chip calc">Paid</span>`:+x.recd?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irn?` <span class="chip calc">IRN</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}</span><span class="num">₹ ${fmt0(invTot(x))}</span>`};
+    const d=invDue(x);return`<b style="font-family:var(--mono)">${invNo(x)}</b><span class="wide">${esc(x.cust)}${x.dc&&x.dc.length?" · DC-"+x.dc.join(", DC-"):""}<br><span class="note">${dmy(x.date)}${x.custPO?" · PO "+esc(x.custPO):""}</span></span><span>${d<0.5?`<span class="chip calc">Paid</span>`:recdOf(x)?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irn?` <span class="chip calc">IRN</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}</span><span class="num">₹ ${fmt0(invTot(x))}</span>`};
   $(`#${t}-list`).innerHTML=A.slice(0,200).map(x=>`<div class="listrow">${row(x)}<span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" type="button" data-sdopen="${esc(sdId(t,x))}">Open</button><button class="btn" type="button" data-sdpdf="${esc(sdId(t,x))}">PDF</button></span></div>`).join("")||`<div class="empty">None yet.</div>`}
 ["so","dc","inv"].forEach(t=>{$(`#${t}-q`).oninput=()=>renderSDList(t);
   $(`#${t}-list`).addEventListener("click",e=>{const o=e.target.dataset.sdopen,p=e.target.dataset.sdpdf;const x=SD[t].arr().find(r=>sdId(t,r)===(o||p));if(!x)return;
@@ -1942,13 +1954,13 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   const so=t==="so"&&!isNew?x:null,st=so?soStatus(so):"";
   F.innerHTML=`<div class="row"><h2 class="sec">${SD[t].name} · ${esc(sdNo(t,x))}</h2>${st?`<span class="chip sugg">${st}</span>`:""}<span style="flex:1"></span>
     ${!isNew&&t==="so"&&x.job&&can("prod")?`<button class="btn" type="button" id="sd-job">Job card</button>`:""}${!isNew&&t==="so"&&!ro?`<button class="btn" type="button" id="sd-mkdc">Make challan</button><button class="btn" type="button" id="sd-mkinv">Make invoice</button>`:""}${!isNew&&t==="dc"&&!ro?`<button class="btn" type="button" id="sd-mkinv">${x.inv?"Open invoice":"Make invoice"}</button>`:""}
-    ${!isNew&&t==="inv"?`<button class="btn" type="button" id="sd-json">E-invoice JSON</button>`:""}${isNew?"":`<button class="btn" type="button" id="sd-pdf">PDF</button>`}${!isNew&&isRole("Admin")?`<button class="btn" type="button" id="sd-del">Delete</button>`:""}<button class="btn" type="button" id="sd-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="sd-save">${isNew?"Save":"Save changes"}</button>`}</div>
+    ${!isNew&&t==="inv"?`<button class="btn" type="button" id="sd-json">E-invoice JSON</button>`:""}${!isNew&&t==="inv"&&has("sales.edit")?`<button class="btn" type="button" id="sd-mkcn">Credit note</button>`:""}${isNew?"":`<button class="btn" type="button" id="sd-pdf">PDF</button>`}${!isNew&&isRole("Admin")?`<button class="btn" type="button" id="sd-del">Delete</button>`:""}<button class="btn" type="button" id="sd-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="sd-save">${isNew?"Save":"Save changes"}</button>`}</div>
   <div class="grid-fields">${head}</div>${lines}
   <div class="row">${ro||link?"":`<button class="btn" type="button" id="sd-addline">+ Add line</button>`}${t!=="dc"?`<label class="f" style="flex-direction:row;align-items:center;gap:6px">GST %<select id="sd-gst" data-sf="gst" style="width:auto">${[18,12,5,28,0].map(g=>`<option${+x.gst===g?" selected":""}>${g}</option>`).join("")}</select></label>`:""}<span style="flex:1"></span>
     <span class="total"><span>${t==="dc"?"Value":"Total with GST"}</span><b id="sd-tot">${fmt(sdT)}</b></span></div>
   ${t==="so"?`<label class="row" style="gap:8px"><input type="checkbox" id="sd-closed" data-sf="closed" style="width:auto"${x.closed?" checked":""}> Close this order (nothing more to dispatch or bill)</label>`:""}
   ${t!=="dc"?`<label class="f">Terms printed on the ${t==="so"?"order":"invoice"}<textarea id="sd-terms" data-sf="terms" rows="3">${esc(x.terms)}</textarea></label>`:""}
-  ${t==="inv"&&!isNew?`<div class="grid-fields"><label class="f">Payment received ₹<input id="sd-recd" data-sf="recd" type="number" step="any" value="${esc(x.recd)}"></label><label class="f">Received on<input id="sd-recdDate" data-sf="recdDate" type="date" value="${esc(x.recdDate)}"></label><label class="f">Cheque / UTR ref.<input id="sd-recdRef" data-sf="recdRef" value="${esc(x.recdRef)}"></label><label class="f">Still to collect<input value="₹ ${fmt(invDue(x))}" disabled></label></div>
+  ${t==="inv"&&!isNew?`<h3 class="sec" style="font-size:15px">Payments received</h3><div class="tablebox"><table class="mt" style="min-width:520px"><thead><tr><th>Date</th><th class="num">Amount ₹</th><th>Cheque / UTR ref.</th><th></th></tr></thead><tbody>${(x.rcpts=rcptsOf(x)).map((r,i)=>`<tr><td><input type="date" data-rc="${i}" data-rf="date" value="${esc(r.date||"")}"></td><td><input type="number" step="any" data-rc="${i}" data-rf="amt" value="${esc(r.amt)}" style="text-align:right"></td><td><input data-rc="${i}" data-rf="ref" value="${esc(r.ref||"")}"></td><td><button class="btn" type="button" data-rcdel="${i}" aria-label="Remove payment">✕</button></td></tr>`).join("")||`<tr><td colspan="4" class="note">No payment recorded yet.</td></tr>`}</tbody></table></div><div class="row"><button class="btn" type="button" id="sd-rc-add">+ Add payment</button><span style="flex:1"></span><span>Received <b>₹ ${fmt(recdOf(x))}</b> · Still to collect <b id="sd-baldue">₹ ${fmt(invDue(x))}</b></span></div>
   <h3 class="rg">E-invoice (IRN from the GST portal)</h3><div class="note">Press "E-invoice JSON", upload the file on the e-invoice portal, then import the portal's result file on the invoice list, or paste the details here. The IRN and QR code then print on the invoice.</div>
   <div class="grid-fields"><label class="f">IRN<input id="sd-irn" data-sf="irn" value="${esc(x.irn)}" style="font-family:var(--mono)"></label><label class="f">Ack No.<input id="sd-ackNo" data-sf="ackNo" value="${esc(x.ackNo)}"></label><label class="f">Ack date<input id="sd-ackDt" data-sf="ackDt" value="${esc(x.ackDt)}"></label></div><label class="f">Signed QR code<textarea id="sd-qr" data-sf="qr" rows="2" style="font-family:var(--mono);font-size:11px">${esc(x.qr)}</textarea></label>`:""}`;
   if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>el.disabled=true)}
@@ -1956,15 +1968,19 @@ function sdTotUpd(){const x=sdCur.rec,t=sdCur.t;$("#sd-tot").textContent=fmt(t==
 ["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);
   F.addEventListener("input",e=>{if(!sdCur)return;const el=e.target,x=sdCur.rec;
     if(el.dataset.sf){x[el.dataset.sf]=el.type==="checkbox"?el.checked:el.value;if(["gst","freight"].includes(el.dataset.sf))sdTotUpd();return}
+    if(el.dataset.rc!=null){const r=x.rcpts[+el.dataset.rc];r[el.dataset.rf]=el.dataset.rf==="amt"?(el.value===""?"":+el.value):el.value;const d=$("#sd-baldue");if(d)d.textContent="₹ "+fmt(invDue(x));return}
     const f=el.dataset.sl;if(!f)return;const tr=el.closest("tr"),l=x.lines[+tr.dataset.i];l[f]=["qty","rate","dis","tax"].includes(f)?(el.value===""?"":+el.value):el.value;tr.querySelector("[data-amt]").textContent=fmt(lnAmt(l));sdTotUpd()});
   F.addEventListener("change",e=>{if(!sdCur)return;const el=e.target,x=sdCur.rec;
     if(el.dataset.sf==="cust"){const c=custByName(el.value);if(c){x.cust=c.name;el.value=c.name}}
     if(el.dataset.sl==="desc"){const l=x.lines[+el.closest("tr").dataset.i],it=itemByName(l.desc);if(it){l.desc=it.name;if(it.hsn)l.hsn=it.hsn;if(it.unit)l.unit=it.unit;if(!l.rate&&+it.rate)l.rate=+it.rate;renderSDForm()}}});
   F.addEventListener("click",e=>{if(!sdCur)return;const id=e.target.id,x=sdCur.rec;
     if(id==="sd-close"){sdCur=null;renderSDForm();return}
+    if(id==="sd-rc-add"){x.rcpts=rcptsOf(x);x.rcpts.push({date:today(),amt:Math.round(invDue(x)*100)/100||"",ref:""});x.recd="";renderSDForm();return}
+    const rd=e.target.closest("[data-rcdel]");if(rd){x.rcpts.splice(+rd.dataset.rcdel,1);renderSDForm();return}
     if(id==="sd-addline"){x.lines.push({desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""});renderSDForm();$(`#sl${x.lines.length-1}d`).focus();return}
     if(e.target.dataset.sldel!=null){x.lines.splice(+e.target.dataset.sldel,1);renderSDForm();return}
     if(id==="sd-pdf"){savePDF(sdDoc(t,x),`${SD[t].name.replace(/ /g,"-")}-${sdNo(t,x).replace(/\//g,"-")}.pdf`);return}
+    if(id==="sd-mkcn"){ntFromInv(x);return}
     if(id==="sd-json"){einvExport([x],`einvoice-${invNo(x).replace(/\//g,"-")}.json`);return}
     if(id==="sd-job"){jobFor(x.job,{cust:x.cust,desc:(x.lines[0]||{}).desc||"",so:x.no,due:x.due||""});return}
     if(id==="sd-mkdc"){sdFromSO("dc",x);return}
@@ -2036,10 +2052,11 @@ function einvCheck(x){const P=[],c=custByName(x.cust)||{},cfg=salesCfg(),no=invN
 async function einvExport(list,fname){const bad=[];list.forEach(x=>{const p=einvCheck(x);if(p.length)bad.push(invNo(x)+": "+p.join("; "))});
   if(bad.length){alert("Fix these before exporting the e-invoice JSON:\n\n"+bad.slice(0,15).join("\n")+(bad.length>15?`\n…and ${bad.length-15} more`:""));return}
   const blob=new Blob([JSON.stringify(list.map(einvJSON),null,2)],{type:"application/json"});if(await deliver(blob,fname))toast(`Saved ${fname} with ${list.length} invoice${list.length===1?"":"s"}. Upload it on the e-invoice portal (Bulk upload).`)}
-$("#btn-einv-bulk").onclick=()=>{const L=invoices.filter(x=>!x.irn&&!x.cancelled&&(custByName(x.cust)||{}).gstin);
-  if(!L.length){toast("All invoices to registered customers already have an IRN");return}
-  if(!confirm(`Export ${L.length} invoice${L.length===1?"":"s"} without an IRN (${L.slice(0,6).map(invNo).join(", ")}${L.length>6?"…":""}) as one e-invoice JSON file?`))return;
-  einvExport(L,`einvoice-${today()}-${L.length}.json`)};
+$("#btn-einv-bulk").onclick=()=>{const L=invoices.filter(x=>!x.irn&&!x.cancelled&&(custByName(x.cust)||{}).gstin),C=cnotes.filter(x=>!x.irn&&(custByName(x.party)||{}).gstin);
+  if(!L.length&&!C.length){toast("All invoices and credit notes to registered customers already have an IRN");return}
+  const names=[...L.map(invNo),...C.map(n=>ntNo("cn",n))];
+  if(!confirm(`Export ${names.length} document${names.length===1?"":"s"} without an IRN (${names.slice(0,6).join(", ")}${names.length>6?"…":""}) as one e-invoice JSON file?`))return;
+  einvExportMixed(L,C,`einvoice-${today()}-${names.length}.json`)};
 /* IRN import from the portal's response (JSON or Excel) */
 $("#btn-irn-imp").onclick=()=>$("#irn-file").click();
 $("#irn-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;const found=[];const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -2047,8 +2064,8 @@ $("#irn-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if
     const irn=g("irn"),no=g("docno","documentno","documentnumber","invoiceno","invoicenumber","docnum")||(o.DocDtls&&o.DocDtls.No)||"";if(irn&&String(irn).length>=60)found.push({no:String(no),irn:String(irn),ack:String(g("ackno","acknowledgementno","acknowledgementnumber")),ackDt:String(g("ackdt","ackdate","acknowledgementdate")),qr:String(g("signedqrcode","qrcode","signedqr"))})};
   const walk=v=>{if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==="object"){take(v);Object.values(v).forEach(x=>{if(x&&typeof x==="object")walk(x)})}};
   try{if(/\.json$/i.test(f.name))walk(JSON.parse(await f.text()));else{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});wb.SheetNames.forEach(sn=>walk(XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:"",raw:false})))}}catch(err){toast("Could not read that file");return}
-  let n=0;const miss=[];found.forEach(r=>{const v=invoices.find(x=>key(invNo(x))===key(r.no));if(!v){miss.push(r.no||"(no number)");return}v.irn=r.irn;if(r.ack)v.ackNo=r.ack;if(r.ackDt)v.ackDt=r.ackDt;if(r.qr)v.qr=r.qr;n++});
-  if(n)sdSave("inv");renderSD("inv");toast(n?`IRN saved on ${n} invoice${n===1?"":"s"}${miss.length?`, ${miss.length} not matched`:""}`:found.length?`No invoice matched (${miss.slice(0,3).join(", ")})`:"No IRN found in that file")};
+  let n=0;const miss=[];found.forEach(r=>{const v=invoices.find(x=>key(invNo(x))===key(r.no))||cnotes.find(x=>key(ntNo("cn",x))===key(r.no));if(!v){miss.push(r.no||"(no number)");return}v.irn=r.irn;if(r.ack)v.ackNo=r.ack;if(r.ackDt)v.ackDt=r.ackDt;if(r.qr)v.qr=r.qr;n++});
+  if(n){sdSave("inv");store.set("cnotes",cnotes)}renderSD("inv");toast(n?`IRN saved on ${n} invoice${n===1?"":"s"}${miss.length?`, ${miss.length} not matched`:""}`:found.length?`No invoice matched (${miss.slice(0,3).join(", ")})`:"No IRN found in that file")};
 function qrURL(s){try{const q=qrcode(0,"L");q.addData(String(s));q.make();return q.createDataURL(4,0)}catch(e){return""}}
 function docTaxInvoice(x){const cfg=salesCfg(),c=custByName(x.cust)||{name:x.cust},sh=(x.consignee&&custByName(x.consignee))||c,k=invCalc(x);
   const party=(p,lab)=>`<b>${lab} : ${esc(p.name)}</b><br>${esc(String(p.addr||"").replace(/\s*\n\s*/g," "))}${p.city&&!(p.addr||"").toUpperCase().includes(String(p.city).toUpperCase())?"<br>"+esc(p.city):""}${p.pin?" - "+esc(p.pin):""}<br>${STATES[stOf(p)]||""}<br>INDIA`;
@@ -2074,6 +2091,134 @@ function docTaxInvoice(x){const cfg=salesCfg(),c=custByName(x.cust)||{name:x.cus
   <tr><td colspan="2" class="decl">I / we certify that our registration certficate under the <b>GST Act, 2017</b> is in force on the date on which the supply of goods specified in this Tax Invoice is made by me/us &amp; the transaction of supply covered by this Tax Invoice had been effected by me/us &amp; it shall be accounted for in the turnover of supplies while filling of return &amp; the due tax if any payable on the supplies has been paid or shall be paid.Further certified that the particulars given above are true and correct &amp; the amount indicated represents the prices actually charged and that there is no flow additional consideration directly or indirectly from the buyer. Interest @ 18% p.a. charged on all outstanding more than one month after invoice has been rendered<br><b>Issued On : ${dmy(iso(iss))} ${iss.toLocaleTimeString("en-GB")}</b></td></tr></table>
   <table class="ti"><tr><td style="width:48%"><b>TERMS &amp; CONDITIONS :</b><br>${esc(x.terms||cfg.invTerms).replace(/\n/g,"<br>")}<br><br><b>BANK DETAILS:</b><br>${esc(cfg.bank).replace(/\n/g,"<br>")}</td><td style="width:20%;text-align:center;vertical-align:bottom"><b>Receiver's<br>Signature/Mob No.</b></td><td style="text-align:center;vertical-align:top"><b>For ${COMPANY.name}</b><div style="height:50px"></div><b>Authorised Signatory</b></td></tr></table>`}
 const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+
+/* ---------- debit notes (to suppliers) and credit notes (to customers) ---------- */
+let dnotes=store.get("dnotes",[]),cnotes=store.get("cnotes",[]);
+const DN_WHY=["Rejected at GRN","Returned after acceptance","Rate difference","Short supply","Other"],CN_WHY=["Sales return","Rate difference","Discount after sale","Short supply","Other"];
+const NT={dn:{coll:"dnotes",arr:()=>dnotes,title:"DEBIT NOTE",name:"Debit note"},cn:{coll:"cnotes",arr:()=>cnotes,title:"CREDIT NOTE",name:"Credit note"}};
+const ntNo=(t,x)=>t==="dn"?`DN-${x.no}`:`CN${x.no}/${x.fy}`;
+const ntId=(t,x)=>t==="dn"?String(x.no):x.fy+"-"+x.no;
+const ntIntra=(t,x)=>t==="cn"?isIntra(x.party):((suppliers.find(s=>key(s.name)===key(x.party))||{}).state||"27")==="27";
+function ntCalc(t,x){const intra=ntIntra(t,x);let ass=0,tx=0;const by={};(x.lines||[]).forEach(l=>{const a=r2(lnAmt(l)),rt=+l.tax||0,v=a*rt/100;ass+=a;tx+=v;const g=by[rt]||(by[rt]={rt,base:0,tax:0});g.base+=a;g.tax+=v});
+  const tot=ass+tx,grand=Math.round(tot);return{ass:r2(ass),tax:r2(tx),rnd:r2(grand-tot),grand,intra,groups:Object.values(by).filter(g=>g.rt>0)}}
+const dnAdj=g=>dnotes.filter(d=>String(d.grn)===String(g.no)&&d.reason!=="Rejected at GRN").reduce((a,d)=>a+ntCalc("dn",d).grand,0);
+const cnAdj=v=>cnotes.filter(c=>c.inv===ntInvId(v)).reduce((a,c)=>a+ntCalc("cn",c).grand,0);
+const ntInvId=v=>v.fy+"-"+v.no;
+const nextDN=()=>Math.max(0,...dnotes.map(x=>+x.no||0))+1,nextCN=fy=>Math.max(0,...cnotes.filter(x=>x.fy===fy).map(x=>+x.no||0))+1;
+let ntCur=null;
+function ntNew(t,extra){return Object.assign(t==="dn"?{no:nextDN(),date:today(),party:"",grn:"",reason:"Returned after acceptance",lines:[],remark:"",by:me.name}:{fy:fyOf(today()),no:nextCN(fyOf(today())),date:today(),party:"",inv:"",reason:"Sales return",lines:[],remark:"",by:me.name,irn:"",ackNo:"",ackDt:"",qr:""},extra||{})}
+function ntFromGRN(g,why){const rej=g.lines.some(l=>+l.rej>0);why=why||(rej?"Rejected at GRN":"Returned after acceptance");const R=why==="Rejected at GRN";ntCur={t:"dn",isNew:true,rec:ntNew("dn",{party:g.sup,grn:g.no,reason:why,_rs:!!arguments[1],
+  lines:g.lines.map(l=>({desc:l.desc,hsn:l.hsn||"",qty:R?(+l.rej||0):0,unit:l.unit,rate:r2(lineNet(l)),tax:+l.tax||18})).filter(l=>!R||l.qty>0)})};show("acct");renderNoteForm();$("#dnForm").scrollIntoView({block:"start"})}
+function ntFromInv(v){ntCur={t:"cn",isNew:true,rec:ntNew("cn",{party:v.cust,inv:ntInvId(v),lines:v.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:0,unit:l.unit,rate:r2((+l.rate||0)*(1-(+l.dis||0)/100)),tax:l.tax===""||l.tax==null?+v.gst:+l.tax}))})};show("cn");renderNoteForm();$("#cnForm").scrollIntoView({block:"start"})}
+function renderNotes(t){const A=NT[t].arr(),box=$(t==="dn"?"#dnList":"#cnList");if(!box)return;
+  box.innerHTML=A.slice(0,100).map(x=>{const k=ntCalc(t,x),ref=t==="dn"?(x.grn?"GRN "+x.grn:""):(x.inv?"Inv "+invNo(invoices.find(v=>ntInvId(v)===x.inv)||{fy:"",no:""}):"");
+    return`<div class="listrow"><b style="font-family:var(--mono)">${esc(ntNo(t,x))}</b><span class="wide">${esc(x.party)}${ref?" · "+esc(ref):""}<br><span class="note">${dmy(x.date)} · ${esc(x.reason)}</span></span><span>${t==="cn"?(x.irn?`<span class="chip calc">IRN</span>`:`<span class="chip sugg">IRN pending</span>`):x.reason==="Rejected at GRN"?`<span class="chip calc">For record</span>`:`<span class="chip sugg">Reduces payable</span>`}</span><span class="num">₹ ${fmt0(k.grand)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" type="button" data-ntopen="${esc(ntId(t,x))}">Open</button><button class="btn" type="button" data-ntpdf="${esc(ntId(t,x))}">PDF</button></span></div>`}).join("")||`<div class="empty">None yet.</div>`;
+  renderNoteForm()}
+["dn","cn"].forEach(t=>{const L=$(t==="dn"?"#dnList":"#cnList");L.addEventListener("click",e=>{const o=e.target.dataset.ntopen,p=e.target.dataset.ntpdf;const x=NT[t].arr().find(r=>ntId(t,r)===(o||p));if(!x)return;
+  if(o){ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(x))};renderNoteForm();$(t==="dn"?"#dnForm":"#cnForm").scrollIntoView({block:"start"})}else savePDF(docNote(t,x),`${NT[t].name.replace(/ /g,"-")}-${ntNo(t,x).replace(/\//g,"-")}.pdf`)})});
+$("#btn-dn-new").onclick=()=>{if(!has("acct.book")){toast("Only accounts can make debit notes");return}ntCur={t:"dn",isNew:true,rec:ntNew("dn",{lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
+$("#btn-cn-new").onclick=()=>{if(!has("sales.edit")){toast("You can view but not make credit notes");return}ntCur={t:"cn",isNew:true,rec:ntNew("cn",{lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
+function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"#cnForm");if(!ntCur||ntCur.t!==t){F.hidden=true;F.innerHTML=""}});if(!ntCur)return;
+  const {t,rec:x,isNew}=ntCur,F=$(t==="dn"?"#dnForm":"#cnForm"),k=ntCalc(t,x),ro=t==="dn"?!has("acct.book"):!has("sales.edit");F.hidden=false;
+  const refs=t==="dn"?grns.filter(g=>key(g.sup)===key(x.party)).map(g=>[String(g.no),`GRN ${g.no} · PO ${g.poNo} · ${dmy(g.date)}`]):invoices.filter(v=>key(v.cust)===key(x.party)).map(v=>[ntInvId(v),`${invNo(v)} · ${dmy(v.date)} · ₹ ${fmt0(invTot(v))}`]);
+  const rk=t==="dn"?"grn":"inv";
+  F.innerHTML=`<div class="row"><h2 class="sec">${NT[t].name} · ${esc(ntNo(t,x))}</h2><span style="flex:1"></span>${!isNew&&t==="cn"?`<button class="btn" type="button" id="nt-json">E-invoice JSON</button>`:""}${isNew?"":`<button class="btn" type="button" id="nt-pdf">PDF</button>`}${!isNew&&isRole("Admin")?`<button class="btn" type="button" id="nt-del">Delete</button>`:""}<button class="btn" type="button" id="nt-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="nt-save">Save</button>`}</div>
+  <div class="grid-fields"><label class="f">${t==="dn"?"Supplier":"Customer"}<input id="nt-party" data-nf="party" value="${esc(x.party)}" list="${t==="dn"?"suppliers":"custnames"}"></label><label class="f">Date<input id="nt-date" data-nf="date" type="date" value="${esc(x.date)}"></label>
+  <label class="f">Against ${t==="dn"?"GRN":"invoice"}<select id="nt-ref" data-nf="${rk}"><option value="">Not linked</option>${refs.map(([v,l])=>`<option value="${esc(v)}"${String(x[rk])===v?" selected":""}>${esc(l)}</option>`).join("")}</select></label>
+  <label class="f">Reason<select id="nt-reason" data-nf="reason">${(t==="dn"?DN_WHY:CN_WHY).map(r=>`<option${r===x.reason?" selected":""}>${r}</option>`).join("")}</select></label><label class="f">Remark<input id="nt-remark" data-nf="remark" value="${esc(x.remark)}"></label></div>
+  ${t==="dn"&&x.reason==="Rejected at GRN"?`<div class="note">Rejected quantity was already left out of the GRN value, so this note is a record for the supplier and does not change what you owe.</div>`:t==="dn"?`<div class="note">This reduces what you owe the supplier on that GRN.${x.reason==="Returned after acceptance"?" The quantity also comes out of stock.":""}</div>`:`<div class="note">This reduces what the customer owes on that invoice, and goes into the e-invoice file as a credit note.</div>`}
+  <div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th class="num">Qty</th><th>Unit</th><th class="num">Rate ₹</th><th class="num">Tax%</th><th class="num">Amount ₹</th><th></th></tr></thead><tbody>${x.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input id="nl${i}d" data-nl="desc" value="${esc(l.desc)}" style="min-width:220px"></td><td><input id="nl${i}h" data-nl="hsn" value="${esc(l.hsn)}" style="width:90px"></td><td class="num"><input id="nl${i}q" class="qty" data-nl="qty" type="number" step="any" value="${l.qty??""}"></td><td><input id="nl${i}u" data-nl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="nl${i}r" class="rate" data-nl="rate" type="number" step="any" value="${l.rate??""}"></td><td class="num"><input id="nl${i}t" class="qty" data-nl="tax" type="number" step="any" value="${l.tax??""}" style="width:56px"></td><td class="num" data-amt>${fmt(lnAmt(l))}</td><td>${ro?"":`<button class="x" type="button" data-nldel="${i}" aria-label="Remove line ${i+1}">×</button>`}</td></tr>`).join("")}</tbody></table></div>
+  <div class="row">${ro?"":`<button class="btn" type="button" id="nt-addline">+ Add line</button>`}<span style="flex:1"></span><span class="total"><span>Total with GST</span><b id="nt-tot">${fmt(k.grand)}</b></span></div>
+  ${t==="cn"&&!isNew?`<div class="grid-fields"><label class="f">IRN<input id="nt-irn" data-nf="irn" value="${esc(x.irn)}" style="font-family:var(--mono)"></label><label class="f">Ack No.<input id="nt-ackNo" data-nf="ackNo" value="${esc(x.ackNo)}"></label><label class="f">Ack date<input id="nt-ackDt" data-nf="ackDt" value="${esc(x.ackDt)}"></label></div><label class="f">Signed QR code<textarea id="nt-qr" data-nf="qr" rows="2" style="font-family:var(--mono);font-size:11px">${esc(x.qr)}</textarea></label>`:""}`;
+  if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>el.disabled=true)}
+["#dnForm","#cnForm"].forEach(sel=>{const F=$(sel);
+  F.addEventListener("input",e=>{if(!ntCur)return;const el=e.target,x=ntCur.rec;if(el.dataset.nf){x[el.dataset.nf]=el.value;if(el.dataset.nf==="reason"){x._rs=true;if(ntCur.t==="dn"&&ntCur.isNew&&x.grn){const g=grns.find(r=>String(r.no)===String(x.grn));if(g)ntFromGRN(g,x.reason)}renderNoteForm()}return}
+    const f=el.dataset.nl;if(!f)return;const tr=el.closest("tr"),l=x.lines[+tr.dataset.i];l[f]=["qty","rate","tax"].includes(f)?(el.value===""?"":+el.value):el.value;tr.querySelector("[data-amt]").textContent=fmt(lnAmt(l));$("#nt-tot").textContent=fmt(ntCalc(ntCur.t,x).grand)});
+  F.addEventListener("change",e=>{if(!ntCur)return;const el=e.target,x=ntCur.rec;if(el.id==="nt-party")renderNoteForm();
+    if(el.id==="nt-ref"&&el.value&&ntCur.isNew){if(ntCur.t==="dn"){const g=grns.find(r=>String(r.no)===el.value);if(g){ntFromGRN(g,x._rs?x.reason:undefined)}}else{const v=invoices.find(r=>ntInvId(r)===el.value);if(v){const keep=x.reason;ntFromInv(v);ntCur.rec.reason=keep;renderNoteForm()}}}});
+  F.addEventListener("click",e=>{if(!ntCur)return;const id=e.target.id,{t,rec:x}=ntCur;
+    if(id==="nt-close"){ntCur=null;renderNoteForm();return}
+    if(id==="nt-addline"){x.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18});renderNoteForm();return}
+    if(e.target.dataset.nldel!=null){x.lines.splice(+e.target.dataset.nldel,1);renderNoteForm();return}
+    if(id==="nt-pdf"){savePDF(docNote(t,x),`${NT[t].name.replace(/ /g,"-")}-${ntNo(t,x).replace(/\//g,"-")}.pdf`);return}
+    if(id==="nt-json"){einvExportMixed([],[x],`einvoice-${ntNo(t,x).replace(/\//g,"-")}.json`);return}
+    if(id==="nt-del"){if(!confirm(`Delete ${ntNo(t,x)}?`))return;const A=NT[t].arr(),i=A.findIndex(r=>ntId(t,r)===ntId(t,x));if(i>=0)A.splice(i,1);store.set(NT[t].coll,A);ntCur=null;renderNotes(t);if(t==="dn")renderAcct();return}
+    if(id==="nt-save"){x.party=String(x.party||"").trim();if(!x.party){toast(t==="dn"?"Fill in the supplier":"Fill in the customer");return}
+      x.lines=x.lines.filter(l=>String(l.desc||"").trim()&&+l.qty>0&&+l.rate>0);if(!x.lines.length){toast("Add at least one line with quantity and rate");renderNoteForm();return}
+      delete x._rs;const A=NT[t].arr();x.updatedAt=new Date().toISOString();if(ntCur.isNew){if(t==="cn"){x.fy=fyOf(x.date);x.no=nextCN(x.fy)}else x.no=nextDN();x.createdAt=x.updatedAt;A.unshift(x)}else Object.assign(A.find(r=>ntId(t,r)===ntId(t,x)),x);
+      store.set(NT[t].coll,A);const sv=A.find(r=>ntId(t,r)===ntId(t,x));ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(sv))};renderNotes(t);if(t==="dn"){renderAcct();renderStock&&0}
+      toast(`${ntNo(t,sv)} saved`);savePDF(docNote(t,sv),`${NT[t].name.replace(/ /g,"-")}-${ntNo(t,sv).replace(/\//g,"-")}.pdf`)}})});
+function docNote(t,x){const k=ntCalc(t,x),p=t==="dn"?(suppliers.find(s=>key(s.name)===key(x.party))||{name:x.party}):(custByName(x.party)||{name:x.party});
+  const ref=t==="dn"?(x.grn?(()=>{const g=grns.find(r=>String(r.no)===String(x.grn));return g?[["Our GRN",`${g.no} · ${dmy(g.date)}`],["Your invoice",`${g.inv||"-"}${g.invDate?" · "+dmy(g.invDate):""}`],["Our PO",String(g.poNo)]]:[]})():[]):(x.inv?(()=>{const v=invoices.find(r=>ntInvId(r)===x.inv);return v?[["Against invoice",`${invNo(v)} · ${dmy(v.date)}`]]:[]})():[]);
+  const qr=t==="cn"&&x.qr?qrURL(x.qr):"";
+  const taxRows=k.groups.map(g=>k.intra?`<tr><td>C-GST ${g.rt/2}% On Amt : ${fmt(g.base)}</td><td class="amt">${fmt(g.tax/2)}</td></tr><tr><td>S-GST ${g.rt/2}% On Amt : ${fmt(g.base)}</td><td class="amt">${fmt(g.tax/2)}</td></tr>`:`<tr><td>I-GST ${g.rt}% On Amt : ${fmt(g.base)}</td><td class="amt">${fmt(g.tax)}</td></tr>`).join("");
+  return docHead(NT[t].title)+(x.irn?`<table class="ti"><tr><td style="width:75%"><b>IRN :</b> <span style="word-break:break-all">${esc(x.irn)}</span><br><b>Ack No. :</b> ${esc(x.ackNo||"")} &nbsp; <b>Ack Date :</b> ${esc(x.ackDt||"")}</td><td style="text-align:center">${qr?`<img src="${qr}" style="width:24mm;height:24mm" alt="QR code">`:""}</td></tr></table>`:"")+`<div class="two"><div><b>To,</b><br><b>${esc(p.name)}</b><br>${esc(String(p.addr||p.city||"").replace(/\s*\n\s*/g," "))}${p.gstin?`<br>GSTIN: ${esc(p.gstin)}`:""}</div><div class="kv"><b>${t==="dn"?"Debit":"Credit"} note No.</b><span>${esc(ntNo(t,x))}</span><b>Date</b><span>${dmy(x.date)}</span>${ref.map(([a,b])=>`<b>${a}</b><span>${esc(b)}</span>`).join("")}<b>Reason</b><span>${esc(x.reason)}</span></div></div>
+  <p style="margin:6px 0">${t==="dn"?"We have debited your account as below:":"We have credited your account as below:"}</p>
+  <table><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Tax%</th><th>Amount</th></tr></thead><tbody>${x.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn||"")}</td><td class="r">${fmt0(+l.qty)}</td><td>${esc(l.unit||"")}</td><td class="r">${fmt(+l.rate)}</td><td class="r">${+l.tax||0}</td><td class="r">${fmt(lnAmt(l))}</td></tr>`).join("")}</tbody></table>
+  <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(k.ass)}</td></tr>${taxRows}<tr><td>Rounding (+/-)</td><td class="amt">${k.rnd.toFixed(2)}</td></tr><tr><td><b>Total</b></td><td class="amt"><b>${fmt(k.grand)}</b></td></tr></tbody></table>
+  <p style="margin:4px 0"><b>Amount In Words :</b> Rupees ${words(k.grand)} Only.</p>${x.remark?`<p style="margin:4px 0"><b>Remark:</b> ${esc(x.remark)}</p>`:""}
+  <div class="row small" style="justify-content:space-between;margin-top:30px"><span>Prepared by: ${esc(x.by||"")}</span><b>For ZOOM TECHNOLOGIES</b></div><div class="row small" style="justify-content:flex-end;margin-top:30px"><span>Authorised Signatory</span></div>`}
+function einvNoteJSON(n){const v=n.inv?invoices.find(r=>ntInvId(r)===n.inv):null;const o=einvJSON({cust:n.party,lines:n.lines.map(l=>({...l,dis:0})),gst:18,date:n.date,fy:n.fy,no:n.no});
+  o.DocDtls={Typ:"CRN",No:ntNo("cn",n),Dt:dmy(n.date)};if(v)o.RefDtls={PrecDocDtls:[{InvNo:invNo(v),InvDt:dmy(v.date)}]};delete o.EwbDtls;return o}
+async function einvExportMixed(invs,cns,fname){const bad=[];invs.forEach(x=>{const p=einvCheck(x);if(p.length)bad.push(invNo(x)+": "+p.join("; "))});
+  cns.forEach(n=>{const p=einvCheck({cust:n.party,lines:n.lines,fy:"",no:""}).filter(s=>!s.startsWith("Invoice No."));if(!/^[A-Z1-9][A-Z0-9/-]{0,15}$/.test(ntNo("cn",n)))p.push("number not allowed");if(p.length)bad.push(ntNo("cn",n)+": "+p.join("; "))});
+  if(bad.length){alert("Fix these before exporting the e-invoice JSON:\n\n"+bad.slice(0,15).join("\n"));return}
+  const all=[...invs.map(einvJSON),...cns.map(einvNoteJSON)];const blob=new Blob([JSON.stringify(all,null,2)],{type:"application/json"});
+  if(await deliver(blob,fname))toast(`Saved ${fname} with ${all.length} document${all.length===1?"":"s"}. Upload it on the e-invoice portal (Bulk upload).`)}
+
+/* ---------- reorder, receivables, job costing, GST registers, owner summary ---------- */
+function lowStock(){const S={};stockItems().forEach(i=>S[i.k]=i);return items.filter(x=>+x.min>0).map(x=>{const s=S[key(x.name)];const bal=s?s.bal:0;return{it:x,bal,min:+x.min,order:Math.max(1,Math.ceil(2*(+x.min)-bal))}}).filter(r=>r.bal<r.min)}
+function renderReorder(){const P=$("#reorderPanel");if(!P)return;const L=lowStock();
+  P.innerHTML=`<div class="row"><h2 class="sec">Below minimum stock</h2><span class="note">${L.length?L.length+" item"+(L.length===1?"":"s"):""}</span><span style="flex:1"></span>${L.length&&can("req")&&has("req.create")?`<button class="btn primary" type="button" id="btn-reorder">Raise purchase request for these</button>`:""}</div>
+  <div class="note">Set minimum stock for each item in Masters, Items. Suggested order brings stock up to twice the minimum.</div>
+  ${L.length?`<div class="tablebox"><table class="mt"><thead><tr><th>Item</th><th>Code</th><th class="num">In stock</th><th class="num">Minimum</th><th class="num">Suggested order</th><th>Unit</th></tr></thead><tbody>${L.map(r=>`<tr><td>${esc(r.it.name)}</td><td>${esc(r.it.code||"")}</td><td class="num" style="color:var(--danger);font-weight:600">${fmt0(r.bal)}</td><td class="num">${fmt0(r.min)}</td><td class="num">${fmt0(r.order)}</td><td>${esc(r.it.unit||"")}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">All items with a minimum are above it.</div>`}`;
+  const b=$("#btn-reorder");if(b)b.onclick=()=>{show("req");cur=blankReq();cur.by=me.name;cur.dept=me.dept||"";cur.lines=L.map(r=>({desc:r.it.name,spec:r.it.code?"Code "+r.it.code:"",qty:r.order,unit:r.it.unit||"NOS",remark:`Stock ${fmt0(r.bal)}, minimum ${fmt0(r.min)}`}));renderReq();toast(`${L.length} items added. Choose the Job No. (or store stock) and submit.`)}}
+/* receivables */
+const rcptsOf=x=>Array.isArray(x.rcpts)?x.rcpts:(+x.recd?[{date:x.recdDate||x.date,amt:+x.recd,ref:x.recdRef||""}]:[]);
+const recdOf=x=>rcptsOf(x).reduce((a,r)=>a+(+r.amt||0),0);
+function custAgeing(){const m={},t=today();invoices.forEach(x=>{const d=invDue(x);if(d<0.5)return;const r=m[x.cust]||(m[x.cust]={cust:x.cust,tot:0,b:[0,0,0,0],n:0});const age=Math.round((new Date(t)-new Date(x.date))/864e5);r.tot+=d;r.n++;r.b[age<=30?0:age<=60?1:age<=90?2:3]+=d});return Object.values(m).sort((a,b)=>b.tot-a.tot)}
+function renderAgeing(){const P=$("#agePanel");if(!P)return;const A=custAgeing(),T=A.reduce((a,r)=>{r.b.forEach((v,i)=>a[i]+=v);return a},[0,0,0,0]);
+  P.innerHTML=`<h2 class="sec">Customer outstanding and ageing</h2><div class="note">Days counted from the invoice date. Payments and credit notes are already taken off.</div>${A.length?`<div class="tablebox"><table class="mt" style="min-width:680px"><thead><tr><th>Customer</th><th class="num">Invoices</th><th class="num">0-30 days</th><th class="num">31-60</th><th class="num">61-90</th><th class="num">Over 90</th><th class="num">Total due</th></tr></thead><tbody>${A.map(r=>`<tr><td><b>${esc(r.cust)}</b></td><td class="num">${r.n}</td>${r.b.map((v,i)=>`<td class="num"${i>=2&&v>0?' style="color:var(--danger);font-weight:600"':""}>${v?fmt0(Math.round(v)):""}</td>`).join("")}<td class="num"><b>${fmt0(Math.round(r.tot))}</b></td></tr>`).join("")}<tr><td><b>Total</b></td><td></td>${T.map(v=>`<td class="num"><b>${fmt0(Math.round(v))}</b></td>`).join("")}<td class="num"><b>${fmt0(Math.round(A.reduce((a,r)=>a+r.tot,0)))}</b></td></tr></tbody></table></div>`:`<div class="empty">Nothing outstanding.</div>`}`}
+/* job costing */
+function jobCosting(){const PC={};projCost().forEach(r=>PC[key(r.job)]=r);const nos=new Set([...jobs.map(j=>key(j.no)),...sorders.filter(s=>s.job).map(s=>key(s.job))]);
+  return[...nos].map(k=>{const j=jobs.find(x=>key(x.no)===k),S=sorders.filter(s=>key(s.job)===k),pc=PC[k]||{po:0,iss:0,ret:0};const order=S.reduce((a,s)=>a+sdSub(s),0);
+    const billed=invoices.filter(v=>S.some(s=>String(s.no)===String(v.so))).reduce((a,v)=>a+invCalc(v).ass,0);const mat=Math.max(pc.po,pc.iss-pc.ret),lab=j?jobLabour(j):0,cost=mat+lab;
+    return{no:j?j.no:(S[0]||{}).job,cust:(j&&j.cust)||(S[0]||{}).cust||"",status:j?j.status:"No job card",order,billed,po:pc.po,iss:pc.iss-pc.ret,lab,cost,profit:order-cost,mg:order?Math.round((order-cost)*100/order):null}}).sort((a,b)=>String(a.no).localeCompare(String(b.no)))}
+function renderJobCost(){const P=$("#jobCostPanel");if(!P)return;const L=jobCosting();
+  P.innerHTML=`<h2 class="sec">Job costing</h2><div class="note">Order value from sales orders (before GST). Material is the larger of approved PO value and net store issues for the Job No. Labour is actual job-card hours × machine-hour rate.</div>${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th class="num">Order</th><th class="num">Billed</th><th class="num">Material POs</th><th class="num">Store issued</th><th class="num">Labour</th><th class="num">Total cost</th><th class="num">Profit</th><th class="num">Margin</th></tr></thead><tbody>${L.map(r=>`<tr><td><b>${esc(r.no)}</b></td><td>${esc(r.cust)}</td><td>${esc(r.status)}</td><td class="num">${fmt0(Math.round(r.order))}</td><td class="num">${fmt0(Math.round(r.billed))}</td><td class="num">${fmt0(Math.round(r.po))}</td><td class="num">${fmt0(Math.round(r.iss))}</td><td class="num">${fmt0(Math.round(r.lab))}</td><td class="num">${fmt0(Math.round(r.cost))}</td><td class="num"${r.profit<0?' style="color:var(--danger);font-weight:600"':""}>${fmt0(Math.round(r.profit))}</td><td class="num">${r.mg==null?"-":`<span class="chip ${r.mg>=30?"calc":r.mg>=10?"sugg":"st-Back"}">${r.mg}%</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No jobs yet. Costing appears once a sales order or job card has a Job No.</div>`}`}
+/* GST registers for the CA */
+function renderGstReg(){const P=$("#gstPanel");if(!P)return;const mo=P.dataset.mo||today().slice(0,7);
+  P.innerHTML=`<h2 class="sec">GST registers for your CA</h2><div class="note">Sales register (invoices and credit notes, GSTR-1 style) and purchase register (booked GRNs and debit notes) for one month, as Excel.</div>
+  <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:8px">Month<input id="gst-mo" type="month" value="${mo}" style="width:auto"></label><button class="btn" type="button" id="btn-gst-sales">Sales register</button><button class="btn" type="button" id="btn-gst-pur">Purchase register</button></div>`;
+  $("#gst-mo").onchange=e=>{P.dataset.mo=e.target.value};
+  $("#btn-gst-sales").onclick=()=>gstExport("sales",$("#gst-mo").value);$("#btn-gst-pur").onclick=()=>gstExport("pur",$("#gst-mo").value)}
+async function gstExport(kind,mo){if(!window.XLSX){toast("Excel tools did not load");return}const rows=[];
+  if(kind==="sales"){invoices.filter(v=>v.date.slice(0,7)===mo).forEach(v=>{const c=custByName(v.cust)||{},k=invCalc(v);const by={};k.L.forEach(r=>{const g=by[r.rt]||(by[r.rt]={a:0,c:0,s:0,i:0});g.a+=r.a;g.c+=r.c;g.s+=r.s;g.i+=r.i});
+      Object.entries(by).forEach(([rt,g],n)=>rows.push({Type:"Invoice","Doc No":invNo(v),Date:dmy(v.date),Customer:v.cust,GSTIN:c.gstin||"","Place of supply":stOf(c),"Taxable value":r2(g.a),"GST %":+rt,CGST:r2(g.c),SGST:r2(g.s),IGST:r2(g.i),"Invoice total":n?"":k.grand,IRN:n?"":(v.irn||"")}))});
+    cnotes.filter(n=>n.date.slice(0,7)===mo).forEach(n=>{const c=custByName(n.party)||{},k=ntCalc("cn",n);const v=invoices.find(r=>ntInvId(r)===n.inv);k.groups.concat(k.groups.length?[]:[{rt:0,base:k.ass,tax:0}]).forEach((g,i)=>rows.push({Type:"Credit note","Doc No":ntNo("cn",n),Date:dmy(n.date),Customer:n.party,GSTIN:c.gstin||"","Place of supply":stOf(c),"Taxable value":-r2(g.base),"GST %":g.rt,CGST:k.intra?-r2(g.tax/2):0,SGST:k.intra?-r2(g.tax/2):0,IGST:k.intra?0:-r2(g.tax),"Invoice total":i?"":-k.grand,IRN:i?"":(n.irn||""),"Against invoice":v?invNo(v):""}))})}
+  else{grns.filter(g=>g.status!=="With accounts"&&(g.invDate||g.date).slice(0,7)===mo).forEach(g=>{const s=suppliers.find(x=>key(x.name)===key(g.sup))||{},intra=(s.state||"27")==="27",by={};
+      g.lines.forEach(l=>{const a=((+l.recv||0)-(+l.rej||0))*lineNet(l),rt=+l.tax||0,t=a*rt/100,b=by[rt]||(by[rt]={a:0,t:0});b.a+=a;b.t+=t});
+      Object.entries(by).forEach(([rt,b],n)=>rows.push({Type:"Purchase","Supplier invoice":g.inv||"","Invoice date":dmy(g.invDate||g.date),Supplier:g.sup,GSTIN:s.gstin||"",GRN:g.no,PO:g.poNo,"Taxable value":r2(b.a),"GST %":+rt,CGST:intra?r2(b.t/2):0,SGST:intra?r2(b.t/2):0,IGST:intra?0:r2(b.t),"Bill total":n?"":r2(grnCalc(g).total),Voucher:n?"":(g.voucher||"")}))});
+    dnotes.filter(d=>d.date.slice(0,7)===mo&&d.reason!=="Rejected at GRN").forEach(d=>{const s=suppliers.find(x=>key(x.name)===key(d.party))||{},k=ntCalc("dn",d);k.groups.forEach((g,i)=>rows.push({Type:"Debit note","Supplier invoice":"DN-"+d.no,"Invoice date":dmy(d.date),Supplier:d.party,GSTIN:s.gstin||"",GRN:d.grn||"",PO:"","Taxable value":-r2(g.base),"GST %":g.rt,CGST:k.intra?-r2(g.tax/2):0,SGST:k.intra?-r2(g.tax/2):0,IGST:k.intra?0:-r2(g.tax),"Bill total":i?"":-k.grand,Voucher:""}))})}
+  if(!rows.length){toast("Nothing in that month");return}
+  const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,kind==="sales"?"Sales register":"Purchase register");
+  const tot=rows.reduce((a,r)=>{a.t+=+r["Taxable value"]||0;a.c+=+r.CGST||0;a.s+=+r.SGST||0;a.i+=+r.IGST||0;return a},{t:0,c:0,s:0,i:0});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([{Month:mo,"Taxable value":r2(tot.t),CGST:r2(tot.c),SGST:r2(tot.s),IGST:r2(tot.i),"Total GST":r2(tot.c+tot.s+tot.i)}]),"Summary");
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const fn=`${kind==="sales"?"Sales":"Purchase"}-register-${mo}.xlsx`;if(await deliver(blob,fn))toast(`Saved ${fn}`)}
+/* owner summary on Home */
+function renderOwner(){const P=$("#ownerPanel");if(!P)return;if(!(isRole("Admin")||isRole("Approver"))){P.hidden=true;return}P.hidden=false;const mo=today().slice(0,7);
+  const sales=invoices.filter(v=>v.date.slice(0,7)===mo).reduce((a,v)=>a+invTot(v),0)-cnotes.filter(n=>n.date.slice(0,7)===mo).reduce((a,n)=>a+ntCalc("cn",n).grand,0);
+  const coll=invoices.reduce((a,v)=>a+rcptsOf(v).filter(r=>(r.date||"").slice(0,7)===mo).reduce((b,r)=>b+(+r.amt||0),0),0);
+  const pur=grns.filter(g=>g.status!=="With accounts"&&(g.bookedAt||g.date).slice(0,7)===mo).reduce((a,g)=>a+grnCalc(g).total,0);
+  const paid=pays.filter(p=>(p.date||"").slice(0,7)===mo).reduce((a,p)=>a+(+p.amount||0),0);
+  const recv=invoices.reduce((a,v)=>a+invDue(v),0),payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
+  const openSO=sorders.filter(s=>["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),late=J.filter(j=>j.due&&j.due<today()).length,low=lowStock().length;
+  const T=[["Sales this month",fmtL(sales),"Invoices less credit notes","inv"],["Collected this month",fmtL(coll),"Customer receipts","inv"],["Purchases this month",fmtL(pur),"Booked GRNs","acct"],["Paid to vendors",fmtL(paid),"This month","acct"],
+    ["To collect",fmtL(recv),"All open invoices","inv",recv>0],["To pay",fmtL(payb),"All booked GRNs","acct"],["Orders to dispatch",String(openSO.length),fmtL(openSO.reduce((a,s)=>a+sdSub(s),0))+" order value","so"],["Jobs on the floor",String(J.length),late?late+" past due date":"None past due","prod",late>0],
+    ["Stock value",fmtL(stv),"At average purchase rate","stock"],["Below minimum stock",String(low),"Items to reorder","stock",low>0]];
+  P.innerHTML=`<h2 class="sec">Business at a glance</h2><div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))">${T.map(([t,n,d,v,w])=>`<button type="button" class="card${w?" warn":""}" data-go="${v}"><span class="n">${esc(n)}</span><span class="t">${esc(t)}</span><span class="d">${esc(d)}</span></button>`).join("")}</div>`}
+$("#ownerPanel").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b&&can(b.dataset.go))show(b.dataset.go)});
 
 /* sales settings (admin, in Masters) */
 function renderSalesCfg(){const P=$("#salesCfgPanel");if(!P)return;const c=salesCfg();
