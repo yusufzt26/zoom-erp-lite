@@ -31,6 +31,8 @@ header .inner{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area
 nav{display:flex;gap:4px;flex-wrap:wrap}
 nav button{background:none;border:1px solid transparent;color:var(--muted);padding:6px 12px;border-radius:6px;font:inherit;font-weight:500;cursor:pointer}
 nav button[aria-current="true"]{color:var(--ink);border-color:var(--line);background:var(--bg)}
+.subnav{max-width:1180px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left,0px)) 8px;align-items:center}.subnav-t{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-right:6px}
+nav button.grp-on{color:var(--ink);border-color:var(--line);background:var(--bg)}
 nav .step{font-family:var(--mono);font-size:11px;margin-right:6px;color:var(--accent)}
 button.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -191,23 +193,26 @@ body.gated header.bar,body.gated main{display:none}
   <nav aria-label="Sections">
     <button id="tab-home" data-view="home" aria-current="true">Home</button>
     <button id="tab-req" data-view="req"><span class="step">1</span>Purchase request</button>
-    <button id="tab-est" data-view="est"><span class="step">2</span>Pre-estimate</button>
-    <button id="tab-po" data-view="po"><span class="step">3</span>Purchase order</button>
-    <button id="tab-saved" data-view="saved">PO list</button>
+    <button id="tab-pur" data-group="pur">Purchase</button>
     <button id="tab-appr" data-view="appr">PO approvals</button>
     <button id="tab-grn" data-view="grn">Store / GRN</button>
     <button id="tab-stock" data-view="stock">Stock &amp; issue</button>
     <button id="tab-acct" data-view="acct">Accounts</button>
     <button id="tab-sales" data-view="sales">Sales</button>
     <button id="tab-rep" data-view="rep">Reports</button>
-    <button id="tab-rates" data-view="rates">Rate list</button>
     <button id="tab-mast" data-view="mast">Masters</button>
     <button id="tab-users" data-view="users">Users &amp; rights</button>
   </nav>
   <label class="who">Signed in as<select id="who"></select></label>
   <span class="who" id="cloudUser" hidden><b id="cuName"></b><span id="syncState" class="chip calc">Saved</span><button class="btn" type="button" id="btn-cu-pw">Password</button><button class="btn" type="button" id="btn-cu-out">Log out</button></span>
   <div class="theme" role="group" aria-label="Colour mode"><button type="button" data-theme-set="light" id="th-light">Light</button><button type="button" data-theme-set="dark" id="th-dark">Dark</button><button type="button" data-theme-set="system" id="th-system">Auto</button></div>
-</div></header>
+</div>
+<nav class="subnav" id="subnav-pur" aria-label="Purchase department" hidden><span class="subnav-t">Purchase department</span>
+    <button id="tab-est" data-view="est"><span class="step">2</span>Pre-estimate</button>
+    <button id="tab-po" data-view="po"><span class="step">3</span>Purchase order</button>
+    <button id="tab-saved" data-view="saved">PO list</button>
+    <button id="tab-rates" data-view="rates">Rate list</button>
+</nav></header>
 
 <div id="gate" hidden></div>
 <main class="wrap">
@@ -598,8 +603,11 @@ const can=v=>v==="home"||has("page."+v);
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users")renderMasters();if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();window.scrollTo(0,0)}
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.view));
+function show(v){if(!can(v))v=landing();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users")renderMasters();if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();syncGroups(v);window.scrollTo(0,0)}
+const GROUPS={pur:["est","po","saved","rates"]};
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
+function syncGroups(v){Object.keys(GROUPS).forEach(g=>{const M=GROUPS[g],any=M.some(x=>can(x)),on=M.includes(v);const b=$("#tab-"+g);b.hidden=!any;b.classList.toggle("grp-on",on);b.setAttribute("aria-expanded",on?"true":"false");$("#subnav-"+g).hidden=!on||!any;
+  const old=b.querySelector(".badge");if(old)old.remove();const n=M.reduce((a,x)=>{const e=$("#tab-"+x).querySelector(".badge");return a+(e?+e.textContent||0:0)},0);if(n&&!on)b.insertAdjacentHTML("beforeend",`<span class="badge">${n}</span>`)})}
 
 /* ---------- estimate ---------- */
 function saveEst(){store.set("est",est)}
@@ -1478,6 +1486,7 @@ $("#homeCards").addEventListener("click",e=>{const b=e.target.closest("[data-go]
 function renderBadges(){
   if(!me)return;const W=workItems().filter(w=>w.warn&&typeof w.n==="number");const cnt={};W.forEach(w=>cnt[w.v]=(cnt[w.v]||0)+w.n);
   ["req","saved","appr","grn","acct"].forEach(v=>{const b=$("#tab-"+v);const old=b.querySelector(".badge");if(old)old.remove();if(cnt[v])b.insertAdjacentHTML("beforeend",`<span class="badge">${cnt[v]}</span>`)});
+  syncGroups(views.find(x=>!$("#view-"+x).hidden));
 }
 
 /* ---------- masters ---------- */
