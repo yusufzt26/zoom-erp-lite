@@ -495,10 +495,10 @@ body.gated header.bar,body.gated main{display:none}
       <form class="addrow" id="m-proj-form"><input id="mp-no" placeholder="Job No. e.g. ZT2350"><input id="mp-desc" placeholder="Description"><input id="mp-cust" placeholder="Customer"><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt" style="min-width:560px"><thead><tr><th>Job No.</th><th>Description</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody id="m-projs"></tbody></table></div></div>
     <div class="panel stack" style="grid-column:1/-1" id="itemsPanel"><div class="row"><h2 class="sec">Items</h2><span class="note" id="itCount"></span><span style="flex:1"></span><button class="btn" id="btn-it-import" type="button">Import from Excel</button><input type="file" id="it-file" accept=".xlsx,.xls,.csv" hidden><button class="btn" id="btn-it-export" type="button">Download list</button></div>
-      <div class="note">Import the product list exported from your old ERP (Excel or CSV). Columns are matched by their headings, and you see a preview before anything is saved. Item names then show up as suggestions on requests, estimates and POs, and fill in the unit, HSN and GST.</div>
-      <form class="addrow" id="m-item-form"><input id="mi-code" placeholder="Code" style="max-width:110px"><input id="mi-name" placeholder="Item name"><input id="mi-cat" placeholder="Category" list="itemcats" style="max-width:160px"><input id="mi-unit" placeholder="Unit" style="max-width:70px"><input id="mi-hsn" placeholder="HSN" style="max-width:90px"><input id="mi-gst" placeholder="GST %" type="number" step="any" style="max-width:70px"><button class="btn primary" type="submit">Add</button></form>
-      <div class="row"><input id="it-q" placeholder="Search name or code" style="max-width:260px"><select id="it-cat" style="width:auto"></select></div>
-      <div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Code</th><th>Item name</th><th>Category</th><th>Unit</th><th>HSN</th><th class="num">GST %</th><th class="num">Rate</th><th class="num">Min stock</th><th></th></tr></thead><tbody id="m-items"></tbody></table></div>
+      <div class="note">Import your Item &amp; Service Master workbook (ITEM MASTER and SERVICE MASTER sheets are both read), or a product list exported from your old ERP. Columns are matched by their headings and you see a preview, with missing codes, HSN/SAC and GST flagged, before anything is saved. "Download list" gives the same two-sheet layout back. Item names then show up as suggestions on requests, estimates, POs and sales documents.</div>
+      <form class="addrow" id="m-item-form"><select id="mi-kind" style="max-width:110px"><option>Item</option><option>Service</option></select><input id="mi-code" placeholder="Code" style="max-width:110px"><input id="mi-name" placeholder="Item name"><input id="mi-cat" placeholder="Category" list="itemcats" style="max-width:160px"><input id="mi-unit" placeholder="Unit" style="max-width:70px"><input id="mi-hsn" placeholder="HSN" style="max-width:90px"><input id="mi-gst" placeholder="GST %" type="number" step="any" style="max-width:70px"><button class="btn primary" type="submit">Add</button></form>
+      <div class="row"><input id="it-q" placeholder="Search name or code" style="max-width:260px"><select id="it-kind" style="width:auto"><option value="">Items and services</option><option value="Item">Items only</option><option value="Service">Services only</option></select><select id="it-cat" style="width:auto"></select></div><datalist id="itemtypes"><option value="Raw Material"><option value="Bought-out"><option value="Finished Good"><option value="Semi-finished"><option value="Consumable"><option value="Tooling"><option value="Spare"><option value="Packing Material"><option value="Job Work"><option value="Machining"><option value="Heat Treatment"><option value="Surface Treatment"><option value="Design"><option value="CAM Programming"><option value="Inspection"><option value="Transport"></datalist>
+      <div class="tablebox"><table class="mt" style="min-width:1200px"><thead><tr><th>Code</th><th>Item / service name</th><th>Type</th><th>Category</th><th>Unit</th><th>HSN / SAC</th><th class="num">GST %</th><th class="num">Purchase rate</th><th class="num">Sales rate</th><th class="num">Min stock</th><th>Active</th><th></th></tr></thead><tbody id="m-items"></tbody></table></div>
       <div class="note" id="itMore"></div></div>
     <div class="panel stack" id="salesCfgPanel" style="grid-column:1/-1"></div>
     <div class="panel stack" id="machPanel"></div>
@@ -1628,15 +1628,38 @@ $("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim
 
 /* ---------- item master ---------- */
 const IT_FIELDS=[
-  ["code","Item code",["itemcode","code","productcode","partno","partnumber","sku","materialcode","stockcode","alias","itemno","material","partcode","itemid"]],
-  ["name","Item name",["itemname","nameofitem","productname","stockitem","stockitemname","name","itemdescription","description","materialdescription","item","product","particulars","partname","materialname"]],
-  ["cat","Category",["category","categoryname","itemcategory","productcategory","group","itemgroup","stockgroup","productgroup","materialgroup","groupname","under","parent","subgroup","stockcategory","itemtype","type"]],
-  ["unit","Unit",["unit","units","uom","baseunit","baseuom","unitofmeasure","unitofmeasurement","stockunit","unitname"]],
-  ["hsn","HSN",["hsn","hsncode","hsnsac","hsnsaccode","sac","hsnno","hsnsacno"]],
+  ["code","Code",["itemcode","servicecode","code","productcode","partno","partnumber","sku","materialcode","stockcode","alias","itemno","material","partcode","itemid"]],
+  ["name","Name / description",["itemname","servicename","itemnamedescription","servicenamedescription","nameofitem","productname","stockitem","stockitemname","name","itemdescription","description","materialdescription","item","product","particulars","partname","materialname"]],
+  ["type","Item / service type",["itemtype","servicetype","materialtype","producttype","type"]],
+  ["cat","Category",["category","categoryname","itemcategory","productcategory","group","itemgroup","stockgroup","productgroup","materialgroup","groupname","under","parent","stockcategory"]],
+  ["subcat","Subcategory",["subcategory","subcat","subgroup"]],
+  ["spec","Specification / grade",["specificationgrade","specification","spec","grade"]],
+  ["make","Make / brand",["makebrand","make","brand","manufacturer"]],
+  ["buy","Purchase (Yes/No)",["purchaseapplicableyesno","purchaseapplicable","buy"]],
+  ["sell","Sales (Yes/No)",["salesapplicableyesno","salesapplicable","sell"]],
+  ["stock","Track stock (Yes/No)",["trackstockyesno","trackstock","maintainstock","inventoryitem"]],
+  ["unit","Base unit",["unit","units","uom","baseunit","baseuom","billinguom","unitofmeasure","unitofmeasurement","stockunit","unitname"]],
+  ["puom","Purchase unit",["purchaseuom","purchaseunit"]],
+  ["suom","Sales unit",["salesuom","salesunit"]],
+  ["hsn","HSN / SAC",["hsn","hsncode","saccode","hsnsac","hsnsaccode","sac","hsnno","hsnsacno"]],
   ["gst","GST %",["gst","gstrate","gstpercent","gstper","taxrate","tax","igst","igstrate","igstpercent","rateoftax","taxpercent"]],
-  ["rate","Rate",["purchaserate","rate","lastpurchaserate","price","purchaseprice","cost","costprice","standardcost","stdcost","unitprice","unitrate"]],
-  ["min","Min stock",["minstock","minimumstock","reorderlevel","minqty","minimumqty","minlevel","safetystock","rol","minimumlevel"]],
-  ["open","Opening stock",["openingstock","openingqty","openingbalance","opqty","openingquantity","closingstock","closingqty","currentstock","qtyinhand","stockqty","stock","balance","quantity","qty"]]];
+  ["supplier","Preferred supplier",["preferredsupplier","preferredservicevendor","preferredvendor","supplier","vendor"]],
+  ["pled","Purchase ledger",["defaultpurchaseledger","purchaseledger"]],
+  ["sled","Sales ledger",["defaultsalesledger","salesledger"]],
+  ["costc","Cost centre / dept",["costcentredepartment","costcentre","costcenter","department"]],
+  ["rate","Purchase rate",["standardpurchaserateinr","standardpurchaserate","purchaserate","rate","lastpurchaserate","price","purchaseprice","cost","costprice","standardcost","stdcost","unitprice","unitrate"]],
+  ["srate","Sales rate",["standardsalesrateinr","standardsalesrate","salesrate","sellingrate","sellingprice","saleprice","salerate"]],
+  ["min","Min stock",["minstock","minimumstock","minqty","minimumqty","minlevel","safetystock","minimumlevel","reorderlevel","rol"]],
+  ["reorder","Reorder level",["reorderlevel","rol","reorderpoint","reorderqty"]],
+  ["open","Opening qty",["openingstock","openingqty","openingbalance","opqty","openingquantity","closingstock","closingqty","currentstock","qtyinhand","stockqty","stock","balance","quantity","qty"]],
+  ["openval","Opening value",["openingvalueinr","openingvalue","openingamount","closingvalue","stockvalue"]],
+  ["loc","Storage location",["storagelocation","location","binlocation","bin","rack"]],
+  ["active","Active (Yes/No)",["activeyesno","active","status"]],
+  ["remark","Remarks",["remarks","remark","notes","note"]]];
+const IT_NUM=["gst","rate","srate","min","reorder","open","openval"],IT_YN=["buy","sell","stock","active"],IT_UP=["unit","puom","suom"];
+const itYN=v=>{const t=String(v??"").trim();if(!t)return"";return/^(y|yes|true|1|active)$/i.test(t)?"Yes":/^(n|no|false|0|inactive)$/i.test(t)?"No":t};
+const ITEM_COLS=[["Item Code","code"],["Item Name / Description","name"],["Item Type","type"],["Category","cat"],["Subcategory","subcat"],["Specification / Grade","spec"],["Make / Brand","make"],["Purchase Applicable (Yes/No)","buy"],["Sales Applicable (Yes/No)","sell"],["Track Stock (Yes/No)","stock"],["Base UOM","unit"],["Purchase UOM","puom"],["Sales UOM","suom"],["HSN Code","hsn"],["GST Rate (%)","gst"],["Preferred Supplier","supplier"],["Default Purchase Ledger","pled"],["Default Sales Ledger","sled"],["Minimum Stock","min"],["Reorder Level","reorder"],["Standard Purchase Rate (INR)","rate"],["Standard Sales Rate (INR)","srate"],["Opening Qty","open"],["Opening Value (INR)","openval"],["Storage Location","loc"],["Active (Yes/No)","active"],["Remarks","remark"]];
+const SRV_COLS=[["Service Code","code"],["Service Name / Description","name"],["Service Type","type"],["Category","cat"],["Purchase Applicable (Yes/No)","buy"],["Sales Applicable (Yes/No)","sell"],["SAC Code","hsn"],["GST Rate (%)","gst"],["Billing UOM","unit"],["Standard Purchase Rate (INR)","rate"],["Standard Sales Rate (INR)","srate"],["Preferred Service Vendor","supplier"],["Default Purchase Ledger","pled"],["Default Sales Ledger","sled"],["Cost Centre / Department","costc"],["Active (Yes/No)","active"],["Remarks","remark"]];
 let items=store.get("items",[]);
 const saveItems=()=>store.set("items",items);
 const itNorm=s=>String(s??"").toLowerCase().replace(/[^a-z0-9]+/g,"");
@@ -1646,79 +1669,90 @@ const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function itemByName(n){const k=key(n);if(!k)return null;return items.find(i=>key(i.name)===k)||items.find(i=>i.code&&key(i.code)===k)||null}
 function fillItemList(){
   const seen=new Set(),o=[];const add=n=>{const k=key(n);if(k&&!seen.has(k)){seen.add(k);o.push(`<option value="${esc(n)}">`)}};
-  items.forEach(i=>add(i.name));Object.values(rates).forEach(r=>add(r.name));$("#itemnames").innerHTML=o.join("");
+  items.filter(i=>i.active!=="No").forEach(i=>add(i.name));Object.values(rates).forEach(r=>add(r.name));$("#itemnames").innerHTML=o.join("");
   const cats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort();$("#itemcats").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");return cats}
 let itShow=100;
 function renderItems(){
   const cats=fillItemList();const sel=$("#it-cat"),cv=sel.value;
   sel.innerHTML=`<option value="">All categories</option>`+cats.map(c=>`<option${c===cv?" selected":""}>${esc(c)}</option>`).join("")+(items.some(i=>!i.cat)?`<option value="\u0000"${cv==="\u0000"?" selected":""}>No category</option>`:"");
   const q=key($("#it-q").value),c=sel.value;
-  const L=items.map((x,i)=>[x,i]).filter(([x])=>(!q||key(x.name).includes(q)||key(x.code).includes(q))&&(!c||(c==="\u0000"?!x.cat:x.cat===c)));
+  const kd=$("#it-kind").value;const L=items.map((x,i)=>[x,i]).filter(([x])=>(!q||key(x.name).includes(q)||key(x.code).includes(q))&&(!c||(c==="\u0000"?!x.cat:x.cat===c))&&(!kd||(x.kind||"Item")===kd));
   $("#itCount").textContent=items.length?`${items.length} item${items.length===1?"":"s"}${cats.length?` in ${cats.length} categor${cats.length===1?"y":"ies"}`:""}`:"";
-  $("#m-items").innerHTML=L.slice(0,itShow).map(([x,i])=>`<tr data-ii="${i}"><td><input id="mi${i}-c" data-if="code" value="${esc(x.code)}" style="font-family:var(--mono);width:100px"></td><td><input id="mi${i}-n" data-if="name" value="${esc(x.name)}" style="min-width:220px"></td><td><input id="mi${i}-k" data-if="cat" value="${esc(x.cat)}" list="itemcats"></td><td><input id="mi${i}-u" data-if="unit" value="${esc(x.unit)}" style="width:60px"></td><td><input id="mi${i}-h" data-if="hsn" value="${esc(x.hsn)}" style="width:90px"></td><td class="num"><input id="mi${i}-g" data-if="gst" type="number" step="any" value="${x.gst??""}" style="width:60px"></td><td class="num"><input id="mi${i}-r" data-if="rate" type="number" step="any" value="${x.rate??""}" style="width:80px"></td><td class="num"><input id="mi${i}-m" data-if="min" type="number" step="any" value="${x.min??""}" style="width:70px"></td><td><button class="x" data-idel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="9" class="empty">${items.length?"No item matches the search.":"No items yet. Import your product list from Excel, or add items above."}</td></tr>`;
+  $("#m-items").innerHTML=L.slice(0,itShow).map(([x,i])=>`<tr data-ii="${i}"><td><input id="mi${i}-c" data-if="code" value="${esc(x.code)}" style="font-family:var(--mono);width:100px"></td><td><input id="mi${i}-n" data-if="name" value="${esc(x.name)}" style="min-width:220px"></td><td><input id="mi${i}-t" data-if="type" value="${esc(x.type||"")}" list="itemtypes" style="width:120px"><div class="note">${x.kind==="Service"?"Service":"Item"}</div></td><td><input id="mi${i}-k" data-if="cat" value="${esc(x.cat)}" list="itemcats"></td><td><input id="mi${i}-u" data-if="unit" value="${esc(x.unit)}" style="width:60px"></td><td><input id="mi${i}-h" data-if="hsn" value="${esc(x.hsn)}" style="width:90px"></td><td class="num"><input id="mi${i}-g" data-if="gst" type="number" step="any" value="${x.gst??""}" style="width:60px"></td><td class="num"><input id="mi${i}-r" data-if="rate" type="number" step="any" value="${x.rate??""}" style="width:80px"></td><td class="num"><input id="mi${i}-s" data-if="srate" type="number" step="any" value="${x.srate??""}" style="width:80px"></td><td class="num"><input id="mi${i}-m" data-if="min" type="number" step="any" value="${x.min??""}" style="width:70px"></td><td><select id="mi${i}-a" data-if="active" style="width:auto"><option${x.active!=="No"?" selected":""}>Yes</option><option${x.active==="No"?" selected":""}>No</option></select></td><td><button class="x" data-idel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="12" class="empty">${items.length?"No item matches the search.":"No items yet. Import your product list from Excel, or add items above."}</td></tr>`;
   $("#itMore").innerHTML=L.length>itShow?`Showing ${itShow} of ${L.length}. Search to narrow it down, or <button class="btn" id="btn-it-more" type="button">Show 200 more</button>`:"";
 }
-$("#it-q").oninput=()=>{itShow=100;renderItems()};$("#it-cat").onchange=()=>{itShow=100;renderItems()};
+$("#it-q").oninput=()=>{itShow=100;renderItems()};$("#it-cat").onchange=()=>{itShow=100;renderItems()};$("#it-kind").onchange=()=>{itShow=100;renderItems()};
 $("#itMore").addEventListener("click",e=>{if(e.target.id==="btn-it-more"){itShow+=200;renderItems()}});
 $("#m-items").addEventListener("change",e=>{const f=e.target.dataset.if,tr=e.target.closest("tr");if(!f||!tr)return;const x=items[+tr.dataset.ii];let v=e.target.value.trim();
-  if(["gst","rate","min"].includes(f))v=v===""?"":+v;if(f==="unit")v=v.toUpperCase();
+  if(["gst","rate","srate","min"].includes(f))v=v===""?"":+v;if(f==="unit")v=v.toUpperCase();
   if(f==="name"&&!v){toast("The item name cannot be empty");e.target.value=x.name;return}
   if(f==="name"&&items.some(o=>o!==x&&key(o.name)===key(v))){toast(`${v} is already in the list`);e.target.value=x.name;return}
   if(f==="code"&&v&&items.some(o=>o!==x&&key(o.code)===key(v))){toast(`Code ${v} is already used`);e.target.value=x.code||"";return}
-  x[f]=v;saveItems();if(f==="cat"||f==="name")renderItems();else fillItemList()});
+  x[f]=v;saveItems();if(f==="cat"||f==="name"||f==="active")renderItems();else fillItemList()});
 $("#m-items").addEventListener("click",e=>{const i=e.target.dataset.idel;if(i==null)return;const x=items[+i];items.splice(+i,1);saveItems();renderItems();toast(`Removed ${x.name}`)});
 $("#m-item-form").onsubmit=e=>{e.preventDefault();const n=$("#mi-name").value.trim(),c=$("#mi-code").value.trim();if(!n){toast("Fill in the item name");return}
   if(items.some(o=>key(o.name)===key(n))){toast(`${n} is already in the list`);return}
   if(c&&items.some(o=>key(o.code)===key(c))){toast(`Code ${c} is already used`);return}
-  items.push({id:itId(),code:c,name:n,cat:$("#mi-cat").value.trim(),unit:($("#mi-unit").value.trim()||"NOS").toUpperCase(),hsn:$("#mi-hsn").value.trim(),gst:$("#mi-gst").value===""?"":+$("#mi-gst").value,rate:"",min:""});
+  items.push({id:itId(),kind:$("#mi-kind").value,active:"Yes",code:c,name:n,cat:$("#mi-cat").value.trim(),unit:($("#mi-unit").value.trim()||"NOS").toUpperCase(),hsn:$("#mi-hsn").value.trim(),gst:$("#mi-gst").value===""?"":+$("#mi-gst").value,rate:"",min:""});
   saveItems();["#mi-code","#mi-name","#mi-unit","#mi-hsn","#mi-gst"].forEach(s=>$(s).value="");renderItems();toast(`Added ${n}`);$("#mi-name").focus()};
 $("#btn-it-export").onclick=async()=>{if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
-  const ws=XLSX.utils.json_to_sheet(items.length?items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})):[{"Item code":"","Item name":"","Category":"",Unit:"",HSN:"","GST %":"",Rate:"","Min stock":""}]);
-  ws["!cols"]=[{wch:12},{wch:40},{wch:20},{wch:8},{wch:12},{wch:8},{wch:10},{wch:10}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Items");
+  const sheet=(cols,L)=>{const ws=XLSX.utils.aoa_to_sheet([cols.map(c=>c[0]),...L.map(x=>cols.map(([,f])=>x[f]??""))]);ws["!cols"]=cols.map(([h,f])=>({wch:f==="name"?40:Math.max(10,Math.min(24,h.length))}));return ws};
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,sheet(ITEM_COLS,items.filter(x=>x.kind!=="Service")),"ITEM MASTER");XLSX.utils.book_append_sheet(wb,sheet(SRV_COLS,items.filter(x=>x.kind==="Service")),"SERVICE MASTER");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-  if(await deliver(blob,`Items-${today()}.xlsx`))toast(items.length?`Saved ${items.length} items`:"Saved an empty template to fill in")};
+  if(await deliver(blob,`Item-Service-Master-${today()}.xlsx`))toast(items.length?`Saved ${items.length} items and services`:"Saved an empty template to fill in")};
 
 /* import */
 $("#btn-it-import").onclick=()=>$("#it-file").click();
 $("#it-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
   if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
-  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let best=null;
-    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});
-      for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r]);const sc=Object.keys(m).length+(m.name!=null?5:0);if(m.name!=null&&(!best||sc>best.sc))best={sc,sn,rows,hr:r,map:m}}});
-    if(!best){toast("Could not find an item name column. Make sure the sheet has a heading like Item Name or Description.");return}
-    itPreview(f.name,best)}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const blocks=[];
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});let best=null;
+      for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r]);const sc=Object.keys(m).length;if(m.name!=null&&sc>=2&&(!best||sc>best.sc))best={sc,sn,rows,hr:r,map:m}}
+      if(best){const H=(rows[best.hr]||[]).map(itNorm).join(" ");best.kind=/servic/i.test(sn)||/servicecode|servicename|saccode/.test(H)?"Service":"Item";blocks.push(best)}});
+    if(!blocks.length){toast("Could not find an item name column. Make sure the sheet has a heading like Item Name or Description.");return}
+    const top=Math.max(...blocks.map(b=>b.sc));itPreview(f.name,blocks.filter(b=>b.sc>=Math.min(4,top)))}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
 function itGuess(hrow,F=IT_FIELDS){const H=(hrow||[]).map(itNorm),m={},used=new Set();
   const take=(f,j)=>{m[f]=j;used.add(j)};
   F.forEach(([f,,syn])=>{for(const s of syn){const j=H.findIndex((h,j)=>h===s&&!used.has(j));if(j>=0){take(f,j);break}}});
   F.forEach(([f,,syn])=>{if(m[f]!=null)return;for(const s of syn.filter(s=>s.length>=4)){const j=H.findIndex((h,j)=>h&&!used.has(j)&&h.startsWith(s));if(j>=0){take(f,j);break}}});
   return m}
-function itParse(B){const out=[];let skipped=0;
-  B.rows.slice(B.hr+1).forEach(r=>{const g=f=>B.map[f]==null?"":r[B.map[f]];const name=String(g("name")).trim();
+function itParse(BL,skipEx){const out=[];let skipped=0,ex=0;
+  BL.forEach(B=>B.rows.slice(B.hr+1).forEach(r=>{const g=f=>B.map[f]==null?"":r[B.map[f]];const name=String(g("name")).trim();
     if(!name||/^(total|grand total)$/i.test(name)){if(r.some(c=>String(c).trim()!==""))skipped++;return}
-    out.push({code:String(g("code")).trim(),name,cat:String(g("cat")).trim(),unit:String(g("unit")).trim().toUpperCase().replace(/\.$/,""),hsn:String(g("hsn")).trim().replace(/\.0+$/,""),gst:itGst(g("gst")),rate:itNum(g("rate")),min:itNum(g("min")),open:itNum(g("open"))})});
-  const byK=new Map();let dup=0;out.forEach(x=>{const k=x.code?"C"+key(x.code):"N"+key(x.name);const o=byK.get(k);if(o){dup++;Object.keys(x).forEach(f=>{if(x[f]!==""&&x[f]!=null)o[f]=x[f]})}else byK.set(k,x)});
+    const x={kind:B.kind,name};IT_FIELDS.forEach(([f])=>{if(f==="name")return;let v=g(f);
+      if(f==="gst")v=itGst(v);else if(IT_NUM.includes(f))v=itNum(v);else if(IT_YN.includes(f))v=itYN(v);else{v=String(v??"").trim();if(IT_UP.includes(f))v=v.toUpperCase().replace(/\.$/,"");if(f==="hsn")v=v.replace(/\.0+$/,"")}x[f]=v});
+    if(r.some(c=>/^\s*example only/i.test(String(c)))){ex++;if(skipEx)return;x.ex=true}
+    out.push(x)}));
+  const byK=new Map();let dup=0;const clash=[];out.forEach(x=>{const k=x.code?"C"+key(x.code):"N"+key(x.name);const o=byK.get(k);if(o){dup++;if(x.code&&key(o.name)!==key(x.name)){clash.push(`${x.code}: ${o.name} / ${x.name}`);return}Object.keys(x).forEach(f=>{if(x[f]!==""&&x[f]!=null)o[f]=x[f]})}else byK.set(k,x)});
   const L=[...byK.values()];let nw=0,up=0;L.forEach(x=>{x.match=(x.code&&items.find(i=>i.code&&key(i.code)===key(x.code)))||items.find(i=>key(i.name)===key(x.name))||null;x.match?up++:nw++});
-  return{L,nw,up,dup,skipped}}
-function itPreview(fname,B){const d=document.createElement("div");d.className="modal";document.body.appendChild(d);
-  const draw=()=>{const P=itParse(B),H=B.rows[B.hr]||[];const hasOpen=B.map.open!=null&&P.L.some(x=>+x.open>0)&&has("stock.issue");
-    d.innerHTML=`<div class="panel stack" style="max-width:920px;width:100%;max-height:92vh;overflow:auto"><div class="row"><h2 class="sec">Import items from ${esc(fname)}</h2><span style="flex:1"></span><button class="btn" id="iti-x" type="button">Cancel</button></div>
-      <div class="note">Sheet "${esc(B.sn)}". Check that each field points to the right column. Change any that are wrong.</div>
+  const miss=f=>L.filter(x=>x[f]===""||x[f]==null).length;
+  return{L,nw,up,dup,skipped,ex,clash,miss:{code:miss("code"),cat:miss("cat"),unit:miss("unit"),hsn:miss("hsn"),gst:miss("gst")}}}
+function itPreview(fname,BL){const d=document.createElement("div");d.className="modal";document.body.appendChild(d);let bi=0,skipEx=true;
+  const draw=()=>{const P=itParse(BL,skipEx),B=BL[bi],H=B.rows[B.hr]||[];const anyOpen=BL.some(b=>b.map.open!=null);const hasOpen=anyOpen&&P.L.some(x=>+x.open>0&&x.kind!=="Service")&&has("stock.issue");
+    const M=P.miss,warn=[["code","without a code"],["cat","without a category"],["unit","without a unit"],["hsn","without HSN / SAC"],["gst","without a GST rate"]].filter(([f])=>M[f]).map(([f,t])=>`<span class="chip st-Draft">${M[f]} ${t}</span>`).join("");
+    d.innerHTML=`<div class="panel stack" style="max-width:1000px;width:100%;max-height:92vh;overflow:auto"><div class="row"><h2 class="sec">Import items from ${esc(fname)}</h2><span style="flex:1"></span><button class="btn" id="iti-x" type="button">Cancel</button></div>
+      ${BL.length>1?`<div class="row">Sheets found:${BL.map((b,i)=>`<button type="button" class="btn${i===bi?" primary":""}" data-bi="${i}">${esc(b.sn)} · ${b.kind==="Service"?"services":"items"}</button>`).join("")}</div>`:""}
+      <div class="note">Sheet "${esc(B.sn)}", read as ${B.kind==="Service"?"services":"items"}. Check that each field points to the right column. Change any that are wrong. Nothing is guessed: blank HSN, SAC or GST cells stay blank.</div>
       <div class="rgroup">${IT_FIELDS.map(([f,lab])=>`<label class="f" style="display:block">${esc(lab)}<select id="itm-${f}" data-map="${f}">${`<option value="">Not in file</option>`+H.map((h,j)=>`<option value="${j}"${B.map[f]===j?" selected":""}>${esc(String(h)||"Column "+(j+1))}</option>`).join("")}</select></label>`).join("")}</div>
-      <div class="row"><span class="chip calc">${P.nw} new</span><span class="chip sugg">${P.up} already in the list</span>${P.dup?`<span class="chip st-Draft">${P.dup} repeated row${P.dup===1?"":"s"} merged</span>`:""}${P.skipped?`<span class="chip st-Back">${P.skipped} row${P.skipped===1?"":"s"} without a name skipped</span>`:""}</div>
-      <div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th></th><th>Code</th><th>Item name</th><th>Category</th><th>Unit</th><th>HSN</th><th class="num">GST %</th><th class="num">Rate</th><th class="num">Min</th>${B.map.open!=null?`<th class="num">Opening</th>`:""}</tr></thead><tbody>${P.L.slice(0,12).map(x=>`<tr><td>${x.match?`<span class="chip sugg">Update</span>`:`<span class="chip calc">New</span>`}</td><td>${esc(x.code)}</td><td>${esc(x.name)}</td><td>${esc(x.cat)}</td><td>${esc(x.unit)}</td><td>${esc(x.hsn)}</td><td class="num">${x.gst}</td><td class="num">${x.rate}</td><td class="num">${x.min}</td>${B.map.open!=null?`<td class="num">${x.open}</td>`:""}</tr>`).join("")}</tbody></table></div>
-      ${P.L.length>12?`<div class="note">First 12 of ${P.L.length} items shown.</div>`:""}
+      <div class="row"><span class="chip calc">${P.nw} new</span><span class="chip sugg">${P.up} already in the list</span>${P.dup-P.clash.length>0?`<span class="chip st-Draft">${P.dup-P.clash.length} repeated row${P.dup-P.clash.length===1?"":"s"} merged</span>`:""}${P.skipped?`<span class="chip st-Back">${P.skipped} row${P.skipped===1?"":"s"} without a name skipped</span>`:""}${warn}</div>
+      ${P.clash.length?`<div class="banner back">${P.clash.length} code${P.clash.length===1?" is":"s are"} used for two different names. Only the first row is imported: ${P.clash.slice(0,5).map(esc).join("; ")}${P.clash.length>5?" …":""}</div>`:""}
+      ${P.ex||!skipEx?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-ex" style="width:auto"${skipEx?" checked":""}> Leave out the sample rows marked "Example only" (${P.ex})</label>`:""}
+      <div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th></th><th>Code</th><th>Name</th><th>Type</th><th>Category</th><th>Unit</th><th>HSN/SAC</th><th class="num">GST %</th><th class="num">Buy rate</th><th class="num">Sell rate</th><th class="num">Min</th>${anyOpen?`<th class="num">Opening</th>`:""}</tr></thead><tbody>${P.L.slice(0,15).map(x=>`<tr><td>${x.match?`<span class="chip sugg">Update</span>`:`<span class="chip calc">New</span>`}</td><td>${esc(x.code)}</td><td>${esc(x.name)}${x.kind==="Service"?` <span class="note">service</span>`:""}</td><td>${esc(x.type)}</td><td>${esc(x.cat)}${x.subcat?` / ${esc(x.subcat)}`:""}</td><td>${esc(x.unit)}</td><td>${esc(x.hsn)}</td><td class="num">${x.gst}</td><td class="num">${x.rate}</td><td class="num">${x.srate}</td><td class="num">${x.min}</td>${anyOpen?`<td class="num">${x.open}</td>`:""}</tr>`).join("")||`<tr><td colspan="12" class="empty">No rows to import.</td></tr>`}</tbody></table></div>
+      ${P.L.length>15?`<div class="note">First 15 of ${P.L.length} shown.</div>`:""}
       ${P.up?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-upd" checked style="width:auto"> Update items already in the list with the details from this file (blank cells keep what is there)</label>`:""}
       ${hasOpen?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-opchk" style="width:auto"> Also enter the opening stock quantities in the stock register (one Opening stock slip). Only tick this once.</label>`:""}
-      <div class="row"><span style="flex:1"></span><button class="btn primary" id="iti-go" type="button"${P.L.length?"":" disabled"}>Import ${P.L.length} items</button></div></div>`;
+      <div class="row"><span style="flex:1"></span><button class="btn primary" id="iti-go" type="button"${P.L.length?"":" disabled"}>Import ${P.L.length} record${P.L.length===1?"":"s"}</button></div></div>`;
     d.querySelector("#iti-x").onclick=()=>d.remove();
+    d.querySelectorAll("[data-bi]").forEach(b=>b.onclick=()=>{bi=+b.dataset.bi;draw()});
+    const exb=d.querySelector("#iti-ex");if(exb)exb.onchange=()=>{skipEx=exb.checked;draw()};
     d.querySelectorAll("[data-map]").forEach(s=>s.onchange=()=>{const f=s.dataset.map;if(s.value==="")delete B.map[f];else{Object.keys(B.map).forEach(k=>{if(B.map[k]===+s.value)delete B.map[k]});B.map[f]=+s.value}draw()});
-    d.querySelector("#iti-go").onclick=()=>{if(B.map.name==null){toast("Choose the column that has the item name");return}
+    d.querySelector("#iti-go").onclick=()=>{if(BL.some(b=>b.map.name==null)){toast("Choose the column that has the name");return}
       const upd=!d.querySelector("#iti-upd")||d.querySelector("#iti-upd").checked,op=d.querySelector("#iti-opchk")&&d.querySelector("#iti-opchk").checked;
       let nw=0,up=0;const opl=[];
-      P.L.forEach(x=>{const {match,open,...v}=x;let it=match;
+      P.L.forEach(x=>{const {match,open,openval,ex,...v}=x;let it=match;
         if(it){if(upd){Object.keys(v).forEach(k=>{if(v[k]!==""&&v[k]!=null)it[k]=v[k]});up++}}
-        else{it={id:itId(),...v,unit:v.unit||"NOS"};items.push(it);nw++}
-        if(op&&+open>0)opl.push({k:key(it.name),desc:it.name,unit:it.unit||"NOS",qty:+open,rate:+it.rate||0,loc:""})});
+        else{it={id:itId(),...v,unit:v.unit||"NOS",active:v.active||"Yes"};items.push(it);nw++}
+        if(op&&+open>0&&it.kind!=="Service")opl.push({k:key(it.name),desc:it.name,unit:it.unit||"NOS",qty:+open,rate:+openval>0?Math.round(+openval/+open*100)/100:+it.rate||0,loc:it.loc||""})});
       saveItems();
       if(opl.length){slips.unshift({type:"Opening",no:nextSlip("Opening"),date:today(),job:"",to:"",remark:"Imported from "+fname,by:me.name,lines:opl,createdAt:new Date().toISOString()});saveSlips()}
       d.remove();itShow=100;renderItems();
@@ -1977,7 +2011,7 @@ function sdTotUpd(){const x=sdCur.rec,t=sdCur.t;$("#sd-tot").textContent=fmt(t==
     const f=el.dataset.sl;if(!f)return;const tr=el.closest("tr"),l=x.lines[+tr.dataset.i];l[f]=["qty","rate","dis","tax"].includes(f)?(el.value===""?"":+el.value):el.value;tr.querySelector("[data-amt]").textContent=fmt(lnAmt(l));sdTotUpd()});
   F.addEventListener("change",e=>{if(!sdCur)return;const el=e.target,x=sdCur.rec;
     if(el.dataset.sf==="cust"){const c=custByName(el.value);if(c){x.cust=c.name;el.value=c.name}}
-    if(el.dataset.sl==="desc"){const l=x.lines[+el.closest("tr").dataset.i],it=itemByName(l.desc);if(it){l.desc=it.name;if(it.hsn)l.hsn=it.hsn;if(it.unit)l.unit=it.unit;if(!l.rate&&+it.rate)l.rate=+it.rate;renderSDForm()}}});
+    if(el.dataset.sl==="desc"){const l=x.lines[+el.closest("tr").dataset.i],it=itemByName(l.desc);if(it){l.desc=it.name;if(it.hsn)l.hsn=it.hsn;if(it.unit)l.unit=it.unit;if(!l.rate&&+(it.srate||0))l.rate=+it.srate;renderSDForm()}}});
   F.addEventListener("click",e=>{if(!sdCur)return;const id=e.target.id,x=sdCur.rec;
     if(id==="sd-close"){sdCur=null;renderSDForm();return}
     if(id==="sd-rc-add"){x.rcpts=rcptsOf(x);x.rcpts.push({date:today(),amt:Math.round(invDue(x)*100)/100||"",ref:""});x.recd="";renderSDForm();return}
