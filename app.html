@@ -418,10 +418,17 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Projects</h2>
       <form class="addrow" id="m-proj-form"><input id="mp-no" placeholder="Job No. e.g. ZT2350"><input id="mp-desc" placeholder="Description"><input id="mp-cust" placeholder="Customer"><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt" style="min-width:560px"><thead><tr><th>Job No.</th><th>Description</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody id="m-projs"></tbody></table></div></div>
+    <div class="panel stack" style="grid-column:1/-1" id="itemsPanel"><div class="row"><h2 class="sec">Items</h2><span class="note" id="itCount"></span><span style="flex:1"></span><button class="btn" id="btn-it-import" type="button">Import from Excel</button><input type="file" id="it-file" accept=".xlsx,.xls,.csv" hidden><button class="btn" id="btn-it-export" type="button">Download list</button></div>
+      <div class="note">Import the product list exported from your old ERP (Excel or CSV). Columns are matched by their headings, and you see a preview before anything is saved. Item names then show up as suggestions on requests, estimates and POs, and fill in the unit, HSN and GST.</div>
+      <form class="addrow" id="m-item-form"><input id="mi-code" placeholder="Code" style="max-width:110px"><input id="mi-name" placeholder="Item name"><input id="mi-cat" placeholder="Category" list="itemcats" style="max-width:160px"><input id="mi-unit" placeholder="Unit" style="max-width:70px"><input id="mi-hsn" placeholder="HSN" style="max-width:90px"><input id="mi-gst" placeholder="GST %" type="number" step="any" style="max-width:70px"><button class="btn primary" type="submit">Add</button></form>
+      <div class="row"><input id="it-q" placeholder="Search name or code" style="max-width:260px"><select id="it-cat" style="width:auto"></select></div>
+      <div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Code</th><th>Item name</th><th>Category</th><th>Unit</th><th>HSN</th><th class="num">GST %</th><th class="num">Rate</th><th class="num">Min stock</th><th></th></tr></thead><tbody id="m-items"></tbody></table></div>
+      <div class="note" id="itMore"></div></div>
   </div>
 </section>
 
 <datalist id="suppliers"></datalist>
+<datalist id="itemcats"></datalist>
 <datalist id="itemnames"></datalist>
 <datalist id="projects"></datalist>
 </main>
@@ -442,7 +449,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -460,7 +467,7 @@ async function api(path,opts={}){const r=await fetch("/api/"+path,{method:opts.m
   if(r.status===401){cloudExpired();throw Object.assign(new Error("auth"),{auth:true})}const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||"Server error"),{status:r.status});return j}
 function cloudExpired(){if(cloudExpired.done)return;cloudExpired.done=true;try{localStorage.removeItem("zpo:token")}catch(e){}alert("Your login has expired. Please log in again.");location.reload()}
 async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pending.size){cloudBadge("ok");return}
-  cloud.busy=true;cloudBadge("saving");const batch=[...cloud.pending.values()];cloud.pending.clear();
+  cloud.busy=true;cloudBadge("saving");const batch=[...cloud.pending.values()].slice(0,250);batch.forEach(c=>cloud.pending.delete(c.coll+"\u0001"+c.id));
   try{const res=await api("sync",{method:"POST",body:{changes:batch}});const confl=[],errs=[];
     res.results.forEach((x,i)=>{if(x.conflict)confl.push(batch[i]);else if(x.error)errs.push(x.error)});
     if(errs.length)toast(errs[0]);
@@ -540,7 +547,7 @@ let me=null;
 function exampleEstimate(){return{job:"ZT2349",sup:"M/S. R A ENGINEERING",date:today(),unit:"NOS",lines:EXAMPLE.map(([n,e,q])=>({item:n,spec:"",expr:e,rate:sumExpr(e),qty:q,unit:"NOS",src:"calc"}))}}
 function sumExpr(e){const parts=String(e||"").split("+").map(s=>parseFloat(s.trim())).filter(n=>!isNaN(n));return parts.length?parts.reduce((a,b)=>a+b,0):null}
 const rkey=(i,sp)=>key(i+" "+(sp||""));
-function suggest(item,spec){const r=rates[rkey(item,spec)];return r?r.rate:null}
+function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
 const views=["home","req","est","po","saved","appr","grn","stock","acct","rep","rates","mast","users"];
@@ -568,7 +575,7 @@ function bindHeader(){
   [["#e-job","job"],["#e-date","date"],["#e-unit","unit"],["#e-need","need"]].forEach(([s,k])=>$(s).oninput=e=>{est[k]=e.target.value;saveEst()});
   $("#exampleNote").hidden=!isExample;
   $("#suppliers").innerHTML=suppliers.map(s=>`<option value="${esc(s.name)}">`).join("");
-  $("#itemnames").innerHTML=Object.values(rates).map(r=>`<option value="${esc(r.name)}">`).join("");
+  fillItemList();
 }
 function lineAmt(l){return (+l.rate||0)*(+l.qty||0)}
 function renderEst(){
@@ -603,6 +610,9 @@ $("#estBody").addEventListener("input",e=>{
   tr.querySelector("[data-amt]").textContent=fmt0(lineAmt(l));tr.querySelector("[data-src]").innerHTML=srcChip(l);
   updateTotal();saveEst();
 });
+$("#estBody").addEventListener("change",e=>{if(e.target.dataset.k!=="item")return;const tr=e.target.closest("tr"),l=est.lines[+tr.dataset.i],it=itemByName(l.item);if(!it)return;
+  if(key(it.name)!==key(l.item)){l.item=it.name;e.target.value=it.name}if(it.unit&&(!l.unit||l.unit==="NOS")){l.unit=it.unit;tr.querySelector("[data-k=unit]").value=it.unit}
+  if(l.rate==null&&+it.rate){l.rate=+it.rate;l.src="sugg";tr.querySelector(".rate").value=l.rate;tr.querySelector("[data-amt]").textContent=fmt0(lineAmt(l));updateTotal()}saveEst()});
 $("#estBody").addEventListener("click",e=>{const d=e.target.dataset.del;if(d!=null){est.lines.splice(+d,1);saveEst();renderEst()}});
 
 function parseQuick(t){
@@ -663,7 +673,7 @@ $("#btn-convert").onclick=()=>{
   const sup=suppliers.find(s=>key(s.name)===key(est.sup))||{name:est.sup||"",addr:"",state:"27"};
   po={no:nextPONo(),date:today(),sup:sup.name,supAddr:sup.addr,ref:est.job,refDate:est.date,attn:"",venCode:sup.gstin||"",terms:sup.terms||"60 Days",transport:"",validity:"",
       reqNo:est.reqNo||"",needBy:est.need||"",deliv:COMPANY.addr,gstmode:sup.state&&sup.state!=="27"?"inter":"intra",remark:"",
-      lines:lines.map(l=>({desc:[l.item,l.spec].filter(Boolean).join(" - "),item:l.item,spec:l.spec||"",hsn:"84801000",tax:18,qty:l.qty,unit:l.unit||"NOS",rate:l.rate,dis:0}))};
+      lines:lines.map(l=>{const it=itemByName(l.item);return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:l.item,spec:l.spec||"",hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
   store.set("po",po);show("po");
 };
 function poCalc(){
@@ -694,7 +704,7 @@ function renderPO(){
   </div>
   <table><thead><tr><th>Sn</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
   <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="pl${i}-desc" data-lk="desc" value="${esc(l.desc)}" style="width:100%;min-width:200px"></td>
+    <td><input id="pl${i}-desc" data-lk="desc" list="itemnames" value="${esc(l.desc)}" style="width:100%;min-width:200px"></td>
     <td><input id="pl${i}-hsn" data-lk="hsn" value="${esc(l.hsn)}" style="width:72px"></td>
     <td class="r"><input id="pl${i}-tax" data-lk="tax" type="number" value="${l.tax}" style="width:44px"></td>
     <td class="r"><input id="pl${i}-qty" data-lk="qty" type="number" step="any" value="${l.qty}" style="width:56px"></td>
@@ -741,6 +751,8 @@ function renderTotals(){
   rows+=`<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr>`;
   $("#poTot").innerHTML=rows;$("#poWords").innerHTML=`<b>Amount In Words :</b> Rupees ${words(c.total)} Only.`;
 }
+$("#paper").addEventListener("change",e=>{if(e.target.dataset.lk!=="desc")return;const l=po.lines[+e.target.closest("tr").dataset.i],it=itemByName(l.desc);if(!it)return;
+  if(key(it.name)!==key(l.desc))l.desc=it.name;if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;e.target.value=l.desc;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
 $("#paper").addEventListener("input",e=>{
   const t=e.target;
   if(t.dataset.pk){po[t.dataset.pk]=t.value;
@@ -881,6 +893,8 @@ $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.tar
 $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
 $("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=cur.lines[+tr.dataset.i],k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value;if(cur.status!=="Draft")saveReqs()});
+$("#reqBody").addEventListener("change",e=>{if(e.target.dataset.k!=="desc")return;const tr=e.target.closest("tr"),l=cur.lines[+tr.dataset.i],it=itemByName(l.desc);if(!it)return;
+  if(key(it.name)!==key(l.desc)){l.desc=it.name;e.target.value=it.name}if(it.unit&&(!l.unit||l.unit==="NOS")){l.unit=it.unit;tr.querySelector("[data-k=unit]").value=it.unit}if(cur.status!=="Draft")saveReqs()});
 $("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
 $("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
 $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
@@ -1269,6 +1283,7 @@ function backupBook(){
   add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
   add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":(x.alloc||[]).map(a=>a.grn).join(", ")})));
+  add("Items",items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})));
   add("Stock",stockItems().map(i=>({Item:i.desc,Unit:i.unit,Location:i.loc,Received:i.recv,Issued:i.iss,Returned:i.ret,"In stock":i.bal,"Avg rate":Math.round(i.avg*100)/100,Value:Math.round(i.value*100)/100})));
   add("Issue slips",slips.flatMap(s=>s.lines.map(l=>({Slip:SLIP[s.type].pre+s.no,Type:s.type,Date:dmy(s.date),"Job No":s.job,Person:s.to,Item:l.desc,Qty:l.qty,Unit:l.unit,Rate:l.rate}))));
   add("Challans",rgps.map(c=>({No:"RC-"+c.no,Date:dmy(c.date),Party:c.party,Purpose:c.purpose,"Return by":dmy(c.expected),Status:c.status,Pending:rgpPend(c)})));
@@ -1442,7 +1457,7 @@ $("#m-sup-form").onsubmit=e=>{e.preventDefault();const n=$("#ms-name").value.tri
   const g=$("#ms-gst").value.trim().toUpperCase();suppliers.push({name:n,addr:"",gstin:g,state:/^\d\d/.test(g)?g.slice(0,2):"27",terms:$("#ms-terms").value.trim()||"60 Days",contact:""});saveSups();renderSups();
   $("#ms-name").value="";$("#ms-gst").value="";$("#ms-terms").value="";toast(`Added ${n}. Fill in the address in the table.`)};
 function renderMasters(){
-  renderSups();
+  renderSups();renderItems();
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   $("#md-hod").innerHTML=opts(hods,"","HOD (optional)");
@@ -1499,6 +1514,105 @@ function addM(t,rec,check){if(!check){toast("Fill in the name first");return fal
 $("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,dept:$("#mu-dept").value,role:$("#mu-role").value},n))$("#mu-name").value=""};
 $("#m-dept-form").onsubmit=e=>{e.preventDefault();const n=$("#md-name").value.trim();if(addM("depts",{name:n,hod:$("#md-hod").value},n))$("#md-name").value=""};
 $("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim().toUpperCase();if(addM("projects",{no:n,desc:$("#mp-desc").value.trim(),cust:$("#mp-cust").value.trim(),status:"Active"},n)){$("#mp-no").value="";$("#mp-desc").value="";$("#mp-cust").value=""}};
+
+/* ---------- item master ---------- */
+const IT_FIELDS=[
+  ["code","Item code",["itemcode","code","productcode","partno","partnumber","sku","materialcode","stockcode","alias","itemno","material","partcode","itemid"]],
+  ["name","Item name",["itemname","nameofitem","productname","stockitem","stockitemname","name","itemdescription","description","materialdescription","item","product","particulars","partname","materialname"]],
+  ["cat","Category",["category","categoryname","itemcategory","productcategory","group","itemgroup","stockgroup","productgroup","materialgroup","groupname","under","parent","subgroup","stockcategory","itemtype","type"]],
+  ["unit","Unit",["unit","units","uom","baseunit","baseuom","unitofmeasure","unitofmeasurement","stockunit","unitname"]],
+  ["hsn","HSN",["hsn","hsncode","hsnsac","hsnsaccode","sac","hsnno","hsnsacno"]],
+  ["gst","GST %",["gst","gstrate","gstpercent","gstper","taxrate","tax","igst","igstrate","igstpercent","rateoftax","taxpercent"]],
+  ["rate","Rate",["purchaserate","rate","lastpurchaserate","price","purchaseprice","cost","costprice","standardcost","stdcost","unitprice","unitrate"]],
+  ["min","Min stock",["minstock","minimumstock","reorderlevel","minqty","minimumqty","minlevel","safetystock","rol","minimumlevel"]],
+  ["open","Opening stock",["openingstock","openingqty","openingbalance","opqty","openingquantity","closingstock","closingqty","currentstock","qtyinhand","stockqty","stock","balance","quantity","qty"]]];
+let items=store.get("items",[]);
+const saveItems=()=>store.set("items",items);
+const itNorm=s=>String(s??"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+const itNum=v=>{if(v==null||v==="")return "";const n=parseFloat(String(v).replace(/,/g,"").replace(/[^0-9.\-]/g," ").trim().split(/\s+/)[0]);return isFinite(n)?n:""};
+const itGst=v=>{let n=itNum(v);if(n==="")return "";if(n>0&&n<1)n=Math.round(n*10000)/100;return n};
+const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function itemByName(n){const k=key(n);if(!k)return null;return items.find(i=>key(i.name)===k)||items.find(i=>i.code&&key(i.code)===k)||null}
+function fillItemList(){
+  const seen=new Set(),o=[];const add=n=>{const k=key(n);if(k&&!seen.has(k)){seen.add(k);o.push(`<option value="${esc(n)}">`)}};
+  items.forEach(i=>add(i.name));Object.values(rates).forEach(r=>add(r.name));$("#itemnames").innerHTML=o.join("");
+  const cats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort();$("#itemcats").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");return cats}
+let itShow=100;
+function renderItems(){
+  const cats=fillItemList();const sel=$("#it-cat"),cv=sel.value;
+  sel.innerHTML=`<option value="">All categories</option>`+cats.map(c=>`<option${c===cv?" selected":""}>${esc(c)}</option>`).join("")+(items.some(i=>!i.cat)?`<option value="\u0000"${cv==="\u0000"?" selected":""}>No category</option>`:"");
+  const q=key($("#it-q").value),c=sel.value;
+  const L=items.map((x,i)=>[x,i]).filter(([x])=>(!q||key(x.name).includes(q)||key(x.code).includes(q))&&(!c||(c==="\u0000"?!x.cat:x.cat===c)));
+  $("#itCount").textContent=items.length?`${items.length} item${items.length===1?"":"s"}${cats.length?` in ${cats.length} categor${cats.length===1?"y":"ies"}`:""}`:"";
+  $("#m-items").innerHTML=L.slice(0,itShow).map(([x,i])=>`<tr data-ii="${i}"><td><input id="mi${i}-c" data-if="code" value="${esc(x.code)}" style="font-family:var(--mono);width:100px"></td><td><input id="mi${i}-n" data-if="name" value="${esc(x.name)}" style="min-width:220px"></td><td><input id="mi${i}-k" data-if="cat" value="${esc(x.cat)}" list="itemcats"></td><td><input id="mi${i}-u" data-if="unit" value="${esc(x.unit)}" style="width:60px"></td><td><input id="mi${i}-h" data-if="hsn" value="${esc(x.hsn)}" style="width:90px"></td><td class="num"><input id="mi${i}-g" data-if="gst" type="number" step="any" value="${x.gst??""}" style="width:60px"></td><td class="num"><input id="mi${i}-r" data-if="rate" type="number" step="any" value="${x.rate??""}" style="width:80px"></td><td class="num"><input id="mi${i}-m" data-if="min" type="number" step="any" value="${x.min??""}" style="width:70px"></td><td><button class="x" data-idel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="9" class="empty">${items.length?"No item matches the search.":"No items yet. Import your product list from Excel, or add items above."}</td></tr>`;
+  $("#itMore").innerHTML=L.length>itShow?`Showing ${itShow} of ${L.length}. Search to narrow it down, or <button class="btn" id="btn-it-more" type="button">Show 200 more</button>`:"";
+}
+$("#it-q").oninput=()=>{itShow=100;renderItems()};$("#it-cat").onchange=()=>{itShow=100;renderItems()};
+$("#itMore").addEventListener("click",e=>{if(e.target.id==="btn-it-more"){itShow+=200;renderItems()}});
+$("#m-items").addEventListener("change",e=>{const f=e.target.dataset.if,tr=e.target.closest("tr");if(!f||!tr)return;const x=items[+tr.dataset.ii];let v=e.target.value.trim();
+  if(["gst","rate","min"].includes(f))v=v===""?"":+v;if(f==="unit")v=v.toUpperCase();
+  if(f==="name"&&!v){toast("The item name cannot be empty");e.target.value=x.name;return}
+  if(f==="name"&&items.some(o=>o!==x&&key(o.name)===key(v))){toast(`${v} is already in the list`);e.target.value=x.name;return}
+  if(f==="code"&&v&&items.some(o=>o!==x&&key(o.code)===key(v))){toast(`Code ${v} is already used`);e.target.value=x.code||"";return}
+  x[f]=v;saveItems();if(f==="cat"||f==="name")renderItems();else fillItemList()});
+$("#m-items").addEventListener("click",e=>{const i=e.target.dataset.idel;if(i==null)return;const x=items[+i];items.splice(+i,1);saveItems();renderItems();toast(`Removed ${x.name}`)});
+$("#m-item-form").onsubmit=e=>{e.preventDefault();const n=$("#mi-name").value.trim(),c=$("#mi-code").value.trim();if(!n){toast("Fill in the item name");return}
+  if(items.some(o=>key(o.name)===key(n))){toast(`${n} is already in the list`);return}
+  if(c&&items.some(o=>key(o.code)===key(c))){toast(`Code ${c} is already used`);return}
+  items.push({id:itId(),code:c,name:n,cat:$("#mi-cat").value.trim(),unit:($("#mi-unit").value.trim()||"NOS").toUpperCase(),hsn:$("#mi-hsn").value.trim(),gst:$("#mi-gst").value===""?"":+$("#mi-gst").value,rate:"",min:""});
+  saveItems();["#mi-code","#mi-name","#mi-unit","#mi-hsn","#mi-gst"].forEach(s=>$(s).value="");renderItems();toast(`Added ${n}`);$("#mi-name").focus()};
+$("#btn-it-export").onclick=async()=>{if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const ws=XLSX.utils.json_to_sheet(items.length?items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})):[{"Item code":"","Item name":"","Category":"",Unit:"",HSN:"","GST %":"",Rate:"","Min stock":""}]);
+  ws["!cols"]=[{wch:12},{wch:40},{wch:20},{wch:8},{wch:12},{wch:8},{wch:10},{wch:10}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Items");
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(await deliver(blob,`Items-${today()}.xlsx`))toast(items.length?`Saved ${items.length} items`:"Saved an empty template to fill in")};
+
+/* import */
+$("#btn-it-import").onclick=()=>$("#it-file").click();
+$("#it-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+  if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});
+      for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r]);const sc=Object.keys(m).length+(m.name!=null?5:0);if(m.name!=null&&(!best||sc>best.sc))best={sc,sn,rows,hr:r,map:m}}});
+    if(!best){toast("Could not find an item name column. Make sure the sheet has a heading like Item Name or Description.");return}
+    itPreview(f.name,best)}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
+function itGuess(hrow){const H=(hrow||[]).map(itNorm),m={},used=new Set();
+  const take=(f,j)=>{m[f]=j;used.add(j)};
+  IT_FIELDS.forEach(([f,,syn])=>{for(const s of syn){const j=H.findIndex((h,j)=>h===s&&!used.has(j));if(j>=0){take(f,j);break}}});
+  IT_FIELDS.forEach(([f,,syn])=>{if(m[f]!=null)return;for(const s of syn.filter(s=>s.length>=4)){const j=H.findIndex((h,j)=>h&&!used.has(j)&&h.startsWith(s));if(j>=0){take(f,j);break}}});
+  return m}
+function itParse(B){const out=[];let skipped=0;
+  B.rows.slice(B.hr+1).forEach(r=>{const g=f=>B.map[f]==null?"":r[B.map[f]];const name=String(g("name")).trim();
+    if(!name||/^(total|grand total)$/i.test(name)){if(r.some(c=>String(c).trim()!==""))skipped++;return}
+    out.push({code:String(g("code")).trim(),name,cat:String(g("cat")).trim(),unit:String(g("unit")).trim().toUpperCase().replace(/\.$/,""),hsn:String(g("hsn")).trim().replace(/\.0+$/,""),gst:itGst(g("gst")),rate:itNum(g("rate")),min:itNum(g("min")),open:itNum(g("open"))})});
+  const byK=new Map();let dup=0;out.forEach(x=>{const k=x.code?"C"+key(x.code):"N"+key(x.name);const o=byK.get(k);if(o){dup++;Object.keys(x).forEach(f=>{if(x[f]!==""&&x[f]!=null)o[f]=x[f]})}else byK.set(k,x)});
+  const L=[...byK.values()];let nw=0,up=0;L.forEach(x=>{x.match=(x.code&&items.find(i=>i.code&&key(i.code)===key(x.code)))||items.find(i=>key(i.name)===key(x.name))||null;x.match?up++:nw++});
+  return{L,nw,up,dup,skipped}}
+function itPreview(fname,B){const d=document.createElement("div");d.className="modal";document.body.appendChild(d);
+  const draw=()=>{const P=itParse(B),H=B.rows[B.hr]||[];const hasOpen=B.map.open!=null&&P.L.some(x=>+x.open>0)&&has("stock.issue");
+    d.innerHTML=`<div class="panel stack" style="max-width:920px;width:100%;max-height:92vh;overflow:auto"><div class="row"><h2 class="sec">Import items from ${esc(fname)}</h2><span style="flex:1"></span><button class="btn" id="iti-x" type="button">Cancel</button></div>
+      <div class="note">Sheet "${esc(B.sn)}". Check that each field points to the right column. Change any that are wrong.</div>
+      <div class="rgroup">${IT_FIELDS.map(([f,lab])=>`<label class="f" style="display:block">${esc(lab)}<select id="itm-${f}" data-map="${f}">${`<option value="">Not in file</option>`+H.map((h,j)=>`<option value="${j}"${B.map[f]===j?" selected":""}>${esc(String(h)||"Column "+(j+1))}</option>`).join("")}</select></label>`).join("")}</div>
+      <div class="row"><span class="chip calc">${P.nw} new</span><span class="chip sugg">${P.up} already in the list</span>${P.dup?`<span class="chip st-Draft">${P.dup} repeated row${P.dup===1?"":"s"} merged</span>`:""}${P.skipped?`<span class="chip st-Back">${P.skipped} row${P.skipped===1?"":"s"} without a name skipped</span>`:""}</div>
+      <div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th></th><th>Code</th><th>Item name</th><th>Category</th><th>Unit</th><th>HSN</th><th class="num">GST %</th><th class="num">Rate</th><th class="num">Min</th>${B.map.open!=null?`<th class="num">Opening</th>`:""}</tr></thead><tbody>${P.L.slice(0,12).map(x=>`<tr><td>${x.match?`<span class="chip sugg">Update</span>`:`<span class="chip calc">New</span>`}</td><td>${esc(x.code)}</td><td>${esc(x.name)}</td><td>${esc(x.cat)}</td><td>${esc(x.unit)}</td><td>${esc(x.hsn)}</td><td class="num">${x.gst}</td><td class="num">${x.rate}</td><td class="num">${x.min}</td>${B.map.open!=null?`<td class="num">${x.open}</td>`:""}</tr>`).join("")}</tbody></table></div>
+      ${P.L.length>12?`<div class="note">First 12 of ${P.L.length} items shown.</div>`:""}
+      ${P.up?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-upd" checked style="width:auto"> Update items already in the list with the details from this file (blank cells keep what is there)</label>`:""}
+      ${hasOpen?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-opchk" style="width:auto"> Also enter the opening stock quantities in the stock register (one Opening stock slip). Only tick this once.</label>`:""}
+      <div class="row"><span style="flex:1"></span><button class="btn primary" id="iti-go" type="button"${P.L.length?"":" disabled"}>Import ${P.L.length} items</button></div></div>`;
+    d.querySelector("#iti-x").onclick=()=>d.remove();
+    d.querySelectorAll("[data-map]").forEach(s=>s.onchange=()=>{const f=s.dataset.map;if(s.value==="")delete B.map[f];else{Object.keys(B.map).forEach(k=>{if(B.map[k]===+s.value)delete B.map[k]});B.map[f]=+s.value}draw()});
+    d.querySelector("#iti-go").onclick=()=>{if(B.map.name==null){toast("Choose the column that has the item name");return}
+      const upd=!d.querySelector("#iti-upd")||d.querySelector("#iti-upd").checked,op=d.querySelector("#iti-opchk")&&d.querySelector("#iti-opchk").checked;
+      let nw=0,up=0;const opl=[];
+      P.L.forEach(x=>{const {match,open,...v}=x;let it=match;
+        if(it){if(upd){Object.keys(v).forEach(k=>{if(v[k]!==""&&v[k]!=null)it[k]=v[k]});up++}}
+        else{it={id:itId(),...v,unit:v.unit||"NOS"};items.push(it);nw++}
+        if(op&&+open>0)opl.push({k:key(it.name),desc:it.name,unit:it.unit||"NOS",qty:+open,rate:+it.rate||0,loc:""})});
+      saveItems();
+      if(opl.length){slips.unshift({type:"Opening",no:nextSlip("Opening"),date:today(),job:"",to:"",remark:"Imported from "+fname,by:me.name,lines:opl,createdAt:new Date().toISOString()});saveSlips()}
+      d.remove();itShow=100;renderItems();
+      toast(`Imported: ${nw} new${up?`, ${up} updated`:""}${opl.length?`, opening stock for ${opl.length} items`:""}`)}};
+  draw()}
 
 /* ---------- cloud: header, passwords, logins ---------- */
 function pwDialog(title,fields){return new Promise(res=>{const d=document.createElement("div");d.className="modal";

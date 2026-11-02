@@ -2,7 +2,7 @@
 import { getDatabase } from "@netlify/database";
 import { scryptSync, randomBytes, timingSafeEqual, createHash } from "node:crypto";
 
-const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters"]);
+const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items"]);
 const SESSION_DAYS = 30;
 let db;
 const q = async (text, params = []) => {
