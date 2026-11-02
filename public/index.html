@@ -1643,8 +1643,8 @@ const IT_FIELDS=[
   ["subcat","Subcategory",["subcategory","subcat","subgroup"]],
   ["spec","Specification / grade",["specificationgrade","specification","spec","grade"]],
   ["make","Make / brand",["makebrand","make","brand","manufacturer"]],
-  ["buy","Purchase (Yes/No)",["purchaseapplicableyesno","purchaseapplicable","buy"]],
-  ["sell","Sales (Yes/No)",["salesapplicableyesno","salesapplicable","sell"]],
+  ["buy","Purchase (Yes/No)",["purchaseapplicableyesno","purchaseapplicable","buy","=purchase","=purchaseyesno"]],
+  ["sell","Sales (Yes/No)",["salesapplicableyesno","salesapplicable","sell","=sales","=salesyesno"]],
   ["stock","Track stock (Yes/No)",["trackstockyesno","trackstock","maintainstock","inventoryitem"]],
   ["unit","Base unit",["unit","units","uom","baseunit","baseuom","billinguom","unitofmeasure","unitofmeasurement","stockunit","unitname"]],
   ["puom","Purchase unit",["purchaseuom","purchaseunit"]],
@@ -1721,8 +1721,9 @@ $("#it-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(
     const top=Math.max(...blocks.map(b=>b.sc));itPreview(f.name,blocks.filter(b=>b.sc>=Math.min(4,top)))}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
 function itGuess(hrow,F=IT_FIELDS){const H=(hrow||[]).map(itNorm),m={},used=new Set();
   const take=(f,j)=>{m[f]=j;used.add(j)};
-  F.forEach(([f,,syn])=>{for(const s of syn){const j=H.findIndex((h,j)=>h===s&&!used.has(j));if(j>=0){take(f,j);break}}});
-  F.forEach(([f,,syn])=>{if(m[f]!=null)return;for(const s of syn.filter(s=>s.length>=4)){const j=H.findIndex((h,j)=>h&&!used.has(j)&&h.startsWith(s));if(j>=0){take(f,j);break}}});
+  F.forEach(([f,,syn])=>{for(const s0 of syn){const s=s0.replace(/^=/,"");const j=H.findIndex((h,j)=>h===s&&!used.has(j));if(j>=0){take(f,j);break}}});
+  F.forEach(([f,,syn])=>{if(m[f]!=null)return;for(const s of syn.filter(s=>s.length>=4&&s[0]!=="=")){const j=H.findIndex((h,j)=>h&&!used.has(j)&&h.startsWith(s));if(j>=0){take(f,j);break}}});
+  if(F===IT_FIELDS&&m.name==null&&m.code!=null){m.name=m.code;delete m.code}
   return m}
 function itParse(BL,skipEx){const out=[];let skipped=0,ex=0;
   BL.forEach(B=>B.rows.slice(B.hr+1).forEach(r=>{const g=f=>B.map[f]==null?"":r[B.map[f]];const name=String(g("name")).trim();
@@ -1730,6 +1731,8 @@ function itParse(BL,skipEx){const out=[];let skipped=0,ex=0;
     const x={kind:B.kind,name};IT_FIELDS.forEach(([f])=>{if(f==="name")return;let v=g(f);
       if(f==="gst")v=itGst(v);else if(IT_NUM.includes(f))v=itNum(v);else if(IT_YN.includes(f))v=itYN(v);else{v=String(v??"").trim();if(IT_UP.includes(f))v=v.toUpperCase().replace(/\.$/,"");if(f==="hsn")v=v.replace(/\.0+$/,"")}x[f]=v});
     if(r.some(c=>/^\s*example only/i.test(String(c)))){ex++;if(skipEx)return;x.ex=true}
+    const kc=itNorm(x.cat);if(kc.length>=5&&/^se?r?i?v?i?c?e?s?$/.test(kc)){x.kind="Service";x.cat=""}else if(/^(item|items|goods|product|products)$/.test(kc)){x.kind="Item";x.cat=""}
+    if(x.unit==="HOUR"||x.unit==="HOURS"||x.unit==="HRS")x.unit="HR";if(x.unit==="SETS")x.unit="SET";
     out.push(x)}));
   const byK=new Map();let dup=0;const clash=[];out.forEach(x=>{const k=x.code?"C"+key(x.code):"N"+key(x.name);const o=byK.get(k);if(o){dup++;if(x.code&&key(o.name)!==key(x.name)){clash.push(`${x.code}: ${o.name} / ${x.name}`);return}Object.keys(x).forEach(f=>{if(x[f]!==""&&x[f]!=null)o[f]=x[f]})}else byK.set(k,x)});
   const L=[...byK.values()];let nw=0,up=0;L.forEach(x=>{x.match=(x.code&&items.find(i=>i.code&&key(i.code)===key(x.code)))||items.find(i=>key(i.name)===key(x.name))||null;x.match?up++:nw++});
