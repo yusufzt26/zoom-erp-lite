@@ -495,7 +495,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack"><h2 class="sec">Departments</h2>
       <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt"><thead><tr><th>Department</th><th>HOD</th><th></th></tr></thead><tbody id="m-depts"></tbody></table></div></div>
-    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Suppliers</h2>
+    <div class="panel stack" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv" hidden></div>
       <form class="addrow" id="m-sup-form"><input id="ms-name" placeholder="Supplier name"><input id="ms-gst" placeholder="GSTIN"><input id="ms-terms" placeholder="Pay terms e.g. 60 Days"><button class="btn primary" type="submit">Add</button></form>
       <div class="note">The state is read from the first two digits of the GSTIN (27 is Maharashtra, so CGST + SGST; any other state gets IGST).</div>
       <div class="tablebox"><table class="mt" style="min-width:860px"><thead><tr><th>Name</th><th>Address</th><th>GSTIN</th><th>State</th><th>Pay terms</th><th>Contact</th><th></th></tr></thead><tbody id="m-sups"></tbody></table></div></div>
@@ -1565,11 +1565,13 @@ function renderBadges(){
 /* ---------- masters ---------- */
 const saveSups=()=>store.set("suppliers",suppliers);
 function renderSups(){
-  $("#m-sups").innerHTML=suppliers.map((x,i)=>`<tr data-si="${i}"><td><input id="ms${i}-n" data-sf="name" value="${esc(x.name)}" style="font-weight:600"></td><td><input id="ms${i}-a" data-sf="addr" value="${esc((x.addr||"").replace(/\n/g,", "))}"></td><td><input id="ms${i}-g" data-sf="gstin" value="${esc(x.gstin||"")}" style="font-family:var(--mono);width:150px"></td><td>${x.state==="27"?"27 Maharashtra":esc(x.state||"-")}</td><td><input id="ms${i}-t" data-sf="terms" value="${esc(x.terms||"")}" style="width:90px"></td><td><input id="ms${i}-c" data-sf="contact" value="${esc(x.contact||"")}"></td><td><button class="x" data-sdel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No suppliers yet.</td></tr>`;
+  const sq=key(($("#ms-q")||{}).value||"");const SL=suppliers.map((x,i)=>[x,i]).filter(([x])=>!sq||key(x.name+" "+(x.gstin||"")+" "+(x.city||"")).includes(sq));$("#ms-n").textContent=suppliers.length+" suppliers";
+  $("#m-sups").innerHTML=SL.slice(0,sq?300:150).map(([x,i])=>`<tr data-si="${i}"><td><input id="ms${i}-n" data-sf="name" value="${esc(x.name)}" style="font-weight:600"></td><td><input id="ms${i}-a" data-sf="addr" value="${esc((x.addr||"").replace(/\n/g,", "))}"></td><td><input id="ms${i}-g" data-sf="gstin" value="${esc(x.gstin||"")}" style="font-family:var(--mono);width:150px"></td><td>${x.state==="27"?"27 Maharashtra":esc(x.state||"-")}</td><td><input id="ms${i}-t" data-sf="terms" value="${esc(x.terms||"")}" style="width:90px"></td><td><input id="ms${i}-c" data-sf="contact" value="${esc(x.contact||"")}"></td><td><button class="x" data-sdel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No suppliers yet.</td></tr>`;
   $("#suppliers").innerHTML=suppliers.map(x=>`<option value="${esc(x.name)}">`).join("");
 }
 $("#m-sups").addEventListener("change",e=>{const tr=e.target.closest("tr"),f=e.target.dataset.sf;if(!tr||!f)return;const x=suppliers[+tr.dataset.si];x[f]=e.target.value.trim();
   if(f==="gstin"){const st=x.gstin.slice(0,2);if(/^\d\d$/.test(st))x.state=st}if(f==="addr")x.addr=x.addr.replace(/,\s*/g,",\n");saveSups();renderSups()});
+$("#ms-q").oninput=renderSups;
 $("#m-sups").addEventListener("click",e=>{const i=e.target.dataset.sdel;if(i!=null){suppliers.splice(+i,1);saveSups();renderSups()}});
 $("#m-sup-form").onsubmit=e=>{e.preventDefault();const n=$("#ms-name").value.trim();if(!n){toast("Fill in the supplier name");return}
   if(suppliers.some(x=>key(x.name)===key(n))){toast(`${n} is already in the list`);return}
@@ -1921,16 +1923,55 @@ const CU_FIELDS=[["name","Customer",["customername","partyname","customer","part
   ["contact","Contact person",["contactperson","contactname","kindattn","attention","person","contact"]],["phone","Mobile",["mobile","mobileno","mobilenumber","phone","phoneno","phonenumber","contactno","telephone","cell","whatsapp"]],
   ["email","Email",["email","emailid","emailaddress","mail"]],["city","City",["city","town","location","place","district"]],["pin","PIN",["pincode","pin","zip","zipcode","postalcode","postcode"]],["gstin","GSTIN",["gstin","gstno","gstnumber","gstinuin","gstinno","gst"]],["addr","Address",["address","billingaddress","address1","addressline1","fulladdress","addr"]]];
 $("#btn-cu-import").onclick=()=>{if(!has("sales.edit")){toast("You can view sales but not import customers");return}$("#cu-file").click()};
-$("#cu-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+$("#cu-file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)partyImport(f,"cust")};
+$("#btn-sup-import").onclick=()=>$("#sup-file").click();
+$("#sup-file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)partyImport(f,"sup")};
+const PARTY_FIELDS=[["name","Name",["accountname","partyname","ledgername","customername","suppliername","vendorname","nameofledger","name","party","account","companyname","company","customer","supplier","vendor","client","clientname"]],
+  ["group","Customer / supplier",["groupname","group","accountgroup","ledgergroup","under","partytype","accounttype","type"]],
+  ["gstin","GSTIN",["gstno","gstin","gstnumber","gstinuin","gstinno","gst"]],["pan","PAN",["panno","pan","pannumber"]],
+  ["msme","MSME / Udyam No.",["msmeno","msme","udyamno","udyam","msmenumber","udyamregistrationno"]],["msmeType","MSME type",["msmetype","udyamtype","enterprisetype"]],
+  ["a1","Address line 1",["addlineone","addressline1","address1","addline1","address","addr","billingaddress","fulladdress"]],["a2","Address line 2",["addlinetwo","addressline2","address2","addline2"]],["area","Area",["area","locality"]],
+  ["city","City",["city","town","district"]],["pin","PIN",["pincode","pin","zip","zipcode","postalcode"]],["stname","State",["statename","state"]],["stcode","State code",["statecode","stcode"]],
+  ["contact","Contact person",["contactperson","contactname","kindattn","attention","person","contact"]],["phone","Mobile",["mobile","mobileno","mobilenumber","phone","phoneno","phonenumber","contactno","telephone","cell"]],
+  ["email","Email",["email","emailid","emailaddress","mail"]],["terms","Pay terms",["paymentterms","payterms","terms","creditdays","creditperiod"]]];
+const GSTIN_RE=/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+async function partyImport(f,dflt){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const canC=has("sales.edit"),canS=can("mast");
   try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let best=null;
-    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:false});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],CU_FIELDS);const sc=Object.keys(m).length;if(m.name!=null&&sc>=2&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m}}});
-    if(!best){toast("Could not find a customer name column with a heading like Customer Name or Party Name");return}
-    const L=new Map();best.rows.slice(best.hr+1).forEach(r=>{const g=k=>best.map[k]==null?"":String(r[best.map[k]]??"").trim();const n=g("name");if(!n||/^total/i.test(n))return;const o=L.get(key(n))||{name:n};CU_FIELDS.forEach(([k])=>{const v=g(k);if(v)o[k]=k==="gstin"?v.toUpperCase():v});L.set(key(n),o)});
-    const all=[...L.values()],nw=all.filter(x=>!custByName(x.name)).length;
-    if(!all.length){toast("No customer rows found under the headings");return}
-    if(!confirm(`Found ${all.length} customers in ${f.name}: ${nw} new, ${all.length-nw} already in the list (their blank details will be filled in).\n\nColumns used: ${CU_FIELDS.filter(([k])=>best.map[k]!=null).map(([k,l])=>l+" = "+best.rows[best.hr][best.map[k]]).join(", ")}\n\nImport them?`))return;
-    all.forEach(x=>{const c=custByName(x.name);if(c){CU_FIELDS.forEach(([k])=>{if(x[k]&&!c[k])c[k]=x[k]})}else customers.push({id:itId(),contact:"",phone:"",email:"",city:"",gstin:"",addr:"",...x})});
-    saveCusts();renderSales();toast(`Imported ${nw} new customers${all.length-nw?`, updated ${all.length-nw}`:""}`)}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:false});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],PARTY_FIELDS);const sc=Object.keys(m).length;if(m.name!=null&&sc>=2&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
+    if(!best){toast("Could not find a name column with a heading like Account Name, Party Name or Customer Name");return}
+    const P=[];let skip=0,dupN=0;const skipG={},seen=new Map(),twin=[];
+    best.rows.slice(best.hr+1).forEach(r=>{const g=k=>best.map[k]==null?"":String(r[best.map[k]]??"").replace(/\s+/g," ").trim();const n=g("name");if(!n||/^total/i.test(n))return;
+      const gr=g("group");let kind=dflt;if(best.map.group!=null){kind=/cust|debtor|buyer|client/i.test(gr)?"cust":/supp|vendor|creditor|seller/i.test(gr)?"sup":"";if(!kind){skip++;skipG[gr||"(blank)"]=(skipG[gr||"(blank)"]||0)+1;return}}
+      const gstin=g("gstin").toUpperCase().replace(/\s/g,""),code=(GSTIN_RE.test(gstin)?gstin.slice(0,2):(g("stcode").replace(/\D/g,"")||"").padStart(2,"0"));
+      const clean=v=>v.replace(/[,\s]+$/,"");const line=[g("a1"),g("a2"),g("area")].map(clean).filter(Boolean).join(", ");
+      const o={kind,name:n,gstin,bad:!!gstin&&!GSTIN_RE.test(gstin),state:code!=="00"?code:"",stname:g("stname"),pan:g("pan").toUpperCase(),msme:g("msme"),msmeType:g("msmeType"),addr:line,city:g("city"),pin:g("pin").replace(/\D/g,""),contact:g("contact"),phone:g("phone"),email:g("email"),terms:g("terms")};
+      const sk=kind+key(n),prev=seen.get(sk);
+      if(prev){if(o.gstin&&prev.gstin&&o.gstin!==prev.gstin){o.name=`${n} (${o.gstin})`;twin.push(n)}else{Object.keys(o).forEach(k=>{if(o[k]&&!prev[k])prev[k]=o[k]});dupN++;return}}
+      seen.set(kind+key(o.name),o);P.push(o)});
+    const C=P.filter(p=>p.kind==="cust"),S=P.filter(p=>p.kind==="sup");
+    const cNew=C.filter(x=>!custByName(x.name)).length,sNew=S.filter(x=>!suppliers.some(s=>key(s.name)===key(x.name))).length;
+    const unreg=P.filter(p=>!p.gstin).length,bad=P.filter(p=>p.bad);
+    const d=document.createElement("div");d.className="modal";document.body.appendChild(d);
+    d.innerHTML=`<div class="panel stack" style="max-width:920px;width:100%;max-height:92vh;overflow:auto"><div class="row"><h2 class="sec">Import customers and suppliers from ${esc(f.name)}</h2><span style="flex:1"></span><button class="btn" id="pi-x" type="button">Cancel</button></div>
+      <div class="note">Sheet "${esc(best.sn)}". Columns used: ${PARTY_FIELDS.filter(([k])=>best.map[k]!=null).map(([k,l])=>`${esc(l)} = <b>${esc(String(best.rows[best.hr][best.map[k]]).replace(/\s+/g," "))}</b>`).join(", ")}.${best.map.group==null?` There is no customer/supplier column, so every row is read as a ${dflt==="cust"?"customer":"supplier"}.`:""}</div>
+      <div class="row"><span class="chip calc">${C.length} customers (${cNew} new)</span><span class="chip calc">${S.length} suppliers (${sNew} new)</span>${skip?`<span class="chip st-Draft">${skip} other accounts left out: ${Object.entries(skipG).map(([k,v])=>esc(k)+" "+v).join(", ")}</span>`:""}<span class="chip sugg">${unreg} without GSTIN (unregistered)</span>${bad.length?`<span class="chip st-Back">${bad.length} GSTIN not in the right format</span>`:""}${dupN?`<span class="chip st-Draft">${dupN} repeated names merged (e.g. Pvt Ltd / Pvt. Ltd.)</span>`:""}</div>${twin.length?`<div class="note">Same name but a different GSTIN, so kept as separate parties with the GSTIN added to the name: ${twin.map(esc).join("; ")}</div>`:""}
+      ${bad.length?`<div class="note">Check these GSTINs: ${bad.slice(0,8).map(b=>esc(b.name)+" ("+esc(b.gstin)+")").join("; ")}${bad.length>8?" …":""}</div>`:""}
+      <div class="tablebox"><table class="mt" style="min-width:820px"><thead><tr><th></th><th>Name</th><th>GSTIN</th><th>State</th><th>Address</th><th>City</th><th>PIN</th></tr></thead><tbody>${P.slice(0,12).map(p=>`<tr><td><span class="chip ${p.kind==="cust"?"calc":"sugg"}">${p.kind==="cust"?"Customer":"Supplier"}</span></td><td>${esc(p.name)}</td><td style="font-family:var(--mono)">${esc(p.gstin)||`<span class="note">Unregistered</span>`}</td><td>${esc(p.state)} ${esc(p.stname)}</td><td>${esc(p.addr)}</td><td>${esc(p.city)}</td><td>${esc(p.pin)}</td></tr>`).join("")}</tbody></table></div>
+      ${P.length>12?`<div class="note">First 12 of ${P.length} shown.</div>`:""}
+      <label class="row" style="gap:8px"><input type="checkbox" id="pi-c" style="width:auto"${C.length&&canC?" checked":""}${canC&&C.length?"":" disabled"}> Import ${C.length} customers${canC?"":" (needs the Sales edit right)"}</label>
+      <label class="row" style="gap:8px"><input type="checkbox" id="pi-s" style="width:auto"${S.length&&canS?" checked":""}${canS&&S.length?"":" disabled"}> Import ${S.length} suppliers${canS?"":" (Admin only, from Masters)"}</label>
+      <div class="note">Names already in the list are matched and only their blank details are filled in. Nothing already entered is overwritten.</div>
+      <div class="row"><span style="flex:1"></span><button class="btn primary" id="pi-go" type="button">Import</button></div></div>`;
+    d.querySelector("#pi-x").onclick=()=>d.remove();
+    d.querySelector("#pi-go").onclick=()=>{const doC=d.querySelector("#pi-c").checked,doS=d.querySelector("#pi-s").checked;let nc=0,uc=0,ns=0,us=0;
+      const fill=(o,v)=>Object.keys(v).forEach(k=>{if(v[k]&&!o[k])o[k]=v[k]});
+      if(doC){C.forEach(({kind,bad,...x})=>{const c=custByName(x.name);if(c){fill(c,x);uc++}else{customers.push({id:itId(),contact:"",phone:"",email:"",city:"",gstin:"",addr:"",...x});nc++}});saveCusts()}
+      if(doS){S.forEach(({kind,bad,addr,...x})=>{const full=[addr,[x.city,x.pin].filter(Boolean).join(" - "),x.stname].filter(Boolean).join("\n");const v={...x,addr:full,terms:x.terms||"60 Days"};
+        const s=suppliers.find(s=>key(s.name)===key(x.name));if(s){fill(s,v);us++}else{suppliers.push({contact:"",...v,state:v.state||"27"});ns++}});saveSups()}
+      d.remove();if(typeof renderSups==="function")renderSups();if(can("sales"))renderSales();
+      toast(`Imported ${nc} new customers${uc?` (${uc} updated)`:""}, ${ns} new suppliers${us?` (${us} updated)`:""}`)}}
+  catch(err){console.error(err);toast("Could not read that file. Save it as .xlsx or .csv and try again.")}}
 function docQuote(d){const c=custByName(d.cust)||{name:d.cust};const L=(d.lines||[]).filter(l=>String(l.desc||"").trim()||+l.rate);
   const sub=L.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0)||(+d.value||0),g=+d.gst||0,gst=sub*g/100,tot=sub+gst;const intra=!c.gstin||c.gstin.startsWith("27");
   const tax=g?(intra?`<tr><td>C-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr><tr><td>S-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr>`:`<tr><td>I-GST ${g}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst)}</td></tr>`):"";
@@ -1956,7 +1997,7 @@ const salesCfg=()=>Object.assign({pre:"Z",lastNo:"",sAddr1:"Plot No.C1, Gat No.1
 const invNo=x=>`${salesCfg().pre}${x.no}/${x.fy}`;
 const sdNo=(t,x)=>t==="inv"?invNo(x):SD[t].pre+x.no;
 const sdId=(t,x)=>t==="inv"?x.fy+"-"+x.no:String(x.no);
-const isIntra=c=>{const g=((custByName(c)||{}).gstin||"").trim();return !g||g.startsWith("27")};
+const isIntra=c=>stOf(custByName(c)||{})==="27";
 const sdSub=x=>(x.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100),0);
 const invTot=x=>invCalc(x).grand;
 const sentQ=(so,i)=>dchallans.filter(d=>String(d.so)===String(so)).reduce((a,d)=>a+d.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
@@ -2076,7 +2117,7 @@ function invCalc(x){const intra=isIntra(x.cust);let ass=0,cg=0,sg=0,ig=0;const b
   const tot=ass+cg+sg+ig,grand=Math.round(tot);return{L,ass:r2(ass),cg:r2(cg),sg:r2(sg),ig:r2(ig),rnd:r2(grand-tot),grand,intra,groups:Object.values(by).filter(g=>g.rt>0)}}
 const panOf=g=>/^\d\d[A-Z]{5}\d{4}[A-Z]/.test(g||"")?g.slice(2,12):"";
 const STATES={"27":"Maharashtra","24":"Gujarat","29":"Karnataka","33":"Tamil Nadu","36":"Telangana","37":"Andhra Pradesh","07":"Delhi","06":"Haryana","09":"Uttar Pradesh","08":"Rajasthan","23":"Madhya Pradesh","30":"Goa","32":"Kerala","19":"West Bengal","03":"Punjab","22":"Chhattisgarh","21":"Odisha","10":"Bihar","20":"Jharkhand","05":"Uttarakhand","02":"Himachal Pradesh","01":"Jammu and Kashmir","18":"Assam","04":"Chandigarh","26":"Dadra and Nagar Haveli and Daman and Diu","34":"Puducherry"};
-const stOf=c=>{const g=(c&&c.gstin||"").slice(0,2);return /^\d\d$/.test(g)?g:"27"};
+const stOf=c=>{const g=(c&&c.gstin||"").slice(0,2);if(/^\d\d$/.test(g))return g;const st=String(c&&c.state||"").padStart(2,"0");return /^\d\d$/.test(st)&&st!=="00"?st:"27"};
 function uqc(u){const k=String(u||"").toUpperCase().replace(/[^A-Z]/g,"");return({NO:"NOS",NOS:"NOS",NUMBER:"NOS",NUMBERS:"NOS",PC:"PCS",PCS:"PCS",PIECE:"PCS",PIECES:"PCS",SET:"SET",SETS:"SET",KG:"KGS",KGS:"KGS",KILOGRAM:"KGS",KILOGRAMS:"KGS",MTR:"MTR",MTRS:"MTR",M:"MTR",METER:"MTR",METRE:"MTR",LTR:"LTR",L:"LTR",LITRE:"LTR",BOX:"BOX",PAIR:"PRS",PRS:"PRS",SQM:"SQM",TON:"TON",MT:"MTS",NOSS:"NOS"})[k]||(["BAG","BAL","BDL","BKL","BOU","BTL","BUN","CAN","CBM","CCM","CMS","CTN","DOZ","DRM","GGK","GMS","GRS","GYD","KLR","KME","MLT","MTS","PAC","QTL","ROL","SQF","SQY","TBS","TGM","THD","TUB","UGS","UNT","YDS"].includes(k)?k:"OTH")}
 function splitAddr(s){const P=String(s||"").split(/\n|,\s*/).map(p=>p.trim()).filter(Boolean);let a1="",a2="";P.forEach(p=>{if(!a2&&(a1+", "+p).length<=100)a1=a1?a1+", "+p:p;else a2=a2?a2+", "+p:p});return[a1,a2.slice(0,100)]}
 function einvParty(c,buyer){const [a1,a2]=splitAddr(c.addr||c.city);const o={Gstin:(c.gstin||"").toUpperCase(),LglNm:c.name,...(buyer?{Pos:stOf(c)}:{}),Addr1:a1,...(a2?{Addr2:a2}:{}),Loc:(c.city||"").toUpperCase()||"PUNE",Pin:+String(c.pin||"").replace(/\D/g,""),Stcd:stOf(c)};
