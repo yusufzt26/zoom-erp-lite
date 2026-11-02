@@ -244,7 +244,7 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-req" class="stack" hidden>
   <div id="reqNone" class="panel empty" hidden></div>
   <div class="panel stack" id="reqForm">
-    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-q-bom">Import BOM (.xlsx)</button><input type="file" id="q-bom" accept=".xlsx,.xls" hidden><button class="btn" id="btn-q-direct">New estimate, no request</button><button class="btn" id="btn-req-new">New request</button></div>
+    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-q-bom">Import BOM (.xlsx)</button><input type="file" id="q-bom" accept=".xlsx,.xls" hidden><button class="btn" id="btn-req-new">New request</button></div>
     <div id="reqExample" class="example" hidden>Example request. Click "New request" to fill in your own.</div>
     <div id="reqBanner" class="banner" hidden></div>
     <div class="grid-fields">
@@ -941,7 +941,7 @@ function renderReq(){
   if(cur&&cur.status!=="Draft"&&!vis.includes(cur))cur=null;
   if(!cur)cur=vis[0]||(has("req.create")?blankReq():null);
   $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
-  $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");$("#btn-q-direct").hidden=!(has("po.create")&&can("est"));
+  $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
   if(!cur){$("#reqNone").innerHTML=`No purchase requests approved by an HOD yet. Approved requests appear here for purchase. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
   const r=cur;const mine=r.status==="Draft"||r.by===me.name||has("req.all");
   const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&has("req.create"));
@@ -1033,7 +1033,7 @@ $("#q-cam").onchange=e=>$("#q-file").onchange(e);
 $("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
 $("#btn-q-bom").onclick=()=>$("#q-bom").click();
 $("#q-bom").onchange=e=>$("#q-file").onchange(e);
-$("#btn-q-direct").onclick=()=>{show("est");newDirect()};
+
 function shrink(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",0.72))};img.onerror=rej;img.src=u})}
 function renderEstReq(){
   const P=$("#estReqPanel");const r=est.reqNo&&reqs.find(x=>x.no===est.reqNo);
