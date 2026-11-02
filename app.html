@@ -72,7 +72,10 @@ table.est input.qty{text-align:right;width:70px}
 .paper input:disabled,.paper textarea:disabled{opacity:1;color:var(--paper-ink);-webkit-text-fill-color:var(--paper-ink);resize:none;border-color:transparent}
 .paper .co{text-align:center}
 .paper .co h2{margin:0;font-size:20px;letter-spacing:.04em}
-.paper .co img.cologo{height:62px;display:block;margin:0 auto 2px}
+.paper{position:relative}
+.paper .co{min-height:57px;padding-left:210px}
+.paper .co img.cologo{position:absolute;top:5mm;left:5mm;height:15mm;width:auto;margin:0}
+.paper .co .coname{margin:0 0 2px;font-size:17px;font-weight:700;letter-spacing:.04em}
 .brand{display:flex;align-items:center;gap:10px}.brandlogo{height:34px;background:#fff;border-radius:4px;padding:2px 4px}
 .gatelogo{display:block;width:100%;max-width:300px;margin:0 auto 6px;background:#fff;border-radius:6px;padding:6px}
 .paper .co p{margin:2px 0;font-size:10.5px}
@@ -675,7 +678,7 @@ function renderPO(){
   const inp=(k,w,extra="")=>`<input id="po-${k}" data-pk="${k}" value="${esc(po[k])}" style="width:${w}" ${extra}>`;
   P.innerHTML=`
   ${po.status!=="Approved"?`<div class="draftmark">${po.status==="Pending approval"?"PENDING APPROVAL":"DRAFT"} · NOT VALID UNTIL APPROVED</div>`:""}
-  <div class="co"><img class="cologo" src="${window.ZT_LOGO}" alt="${COMPANY.name}"><p>${COMPANY.addr}</p><p>${COMPANY.contact}</p></div>
+  <div class="co"><img class="cologo" src="${window.ZT_LOGO}" alt="${COMPANY.name}"><p class="coname">${COMPANY.name}</p><p>${COMPANY.addr}</p><p>${COMPANY.contact}</p></div>
   <div class="gst"><span>GSTIN : ${COMPANY.gstin}</span><span>${COMPANY.state}</span><span>PAN No. : ${COMPANY.pan}</span></div>
   <h3>PURCHASE ORDER</h3>
   <div class="two">
@@ -976,7 +979,7 @@ $("#grnForm").addEventListener("click",e=>{
 
 
 /* ---------- PDF documents ---------- */
-const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${window.ZT_LOGO}" alt="${COMPANY.name}"><p>${COMPANY.addr}</p><p>${COMPANY.contact}</p></div>
+const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${window.ZT_LOGO}" alt="${COMPANY.name}"><p class="coname">${COMPANY.name}</p><p>${COMPANY.addr}</p><p>${COMPANY.contact}</p></div>
   <div class="gst"><span>GSTIN : ${COMPANY.gstin}</span><span>${COMPANY.state}</span><span>PAN No. : ${COMPANY.pan}</span></div><h3>${title}</h3>${right}`;
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
