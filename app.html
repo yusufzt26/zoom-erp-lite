@@ -349,7 +349,8 @@ body.gated header.bar,body.gated main{display:none}
 </section>
 
 <!-- SAVED -->
-<section id="view-saved" class="panel" hidden>
+<section id="view-saved" class="panel stack" hidden>
+  <div class="row"><h2 class="sec">Purchase orders</h2><input id="saved-q" placeholder="Search PO No., supplier, Job No." style="max-width:280px"><span style="flex:1"></span><span class="note" id="saved-n"></span></div>
   <div id="savedList"></div>
 </section>
 
@@ -897,7 +898,8 @@ $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
 function renderSaved(){
   const L=$("#savedList");
   if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
-  L.innerHTML=saved.map((s,i)=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
+  const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>!q||key([s.no,s.sup,s.ref,s.reqNo,s.status].join(" ")).includes(q)).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
+  L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
 }
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
@@ -906,6 +908,7 @@ function renderAppr(){
   $("#apprDone").innerHTML=done.length?done.map(apprRow).join(""):`<div class="empty">No decisions yet.</div>`;
 }
 ["#apprList","#apprDone"].forEach(id=>$(id).addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}}));
+$("#saved-q").addEventListener("input",renderSaved);
 $("#savedList").addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}});
 function renderRates(){
   const list=Object.entries(rates).sort((a,b)=>a[1].name.localeCompare(b[1].name));
@@ -1955,7 +1958,9 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   ${t==="inv"&&!isNew?`<h3 class="sec" style="font-size:15px">Payments received</h3><div class="tablebox"><table class="mt" style="min-width:520px"><thead><tr><th>Date</th><th class="num">Amount ₹</th><th>Cheque / UTR ref.</th><th></th></tr></thead><tbody>${(x.rcpts=rcptsOf(x)).map((r,i)=>`<tr><td><input type="date" data-rc="${i}" data-rf="date" value="${esc(r.date||"")}"></td><td><input type="number" step="any" data-rc="${i}" data-rf="amt" value="${esc(r.amt)}" style="text-align:right"></td><td><input data-rc="${i}" data-rf="ref" value="${esc(r.ref||"")}"></td><td><button class="btn" type="button" data-rcdel="${i}" aria-label="Remove payment">✕</button></td></tr>`).join("")||`<tr><td colspan="4" class="note">No payment recorded yet.</td></tr>`}</tbody></table></div><div class="row"><button class="btn" type="button" id="sd-rc-add">+ Add payment</button><span style="flex:1"></span><span>Received <b>₹ ${fmt(recdOf(x))}</b> · Still to collect <b id="sd-baldue">₹ ${fmt(invDue(x))}</b></span></div>
   <h3 class="rg">E-invoice (IRN from the GST portal)</h3><div class="note">Press "E-invoice JSON", upload the file on the e-invoice portal, then import the portal's result file on the invoice list, or paste the details here. The IRN and QR code then print on the invoice.</div>
   <div class="grid-fields"><label class="f">IRN<input id="sd-irn" data-sf="irn" value="${esc(x.irn)}" style="font-family:var(--mono)"></label><label class="f">Ack No.<input id="sd-ackNo" data-sf="ackNo" value="${esc(x.ackNo)}"></label><label class="f">Ack date<input id="sd-ackDt" data-sf="ackDt" value="${esc(x.ackDt)}"></label></div><label class="f">Signed QR code<textarea id="sd-qr" data-sf="qr" rows="2" style="font-family:var(--mono);font-size:11px">${esc(x.qr)}</textarea></label>`:""}`;
-  if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>el.disabled=true)}
+  if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>el.disabled=true);
+  else if(t==="inv"&&!isNew&&x.irn){F.querySelectorAll("input,select,textarea").forEach(el=>{if(el.dataset.rc==null&&!["sd-irn","sd-ackNo","sd-ackDt","sd-qr"].includes(el.id))el.disabled=true});F.querySelectorAll("table.est button,#sd-addline").forEach(el=>el.hidden=true);
+    F.querySelector(".row").insertAdjacentHTML("afterend",`<div class="banner ok">IRN generated, so this invoice is locked. Use "Credit note" for a return or rate change. Payments can still be recorded. If you cancelled the IRN on the portal, clear the IRN field and save to edit again.</div>`)}}
 function sdTotUpd(){const x=sdCur.rec,t=sdCur.t;$("#sd-tot").textContent=fmt(t==="dc"?sdSub(x):invCalc(x).grand)}
 ["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);
   F.addEventListener("input",e=>{if(!sdCur)return;const el=e.target,x=sdCur.rec;
