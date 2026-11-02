@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS logins (
+  name TEXT PRIMARY KEY,
+  pass_hash TEXT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE SEQUENCE IF NOT EXISTS rev_seq;
+
+CREATE TABLE IF NOT EXISTS records (
+  coll TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data JSONB,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  rev BIGINT NOT NULL,
+  created_rev BIGINT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by TEXT,
+  PRIMARY KEY (coll, id)
+);
+CREATE INDEX IF NOT EXISTS records_rev_idx ON records (rev);

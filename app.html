@@ -1,0 +1,1563 @@
+<title>Zoom PO Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* Layout: workshop desk. Sticky tool bar, one working sheet per tab, the PO rendered as an A4 sheet. */
+:root{
+  --bg:#eef1f3; --panel:#ffffff; --ink:#1b2328; --muted:#5d6b74; --line:#cfd7dc;
+  --accent:#0b6e8a; --accent-ink:#ffffff; --sugg:#a35d00; --sugg-bg:#fff2dc; --danger:#b3261e;
+  --paper:#ffffff; --paper-ink:#111111; --paper-line:#222222;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12181c; --panel:#1b2329; --ink:#e3e9ec; --muted:#93a3ad; --line:#2f3b43;
+  --accent:#4fb3cf; --accent-ink:#06222b; --sugg:#f0b45a; --sugg-bg:#3a2a12; --danger:#f2867f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12181c; --panel:#1b2329; --ink:#e3e9ec; --muted:#93a3ad; --line:#2f3b43;
+  --accent:#4fb3cf; --accent-ink:#06222b; --sugg:#f0b45a; --sugg-bg:#3a2a12; --danger:#f2867f; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 48px}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+header .inner{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.brand{font-weight:700;font-size:16px;letter-spacing:.01em;margin-right:auto}
+.brand small{display:block;font-weight:400;font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{background:none;border:1px solid transparent;color:var(--muted);padding:6px 12px;border-radius:6px;font:inherit;font-weight:500;cursor:pointer}
+nav button[aria-current="true"]{color:var(--ink);border-color:var(--line);background:var(--bg)}
+nav .step{font-family:var(--mono);font-size:11px;margin-right:6px;color:var(--accent)}
+button.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.btn:focus-visible,nav button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+.grid-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+input,select,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:7px 9px;width:100%;min-width:0}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.note{font-size:12.5px;color:var(--muted)}
+.example{background:var(--sugg-bg);color:var(--sugg);border-radius:6px;padding:8px 12px;font-size:13px}
+.quick{display:flex;gap:8px;flex-wrap:wrap}
+.quick input{flex:1 1 280px;font-family:var(--mono)}
+.tablebox{overflow-x:auto}
+table.est{width:100%;border-collapse:collapse;min-width:820px;font-variant-numeric:tabular-nums}
+table.est th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:6px;border-bottom:1px solid var(--line);font-weight:600}
+table.est td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.est td.num, table.est th.num{text-align:right}
+table.est input{background:transparent;border-color:transparent;padding:5px 6px}
+table.est input:hover{border-color:var(--line)}
+table.est input.expr{font-family:var(--mono);font-size:13px}
+table.est input.rate{text-align:right;font-family:var(--mono)}
+table.est input.qty{text-align:right;width:70px}
+.chip{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.chip.sugg{background:var(--sugg-bg);color:var(--sugg)}
+.chip.calc{background:var(--bg);color:var(--muted)}
+.chip.man{background:var(--bg);color:var(--accent)}
+.x{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 6px}
+.x:hover{color:var(--danger)}
+.totalbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:4px}
+.total{font-family:var(--mono);font-size:20px;font-weight:500}
+.total span{font-family:var(--sans);font-size:12px;color:var(--muted);margin-right:8px;text-transform:uppercase;letter-spacing:.05em}
+/* A4 paper */
+.paperbox{overflow-x:auto;padding-block:4px}
+.paper{background:var(--paper);color:var(--paper-ink);width:794px;margin:0 auto;padding:28px 30px;box-shadow:0 1px 3px rgba(0,0,0,.15);font-size:11.5px;font-family:Arial,Helvetica,sans-serif;color-scheme:light}
+.paper input,.paper textarea,.paper select{background:transparent;border:1px dashed transparent;color:var(--paper-ink);padding:1px 3px;font-size:11.5px;border-radius:2px;font-family:inherit}
+.paper input:hover,.paper textarea:hover{border-color:#9bb}
+.paper input:disabled,.paper textarea:disabled{opacity:1;color:var(--paper-ink);-webkit-text-fill-color:var(--paper-ink);resize:none;border-color:transparent}
+.paper .co{text-align:center}
+.paper .co h2{margin:0;font-size:20px;letter-spacing:.04em}
+.paper .co p{margin:2px 0;font-size:10.5px}
+.paper .gst{display:flex;justify-content:space-between;border-top:1px solid var(--paper-line);border-bottom:1px solid var(--paper-line);padding:3px 0;margin-top:4px;font-size:10px;flex-wrap:wrap;gap:6px}
+.paper h3{text-align:center;margin:6px 0;font-size:14px;letter-spacing:.08em}
+.paper .two{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--paper-line)}
+.paper .two>div{padding:6px}
+.paper .two>div+div{border-left:1px solid var(--paper-line)}
+.paper .kv{display:grid;grid-template-columns:78px 1fr;align-items:center;gap:2px 4px}
+.paper .kv b{font-weight:600}
+.paper table{width:100%;border-collapse:collapse;margin-top:6px;font-variant-numeric:tabular-nums}
+.paper th,.paper td{border:1px solid var(--paper-line);padding:2px 3px}
+.paper th{font-size:10.5px;background:#f0f0f0}
+.paper td.r,.paper td.r input{text-align:right}
+.paper .tot td{border:none;text-align:right;padding:2px 4px}
+.paper .tot td.amt{border:1px solid var(--paper-line);width:110px}
+.paper .small{font-size:10px}
+.paper .foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.paper .sign{text-align:right;margin-top:26px}
+.listrow{display:grid;grid-template-columns:110px 1fr 120px 110px minmax(max-content,auto);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+@media (max-width:640px){.listrow{grid-template-columns:1fr 1fr}.listrow .wide{grid-column:1/-1}}
+.chip.st-Submitted{background:var(--sugg-bg);color:var(--sugg)}
+.chip.st-Approved{background:var(--bg);color:var(--accent);border:1px solid var(--accent)}
+.chip.st-Estimated{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.chip.st-PO{background:var(--accent);color:var(--accent-ink)}
+.chip.st-Back{background:var(--bg);color:var(--danger);border:1px solid var(--danger)}
+.chip.st-Draft{background:var(--bg);color:var(--muted);border:1px dashed var(--line)}
+.theme{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.theme button{background:none;border:none;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:5px 10px;cursor:pointer}
+.theme button+button{border-left:1px solid var(--line)}
+.theme button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.theme button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.who{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.who select{width:auto;padding:5px 8px;font-size:13px}
+.banner{border-radius:6px;padding:10px 12px;font-size:13.5px;border:1px solid var(--line);background:var(--panel)}
+.banner.back{border-color:var(--danger);color:var(--danger)}
+.banner.ok{border-color:var(--accent);color:var(--accent)}
+.paper .sigimg{height:52px;display:block;margin-left:auto}
+.paper .draftmark{text-align:center;font-size:10px;letter-spacing:.2em;color:#a00;margin-bottom:4px}
+.hist{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.reqrow{display:grid;grid-template-columns:70px 1fr 110px 100px 110px;gap:10px;align-items:center;padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:4px}
+.reqrow:hover,.reqrow[aria-selected="true"]{background:var(--bg)}
+@media (max-width:640px){.reqrow{grid-template-columns:60px 1fr 100px}.reqrow .hide-sm{display:none}}
+.attach{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.attach figure{margin:0;border:1px solid var(--line);border-radius:6px;padding:6px;background:var(--bg);max-width:100%}
+.attach img{display:block;max-height:420px;max-width:100%;border-radius:4px}
+.attach figcaption{font-size:12px;color:var(--muted);margin-top:4px}
+.filechip{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);font-size:13px}
+h2.sec{font-size:15px;margin:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.card:hover{border-color:var(--accent)}
+.card .n{font-family:var(--mono);font-size:28px;font-weight:500;line-height:1}
+.card .t{font-weight:600}
+.card .d{font-size:12.5px;color:var(--muted)}
+.card.warn .n{color:var(--danger)}
+.card.zero{opacity:.6}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.flow div{border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--bg)}
+.flow b{display:block;font-family:var(--mono);font-size:20px}
+.flow span{font-size:12px;color:var(--muted)}
+nav .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.masters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px;align-items:start}
+.masters .panel{min-width:0}
+.rgroup{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px}
+.rgroup label{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;padding:5px 6px;border-radius:5px;cursor:pointer}
+.rgroup label:hover{background:var(--bg)}
+.rgroup input{width:auto;margin-top:3px;accent-color:var(--accent)}
+.rgroup small{display:block;color:var(--muted);font-size:11.5px}
+h3.rg{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:4px 0 0}
+table.mt{width:100%;border-collapse:collapse}
+table.mt th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);font-weight:600}
+table.mt td{padding:3px 4px;border-bottom:1px solid var(--line)}
+table.mt input,table.mt select{background:transparent;border-color:transparent;padding:5px 6px}
+table.mt input:hover,table.mt select:hover{border-color:var(--line)}
+.addrow{display:flex;gap:6px;flex-wrap:wrap}
+.addrow>*{flex:1 1 110px}
+.addrow button{flex:0 0 auto}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;font-weight:500;z-index:20}
+@media print{
+  header.bar,.noprint,body::before{display:none!important}
+  body{background:#fff}
+  .wrap{padding:0;max-width:none}
+  .paper{box-shadow:none;width:auto;padding:0}
+  .paper input,.paper textarea{border:none}
+  @page{size:A4;margin:10mm}
+}
+thead th{cursor:default}.tablebox thead th{user-select:none}.cellsel{outline:2px solid var(--accent)!important;outline-offset:-2px;background:var(--sugg-bg)!important}
+#gate{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.gatebox{max-width:380px;width:100%}.gatebox .brand{margin-bottom:6px}
+body.gated header.bar,body.gated main{display:none}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+@media (max-width:640px){table.est input:not(.qty):not(.rate):not([type=number]){min-width:150px}table.est input,table.est select{border:1px solid var(--line)!important;border-radius:4px;background:var(--panel)}}
+@media (pointer:coarse){.xlhint{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="bar"><div class="inner">
+  <div class="brand">Zoom PO Desk<small>Zoom Technologies · Purchase</small></div>
+  <nav aria-label="Sections">
+    <button id="tab-home" data-view="home" aria-current="true">Home</button>
+    <button id="tab-req" data-view="req"><span class="step">1</span>Purchase request</button>
+    <button id="tab-est" data-view="est"><span class="step">2</span>Pre-estimate</button>
+    <button id="tab-po" data-view="po"><span class="step">3</span>Purchase order</button>
+    <button id="tab-saved" data-view="saved">PO list</button>
+    <button id="tab-appr" data-view="appr">PO approvals</button>
+    <button id="tab-grn" data-view="grn">Store / GRN</button>
+    <button id="tab-stock" data-view="stock">Stock &amp; issue</button>
+    <button id="tab-acct" data-view="acct">Accounts</button>
+    <button id="tab-rep" data-view="rep">Reports</button>
+    <button id="tab-rates" data-view="rates">Rate list</button>
+    <button id="tab-mast" data-view="mast">Masters</button>
+    <button id="tab-users" data-view="users">Users &amp; rights</button>
+  </nav>
+  <label class="who">Signed in as<select id="who"></select></label>
+  <span class="who" id="cloudUser" hidden><b id="cuName"></b><span id="syncState" class="chip calc">Saved</span><button class="btn" type="button" id="btn-cu-pw">Password</button><button class="btn" type="button" id="btn-cu-out">Log out</button></span>
+  <div class="theme" role="group" aria-label="Colour mode"><button type="button" data-theme-set="light" id="th-light">Light</button><button type="button" data-theme-set="dark" id="th-dark">Dark</button><button type="button" data-theme-set="system" id="th-system">Auto</button></div>
+</div></header>
+
+<div id="gate" hidden></div>
+<main class="wrap">
+
+<!-- PURCHASE REQUEST -->
+<!-- HOME -->
+<section id="view-home" class="stack">
+  <div class="row"><h2 class="sec" id="homeHello">Your work</h2><span class="note" id="homeDate"></span></div>
+  <div class="cards" id="homeCards"></div>
+  <div class="panel stack" id="homeBackup" hidden></div>
+  <div class="panel stack" id="homeFlow"><h2 class="sec">Purchase cycle at a glance</h2><div class="flow" id="flowBox"></div></div>
+</section>
+
+<section id="view-req" class="stack" hidden>
+  <div id="reqNone" class="panel empty" hidden></div>
+  <div class="panel stack" id="reqForm">
+    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-q-bom">Import BOM (.xlsx)</button><input type="file" id="q-bom" accept=".xlsx,.xls" hidden><button class="btn" id="btn-q-direct">New estimate, no request</button><button class="btn" id="btn-req-new">New request</button></div>
+    <div id="reqExample" class="example" hidden>Example request. Click "New request" to fill in your own.</div>
+    <div id="reqBanner" class="banner" hidden></div>
+    <div class="grid-fields">
+      <label class="f">Request No.<input id="q-no"></label>
+      <label class="f">Date<input id="q-date" type="date"></label>
+      <label class="f">Requested by<select id="q-by"></select></label>
+      <label class="f">Department / To<select id="q-dept"></select></label>
+      <label class="f">Project / Job No.<select id="q-job"></select></label>
+      <label class="f">Material required by *<input id="q-need" type="date" required></label>
+    </div>
+    <div class="stack" style="gap:8px">
+      <div class="row"><b>Attach the request</b><span class="note">Photo or PDF of the requisition slip, or a BOM Excel sheet. Excel lines are filled in automatically; photos and PDFs are kept with the request for the purchaser.</span></div>
+      <div class="row"><button class="btn" id="btn-q-file">Upload photos (JPG), PDF or Excel</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden><button class="btn" id="btn-q-cam">Take photo</button><input type="file" id="q-cam" accept="image/*" capture="environment" hidden><span class="note">You can attach several photos to one request.</span></div>
+      <div class="attach" id="q-attach"></div>
+    </div>
+    <div class="tablebox">
+      <table class="est" style="min-width:760px">
+        <thead><tr><th style="width:34px">Sr</th><th>Description of material</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
+        <tbody id="reqBody"></tbody>
+      </table>
+    </div>
+    <div class="note xlhint">Works like Excel: paste rows or columns copied from Excel into any cell. Arrows, Tab and Enter move between cells (Enter on the last row adds a line). Shift+arrows, drag, or click a column heading to select; Ctrl+C copies, Ctrl+V pastes, Delete clears. Double-click or F2 to edit inside a cell.</div>
+    <div class="row"><button class="btn" id="btn-q-line">Add line</button><span style="flex:1"></span>
+      <button class="btn primary" id="btn-q-submit">Submit request</button>
+      <input id="q-comment" placeholder="Comment (needed to send back)" style="flex:1 1 220px;max-width:340px" hidden>
+      <button class="btn" id="btn-q-back" hidden>Send back to requester</button>
+      <button class="btn primary" id="btn-q-approve" hidden>Approve (HOD)</button>
+      <button class="btn" id="btn-q-pdf">Download PDF</button>
+      <button class="btn primary" id="btn-q-estimate" hidden>Start pre-estimate</button></div>
+  </div>
+  <div class="panel stack">
+    <h2 class="sec">All requests</h2>
+    <div id="reqList"></div>
+  </div>
+</section>
+
+<!-- PRE-ESTIMATE -->
+<section id="view-est" class="stack" hidden>
+  <div id="estReqPanel" class="panel stack" hidden></div>
+  <div id="exampleNote" class="example" hidden>Example loaded: job ZT2349 from your notebook page. Click "New estimate" to start your own.</div>
+  <div class="panel stack">
+    <div class="grid-fields">
+      <label class="f">Job / Ref. No.<input id="e-job" placeholder="ZT2349" list="projects"></label>
+      <label class="f">Date<input id="e-date" type="date"></label>
+      <label class="f">Material required by<input id="e-need" type="date"></label>
+      <label class="f">Units (default)<input id="e-unit" value="NOS"></label>
+    </div>
+    <div class="row">
+      <button class="btn" id="btn-import">Import BOM (.xlsx)</button>
+      <input type="file" id="file-bom" accept=".xlsx,.xls,.csv" hidden>
+      <button class="btn" id="btn-new">New estimate, no request</button>
+      <span class="note">Import reads plates and BOP items with sizes and qty straight from the BOM sheet.</span>
+    </div>
+  </div>
+
+  <div class="panel stack">
+    <form class="quick" id="quickForm">
+      <input id="quick" placeholder="Quick add, like your notebook:  EGP 60+130+20 x2" autocomplete="off" list="itemnames">
+      <button class="btn primary" type="submit">Add line</button>
+    </form>
+    <div class="note">Type item, cost parts and qty. "EGP 60+130+20 x2" gives rate 210, amount 420. Leave out the parts ("Mold Leg x10") to use the suggested rate from the last PO or the rate list.</div>
+    <div class="tablebox">
+      <table class="est">
+        <thead><tr><th style="width:34px">Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr></thead>
+        <tbody id="estBody"></tbody>
+      </table>
+    </div>
+    <div class="note xlhint">Paste rows or columns straight from Excel (Item, Specification, Cost parts, Rate, Qty, Unit). Shift+arrows or a column heading selects cells, Ctrl+C copies, Ctrl+V pastes. Double-click or F2 to edit inside a cell.</div>
+    <div class="totalbar">
+      <div class="total"><span>Estimate total</span><b id="estTotal">0</b></div>
+      <span class="row"><button class="btn" id="btn-e-pdf">Download PDF</button><button class="btn primary" id="btn-convert">Convert to PO</button></span>
+    </div>
+  </div>
+</section>
+
+<!-- PO -->
+<section id="view-po" class="stack" hidden>
+  <div class="panel row noprint">
+    <label class="f" style="flex:0 1 280px">Supplier<select id="p-sup"></select></label>
+    <label class="f" style="flex:0 1 200px">GST type<select id="p-gstmode"><option value="intra">CGST 9% + SGST 9% (Maharashtra)</option><option value="inter">IGST 18% (other state)</option></select></label>
+    <span style="flex:1"></span>
+    <button class="btn" id="btn-direct">Direct PO, no request</button>
+    <button class="btn" id="btn-back">Back to estimate</button>
+    <button class="btn" id="btn-print" hidden>Print</button>
+    <button class="btn" id="btn-po-pdf">Download PDF</button>
+    <button class="btn" id="btn-save">Save draft</button>
+    <button class="btn primary" id="btn-send">Send for approval</button>
+    <button class="btn" id="btn-po-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete PO</button>
+  </div>
+  <div id="poDelete" class="panel stack noprint" hidden>
+    <b style="color:var(--danger)">Delete this PO?</b>
+    <div class="note">This removes the PO from all lists. If it came from a request, the request goes back to "Approved" so a new PO can be made. The deletion is recorded with your name and reason.</div>
+    <label class="f">Reason for deleting<input id="po-del-reason" placeholder="e.g. supplier cannot supply, duplicate PO"></label>
+    <div class="row"><span style="flex:1"></span><button class="btn" id="btn-del-cancel">Keep PO</button><button class="btn primary" id="btn-del-ok" style="background:var(--danger);border-color:var(--danger)">Delete permanently</button></div>
+  </div>
+  <div id="poBanner" class="banner noprint" hidden></div>
+  <div id="poReview" class="panel stack noprint" hidden>
+    <label class="f">Review comment<textarea id="po-comment" rows="2" placeholder="Notes for the purchaser. Needed when sending back."></textarea></label>
+    <div class="row"><span class="note" id="sigNote"></span><span style="flex:1"></span><button class="btn" id="btn-po-back">Send back for correction</button><button class="btn primary" id="btn-approve">Approve and sign</button></div>
+  </div>
+  <div class="paperbox"><div class="paper" id="paper"></div></div>
+</section>
+
+<!-- SAVED -->
+<section id="view-saved" class="panel" hidden>
+  <div id="savedList"></div>
+</section>
+
+<!-- APPROVALS -->
+<section id="view-appr" class="stack" hidden>
+  <div class="panel stack"><h2 class="sec">Waiting for your approval</h2><div id="apprList"></div></div>
+  <div class="panel stack"><h2 class="sec">Recently decided</h2><div id="apprDone"></div></div>
+</section>
+
+<!-- STORE / GRN -->
+<section id="view-grn" class="stack" hidden>
+  <div class="panel stack"><h2 class="sec">Approved POs waiting for material</h2>
+    <div class="note">Select a PO when material arrives. The GRN is filled in from the PO lines; enter what was actually received and any rejections.</div>
+    <div id="grnPOs"></div></div>
+  <div class="panel stack" id="grnForm" hidden></div>
+  <div class="panel stack"><h2 class="sec">GRNs created</h2><div id="grnList"></div></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Returnable challans</h2><span class="note">Material sent out for job work, repair or trial. Stays open until all of it is received back.</span><span style="flex:1"></span><button class="btn primary" id="btn-rgp-new">New returnable challan</button></div>
+    <div id="rgpList"></div></div>
+  <div class="panel stack" id="rgpForm" hidden></div>
+</section>
+
+<!-- STOCK -->
+<section id="view-stock" class="stack" hidden>
+  <div class="cards" id="stkCards"></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Stock register</h2><input id="stk-q" placeholder="Search item" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sl-open">Opening stock</button><button class="btn" id="btn-sl-ret">Return to store</button><button class="btn primary" id="btn-sl-issue">Issue material</button></div>
+    <div class="note">Accepted GRN quantities come in automatically. Issues to a mould or project take stock out at the average rate; returns put it back.</div>
+    <div class="tablebox" id="stkTable"></div></div>
+  <div class="panel stack" id="slipForm" hidden></div>
+  <div class="panel stack" id="stkLedger" hidden></div>
+  <div class="panel stack"><h2 class="sec">Issue and return slips</h2><div id="slipList"></div></div>
+  <div class="panel stack"><h2 class="sec">Material cost by project</h2><div class="note">PO value is what was ordered for the job (before GST). Net issued is material issued from store less returns, at average rate.</div><div class="tablebox" id="stkProj"></div></div>
+</section>
+
+<!-- ACCOUNTS -->
+<section id="view-acct" class="stack" hidden>
+  <div class="panel stack"><h2 class="sec">GRNs to book</h2><div id="acctPending"></div></div>
+  <div class="panel stack" id="acctDetail" hidden></div>
+  <div class="panel stack"><h2 class="sec">Vendor payments</h2>
+    <div class="note">Outstanding is booked GRN value less payments made. Pick a supplier to record a payment or see their ledger.</div>
+    <div id="vendList"></div></div>
+  <div class="panel stack" id="vendDetail" hidden></div>
+  <div class="panel stack"><h2 class="sec">Booked and paid GRNs</h2><div id="acctDone"></div></div>
+</section>
+
+<!-- REPORTS -->
+<section id="view-rep" class="stack" hidden>
+  <div class="note">Delay = date the PO was closed (final GRN) minus the date the requester needed the material. Open items past their required date count as running late.</div>
+  <div class="cards" id="repCards"></div>
+  <div class="panel stack"><h2 class="sec">Requirement tracking</h2><div class="tablebox" id="repTrack"></div></div>
+  <div class="masters">
+    <div class="panel stack"><h2 class="sec">Purchaser efficiency</h2><div class="tablebox" id="repBuyer"></div></div>
+    <div class="panel stack"><h2 class="sec">Supplier delivery</h2><div class="tablebox" id="repSup"></div></div>
+  </div>
+  <div class="panel stack"><h2 class="sec">Material cost by project</h2><div class="note">PO value ordered for the job (before GST) against material issued from store, less returns.</div><div class="tablebox" id="repProj"></div></div>
+</section>
+
+<!-- RATES -->
+<section id="view-rates" class="stack" hidden>
+  <div class="panel stack">
+    <div class="note">The app suggests these rates in the pre-estimate. Saving a PO updates each item to the last rate paid. You can also edit them here.</div>
+    <form class="quick" id="rateForm">
+      <input id="r-item" placeholder="Item name" style="font-family:var(--sans)">
+      <input id="r-rate" placeholder="Rate" type="number" step="0.01" style="flex:0 1 140px">
+      <button class="btn primary" type="submit">Save rate</button>
+    </form>
+    <div class="tablebox"><table class="est" style="min-width:480px"><thead><tr><th>Item</th><th class="num">Rate</th><th>Last updated</th><th>Source</th><th></th></tr></thead><tbody id="rateBody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- USERS & RIGHTS -->
+<section id="view-users" class="stack" hidden>
+  <div class="masters">
+    <div class="panel stack"><h2 class="sec">Users</h2><div class="note">Choosing a role gives the standard rights for that role. Fine-tune them on the right.</div>
+      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><select id="mu-dept"></select><select id="mu-role"><option>Requester</option><option>HOD</option><option>Purchaser</option><option>Approver</option><option>Store</option><option>Accounts</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Department</th><th>Role</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
+      <input type="file" id="mu-sigfile" accept="image/*" hidden>
+      <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
+    <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
+    <div class="panel stack" id="rightsPanel">
+      <div class="row"><h2 class="sec">Rights for</h2><select id="r-user" style="width:auto"></select><span id="r-badge"></span><span style="flex:1"></span><button class="btn" id="btn-r-reset" type="button">Reset to role defaults</button></div>
+      <div id="rightsBox" class="stack"></div>
+    </div>
+  </div>
+</section>
+
+<!-- MASTERS -->
+<section id="view-mast" class="stack" hidden>
+  <div class="note">These lists feed the drop-downs in the purchase request. Edit any cell directly. Set a project to Closed to hide it from new requests. Users are managed on the Users &amp; rights page.</div>
+  <div class="masters">
+    <div class="panel stack"><h2 class="sec">Departments</h2>
+      <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Department</th><th>HOD</th><th></th></tr></thead><tbody id="m-depts"></tbody></table></div></div>
+    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Suppliers</h2>
+      <form class="addrow" id="m-sup-form"><input id="ms-name" placeholder="Supplier name"><input id="ms-gst" placeholder="GSTIN"><input id="ms-terms" placeholder="Pay terms e.g. 60 Days"><button class="btn primary" type="submit">Add</button></form>
+      <div class="note">The state is read from the first two digits of the GSTIN (27 is Maharashtra, so CGST + SGST; any other state gets IGST).</div>
+      <div class="tablebox"><table class="mt" style="min-width:860px"><thead><tr><th>Name</th><th>Address</th><th>GSTIN</th><th>State</th><th>Pay terms</th><th>Contact</th><th></th></tr></thead><tbody id="m-sups"></tbody></table></div></div>
+    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Projects</h2>
+      <form class="addrow" id="m-proj-form"><input id="mp-no" placeholder="Job No. e.g. ZT2350"><input id="mp-desc" placeholder="Description"><input id="mp-cust" placeholder="Customer"><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt" style="min-width:560px"><thead><tr><th>Job No.</th><th>Description</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody id="m-projs"></tbody></table></div></div>
+  </div>
+</section>
+
+<datalist id="suppliers"></datalist>
+<datalist id="itemnames"></datalist>
+<datalist id="projects"></datalist>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+function zpoMain(BOOT){
+const COMPANY={name:"ZOOM TECHNOLOGIES",addr:"Gat No 669 and 670, Industrial Estate, Wadacha Mala, Jadhavwadi, Chikhali - Pune - 411062",contact:"Mob: 70309 53792 / 9967023983   Email: sales@zoomtechnologies.net",gstin:"27AMAPD1813A1Z0",state:"State Code : 27 Maharashtra",pan:"AMAPD1813A"};
+const $=s=>document.querySelector(s);
+function applyTheme(t){const r=document.documentElement;if(t==="light"||t==="dark")r.setAttribute("data-theme",t);else r.removeAttribute("data-theme");
+  document.querySelectorAll("[data-theme-set]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeSet===t)));try{localStorage.setItem("zpo:theme",t)}catch(e){}}
+document.querySelectorAll("[data-theme-set]").forEach(b=>b.onclick=()=>applyTheme(b.dataset.themeSet));
+let savedTheme="system";try{savedTheme=localStorage.getItem("zpo:theme")||"system"}catch(e){}
+applyTheme(savedTheme);
+let inFrame=true;try{inFrame=window.self!==window.top}catch(e){inFrame=true}
+const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
+const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
+/* ---------- cloud sync (shared data for all users) ---------- */
+const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1}};
+const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
+function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
+function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
+  Object.keys(SYNC).forEach(k=>{const S=SYNC[k],rs=(by[k]||[]).sort((a,b)=>a.created_rev-b.created_rev);cloud.shadow[k]={};
+    if(S.doc){cloud.cache[k]=rs[0]?rs[0].data:null}else if(S.map){const o={};rs.forEach(r=>o[r.id]=r.data);cloud.cache[k]=o}else{const a=rs.map(r=>r.data);if(S.newest)a.reverse();cloud.cache[k]=a}
+    rs.forEach(r=>cloud.shadow[k][r.id]=JSON.stringify(r.data))})}
+cloud.get=(k,d)=>{const v=cloud.cache[k];if(v!=null)return v;const S=SYNC[k];const e=S.doc?d:S.map?{}:[];cloud.cache[k]=e;return e};
+cloud.set=(k,v)=>{cloud.cache[k]=v;const f=cloudFlat(k,v),sh=cloud.shadow[k]||(cloud.shadow[k]={});
+  Object.keys(f).forEach(id=>{const s=JSON.stringify(f[id]);if(sh[id]!==s){cloud.pending.set(k+"\u0001"+id,{coll:k,id,data:f[id],isNew:SYNC[k].renum&&!(id in sh)});sh[id]=s}});
+  Object.keys(sh).forEach(id=>{if(!(id in f)){cloud.pending.set(k+"\u0001"+id,{coll:k,id,deleted:true});delete sh[id]}});
+  if(cloud.pending.size)cloudSoon(400)};
+function cloudSoon(ms){clearTimeout(cloud.timer);cloud.timer=setTimeout(cloudFlush,ms)}
+function cloudBadge(s){cloud.status=s;const el=$("#syncState");if(!el)return;el.textContent={ok:"Saved",saving:"Saving…",offline:"Offline, will retry",error:"Not saved"}[s]||s;el.className="chip "+(s==="ok"?"calc":s==="saving"?"sugg":"st-Back")}
+async function api(path,opts={}){const r=await fetch("/api/"+path,{method:opts.method||"GET",headers:{"content-type":"application/json",authorization:"Bearer "+BOOT.token},body:opts.body?JSON.stringify(opts.body):undefined,cache:"no-store"});
+  if(r.status===401){cloudExpired();throw Object.assign(new Error("auth"),{auth:true})}const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||"Server error"),{status:r.status});return j}
+function cloudExpired(){if(cloudExpired.done)return;cloudExpired.done=true;try{localStorage.removeItem("zpo:token")}catch(e){}alert("Your login has expired. Please log in again.");location.reload()}
+async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pending.size){cloudBadge("ok");return}
+  cloud.busy=true;cloudBadge("saving");const batch=[...cloud.pending.values()];cloud.pending.clear();
+  try{const res=await api("sync",{method:"POST",body:{changes:batch}});const confl=[],errs=[];
+    res.results.forEach((x,i)=>{if(x.conflict)confl.push(batch[i]);else if(x.error)errs.push(x.error)});
+    if(errs.length)toast(errs[0]);
+    cloud.busy=false;
+    if(confl.length)await cloudRenumber(confl);
+    await cloudPull();cloudBadge(cloud.pending.size?"saving":errs.length?"error":"ok");if(cloud.pending.size)cloudSoon(200);
+  }catch(e){cloud.busy=false;if(e.auth)return;batch.forEach(c=>{const kk=c.coll+"\u0001"+c.id;if(!cloud.pending.has(kk))cloud.pending.set(kk,c)});cloudBadge("offline");cloudSoon(15000)}}
+async function cloudRenumber(list){
+  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1};
+  for(const c of list){const k=c.coll,arr=cloud.cache[k];const obj=arr.find(r=>SYNC[k].id(r)===c.id);if(!obj)continue;const old=obj.no;
+    delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):nexts[k]();
+    if(k==="saved"&&po&&String(po.no)===String(old)){po.no=obj.no;store.set("po",po)}
+    if(k==="reqs"&&est&&est.reqNo===old){est.reqNo=obj.no;saveEst()}
+    cloud.set(k,arr);toast(`Number ${old} was just used by another user, so this was saved as ${obj.no}`)}
+}
+function cloudApply(r){const k=r.coll,S=SYNC[k];if(!S)return false;const kk=k+"\u0001"+r.id;if(cloud.pending.has(kk))return false;
+  const sh=cloud.shadow[k]||(cloud.shadow[k]={});const s=r.deleted?undefined:JSON.stringify(r.data);if(sh[r.id]===s)return false;
+  if(r.deleted)delete sh[r.id];else sh[r.id]=s;
+  if(S.doc){if(r.deleted)return false;const m=cloud.cache[k];if(m&&k==="masters"){Object.keys(m).forEach(x=>delete m[x]);Object.assign(m,r.data)}else cloud.cache[k]=r.data;return true}
+  if(S.map){const o=cloud.get(k);if(r.deleted)delete o[r.id];else o[r.id]=r.data;return true}
+  const a=cloud.get(k),i=a.findIndex(x=>x&&S.id(x)===r.id);
+  if(r.deleted){if(i>=0)a.splice(i,1);return true}
+  if(i>=0){const o=a[i];Object.keys(o).forEach(x=>delete o[x]);Object.assign(o,r.data)}else if(S.newest)a.unshift(r.data);else a.push(r.data);return true}
+async function cloudPull(){try{const d=await api("sync?since="+cloud.rev);cloud.logins=d.logins||cloud.logins;let ch=false;(d.records||[]).forEach(r=>{if(cloudApply(r))ch=true});cloud.rev=Math.max(cloud.rev,d.rev);
+    if(ch)cloudRefresh();if(cloud.status==="offline")cloudBadge(cloud.pending.size?"saving":"ok")}catch(e){if(!e.auth)cloudBadge("offline")}}
+function cloudRefresh(){
+  if(me){const nm=me.name;const u=M.users.find(x=>x.name===nm);if(u&&u!==me){me=u;views.forEach(v=>$("#tab-"+v).hidden=!can(v))}}
+  renderBadges();const v=views.find(x=>!$("#view-"+x).hidden);const a=document.activeElement;
+  const busy=a&&a!==document.body&&a.matches&&a.matches("input,select,textarea")&&a.closest("main");
+  const forms=["#grnForm","#rgpForm","#slipForm","#acctDetail","#vendDetail"].some(s=>$(s)&&!$(s).hidden);
+  if(busy||forms||["est","po"].includes(v)||(v==="req"&&cur&&["Draft","Sent back"].includes(cur.status)))return;
+  const y=window.scrollY;show(v);window.scrollTo(0,y)}
+function cloudStart(){if(!CLOUD)return;cloudLoad(BOOT.data);
+  setInterval(()=>{if(document.visibilityState==="visible"&&!cloud.busy&&!cloud.pending.size)cloudPull()},45000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")cloudPull();else if(cloud.pending.size)cloudFlush()});
+  window.addEventListener("focus",()=>cloudPull());
+  window.addEventListener("beforeunload",e=>{if(cloud.pending.size||cloud.busy){cloudFlush();e.preventDefault();e.returnValue=""}})}
+
+const store=CLOUD?{get(k,d){if(k==="me")return BOOT.me;return SYNC[k]?cloud.get(k,d):local.get(k,d)},set(k,v){if(k==="me")return;if(SYNC[k])cloud.set(k,v);else local.set(k,v)}}:local;
+cloudStart();
+const fmt=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt0=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{maximumFractionDigits:2});
+const key=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+const today=()=>new Date().toISOString().slice(0,10);
+const dmy=iso=>{if(!iso)return"";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2200)}
+
+/* ---------- data ---------- */
+const SUPPLIERS_SEED=[{name:"M/S. R A ENGINEERING",addr:"B/1, SR.NO.101, BEHIND JYOTI ENGLISH SCHOOL,\nNEHRU NAGAR, PIMPRI, PUNE\nPUNE - 411018, Maharashtra, INDIA",state:"27",gstin:"",terms:"60 Days",contact:""}];
+const EXAMPLE=[["EGP","60+130+20",2],["EGB","30+120+20",2],["Couplers","50+60+50+50+40+10+10",1],["Mold Leg","100",10],["Cav Button","80",4],["Ej Stopper","120",4],["Rest Button","80",8],["GP","145+150+30",4],["Locating Ring","210+360+20+10",1],["GB","80+140+20",4],["Support Pillar","50+120+60+10+10",6],["Sprue Bush","240+150+20",1],["Limit Plate","150",1],["Shot Counter Plate","180",1],["Tie Bar","360+220+100+180+30+10",1]];
+let suppliers=store.get("suppliers",null)||SUPPLIERS_SEED;
+let rates=store.get("rates",null);
+if(!rates){rates={};EXAMPLE.forEach(([n,e])=>{rates[key(n)]={name:n,rate:sumExpr(e),date:"2026-11-01",src:"Notebook ZT2349"}});store.set("rates",rates)}
+let saved=store.get("saved",[]);
+let grns=store.get("grns",[]);
+let est=store.get("est",null);
+let isExample=false;
+if(!est){est=exampleEstimate();isExample=true}
+let po=store.get("po",null);
+let reqs=store.get("reqs",null);
+if(!reqs){reqs=[{no:"066",date:"2026-11-02",by:"Niksal",dept:"Design",job:"ZT2349",need:"2026-11-10",status:"Submitted",example:true,attach:null,
+  lines:EXAMPLE.map(([n,e,q])=>({desc:n,spec:"",qty:q,unit:"NOS",vendor:"M/S. R A ENGINEERING",remark:""}))}];store.set("reqs",reqs)}
+let cur=reqs[0];
+let M=store.get("masters",null);
+if(!M){M={users:[{name:"Niksal",dept:"Design",role:"Requester"},{name:"M.K. Singh",dept:"Design",role:"HOD"},{name:"Purchase Desk",dept:"Purchase",role:"Purchaser"}],
+  depts:[{name:"Design",hod:"M.K. Singh"},{name:"Tool Room",hod:""},{name:"Purchase",hod:""}],
+  projects:[{no:"ZT2329",desc:"Mould & tool child parts",cust:"",status:"Active"},{no:"ZT2335",desc:"Mould (BOM released 17/10/2026)",cust:"",status:"Active"},{no:"ZT2347",desc:"",cust:"",status:"Active"},{no:"ZT2348",desc:"",cust:"",status:"Active"},{no:"ZT2349",desc:"",cust:"",status:"Active"}]};store.set("masters",M)}
+if(!CLOUD&&!M.users.some(u=>u.role==="Store"))M.users.push({name:"Store Keeper",dept:"Store",role:"Store"});
+if(!CLOUD&&!M.users.some(u=>u.role==="Accounts"))M.users.push({name:"Accounts Desk",dept:"Accounts",role:"Accounts"});
+["Store","Accounts"].forEach(d=>{if(!M.depts.some(x=>x.name===d))M.depts.push({name:d,hod:""})});
+if(!CLOUD&&!M.users.some(u=>u.role==="Approver"))M.users.push({name:"Director",dept:"",role:"Approver"});
+if(!CLOUD&&!M.users.some(u=>u.role==="Admin"))M.users.push({name:"Admin",dept:"",role:"Admin"});
+const saveM=()=>store.set("masters",M);
+let me=null;
+
+function exampleEstimate(){return{job:"ZT2349",sup:"M/S. R A ENGINEERING",date:today(),unit:"NOS",lines:EXAMPLE.map(([n,e,q])=>({item:n,spec:"",expr:e,rate:sumExpr(e),qty:q,unit:"NOS",src:"calc"}))}}
+function sumExpr(e){const parts=String(e||"").split("+").map(s=>parseFloat(s.trim())).filter(n=>!isNaN(n));return parts.length?parts.reduce((a,b)=>a+b,0):null}
+const rkey=(i,sp)=>key(i+" "+(sp||""));
+function suggest(item,spec){const r=rates[rkey(item,spec)];return r?r.rate:null}
+
+/* ---------- views ---------- */
+const views=["home","req","est","po","saved","appr","grn","stock","acct","rep","rates","mast","users"];
+const RIGHTS=[
+ ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
+ ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.approve","Approve or send back requests","For their own department"],["Actions","req.all","See all departments' requests","Approve any department if also allowed to approve"],
+ ["Actions","po.create","Create POs and send for approval","Includes pre-estimate and direct PO"],["Actions","po.approve","Approve and sign POs","Their signature goes on the PO"],["Actions","po.delete","Delete POs","Including approved POs, if no material received yet"],
+ ["Actions","grn.create","Create GRN","Receive material against approved POs"],["Actions","acct.book","Book and mark GRNs paid","Voucher and payment reference"],["Actions","rgp.manage","Returnable challans","Send material out and receive it back"],["Actions","stock.issue","Issue and return material","Issue slips, returns to store, opening stock, bin locations"]];
+const ROLE_RIGHTS={Requester:["page.req","req.create"],HOD:["page.req","req.create","req.approve"],Purchaser:["page.req","page.est","page.po","page.saved","page.rates","po.create"],
+ Approver:["page.po","page.saved","page.appr","page.rep","page.stock","po.approve","po.delete"],Store:["page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.acct","acct.book"],Admin:RIGHTS.map(r=>r[1])};
+const rightsOf=u=>u?(u.rights||ROLE_RIGHTS[u.role]||[]):[];
+const has=r=>rightsOf(me).includes(r);
+const TABS={req:["Requester","HOD","Purchaser","Admin"],est:["Purchaser","Admin"],po:["Purchaser","Approver","Admin"],saved:["Purchaser","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchaser","Admin"],mast:["Admin"]};
+const can=v=>v==="home"||has("page."+v);
+const isRole=(...r)=>!!me&&r.includes(me.role);
+const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
+const landing=()=>"home";
+function show(v){if(!can(v))v=landing();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users")renderMasters();if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();window.scrollTo(0,0)}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.view));
+
+/* ---------- estimate ---------- */
+function saveEst(){store.set("est",est)}
+function bindHeader(){
+  $("#e-job").value=est.job||"";$("#e-date").value=est.date||today();$("#e-unit").value=est.unit||"NOS";$("#e-need").value=est.need||"";
+  [["#e-job","job"],["#e-date","date"],["#e-unit","unit"],["#e-need","need"]].forEach(([s,k])=>$(s).oninput=e=>{est[k]=e.target.value;saveEst()});
+  $("#exampleNote").hidden=!isExample;
+  $("#suppliers").innerHTML=suppliers.map(s=>`<option value="${esc(s.name)}">`).join("");
+  $("#itemnames").innerHTML=Object.values(rates).map(r=>`<option value="${esc(r.name)}">`).join("");
+}
+function lineAmt(l){return (+l.rate||0)*(+l.qty||0)}
+function renderEst(){
+  const tb=$("#estBody");
+  if(!est.lines.length){tb.innerHTML=`<tr><td colspan="10" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
+  else tb.innerHTML=est.lines.map((l,i)=>`<tr data-i="${i}">
+    <td>${i+1}</td>
+    <td><input id="l${i}-item" data-k="item" value="${esc(l.item)}" list="itemnames"></td>
+    <td><input id="l${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
+    <td><input id="l${i}-expr" class="expr" data-k="expr" value="${esc(l.expr)}" aria-label="Cost parts, e.g. 60+130+20"></td>
+    <td class="num"><input id="l${i}-rate" class="rate" data-k="rate" type="number" step="0.01" value="${l.rate??""}"></td>
+    <td class="num"><input id="l${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
+    <td><input id="l${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
+    <td class="num" data-amt>${fmt0(lineAmt(l))}</td>
+    <td data-src>${srcChip(l)}</td>
+    <td><button class="x" data-del="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("");
+  updateTotal();
+}
+function srcChip(l){
+  if(l.src==="calc")return`<span class="chip calc">Cost parts</span>`;
+  if(l.src==="sugg"){const r=rates[rkey(l.item,l.spec)];return`<span class="chip sugg" title="${esc(r?r.src+" · "+r.date:"")}">Suggested</span>`}
+  if(l.src==="man")return`<span class="chip man">Manual</span>`;
+  return`<span class="chip calc">No rate</span>`;
+}
+function updateTotal(){$("#estTotal").textContent=fmt0(est.lines.reduce((a,l)=>a+lineAmt(l),0))}
+$("#estBody").addEventListener("input",e=>{
+  const tr=e.target.closest("tr");if(!tr)return;const i=+tr.dataset.i,l=est.lines[i],k=e.target.dataset.k;
+  l[k]=(k==="rate"||k==="qty")?(e.target.value===""?null:+e.target.value):e.target.value;
+  if(k==="expr"){const s=sumExpr(l.expr);if(s!=null){l.rate=s;l.src="calc";tr.querySelector(".rate").value=s}}
+  if(k==="rate"){l.src="man";l.expr=""; tr.querySelector(".expr").value=""}
+  if((k==="item"||k==="spec")&&!l.expr&&l.src!=="man"){const s=suggest(l.item,l.spec);if(s!=null){l.rate=s;l.src="sugg";tr.querySelector(".rate").value=s}}
+  tr.querySelector("[data-amt]").textContent=fmt0(lineAmt(l));tr.querySelector("[data-src]").innerHTML=srcChip(l);
+  updateTotal();saveEst();
+});
+$("#estBody").addEventListener("click",e=>{const d=e.target.dataset.del;if(d!=null){est.lines.splice(+d,1);saveEst();renderEst()}});
+
+function parseQuick(t){
+  t=t.trim();if(!t)return null;
+  let m=t.match(/^(.*?)[\s=:]*([\d.]+(?:\s*\+\s*[\d.]+)*)\s*(?:=\s*)?[x×*]\s*([\d.]+)\s*$/i);
+  if(m&&m[1].trim())return{item:m[1].replace(/[=:]+$/,"").trim(),expr:m[2].replace(/\s+/g,""),qty:+m[3]};
+  m=t.match(/^(.*?)[\s=:]*[x×*]\s*([\d.]+)\s*$/i);
+  if(m&&m[1].trim())return{item:m[1].replace(/[=:]+$/,"").trim(),expr:"",qty:+m[2]};
+  return{item:t,expr:"",qty:1};
+}
+$("#quickForm").onsubmit=e=>{
+  e.preventDefault();const p=parseQuick($("#quick").value);if(!p)return;
+  const l={item:p.item,spec:"",expr:p.expr,qty:p.qty,unit:est.unit||"NOS",rate:null,src:""};
+  const s=sumExpr(p.expr);if(s!=null){l.rate=s;l.src="calc"}else{const g=suggest(p.item);if(g!=null){l.rate=g;l.src="sugg"}}
+  est.lines.push(l);isExample=false;$("#exampleNote").hidden=true;saveEst();renderEst();$("#quick").value="";$("#quick").focus();
+};
+function newDirect(){est={job:"",sup:"",date:today(),unit:"NOS",lines:[],direct:true};isExample=false;saveEst();bindHeader();renderEst();renderEstReq();$("#e-job").focus()}
+$("#btn-new").onclick=newDirect;
+$("#btn-direct").onclick=()=>{show("est");newDirect()};
+
+/* BOM import */
+$("#btn-import").onclick=()=>$("#file-bom").click();
+$("#file-bom").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const {job,lines:raw}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
+    const lines=raw.map(r=>{const g=suggest(r.item,r.spec);return{item:r.item,spec:r.spec,expr:"",qty:r.qty,unit:est.unit||"NOS",rate:g,src:g!=null?"sugg":""}});
+    if(!lines.length){toast("No item rows found in that sheet");return}
+    est={job:job||est.job,sup:est.sup,date:today(),unit:est.unit||"NOS",lines};isExample=false;saveEst();bindHeader();renderEst();
+    toast(`Imported ${lines.length} lines from ${f.name}`);
+  }catch(err){toast("Could not read that file. Save it as .xlsx and try again.")}
+  e.target.value="";
+};
+function parseBOM(wb){
+    let job="",lines=[],section="";
+    wb.SheetNames.forEach(sn=>{
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:null});
+      rows.forEach(r=>{
+        const a=r[0],b=r[1];
+        if(!job){const j=r.find(c=>typeof c==="string"&&/ZT[-\s]?\d{3,5}/i.test(c));if(j)job=j.match(/ZT[-\s]?\d{3,5}/i)[0].replace(/[\s-]/g,"").toUpperCase()}
+        if(typeof a==="string"&&/^[A-Z]$/.test(a.trim())&&b){section=String(b).toLowerCase();return}
+        if(typeof a!=="number"||!b||!String(b).trim())return;
+        const qty=+r[5]||1;let spec="";
+        if(section.includes("bop")){spec=[r[2],r[3]&&r[4]?`${r[3]}x${r[4]}`:(r[3]||""),r[6]].filter(Boolean).join(" ")}
+        else{spec=[r[2]&&r[3]&&r[4]?`${r[2]}x${r[3]}x${r[4]}`:"",r[6]].filter(Boolean).join(" ")}
+        if(r[8])spec+=(spec?" · ":"")+r[8];
+        lines.push({item:String(b).trim(),spec,qty});
+      });
+    });
+    return{job,lines};
+}
+
+/* ---------- PO ---------- */
+function nextPONo(){return Math.max(2055,...saved.map(s=>+s.no||0),...store.get("deletedPOs",[]).map(d=>+d.no||0))+1}
+$("#btn-convert").onclick=()=>{
+  const lines=est.lines.filter(l=>l.item&&lineAmt(l)>0);
+  if(!lines.length){toast("Add at least one line with a rate and qty");return}
+  const sup=suppliers.find(s=>key(s.name)===key(est.sup))||{name:est.sup||"",addr:"",state:"27"};
+  po={no:nextPONo(),date:today(),sup:sup.name,supAddr:sup.addr,ref:est.job,refDate:est.date,attn:"",venCode:sup.gstin||"",terms:sup.terms||"60 Days",transport:"",validity:"",
+      reqNo:est.reqNo||"",needBy:est.need||"",deliv:COMPANY.addr,gstmode:sup.state&&sup.state!=="27"?"inter":"intra",remark:"",
+      lines:lines.map(l=>({desc:[l.item,l.spec].filter(Boolean).join(" - "),item:l.item,spec:l.spec||"",hsn:"84801000",tax:18,qty:l.qty,unit:l.unit||"NOS",rate:l.rate,dis:0}))};
+  store.set("po",po);show("po");
+};
+function poCalc(){
+  const sub=po.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100),0);
+  const tax=po.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100)*(+l.tax||0)/100,0);
+  return{sub,tax,total:Math.round(sub+tax)};
+}
+function renderPO(){
+  const P=$("#paper");
+  if(!po){P.innerHTML=`<div class="empty">No purchase order yet. Build a pre-estimate and click "Convert to PO". For a purchase without a request, use "Direct PO, no request".</div>`;poControls();return}
+  $("#p-gstmode").value=po.gstmode;po.status=po.status||"Draft";
+  $("#p-sup").innerHTML=opts(suppliers.map(x=>x.name),po.sup,"Choose supplier");
+  const inp=(k,w,extra="")=>`<input id="po-${k}" data-pk="${k}" value="${esc(po[k])}" style="width:${w}" ${extra}>`;
+  P.innerHTML=`
+  ${po.status!=="Approved"?`<div class="draftmark">${po.status==="Pending approval"?"PENDING APPROVAL":"DRAFT"} · NOT VALID UNTIL APPROVED</div>`:""}
+  <div class="co"><h2>${COMPANY.name}</h2><p>${COMPANY.addr}</p><p>${COMPANY.contact}</p></div>
+  <div class="gst"><span>GSTIN : ${COMPANY.gstin}</span><span>${COMPANY.state}</span><span>PAN No. : ${COMPANY.pan}</span></div>
+  <h3>PURCHASE ORDER</h3>
+  <div class="two">
+    <div>${inp("sup","100%",'style="font-weight:700;width:100%" list="suppliers" placeholder="Supplier name"')}<textarea id="po-supAddr" data-pk="supAddr" rows="4" style="width:100%;resize:vertical">${esc(po.supAddr)}</textarea></div>
+    <div class="kv"><b>P.O. No.</b><div>${inp("no","70px")} &nbsp;<b>Date</b> ${inp("date","120px",'type="date"')}</div>
+      <b>Delivery</b><textarea id="po-deliv" data-pk="deliv" rows="2" style="width:100%;resize:vertical">${esc(po.deliv)}</textarea>
+      <b>Pay. Terms</b>${inp("terms","100%")}<b>Validity</b>${inp("validity","100%")}</div>
+  </div>
+  <div class="two" style="border-top:none">
+    <div class="kv"><b>Ref. No.</b><div>${inp("ref","90px")} <b>Dt.</b> ${inp("refDate","120px",'type="date"')}</div><b>Ven. Code</b>${inp("venCode","100%")}</div>
+    <div class="kv"><b>Kind Attn.</b>${inp("attn","100%")}<b>Transport</b>${inp("transport","100%")}<b>Delivery by</b>${inp("needBy","130px",'type="date"')}</div>
+  </div>
+  <table><thead><tr><th>Sn</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
+  <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
+    <td><input id="pl${i}-desc" data-lk="desc" value="${esc(l.desc)}" style="width:100%;min-width:200px"></td>
+    <td><input id="pl${i}-hsn" data-lk="hsn" value="${esc(l.hsn)}" style="width:72px"></td>
+    <td class="r"><input id="pl${i}-tax" data-lk="tax" type="number" value="${l.tax}" style="width:44px"></td>
+    <td class="r"><input id="pl${i}-qty" data-lk="qty" type="number" step="any" value="${l.qty}" style="width:56px"></td>
+    <td><input id="pl${i}-unit" data-lk="unit" value="${esc(l.unit)}" style="width:44px"></td>
+    <td class="r"><input id="pl${i}-rate" data-lk="rate" type="number" step="0.01" value="${l.rate}" style="width:72px"></td>
+    <td class="r"><input id="pl${i}-dis" data-lk="dis" type="number" step="0.01" value="${l.dis||""}" style="width:40px"></td>
+    <td class="r" data-amt>${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td>
+    <td class="noprint"><button class="x" data-pdel="${i}" aria-label="Remove PO line ${i+1}">×</button></td></tr>`).join("")}</tbody></table>
+  <div class="noprint" style="margin-top:4px"><button class="btn" id="btn-po-line" style="font-size:12px;padding:4px 10px">Add line</button></div>
+  <table class="tot" style="margin-top:0"><tbody id="poTot"></tbody></table>
+  <p id="poWords" style="margin:4px 0"></p>
+  <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
+  <p style="margin:6px 0"><b>Remark</b> ${inp("remark","80%")}</p>
+  <div class="foot small">
+    <div><b>Special Instruction :</b><br>1) Please mention our P.O. No. on your D.C. &amp; Invoice.<br>2) Send Delivery Challan &amp; Original Invoice (with Transporter's copy) along with the material.</div>
+    <div><b>Rejections :</b><br>If material received is found faulty or not matching the required specifications, we will intimate you within 4 weeks from receiving the material. Such material will be rejected and sent back at the cost and risk of the supplier. Corresponding deductions will apply to the supplier's account.</div>
+  </div>
+  <div class="row small" style="justify-content:space-between;margin-top:6px"><span>" Subject to Pune jurisdiction only "</span><b>For ZOOM TECHNOLOGIES</b></div>
+  <div class="sign small">${po.status==="Approved"?(po.sig?`<img class="sigimg" src="${po.sig}" alt="Signature of ${esc(po.approvedBy)}">`:`<div style="height:40px;color:#999">(no signature on file)</div>`)+`<div>${esc(po.approvedBy)} · ${dmy(po.approvedAt)}</div>`:`<div style="height:40px"></div>`}Authorised Signatory</div>`;
+  renderTotals();poControls();
+}
+function poControls(){
+  const st=po?po.status||"Draft":"";const editable=!!po&&["Draft","Sent back","Pending approval"].includes(st)&&has("po.create");
+  const review=!!po&&st==="Pending approval"&&has("po.approve");
+  $("#btn-save").hidden=!editable;$("#btn-send").hidden=!editable||st==="Pending approval";$("#btn-save").textContent=st==="Pending approval"?"Save changes":"Save draft";
+  const inList=!!po&&saved.some(x=>String(x.no)===String(po.no));const hasGrn=!!po&&grns.some(g=>String(g.poNo)===String(po.no));
+  $("#btn-po-del").hidden=!(inList&&has("po.delete"));$("#btn-po-del").disabled=hasGrn;$("#btn-po-del").title=hasGrn?"Material has been received against this PO, so it cannot be deleted":"";if($("#btn-po-del").hidden)$("#poDelete").hidden=true;$("#btn-back").hidden=!has("po.create")||!can("est")||!po;$("#btn-direct").hidden=!(has("po.create")&&can("est"));
+  $("#btn-send").textContent=st==="Sent back"?"Resend for approval":"Send for approval";
+  $("#p-gstmode").disabled=!editable;$("#p-sup").disabled=!editable;$("#poReview").hidden=!review;
+  if(review){$("#sigNote").textContent=me.sig?`Your signature will be printed on the PO.`:`No signature uploaded for ${me.name}. Ask the admin to add it in Masters.`}
+  $("#btn-print").hidden=inFrame||st!=="Approved";
+  const B=$("#poBanner");const last=(po&&po.history||[]).slice(-1)[0];
+  if(!po){B.hidden=true}
+  else if(st==="Sent back"){B.hidden=false;B.className="banner back noprint";B.textContent=`Sent back by ${last?last.by:"approver"}: ${po.backNote||""}`}
+  else if(st==="Pending approval"){B.hidden=false;B.className="banner noprint";B.textContent=review?`PO ${po.no} is waiting for your decision. Check it below, then approve or send back.`:editable?`Waiting for approval. You can still correct it: "Save changes" updates the copy the approver sees. Once approved it is locked.`:`Sent for approval on ${dmy((last&&last.at||"").slice(0,10))}. It is locked until the approver decides.`}
+  else if(st==="Approved"){B.hidden=false;B.className="banner ok noprint";B.textContent=`Approved by ${po.approvedBy} on ${dmy(po.approvedAt)}. This PO is final.`}
+  else B.hidden=true;
+  if(po&&!editable){$("#paper").querySelectorAll("input,textarea").forEach(el=>el.disabled=true);$("#paper").querySelectorAll("button").forEach(el=>el.hidden=true)}
+}
+function renderTotals(){
+  const c=poCalc();let rows=`<tr><td>Sub Total</td><td class="amt">${fmt(c.sub)}</td></tr>`;
+  if(po.gstmode==="intra")rows+=`<tr><td>C-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr><tr><td>S-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr>`;
+  else rows+=`<tr><td>I-GST 18% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax)}</td></tr>`;
+  rows+=`<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr>`;
+  $("#poTot").innerHTML=rows;$("#poWords").innerHTML=`<b>Amount In Words :</b> Rupees ${words(c.total)} Only.`;
+}
+$("#paper").addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.pk){po[t.dataset.pk]=t.value;
+    if(t.dataset.pk==="sup"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp&&!po.supAddr){po.supAddr=sp.addr;$("#po-supAddr").value=sp.addr;if(sp.terms){po.terms=sp.terms;$("#po-terms").value=sp.terms}po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra";$("#p-gstmode").value=po.gstmode;renderTotals()}}}
+  else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;
+    tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100));renderTotals()}
+  store.set("po",po);
+});
+$("#paper").addEventListener("click",e=>{if(e.target.id==="btn-po-line"){po.lines.push({desc:"",item:"",spec:"",hsn:"84801000",tax:18,qty:1,unit:"NOS",rate:0,dis:0});store.set("po",po);renderPO();return}const d=e.target.dataset.pdel;if(d!=null){po.lines.splice(+d,1);store.set("po",po);renderPO()}});
+function applySupplier(name){const sp=suppliers.find(x=>key(x.name)===key(name));po.sup=name;
+  if(sp){po.supAddr=sp.addr||"";if(sp.terms)po.terms=sp.terms;if(sp.gstin)po.venCode=sp.gstin;po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra"}store.set("po",po);renderPO()}
+$("#p-sup").onchange=e=>{if(po)applySupplier(e.target.value)};
+$("#p-gstmode").onchange=e=>{if(!po)return;po.gstmode=e.target.value;store.set("po",po);renderTotals()};
+$("#btn-back").onclick=()=>show("est");
+function recordPO(status,action,comment){
+  po.status=status;po.history=(po.history||[]).concat([{by:me.name,action,at:new Date().toISOString(),comment:comment||""}]);
+  const c=poCalc();const rec=JSON.parse(JSON.stringify(po));rec.total=c.total;rec.savedAt=new Date().toISOString();
+  const i=saved.findIndex(s=>String(s.no)===String(po.no));if(i>=0)saved[i]=rec;else saved.unshift(rec);store.set("saved",saved);store.set("po",po);
+}
+$("#btn-save").onclick=()=>{
+  if(!po){toast("Nothing to save yet");return}
+  if(po.status==="Pending approval"){recordPO("Pending approval","Edited before approval");learnFromPO();toast(`PO ${po.no} updated. The approver sees the new version.`);renderPO();return}
+  recordPO(po.status==="Sent back"?"Sent back":"Draft","Saved draft");learnFromPO();toast(`Draft PO ${po.no} saved`);renderPO();
+};
+$("#btn-send").onclick=()=>{
+  if(!po)return;if(!po.sup.trim()){toast("Fill in the supplier first");return}
+  if(!po.lines.some(l=>l.desc&&(+l.qty)*(+l.rate)>0)){toast("Add at least one line with qty and rate");return}
+  if(!po.needBy){toast("Fill in the delivery-by date on the PO");$("#po-needBy").focus();return}
+  recordPO("Pending approval","Sent for approval");learnFromPO();
+  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO raised";r.poNo=po.no;saveReqs()}}
+  toast(`PO ${po.no} sent for approval`);renderPO();
+};
+$("#btn-po-del").onclick=()=>{$("#poDelete").hidden=false;$("#po-del-reason").value="";$("#po-del-reason").focus()};
+$("#btn-del-cancel").onclick=()=>{$("#poDelete").hidden=true};
+$("#btn-del-ok").onclick=()=>{
+  if(!po||!has("po.delete"))return;if(grns.some(g=>String(g.poNo)===String(po.no))){toast("Material has been received against this PO, so it cannot be deleted");return}
+  const why=$("#po-del-reason").value.trim();if(!why){toast("Give a reason for deleting");$("#po-del-reason").focus();return}
+  const del=store.get("deletedPOs",[]);del.unshift({no:po.no,sup:po.sup,status:po.status,total:poCalc().total,by:me.name,at:new Date().toISOString(),reason:why});store.set("deletedPOs",del);
+  saved=saved.filter(x=>String(x.no)!==String(po.no));store.set("saved",saved);
+  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="Approved";delete r.poNo;saveReqs()}}
+  const n=po.no;po=null;store.set("po",null);$("#poDelete").hidden=true;toast(`PO ${n} deleted`);renderPO()};
+$("#btn-approve").onclick=()=>{po.approvedBy=me.name;po.approvedAt=today();po.sig=me.sig||"";recordPO("Approved","Approved",$("#po-comment").value.trim());
+  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO approved";saveReqs()}}
+  $("#po-comment").value="";toast(`PO ${po.no} approved and signed`);renderPO()};
+$("#btn-po-back").onclick=()=>{const c=$("#po-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#po-comment").focus();return}
+  po.backNote=c;recordPO("Sent back","Sent back for correction",c);$("#po-comment").value="";toast(`PO ${po.no} sent back to the purchaser`);renderPO()};
+function learnFromPO(){
+  po.lines.forEach(l=>{const it=l.item||l.desc;if(it&&l.rate)rates[rkey(it,l.item?l.spec:"")]={name:l.item?[l.item,l.spec].filter(Boolean).join(" - "):it,rate:+l.rate,date:po.date,src:"PO "+po.no}});store.set("rates",rates);
+  if(po.sup&&!suppliers.some(s=>key(s.name)===key(po.sup))){suppliers.push({name:po.sup,addr:po.supAddr,state:po.gstmode==="inter"?"":"27"});store.set("suppliers",suppliers)}
+  bindHeader();
+}
+$("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
+
+/* ---------- saved / rates ---------- */
+function renderSaved(){
+  const L=$("#savedList");
+  if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
+  L.innerHTML=saved.map((s,i)=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
+}
+function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
+function renderAppr(){
+  const pend=saved.filter(s=>s.status==="Pending approval"),done=saved.filter(s=>["Approved","Sent back"].includes(s.status)).slice(0,10);
+  $("#apprList").innerHTML=pend.length?pend.map(apprRow).join(""):`<div class="empty">Nothing is waiting for approval.</div>`;
+  $("#apprDone").innerHTML=done.length?done.map(apprRow).join(""):`<div class="empty">No decisions yet.</div>`;
+}
+["#apprList","#apprDone"].forEach(id=>$(id).addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}}));
+$("#savedList").addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}});
+function renderRates(){
+  const list=Object.entries(rates).sort((a,b)=>a[1].name.localeCompare(b[1].name));
+  $("#rateBody").innerHTML=list.length?list.map(([k,r])=>`<tr><td>${esc(r.name)}</td><td class="num" style="font-family:var(--mono)">${fmt0(r.rate)}</td><td>${dmy(r.date)}</td><td class="note">${esc(r.src)}</td><td><button class="x" data-rdel="${esc(k)}" aria-label="Remove ${esc(r.name)}">×</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No rates yet.</td></tr>`;
+}
+$("#rateBody").addEventListener("click",e=>{const k=e.target.dataset.rdel;if(k){delete rates[k];store.set("rates",rates);renderRates()}});
+$("#rateForm").onsubmit=e=>{e.preventDefault();const n=$("#r-item").value.trim(),r=+$("#r-rate").value;if(!n||!r)return;rates[key(n)]={name:n,rate:r,date:today(),src:"Rate list"};store.set("rates",rates);$("#r-item").value="";$("#r-rate").value="";renderRates();bindHeader()};
+
+/* ---------- purchase requests ---------- */
+function saveReqs(){store.set("reqs",reqs)}
+function nextReqNo(){const n=Math.max(66,...reqs.map(r=>parseInt(r.no,10)||0))+1;return String(n).padStart(3,"0")}
+function blankReq(){return{no:nextReqNo(),date:today(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,lines:[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
+const ST={"Draft":"Draft","Submitted":"Submitted","Sent back":"Back","Approved":"Approved","Estimated":"Estimated","PO raised":"Estimated","PO approved":"PO","Pending approval":"Submitted","With accounts":"Submitted","Booked":"Approved","Paid":"PO","Part paid":"Submitted","Closed":"PO","Open":"Submitted","Partly returned":"Estimated","Partly received":"Estimated","Fully received":"PO","Issued":"Submitted","Returned":"Approved","Opening":"Estimated"};
+const stChip=s=>`<span class="chip st-${ST[s]||"Estimated"}">${esc(s)}</span>`;
+function visibleReqs(){
+  if(!me)return[];
+  if(has("req.all"))return reqs;
+  return reqs.filter(r=>r.by===me.name||(has("req.approve")&&r.dept===me.dept)||(has("po.create")&&["Approved","Estimated","PO raised","PO approved"].includes(r.status)));
+}
+function renderReq(){
+  const vis=visibleReqs();
+  if(cur&&cur.status!=="Draft"&&!vis.includes(cur))cur=null;
+  if(!cur)cur=vis[0]||(has("req.create")?blankReq():null);
+  $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
+  $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");$("#btn-q-direct").hidden=!(has("po.create")&&can("est"));
+  if(!cur){$("#reqNone").innerHTML=`No purchase requests approved by an HOD yet. Approved requests appear here for purchase. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
+  const r=cur;const mine=r.status==="Draft"||r.by===me.name||has("req.all");
+  const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&has("req.create"));
+  const canApprove=r.status==="Submitted"&&has("req.approve")&&(has("req.all")||me.dept===r.dept);
+  $("#reqBanner").hidden=!(r.status==="Sent back"&&r.comment);$("#reqBanner").className="banner back";$("#reqBanner").textContent=`Sent back by ${r.backBy||"HOD"}: ${r.comment||""}`;
+  $("#reqTitle").textContent=r.status==="Draft"?"New purchase request":`Purchase request ${r.no}`;
+  $("#reqStatus").innerHTML=r.status==="Draft"?"":stChip(r.status);
+  $("#reqExample").hidden=!r.example;
+  fillReqSelects();
+  [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||"";el.disabled=locked});
+  $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
+    <td><input id="q${i}-desc" data-k="desc" value="${esc(l.desc)}" list="itemnames"></td>
+    <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
+    <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
+    <td><input id="q${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
+    <td><input id="q${i}-remark" data-k="remark" value="${esc(l.remark)}"></td>
+    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
+  $("#reqBody").querySelectorAll("input").forEach(el=>el.disabled=locked);$("#reqBody").querySelectorAll("button").forEach(el=>el.hidden=locked);
+  renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
+  $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
+  $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
+  $("#btn-q-estimate").hidden=!((r.status==="Approved"||r.status==="Estimated")&&has("po.create")&&can("est"));
+  $("#btn-q-line").hidden=locked;$("#btn-q-file").hidden=locked;$("#btn-q-bom").hidden=locked;
+  renderReqList();
+}
+function opts(list,val,ph){const vals=[...list];if(val&&!vals.includes(val))vals.push(val);return`<option value="">${ph}</option>`+vals.map(v=>`<option${v===val?" selected":""}>${esc(v)}</option>`).join("")}
+function fillReqSelects(){
+  $("#q-by").innerHTML=opts(M.users.filter(u=>u.role!=="Purchaser").map(u=>u.name),cur.by,"Choose user");
+  $("#q-dept").innerHTML=opts(M.depts.map(d=>d.name),cur.dept,"Choose department");
+  $("#q-job").innerHTML=opts(M.projects.filter(p=>p.status==="Active").map(p=>p.no),cur.job,"Choose project");
+  const hod=(M.depts.find(d=>d.name===cur.dept)||{}).hod;
+  $("#btn-q-approve").textContent=hod?`Approve (HOD: ${hod})`:"Approve (HOD)";
+}
+const attList=a=>Array.isArray(a)?a:(a?[a]:[]);
+function renderAttach(box,a,rm){const L=attList(a);
+  if(!L.length){box.innerHTML=`<span class="note">No file attached.</span>`;return}
+  box.innerHTML=L.map((x,i)=>{const del=rm?` <button class="x" data-adel="${i}" aria-label="Remove ${esc(x.name)}">×</button>`:"";
+    return x.type==="image"?`<figure><img src="${x.data}" alt="Attached request: ${esc(x.name)}"><figcaption>${esc(x.name)}${del}</figcaption></figure>`:`<span class="filechip">${x.type==="pdf"?"PDF":"Excel"} · ${esc(x.name)}${x.note?` · ${esc(x.note)}`:""}${del}</span>`}).join("");
+}
+function renderReqList(){
+  const vis=visibleReqs();
+  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No HOD-approved requests yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
+}
+$("#reqList").addEventListener("click",e=>{const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
+$("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
+["no","date","by","dept","job","need"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
+$("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
+$("#q-dept").addEventListener("change",()=>fillReqSelects());
+$("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=cur.lines[+tr.dataset.i],k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value;if(cur.status!=="Draft")saveReqs()});
+$("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
+$("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
+$("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
+$("#btn-q-submit").onclick=()=>{
+  cur.lines=cur.lines.filter(l=>l.desc.trim());
+  if(!cur.lines.length&&!attList(cur.attach).length){toast("Add at least one item or attach the request slip");renderReq();return}
+  if(!cur.by){toast("Choose who is requesting");$("#q-by").focus();return}
+  if(!cur.job){toast("Choose the project");$("#q-job").focus();return}
+  if(!cur.need){toast("Enter when the material is required");$("#q-need").focus();return}
+  if(cur.need<cur.date){toast("Required date cannot be before the request date");$("#q-need").focus();return}
+  cur.status="Submitted";cur.comment="";cur.subAt=today();if(!reqs.includes(cur))reqs.unshift(cur);saveReqs();renderReq();toast(`Request ${cur.no} submitted to the HOD`);
+};
+$("#btn-q-approve").onclick=()=>{cur.status="Approved";cur.apprBy=me.name;cur.apprAt=today();cur.comment=$("#q-comment").value.trim();saveReqs();renderReq();toast(`Request ${cur.no} approved. It now shows for the purchaser.`)};
+$("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
+$("#btn-q-estimate").onclick=()=>{
+  const r=cur;r.status="Estimated";saveReqs();
+  est={job:r.job,sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",lines:r.lines.filter(l=>l.desc).map(l=>{const g=suggest(l.desc,l.spec);return{item:l.desc,spec:l.spec,expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
+  isExample=false;saveEst();bindHeader();renderEst();show("est");
+};
+$("#btn-q-file").onclick=()=>$("#q-file").click();
+$("#q-file").onchange=async e=>{
+  const files=[...e.target.files];e.target.value="";if(!files.length)return;const L=attList(cur.attach);let added=0,filled=0;
+  for(const f of files){try{
+    if(/\.xlsx?$/i.test(f.name)){
+      const {job,lines}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
+      if(!lines.length){toast(`No item rows found in ${f.name}`);continue}
+      cur.lines=cur.lines.filter(l=>String(l.desc||"").trim()).concat(lines.map(l=>({desc:l.item,spec:l.spec,qty:l.qty,unit:"NOS",vendor:"",remark:""})));if(job&&!cur.job)cur.job=job;
+      L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`});filled+=lines.length;
+    }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f)});added++}
+    else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB"});added++}
+    else toast(`${f.name}: use a photo, a PDF or an Excel sheet`);
+  }catch(err){toast(`Could not read ${f.name}. Try another photo or save the sheet as .xlsx.`)}}
+  cur.attach=L;cur.example=false;if(cur.status!=="Draft")saveReqs();renderReq();
+  if(filled||added)toast([filled?`Filled ${filled} lines from the BOM`:"",added?`${added} file${added>1?"s":""} attached`:""].filter(Boolean).join(" · "));
+};
+$("#btn-q-cam").onclick=()=>$("#q-cam").click();
+$("#q-cam").onchange=e=>$("#q-file").onchange(e);
+$("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
+$("#btn-q-bom").onclick=()=>$("#q-bom").click();
+$("#q-bom").onchange=e=>$("#q-file").onchange(e);
+$("#btn-q-direct").onclick=()=>{show("est");newDirect()};
+function shrink(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",0.72))};img.onerror=rej;img.src=u})}
+function renderEstReq(){
+  const P=$("#estReqPanel");const r=est.reqNo&&reqs.find(x=>x.no===est.reqNo);
+  if(!r){P.hidden=!est.lines.length&&!est.direct;P.innerHTML=`<div class="row"><b>Direct purchase</b><span class="chip calc">No request</span><span class="note">Created by the purchaser without a purchase request.</span></div>`;if(isExample)P.hidden=true;return}
+  P.hidden=false;
+  P.innerHTML=`<div class="row"><b>From purchase request ${esc(r.no)}</b>${stChip(r.status)}<span class="note">${esc(r.by)}${r.dept?" · "+esc(r.dept):""}${r.need?" · need by "+dmy(r.need):""}</span></div>${r.attach&&r.attach.type==="image"?`<details><summary>Show attached slip</summary><div class="attach" style="margin-top:8px"></div></details>`:""}`;
+  const box=P.querySelector(".attach");if(box)renderAttach(box,r.attach);
+}
+
+/* ---------- store / GRN ---------- */
+const saveGRNs=()=>store.set("grns",grns);
+const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
+function acceptedSoFar(poNo,i){return grns.filter(g=>String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
+function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
+function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
+function grnCalc(g){const sub=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l),0);const tax=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l)*(+l.tax||0)/100,0);return{sub,tax,total:Math.round(sub+tax)}}
+let grn=null;
+function renderGRN(){
+  const open=saved.filter(p=>p.status==="Approved"&&pendingLines(p).length);
+  $("#grnPOs").innerHTML=open.length?open.map(p=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(p.no)}</b><span class="wide">${esc(p.sup)} · ${esc(p.ref||"")} · <span class="note">${pendingLines(p).length} of ${p.lines.length} lines pending</span>${p.needBy?` · <span style="${p.needBy<today()?"color:var(--danger);font-weight:600":""}">need by ${dmy(p.needBy)}${p.needBy<today()?" (late)":""}</span>`:""}</span><span>${p.recv?stChip(p.recv):stChip("Approved")}</span><span class="note">${dmy(p.approvedAt)}</span>${has("grn.create")?`<button class="btn primary" data-grnpo="${esc(p.no)}">Receive</button>`:`<span class="note">View only</span>`}</div>`).join(""):`<div class="empty">No approved POs are waiting for material.</div>`;
+  $("#grnList").innerHTML=grns.length?grns.map(g=>`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">PO ${esc(g.poNo)} · ${esc(g.sup)} · <span class="note">DC ${esc(g.dc||"-")} · Inv ${esc(g.inv||"-")}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><span class="note">${dmy(g.date)}</span></div>`).join(""):`<div class="empty">No GRNs yet.</div>`;
+  renderGRNForm();
+}
+function renderGRNForm(){
+  const F=$("#grnForm");if(!grn){F.hidden=true;return}F.hidden=false;
+  const f=(k,lab,type="text")=>`<label class="f">${lab}<input id="g-${k}" data-gk="${k}" type="${type}" value="${esc(grn[k])}"></label>`;
+  F.innerHTML=`<div class="row"><h2 class="sec">GRN ${grn.no} · PO ${esc(grn.poNo)}</h2><span class="note">${esc(grn.sup)}</span><span style="flex:1"></span><button class="btn" id="btn-g-cancel">Cancel</button></div>
+  <div class="grid-fields">${f("date","GRN date","date")}${f("dc","Delivery challan no.")}${f("dcDate","Challan date","date")}${f("inv","Supplier invoice no.")}${f("invDate","Invoice date","date")}${f("vehicle","Vehicle / transport")}</div>
+  <div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sn</th><th>Description</th><th>Unit</th><th class="num">Ordered</th><th class="num">Already accepted</th><th class="num">Received now</th><th class="num">Rejected</th><th class="num">Accepted</th><th>Remark</th></tr></thead>
+  <tbody id="grnBody">${grn.lines.map((l,j)=>`<tr data-j="${j}"><td>${l.i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.unit)}</td><td class="num">${fmt0(l.ordered)}</td><td class="num">${fmt0(l.prev)}</td>
+    <td class="num"><input id="g${j}-recv" class="qty" data-lk="recv" type="number" step="any" min="0" value="${l.recv}"></td>
+    <td class="num"><input id="g${j}-rej" class="qty" data-lk="rej" type="number" step="any" min="0" value="${l.rej}"></td>
+    <td class="num" data-acc>${fmt0((+l.recv||0)-(+l.rej||0))}</td>
+    <td><input id="g${j}-remark" data-lk="remark" value="${esc(l.remark)}" placeholder="e.g. dent on 2 pcs"></td></tr>`).join("")}</tbody></table></div>
+  <div class="totalbar"><div class="total"><span>Accepted value incl. GST</span><b id="grnTotal">${fmt(grnCalc(grn).total)}</b></div><button class="btn primary" id="btn-g-save">Create GRN and send to Accounts</button></div>`;
+}
+$("#grnPOs").addEventListener("click",e=>{const n=e.target.dataset.grnpo;if(n==null)return;const p=saved.find(x=>String(x.no)===n);
+  grn={no:nextGRN(),date:today(),poNo:p.no,sup:p.sup,job:p.ref||"",reqNo:p.reqNo||"",terms:p.terms||"",gstmode:p.gstmode,dc:"",dcDate:today(),inv:"",invDate:"",vehicle:"",by:me.name,
+    lines:pendingLines(p).map(({l,i,acc})=>({i,desc:l.desc,unit:l.unit,rate:l.rate,dis:l.dis||0,tax:l.tax,hsn:l.hsn,ordered:+l.qty,prev:acc,recv:+((+l.qty)-acc).toFixed(3),rej:0,remark:""}))};
+  renderGRNForm();$("#grnForm").scrollIntoView({block:"start"})});
+$("#grnForm").addEventListener("input",e=>{const t=e.target;if(t.dataset.gk)grn[t.dataset.gk]=t.value;
+  else if(t.dataset.lk){const tr=t.closest("tr"),l=grn.lines[+tr.dataset.j];l[t.dataset.lk]=t.dataset.lk==="remark"?t.value:+t.value;tr.querySelector("[data-acc]").textContent=fmt0((+l.recv||0)-(+l.rej||0));$("#grnTotal").textContent=fmt(grnCalc(grn).total)}});
+$("#grnForm").addEventListener("click",e=>{
+  if(e.target.id==="btn-g-cancel"){grn=null;renderGRNForm();return}
+  if(e.target.id!=="btn-g-save")return;
+  if(!grn.dc.trim()&&!grn.inv.trim()){toast("Enter the delivery challan or invoice number");$("#g-dc").focus();return}
+  if(grn.lines.some(l=>(+l.rej||0)>(+l.recv||0)||(+l.recv||0)<0)){toast("Rejected qty cannot be more than received");return}
+  if(grn.lines.some(l=>(+l.recv||0)-(+l.rej||0)>l.ordered-l.prev+0.0001)){toast("Accepted qty is more than the PO balance. Check the quantities.");return}
+  grn.lines=grn.lines.filter(l=>(+l.recv||0)>0);if(!grn.lines.length){toast("Enter the received qty for at least one line");renderGRNForm();return}
+  grn.status="With accounts";grn.createdAt=new Date().toISOString();grns.unshift(grn);saveGRNs();
+  const p=saved.find(x=>String(x.no)===String(grn.poNo));
+  if(p){if(pendingLines(p).length){p.recv="Partly received"}else{p.recv="Closed";p.closed=true;p.closedAt=grns.filter(g=>String(g.poNo)===String(p.no)).map(g=>g.date).sort().pop();
+    if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r){r.status="Closed";r.closedAt=p.closedAt;saveReqs()}}}
+    if(!p.firstGrnAt||grn.date<p.firstGrnAt)p.firstGrnAt=grn.date;store.set("saved",saved)}
+  toast(p&&p.closed?`GRN ${grn.no} created. PO ${p.no} is fully received and closed.`:`GRN ${grn.no} created (partial). PO stays open for the balance.`);grn=null;renderGRN()});
+
+
+/* ---------- PDF documents ---------- */
+const docHead=(title,right="")=>`<div class="co"><h2>${COMPANY.name}</h2><p>${COMPANY.addr}</p><p>${COMPANY.contact}</p></div>
+  <div class="gst"><span>GSTIN : ${COMPANY.gstin}</span><span>${COMPANY.state}</span><span>PAN No. : ${COMPANY.pan}</span></div><h3>${title}</h3>${right}`;
+const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+function docRequest(r){
+  return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["HOD approval",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"],["PO No.",esc(r.poNo||"-")]]])+
+  `<table><thead><tr><th>Sr</th><th>Description of material</th><th>Specification</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  ${r.comment?`<p class="small"><b>HOD comment:</b> ${esc(r.comment)}</p>`:""}
+  <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:right">HOD: <b>${r.apprBy?esc(r.apprBy)+" (approved "+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
+}
+function docEstimate(e){
+  const tot=e.lines.reduce((a,l)=>a+lineAmt(l),0);
+  return docHead("PRE-ESTIMATE SHEET")+kvT([[["Job / Ref.",esc(e.job)],["Date",dmy(e.date)],["Required by",dmy(e.need)||"-"]],[["Source",e.reqNo?"Purchase request "+esc(e.reqNo):"Direct purchase"],["Prepared by",esc(me.name)],["Lines",e.lines.length]]])+
+  `<table><thead><tr><th>Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th>Rate</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead><tbody>${e.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.item)}</td><td>${esc(l.spec)}</td><td>${esc(l.expr)}</td><td class="r">${l.rate!=null?fmt(l.rate):""}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(lineAmt(l))}</td></tr>`).join("")}
+  <tr><td colspan="7" class="r"><b>Estimate total (before GST)</b></td><td class="r"><b>${fmt(tot)}</b></td></tr></tbody></table><p class="small" style="margin-top:30px">This is an internal estimate, not a purchase order.</p>`;
+}
+function docPO(p){
+  const c=(()=>{const o=po;po=p;const r=poCalc();po=o;return r})();
+  const tax=p.gstmode==="intra"?`<tr><td>C-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr><tr><td>S-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr>`:`<tr><td>I-GST 18% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax)}</td></tr>`;
+  return `${p.status!=="Approved"?`<div class="draftmark">${p.status==="Pending approval"?"PENDING APPROVAL":"DRAFT"} · NOT VALID UNTIL APPROVED</div>`:""}`+docHead("PURCHASE ORDER")+
+  `<div class="two"><div><b>${esc(p.sup)}</b><br>${esc(p.supAddr||"").replace(/\n/g,"<br>")}</div><div class="kv"><b>P.O. No.</b><span>${esc(p.no)} &nbsp; <b>Date</b> ${dmy(p.date)}</span><b>Delivery</b><span>${esc(p.deliv)}</span><b>Pay. Terms</b><span>${esc(p.terms)}</span><b>Validity</b><span>${esc(p.validity)}</span></div></div>
+  <div class="two" style="border-top:none"><div class="kv"><b>Ref. No.</b><span>${esc(p.ref)} &nbsp; <b>Dt.</b> ${dmy(p.refDate)}</span><b>Ven. Code</b><span>${esc(p.venCode)}</span></div><div class="kv"><b>Kind Attn.</b><span>${esc(p.attn)}</span><b>Transport</b><span>${esc(p.transport)}</span><b>Delivery by</b><span>${dmy(p.needBy)}</span></div></div>
+  <table><thead><tr><th>Sn</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn)}</td><td class="r">${l.tax}</td><td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
+  <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(c.sub)}</td></tr>${tax}<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr></tbody></table>
+  <p style="margin:4px 0"><b>Amount In Words :</b> Rupees ${words(c.total)} Only.</p>
+  <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
+  <p style="margin:6px 0"><b>Remark</b> ${esc(p.remark)}</p>
+  <div class="foot small"><div><b>Special Instruction :</b><br>1) Please mention our P.O. No. on your D.C. &amp; Invoice.<br>2) Send Delivery Challan &amp; Original Invoice (with Transporter's copy) along with the material.</div><div><b>Rejections :</b><br>If material received is found faulty or not matching the required specifications, we will intimate you within 4 weeks from receiving the material. Such material will be rejected and sent back at the cost and risk of the supplier. Corresponding deductions will apply to the supplier's account.</div></div>
+  <div class="row small" style="justify-content:space-between;margin-top:6px"><span>" Subject to Pune jurisdiction only "</span><b>For ZOOM TECHNOLOGIES</b></div>
+  <div class="sign small">${p.status==="Approved"?(p.sig?`<img class="sigimg" src="${p.sig}" alt="">`:`<div style="height:40px"></div>`)+`<div>${esc(p.approvedBy)} · ${dmy(p.approvedAt)}</div>`:`<div style="height:40px"></div>`}Authorised Signatory</div>`;
+}
+function docChallan(c){
+  return docHead("RETURNABLE DELIVERY CHALLAN",`<p class="small" style="text-align:center;margin:0 0 4px">Material sent for ${esc(c.purpose||"job work")} and to be returned. Not for sale.</p>`)+
+  `<div class="two"><div><b>To: ${esc(c.party)}</b><br>${esc(c.addr||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>RC-${c.no}</span><b>Date</b><span>${dmy(c.date)}</span><b>Return by</b><span>${dmy(c.expected)}</span><b>Vehicle</b><span>${esc(c.vehicle)}</span><b>Job No.</b><span>${esc(c.job)}</span><b>Status</b><span>${esc(c.status)}</span></div></div>
+  <table><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th>Qty sent</th><th>Unit</th><th>Approx. value</th><th>Returned</th><th>Remark</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${l.value?fmt(l.value):""}</td><td class="r">${fmt0(l.ret||0)}</td><td>${esc(l.remark)}</td></tr>`).join("")}
+  <tr><td colspan="5" class="r"><b>Total approx. value</b></td><td class="r"><b>${fmt(c.lines.reduce((a,l)=>a+(+l.value||0),0))}</b></td><td colspan="2"></td></tr></tbody></table>
+  ${(c.returns||[]).length?`<p class="small"><b>Received back:</b> ${c.returns.map(r=>`${dmy(r.date)} (DC ${esc(r.dc||"-")})`).join(", ")}</p>`:""}
+  <div class="foot small" style="margin-top:46px"><div>Issued by (Store): <b>${esc(c.by)}</b></div><div style="text-align:right">For ZOOM TECHNOLOGIES<br><br><br>Authorised Signatory</div></div>
+  <p class="small" style="margin-top:24px">Receiver's signature &amp; stamp: ____________________________</p>`;
+}
+async function savePDF(html,filename){
+  if(!window.jspdf||!window.html2canvas){toast("PDF tools did not load. Check the connection and reload.");return}
+  toast("Preparing PDF...");
+  const host=document.createElement("div");host.style.cssText="position:fixed;left:-10000px;top:0;width:794px";
+  host.innerHTML=`<div class="paper" style="box-shadow:none;width:794px">${html}</div>`;document.body.appendChild(host);
+  try{
+    const canvas=await html2canvas(host.firstChild,{scale:2,backgroundColor:"#ffffff",useCORS:true});
+    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4"});const ih=canvas.height*210/canvas.width;const img=canvas.toDataURL("image/jpeg",0.92);
+    let y=0;for(;;){pdf.addImage(img,"JPEG",0,-y,210,ih);y+=297;if(y>=ih-1)break;pdf.addPage()}
+    const blob=pdf.output("blob");
+    let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null}catch(e){dl=null}
+    if(dl){try{await dl.save({filename,data:blob});toast(`Saved ${filename}`)}catch(e){if(e&&e.code!=="declined")toast("Download is not available in this view")}}
+    else if(!inFrame){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();toast(`Saved ${filename}`)}
+    else toast("Download is not available in this view");
+  }catch(err){toast("Could not make the PDF. Try again.")}finally{host.remove()}
+}
+$("#btn-q-pdf").onclick=()=>{if(cur)savePDF(docRequest(cur),`Purchase-request-${cur.no}.pdf`)};
+$("#btn-e-pdf").onclick=()=>{if(!est.lines.length){toast("Add some lines first");return}savePDF(docEstimate(est),`Pre-estimate-${est.job||est.reqNo||"direct"}.pdf`)};
+$("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),`PO-${po.no}${po.status==="Approved"?"":"-"+String(po.status||"Draft").replace(/\s+/g,"-").toLowerCase()}.pdf`)};
+
+/* ---------- returnable challans ---------- */
+let rgps=store.get("rgps",[]);const saveRgps=()=>store.set("rgps",rgps);let rgp=null,rgpMode="new";
+const rgpPend=c=>c.lines.reduce((a,l)=>a+Math.max(0,(+l.qty||0)-(+l.ret||0)),0);
+function renderRgp(){
+  $("#btn-rgp-new").hidden=!has("rgp.manage");
+  $("#rgpList").innerHTML=rgps.length?rgps.map((c,i)=>{const late=c.status!=="Closed"&&c.expected&&c.expected<today();return`<div class="listrow"><b style="font-family:var(--mono)">RC-${c.no}</b><span class="wide">${esc(c.party)} · ${esc(c.purpose||"")} · <span class="note">sent ${dmy(c.date)} · return by <span style="${late?"color:var(--danger);font-weight:600":""}">${dmy(c.expected)}${late?" (overdue)":""}</span> · ${fmt0(rgpPend(c))} pending</span></span><span>${stChip(c.status)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" data-rpdf="${i}">PDF</button>${c.status!=="Closed"&&has("rgp.manage")?`<button class="btn primary" data-rret="${i}">Receive back</button>`:""}</span></div>`}).join(""):`<div class="empty">No returnable challans yet.</div>`;
+  renderRgpForm();
+}
+function renderRgpForm(){
+  const F=$("#rgpForm");if(!rgp){F.hidden=true;return}F.hidden=false;
+  if(rgpMode==="ret"){const c=rgp;
+    F.innerHTML=`<div class="row"><h2 class="sec">Receive back · RC-${c.no}</h2><span class="note">${esc(c.party)}</span><span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
+    <div class="grid-fields"><label class="f">Received date<input id="rr-date" type="date" value="${today()}"></label><label class="f">Their challan no.<input id="rr-dc"></label></div>
+    <div class="tablebox"><table class="est" style="min-width:560px"><thead><tr><th>Description</th><th class="num">Sent</th><th class="num">Already back</th><th class="num">Received now</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${esc(l.desc)}</td><td class="num">${fmt0(l.qty)}</td><td class="num">${fmt0(l.ret||0)}</td><td class="num"><input id="rr${i}" class="qty" type="number" step="any" min="0" value="${Math.max(0,(+l.qty||0)-(+l.ret||0))}" data-max="${Math.max(0,(+l.qty||0)-(+l.ret||0))}"></td></tr>`).join("")}</tbody></table></div>
+    <div class="row"><span style="flex:1"></span><button class="btn primary" id="btn-r-ret">Save receipt</button></div>`;return}
+  const c=rgp;
+  F.innerHTML=`<div class="row"><h2 class="sec">New returnable challan · RC-${c.no}</h2><span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
+  <div class="grid-fields"><label class="f">Send to<input id="rg-party" list="suppliers" value="${esc(c.party)}" placeholder="Supplier or party"></label><label class="f">Purpose<input id="rg-purpose" value="${esc(c.purpose)}" placeholder="Hardening, repair, trial..."></label><label class="f">Challan date<input id="rg-date" type="date" value="${c.date}"></label><label class="f">Expected return by<input id="rg-expected" type="date" value="${c.expected}"></label><label class="f">Vehicle / transport<input id="rg-vehicle" value="${esc(c.vehicle)}"></label><label class="f">Job No.<input id="rg-job" list="projects" value="${esc(c.job)}"></label></div>
+  <label class="f">Party address<textarea id="rg-addr" rows="2">${esc(c.addr)}</textarea></label>
+  <div class="tablebox"><table class="est" style="min-width:720px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th class="num">Qty</th><th>Unit</th><th class="num">Approx. value</th><th>Remark</th><th></th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input id="rgl${i}-d" data-rl="desc" value="${esc(l.desc)}"></td><td><input id="rgl${i}-h" data-rl="hsn" value="${esc(l.hsn)}" style="width:90px"></td><td class="num"><input id="rgl${i}-q" class="qty" data-rl="qty" type="number" step="any" value="${l.qty}"></td><td><input id="rgl${i}-u" data-rl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="rgl${i}-v" class="rate" data-rl="value" type="number" step="0.01" value="${l.value||""}"></td><td><input id="rgl${i}-r" data-rl="remark" value="${esc(l.remark)}"></td><td><button class="x" data-rdel="${i}" aria-label="Remove line">×</button></td></tr>`).join("")}</tbody></table></div>
+  <div class="row"><button class="btn" id="btn-r-line">Add line</button><span style="flex:1"></span><button class="btn primary" id="btn-r-save">Save and download PDF</button></div>`;
+}
+$("#btn-rgp-new").onclick=()=>{rgpMode="new";rgp={no:Math.max(300,...rgps.map(c=>c.no))+1,date:today(),expected:addDays(today(),7),party:"",addr:"",gstin:"",purpose:"",vehicle:"",job:"",by:me.name,status:"Open",returns:[],lines:[{desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0}]};renderRgpForm();$("#rg-party").focus()};
+$("#rgpList").addEventListener("click",e=>{const i=e.target.dataset.rpdf,j=e.target.dataset.rret;
+  if(i!=null){const c=rgps[+i];savePDF(docChallan(c),`Returnable-challan-RC-${c.no}.pdf`)}
+  if(j!=null){rgpMode="ret";rgp=rgps[+j];renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"})}});
+$("#rgpForm").addEventListener("input",e=>{if(rgpMode!=="new"||!rgp)return;const t=e.target;
+  if(t.id&&t.id.startsWith("rg-")){const k=t.id.slice(3);rgp[k]=t.value;if(k==="party"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp){rgp.addr=sp.addr||"";rgp.gstin=sp.gstin||"";$("#rg-addr").value=rgp.addr}}}
+  else if(t.dataset.rl){const l=rgp.lines[+t.closest("tr").dataset.i];l[t.dataset.rl]=["qty","value"].includes(t.dataset.rl)?+t.value:t.value}});
+$("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
+  if(id==="btn-r-cancel"){rgp=null;renderRgpForm();return}
+  if(e.target.dataset.rdel!=null){rgp.lines.splice(+e.target.dataset.rdel,1);renderRgpForm();return}
+  if(id==="btn-r-line"){rgp.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0});renderRgpForm();return}
+  if(id==="btn-r-save"){rgp.lines=rgp.lines.filter(l=>l.desc.trim()&&+l.qty>0);
+    if(!rgp.party.trim()){toast("Enter who the material is going to");renderRgpForm();return}
+    if(!rgp.lines.length){toast("Add at least one item with qty");rgp.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0});renderRgpForm();return}
+    if(!rgp.expected){toast("Enter the expected return date");return}
+    if(rgp.expected<rgp.date){toast("Return date cannot be before the challan date");return}
+    const c=rgp;rgps.unshift(c);saveRgps();rgp=null;renderRgp();toast(`Challan RC-${c.no} saved`);savePDF(docChallan(c),`Returnable-challan-RC-${c.no}.pdf`);return}
+  if(id==="btn-r-ret"){const c=rgp;const qs=c.lines.map((l,i)=>Math.max(0,+$("#rr"+i).value||0));
+    if(qs.some((q,i)=>q>(+c.lines[i].qty||0)-(+c.lines[i].ret||0)+0.0001)){toast("Received qty is more than what is still out");return}
+    if(!qs.some(q=>q>0)){toast("Enter the qty received back");return}
+    c.lines.forEach((l,i)=>l.ret=(+l.ret||0)+qs[i]);c.returns.push({date:$("#rr-date").value||today(),dc:$("#rr-dc").value.trim(),by:me.name,qty:qs});
+    c.status=rgpPend(c)<=0.0001?"Closed":"Partly returned";if(c.status==="Closed")c.closedAt=c.returns[c.returns.length-1].date;saveRgps();rgp=null;renderRgp();
+    toast(c.status==="Closed"?`RC-${c.no} fully received back and closed`:`Part received. RC-${c.no} stays open`)}});
+
+/* ---------- stock and issue ---------- */
+let slips=store.get("slips",[]);const saveSlips=()=>store.set("slips",slips);
+let bins=store.get("bins",{});const saveBins=()=>store.set("bins",bins);
+let slip=null,ledgerK=null;
+const SLIP={Issue:{pre:"IS-",base:1000,title:"MATERIAL ISSUE SLIP",sign:-1},Return:{pre:"MR-",base:500,title:"MATERIAL RETURN TO STORE",sign:1},Opening:{pre:"OP-",base:0,title:"OPENING STOCK",sign:1}};
+function movements(){
+  const mv=[];
+  grns.forEach(g=>g.lines.forEach(l=>{const q=(+l.recv||0)-(+l.rej||0);if(q>0)mv.push({date:g.date,t:g.createdAt||g.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:q,rate:lineNet(l),doc:"GRN "+g.no,type:"GRN",job:g.job,party:g.sup})}));
+  slips.forEach(s=>s.lines.forEach(l=>mv.push({date:s.date,t:s.createdAt||s.date,k:l.k,desc:l.desc,unit:l.unit,qty:SLIP[s.type].sign*(+l.qty||0),rate:+l.rate||0,doc:SLIP[s.type].pre+s.no,type:s.type,job:s.job,party:s.to||""})));
+  return mv.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.t<b.t?-1:a.t>b.t?1:0));
+}
+function stockItems(){
+  const m={};movements().forEach(v=>{const it=m[v.k]||(m[v.k]={k:v.k,desc:v.desc,unit:v.unit,recv:0,iss:0,ret:0,bal:0,inQ:0,inV:0});
+    if(v.type==="GRN"||v.type==="Opening"){it.recv+=v.qty;it.inQ+=v.qty;it.inV+=v.qty*v.rate}else if(v.type==="Issue")it.iss-=v.qty;else it.ret+=v.qty;it.bal+=v.qty});
+  return Object.values(m).map(it=>{it.avg=it.inQ?it.inV/it.inQ:0;it.value=Math.max(0,it.bal)*it.avg;it.loc=bins[it.k]||"";return it}).sort((a,b)=>a.desc.localeCompare(b.desc));
+}
+const nextSlip=t=>Math.max(SLIP[t].base,...slips.filter(s=>s.type===t).map(s=>+s.no||0))+1;
+function issuedToJob(job,k){return slips.filter(s=>s.job===job).reduce((a,s)=>a+s.lines.filter(l=>l.k===k).reduce((b,l)=>b+(s.type==="Issue"?+l.qty:s.type==="Return"?-l.qty:0),0),0)}
+function jobRate(job,k){const ls=slips.filter(s=>s.type==="Issue"&&s.job===job).flatMap(s=>s.lines.filter(l=>l.k===k));const q=ls.reduce((a,l)=>a+(+l.qty||0),0);return q?ls.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0)/q:0}
+function projCost(){
+  const m={};const row=j=>m[j]||(m[j]={job:j,po:0,iss:0,ret:0,n:0});
+  saved.filter(p=>p.status==="Approved"&&p.ref).forEach(p=>{row(p.ref).po+=p.lines.reduce((a,l)=>a+(+l.qty||0)*lineNet(l),0)});
+  slips.filter(s=>s.job&&s.type!=="Opening").forEach(s=>{const r=row(s.job);r.n++;const v=s.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0);if(s.type==="Issue")r.iss+=v;else r.ret+=v});
+  return Object.values(m).sort((a,b)=>a.job.localeCompare(b.job));
+}
+function projCostHTML(){const P=projCost();if(!P.length)return`<div class="empty">No project costs yet. They appear once a PO is approved or material is issued against a Job No.</div>`;
+  return`<table class="est" style="min-width:640px"><thead><tr><th>Job No.</th><th>Description</th><th class="num">PO value</th><th class="num">Issued</th><th class="num">Returned</th><th class="num">Net issued</th><th class="num">Slips</th></tr></thead><tbody>${P.map(r=>{const pr=M.projects.find(x=>x.no===r.job);return`<tr><td style="font-family:var(--mono)">${esc(r.job)}</td><td>${esc(pr?pr.desc:"")}</td><td class="num">${fmt(r.po)}</td><td class="num">${fmt(r.iss)}</td><td class="num">${fmt(r.ret)}</td><td class="num"><b>${fmt(r.iss-r.ret)}</b></td><td class="num">${r.n}</td></tr>`}).join("")}</tbody></table>`}
+function renderStock(){
+  const I=stockItems();const q=key($("#stk-q").value);const L=q?I.filter(i=>i.k.includes(q)||key(i.loc).includes(q)):I;
+  const ok=has("stock.issue");["#btn-sl-issue","#btn-sl-ret","#btn-sl-open"].forEach(s=>$(s).hidden=!ok);
+  const tv=I.reduce((a,i)=>a+i.value,0),todayIss=slips.filter(s=>s.type==="Issue"&&s.date===today()).length;
+  $("#stkCards").innerHTML=[[I.filter(i=>i.bal>0.0001).length,"Items in stock",`${I.length} items on the register`],["₹"+fmt0(Math.round(tv)),"Stock value","At average purchase rate, before GST"],[todayIss,"Issue slips today",dmy(today())],[rgps.filter(c=>c.status!=="Closed").length,"Returnable items outside","Open returnable challans"]].map(([n,t,d])=>`<div class="card" style="cursor:default"><span class="n">${n}</span><span class="t">${t}</span><span class="d">${d}</span></div>`).join("");
+  $("#stkTable").innerHTML=L.length?`<table class="est" style="min-width:900px"><thead><tr><th>Item</th><th>Unit</th><th>Location</th><th class="num">Received</th><th class="num">Issued</th><th class="num">Returned</th><th class="num">In stock</th><th class="num">Avg rate</th><th class="num">Value</th><th></th></tr></thead><tbody>${L.map(i=>`<tr><td>${esc(i.desc)}</td><td>${esc(i.unit)}</td><td><input data-bin="${esc(i.k)}" value="${esc(i.loc)}" placeholder="Rack / bin" style="width:100px"${ok?"":" disabled"}></td><td class="num">${fmt0(i.recv)}</td><td class="num">${fmt0(i.iss)}</td><td class="num">${fmt0(i.ret)}</td><td class="num"><b>${fmt0(i.bal)}</b></td><td class="num">${fmt(i.avg)}</td><td class="num">${fmt(i.value)}</td><td><button class="btn" data-ledger="${esc(i.k)}">Ledger</button></td></tr>`).join("")}</tbody></table>`:`<div class="empty">${I.length?"No item matches the search.":"Nothing in stock yet. Stock is added when a GRN is created, or use Opening stock for material already in the store."}</div>`;
+  $("#slipList").innerHTML=slips.length?slips.map((s,i)=>`<div class="listrow"><b style="font-family:var(--mono)">${SLIP[s.type].pre}${s.no}</b><span class="wide">${esc(s.type==="Opening"?"Opening stock":s.type==="Issue"?"Issued to "+(s.to||"-"):"Returned by "+(s.to||"-"))}${s.job?" · Job "+esc(s.job):""} · <span class="note">${s.lines.length} item${s.lines.length>1?"s":""} · by ${esc(s.by)}</span></span><span>${stChip(s.type==="Issue"?"Issued":s.type==="Return"?"Returned":"Opening")}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0))}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><span class="note">${dmy(s.date)}</span><button class="btn" data-spdf="${i}">PDF</button></span></div>`).join(""):`<div class="empty">No issue or return slips yet.</div>`;
+  $("#stkProj").innerHTML=projCostHTML();
+  renderSlipForm();renderLedger();
+}
+function renderLedger(){const F=$("#stkLedger");if(!ledgerK){F.hidden=true;return}F.hidden=false;
+  const mv=movements().filter(v=>v.k===ledgerK);let bal=0;const it=stockItems().find(i=>i.k===ledgerK);
+  F.innerHTML=`<div class="row"><h2 class="sec">Ledger · ${esc(it?it.desc:ledgerK)}</h2><span class="note">${esc(it?.loc?"Location "+it.loc:"")}</span><span style="flex:1"></span><button class="btn" id="btn-led-close">Close</button></div>
+  <div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th>Date</th><th>Document</th><th>Job No.</th><th>Party / person</th><th class="num">In</th><th class="num">Out</th><th class="num">Balance</th><th class="num">Rate</th></tr></thead><tbody>${mv.map(v=>{bal+=v.qty;return`<tr><td>${dmy(v.date)}</td><td style="font-family:var(--mono)">${esc(v.doc)}</td><td>${esc(v.job||"")}</td><td>${esc(v.party)}</td><td class="num">${v.qty>0?fmt0(v.qty):""}</td><td class="num">${v.qty<0?fmt0(-v.qty):""}</td><td class="num"><b>${fmt0(bal)}</b></td><td class="num">${fmt(v.rate)}</td></tr>`}).join("")}</tbody></table></div>`}
+function slipAvail(l){if(!l.k)return null;if(slip.type==="Issue"){const it=stockItems().find(i=>i.k===l.k);return it?it.bal:0}if(slip.type==="Return")return slip.job?issuedToJob(slip.job,l.k):0;return null}
+function renderSlipForm(){const F=$("#slipForm");if(!slip){F.hidden=true;return}F.hidden=false;
+  const s=slip,T=SLIP[s.type],I=stockItems();const isOpen=s.type==="Opening";
+  const choices=s.type==="Issue"?I.filter(i=>i.bal>0.0001):s.type==="Return"?I.filter(i=>s.job&&issuedToJob(s.job,i.k)>0.0001):[];
+  const users=M.users.map(u=>u.name);
+  F.innerHTML=`<div class="row"><h2 class="sec">${s.type==="Issue"?"Issue material":s.type==="Return"?"Return to store":"Opening stock"} · ${T.pre}${s.no}</h2><span style="flex:1"></span><button class="btn" id="btn-sl-cancel">Cancel</button></div>
+  <div class="grid-fields"><label class="f">Date<input id="sl-date" type="date" value="${s.date}"></label>${isOpen?"":`<label class="f">Job No. / mould<input id="sl-job" list="projects" value="${esc(s.job)}" placeholder="e.g. ZT2349"></label><label class="f">${s.type==="Issue"?"Issued to":"Returned by"}<input id="sl-to" list="usernames" value="${esc(s.to)}" placeholder="Person or machine"></label>`}<label class="f">Remark<input id="sl-remark" value="${esc(s.remark)}"></label></div>
+  ${s.type==="Return"&&!s.job?`<div class="note">Enter the Job No. first. Only items issued to that job can be returned.</div>`:""}
+  <datalist id="usernames">${users.map(u=>`<option value="${esc(u)}">`).join("")}</datalist>
+  <div class="tablebox"><table class="est" style="min-width:680px"><thead><tr><th>Sr</th><th>Item</th><th>Unit</th>${isOpen?"":`<th class="num">${s.type==="Issue"?"In stock":"Issued to job"}</th>`}<th class="num">Qty</th><th class="num">Rate</th><th class="num">Value</th>${isOpen?"<th>Location</th>":""}<th></th></tr></thead><tbody>${s.lines.map((l,i)=>{const av=slipAvail(l);return`<tr data-i="${i}"><td>${i+1}</td>
+    <td>${isOpen?`<input id="sl${i}-desc" data-sl="desc" list="itemnames" value="${esc(l.desc)}" placeholder="Item name">`:`<select id="sl${i}-k" data-sl="k"><option value="">Select item</option>${choices.map(c=>`<option value="${esc(c.k)}"${c.k===l.k?" selected":""}>${esc(c.desc)}${c.loc?" · "+esc(c.loc):""}</option>`).join("")}</select>`}</td>
+    <td>${isOpen?`<input id="sl${i}-unit" data-sl="unit" value="${esc(l.unit)}" style="width:60px">`:esc(l.unit||"")}</td>
+    ${isOpen?"":`<td class="num">${av==null?"":fmt0(av)}</td>`}
+    <td class="num"><input id="sl${i}-qty" class="qty" data-sl="qty" type="number" step="any" min="0" value="${l.qty}"></td>
+    <td class="num">${isOpen?`<input id="sl${i}-rate" class="rate" data-sl="rate" type="number" step="0.01" value="${l.rate||""}">`:fmt(l.rate)}</td>
+    <td class="num" data-val>${fmt((+l.qty||0)*(+l.rate||0))}</td>${isOpen?`<td><input id="sl${i}-loc" data-sl="loc" value="${esc(l.loc||"")}" placeholder="Rack / bin" style="width:90px"></td>`:""}
+    <td><button class="x" data-sldel="${i}" aria-label="Remove line">×</button></td></tr>`}).join("")}</tbody></table></div>
+  <div class="row"><button class="btn" id="btn-sl-line">Add line</button><span style="flex:1"></span><b id="slTotal" style="font-family:var(--mono)">₹ ${fmt(s.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0))}</b><button class="btn primary" id="btn-sl-save">${isOpen?"Save opening stock":"Save and download slip"}</button></div>`;
+}
+const blankSlipLine=()=>({k:"",desc:"",unit:"NOS",qty:"",rate:0,loc:""});
+function newSlip(type){slip={type,no:nextSlip(type),date:today(),job:"",to:"",remark:"",by:me.name,lines:[blankSlipLine()]};ledgerK=null;renderSlipForm();renderLedger();$("#slipForm").scrollIntoView({block:"start"})}
+$("#btn-sl-issue").onclick=()=>newSlip("Issue");$("#btn-sl-ret").onclick=()=>newSlip("Return");$("#btn-sl-open").onclick=()=>newSlip("Opening");
+$("#stk-q").oninput=()=>renderStock();
+$("#stkTable").addEventListener("change",e=>{const k=e.target.dataset.bin;if(k==null)return;bins[k]=e.target.value.trim();saveBins();toast("Location saved")});
+$("#stkTable").addEventListener("click",e=>{const k=e.target.dataset.ledger;if(k==null)return;ledgerK=k;renderLedger();$("#stkLedger").scrollIntoView({block:"start"})});
+$("#stkLedger").addEventListener("click",e=>{if(e.target.id==="btn-led-close"){ledgerK=null;renderLedger()}});
+$("#slipList").addEventListener("click",e=>{const i=e.target.dataset.spdf;if(i==null)return;const s=slips[+i];savePDF(docSlip(s),`${s.type==="Issue"?"Issue-slip":s.type==="Return"?"Return-slip":"Opening-stock"}-${SLIP[s.type].pre}${s.no}.pdf`)});
+$("#slipForm").addEventListener("input",e=>{if(!slip)return;const t=e.target;
+  if(t.id&&t.id.startsWith("sl-")){const k=t.id.slice(3);slip[k]=t.value;if(k==="job"&&slip.type==="Return"){slip.lines=[blankSlipLine()];renderSlipForm();const j=$("#sl-job");j.focus();j.setSelectionRange(j.value.length,j.value.length)}return}
+  const f=t.dataset.sl;if(!f||f==="k")return;const tr=t.closest("tr"),l=slip.lines[+tr.dataset.i];l[f]=["qty","rate"].includes(f)?t.value:t.value;
+  tr.querySelector("[data-val]").textContent=fmt((+l.qty||0)*(+l.rate||0));$("#slTotal").textContent="₹ "+fmt(slip.lines.reduce((a,x)=>a+(+x.qty||0)*(+x.rate||0),0))});
+$("#slipForm").addEventListener("change",e=>{const t=e.target;if(t.dataset.sl!=="k")return;const l=slip.lines[+t.closest("tr").dataset.i];l.k=t.value;
+  const it=stockItems().find(i=>i.k===l.k);l.desc=it?it.desc:"";l.unit=it?it.unit:"";l.rate=it?(slip.type==="Return"?(jobRate(slip.job,l.k)||it.avg):it.avg):0;
+  const av=slipAvail(l);if(l.k&&(!l.qty||+l.qty>av))l.qty=slip.type==="Return"?+av.toFixed(3):"";renderSlipForm()});
+$("#slipForm").addEventListener("click",e=>{const id=e.target.id;
+  if(id==="btn-sl-cancel"){slip=null;renderSlipForm();return}
+  if(e.target.dataset.sldel!=null){slip.lines.splice(+e.target.dataset.sldel,1);if(!slip.lines.length)slip.lines.push(blankSlipLine());renderSlipForm();return}
+  if(id==="btn-sl-line"){slip.lines.push(blankSlipLine());renderSlipForm();return}
+  if(id!=="btn-sl-save")return;const s=slip;
+  if(s.type==="Opening")s.lines.forEach(l=>{l.desc=String(l.desc||"").trim();l.k=key(l.desc)});
+  s.lines=s.lines.filter(l=>l.k&&+l.qty>0);
+  if(s.type!=="Opening"&&!String(s.job).trim()){toast("Enter the Job No. the material is for");renderSlipForm();return}
+  if(s.type!=="Opening"&&!String(s.to).trim()){toast(s.type==="Issue"?"Enter who the material is issued to":"Enter who is returning the material");if(!s.lines.length)s.lines.push(blankSlipLine());renderSlipForm();return}
+  if(!s.lines.length){toast("Add at least one item with qty");s.lines.push(blankSlipLine());renderSlipForm();return}
+  const need={};s.lines.forEach(l=>need[l.k]=(need[l.k]||0)+(+l.qty));
+  if(s.type!=="Opening"){const over=Object.keys(need).find(k=>need[k]>slipAvail({k})+0.0001);if(over){const l=s.lines.find(x=>x.k===over);toast(s.type==="Issue"?`Only ${fmt0(slipAvail({k:over}))} ${l.unit} of ${l.desc} in stock`:`Only ${fmt0(slipAvail({k:over}))} ${l.unit} of ${l.desc} was issued to ${s.job}`);renderSlipForm();return}}
+  s.lines.forEach(l=>{l.qty=+l.qty;l.rate=+l.rate||0;if(s.type==="Opening"&&l.loc){bins[l.k]=l.loc;saveBins()}});
+  s.createdAt=new Date().toISOString();slips.unshift(s);saveSlips();slip=null;renderStock();
+  toast(`${SLIP[s.type].pre}${s.no} saved`);if(s.type!=="Opening")savePDF(docSlip(s),`${s.type==="Issue"?"Issue-slip":"Return-slip"}-${SLIP[s.type].pre}${s.no}.pdf`)});
+function docSlip(s){const T=SLIP[s.type];const tot=s.lines.reduce((a,l)=>a+l.qty*l.rate,0);const pr=M.projects.find(x=>x.no===s.job);
+  return docHead(T.title)+`<div class="two"><div><b>Job No.:</b> ${esc(s.job||"-")}${pr&&pr.desc?" · "+esc(pr.desc):""}<br><b>${s.type==="Issue"?"Issued to":s.type==="Return"?"Returned by":"Entered by"}:</b> ${esc(s.to||s.by)}${s.remark?`<br><b>Remark:</b> ${esc(s.remark)}`:""}</div><div class="kv"><b>Slip No.</b><span>${T.pre}${s.no}</span><b>Date</b><span>${dmy(s.date)}</span><b>Store</b><span>${esc(s.by)}</span></div></div>
+  <table><thead><tr><th>Sr</th><th>Item</th><th>Location</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Value</th></tr></thead><tbody>${s.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(bins[l.k]||"")}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${fmt(l.qty*l.rate)}</td></tr>`).join("")}
+  <tr><td colspan="6" class="r"><b>Total</b></td><td class="r"><b>${fmt(tot)}</b></td></tr></tbody></table>
+  <div class="foot small" style="margin-top:46px"><div>${s.type==="Issue"?"Issued by (Store)":"Received by (Store)"}: <b>${esc(s.by)}</b></div><div style="text-align:right">${s.type==="Issue"?"Received by":"Returned by"}: <b>${esc(s.to||"")}</b><br><br><br>Signature</div></div>`}
+
+/* ---------- Excel-like grid: paste, copy, select, keys ---------- */
+const GRIDS=[
+  {is:tb=>tb.id==="reqBody",q:()=>$("#reqBody"),add:()=>$("#btn-q-line").hidden?false:($("#btn-q-line").click(),true)},
+  {is:tb=>tb.id==="estBody",q:()=>$("#estBody"),add:()=>{est.lines.push({item:"",spec:"",expr:"",rate:null,qty:1,unit:est.unit||"NOS",src:""});saveEst();renderEst();return true}},
+  {is:tb=>tb.id==="poBody",q:()=>$("#poBody"),add:()=>{const b=$("#btn-po-line");if(!b)return false;b.click();return true}},
+  {is:tb=>tb.id==="grnBody",q:()=>$("#grnBody"),add:()=>false},
+  {is:tb=>!!tb.closest("#rgpForm"),q:()=>$("#rgpForm tbody"),add:()=>{const b=$("#btn-r-line");if(!b)return false;b.click();return true}},
+  {is:tb=>!!tb.closest("#slipForm"),q:()=>$("#slipForm tbody"),add:()=>{const b=$("#btn-sl-line");if(!b)return false;b.click();return true}}];
+const gCells=tr=>[...tr.querySelectorAll("input:not([type=file]),select")];
+const gRows=tb=>tb?[...tb.children].filter(tr=>tr.querySelector("input,select")):[];
+function gPos(el){if(!el||!el.matches||!el.matches("input,select"))return null;const tb=el.closest("tbody");if(!tb)return null;const g=GRIDS.find(x=>x.is(tb));if(!g)return null;
+  const tr=el.closest("tr"),r=gRows(tb).indexOf(tr),c=gCells(tr).indexOf(el);return r<0||c<0?null:{g,tb,r,c}}
+const gCell=(g,r,c)=>{const tr=gRows(g.q())[r];return tr?gCells(tr)[c]||null:null};
+const gVal=el=>el.tagName==="SELECT"?(el.selectedIndex>0?el.options[el.selectedIndex].text:""):el.value;
+function gSet(el,v){if(!el||el.disabled||el.readOnly)return;v=String(v??"").trim();
+  if(el.tagName==="SELECT"){const k=key(v);const o=[...el.options].find(o=>o.value&&(key(o.value)===k||key(o.text)===k))||[...el.options].find(o=>o.value&&k&&key(o.text).startsWith(k));if(!o)return;el.value=o.value}
+  else if(el.type==="number"){const n=v.replace(/[₹,\s]/g,"");if(n!==""&&isNaN(+n))return;el.value=n}
+  else if(el.type==="date"){const m=v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);el.value=m?`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`:v}
+  else el.value=v;
+  el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}
+let gSel=null;
+function gPaint(){document.querySelectorAll(".cellsel").forEach(x=>x.classList.remove("cellsel"));if(!gSel||!gMulti())return;
+  const[r0,r1,c0,c1]=gRect();for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){const el=gCell(gSel.g,r,c);if(el)el.classList.add("cellsel")}}
+const gRect=()=>[Math.min(gSel.ar,gSel.r),Math.max(gSel.ar,gSel.r),Math.min(gSel.ac,gSel.c),Math.max(gSel.ac,gSel.c)];
+const gMulti=()=>gSel&&(gSel.ar!==gSel.r||gSel.ac!==gSel.c);
+function gGrow(g,r){let tries=0;while(gRows(g.q()).length<=r&&tries++<500){if(!g.add())return false}return gRows(g.q()).length>r}
+let gEdit=false;
+document.addEventListener("focusin",e=>{gEdit=false;const p=gPos(e.target);if(!p){if(gSel&&!e.target.closest("tbody")){gSel=null;gPaint()}return}
+  if(gSel&&gSel.g===p.g&&(gSel.keep||gSel.drag&&gSel.ar===p.r&&gSel.ac===p.c))gSel.keep=false;else gSel={g:p.g,ar:p.r,ac:p.c,r:p.r,c:p.c};gPaint()});
+document.addEventListener("input",e=>{if(e.isTrusted&&gPos(e.target))gEdit=true},true);
+document.addEventListener("dblclick",e=>{if(gPos(e.target))gEdit=true});
+document.addEventListener("click",e=>{const el=e.target;if(!gEdit&&el.tagName==="INPUT"&&gPos(el)&&!e.shiftKey&&!gMulti())try{el.select()}catch(_){}});
+document.addEventListener("mousedown",e=>{const p=gPos(e.target);if(p&&e.shiftKey&&gSel&&gSel.g===p.g){e.preventDefault();gSel.r=p.r;gSel.c=p.c;gPaint()}else if(p){gSel={g:p.g,ar:p.r,ac:p.c,r:p.r,c:p.c,drag:true}}});
+document.addEventListener("mousemove",e=>{if(!gSel||!gSel.drag||!(e.buttons&1))return;const p=gPos(document.elementFromPoint(e.clientX,e.clientY));if(!p||p.g!==gSel.g)return;if(p.r!==gSel.r||p.c!==gSel.c){gSel.r=p.r;gSel.c=p.c;const a=document.activeElement;try{a.setSelectionRange&&a.setSelectionRange(0,0)}catch(_){}gPaint()}});
+document.addEventListener("mouseup",()=>{if(gSel)gSel.drag=false});
+/* click a column heading to select that column (Shift+click for more columns) */
+document.addEventListener("click",e=>{const th=e.target.closest("thead th");if(!th)return;const tb=th.closest("table").querySelector("tbody");if(!tb)return;const g=GRIDS.find(x=>x.is(tb));if(!g)return;
+  const rows=gRows(tb);if(!rows.length)return;const td=rows[0].children[th.cellIndex];const el=td&&td.querySelector("input,select");if(!el)return;const c=gCells(rows[0]).indexOf(el);
+  if(e.shiftKey&&gSel&&gSel.g===g){gSel.c=c;gSel.r=rows.length-1;gSel.ar=0}else{gSel={g,ar:0,ac:c,r:rows.length-1,c,keep:true}}
+  gSel.keep=true;el.focus();gSel.keep=false;gPaint();toast("Column selected. Ctrl+C to copy, or paste to fill it")});
+document.addEventListener("keydown",e=>{const p=gPos(e.target);if(!p)return;const{g,r,c}=p;const AR=["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
+  const mv=(nr,nc)=>{const el=gCell(g,nr,nc);if(el){el.focus();if(el.tagName==="INPUT")try{el.select()}catch(_){}}return!!el};
+  if(e.key==="F2"){gEdit=true;try{const L=e.target.value.length;e.target.setSelectionRange(L,L)}catch(_){}e.preventDefault();return}
+  if(e.key==="Escape"){gSel=null;gPaint();return}
+  const sel=e.target.tagName==="SELECT";
+  if(e.shiftKey&&AR.includes(e.key)&&(!gEdit||e.key==="ArrowUp"||e.key==="ArrowDown")){e.preventDefault();
+    if(!gSel||gSel.g!==g)gSel={g,ar:r,ac:c,r,c};const nr=gSel.r+(e.key==="ArrowDown")-(e.key==="ArrowUp"),nc=gSel.c+(e.key==="ArrowRight")-(e.key==="ArrowLeft");if(gCell(g,nr,nc)){gSel.r=nr;gSel.c=nc;gPaint()}return}
+  if(gMulti()&&(e.key==="Delete"||e.key==="Backspace")){e.preventDefault();const[r0,r1,c0,c1]=gRect();for(let i=r0;i<=r1;i++)for(let j=c0;j<=c1;j++)gSet(gCell(g,i,j),"");gPaint();return}
+  if(e.key==="Enter"&&!e.altKey){e.preventDefault();const nr=r+(e.shiftKey?-1:1);if(nr<0)return;if(!gCell(g,nr,c)&&!e.shiftKey){if(!gGrow(g,nr))return}mv(nr,c);return}
+  if(e.key==="Tab"&&gCell(g,r,c+(e.shiftKey?-1:1))){e.preventDefault();mv(r,c+(e.shiftKey?-1:1));return}
+  if(sel&&!(e.key==="ArrowLeft"||e.key==="ArrowRight"))return;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();mv(r+(e.key==="ArrowDown"?1:-1),c);return}
+  if(e.key==="ArrowRight"||e.key==="ArrowLeft"){const d=e.key==="ArrowRight"?1:-1;if(gEdit&&!sel){let edge=true;try{const s0=e.target.selectionStart,s1=e.target.selectionEnd,L=e.target.value.length;if(s0!=null)edge=d>0?(s1>=L&&s0===s1):(s0<=0&&s0===s1)}catch(_){}if(!edge)return}
+    if(gCell(g,r,c+d)){e.preventDefault();mv(r,c+d)}}});
+document.addEventListener("copy",e=>{const p=gPos(document.activeElement);if(!p)return;const el=document.activeElement;
+  if(!gMulti()){let has=false;try{has=el.selectionStart!=null&&el.selectionStart!==el.selectionEnd}catch(_){}if(has)return;e.clipboardData.setData("text/plain",gVal(el));e.preventDefault();return}
+  const[r0,r1,c0,c1]=gRect();const out=[];for(let i=r0;i<=r1;i++){const row=[];for(let j=c0;j<=c1;j++){const x=gCell(p.g,i,j);row.push(x?gVal(x).replace(/[\t\n]/g," "):"")}out.push(row.join("\t"))}
+  e.clipboardData.setData("text/plain",out.join("\n"));e.preventDefault();toast(`Copied ${r1-r0+1} row${r1>r0?"s":""} × ${c1-c0+1} column${c1>c0?"s":""}`)});
+document.addEventListener("paste",e=>{const p=gPos(e.target);if(!p)return;if(e.target.disabled)return;
+  const txt=(e.clipboardData||window.clipboardData).getData("text/plain")||"";const one=!/[\t\n]/.test(txt.replace(/\r?\n$/,""));
+  if(one&&!gMulti())return;e.preventDefault();
+  const data=txt.replace(/\r/g,"").replace(/\n$/,"").split("\n").map(r=>r.split("\t"));
+  let r0=p.r,c0=p.c,r1=null,c1=null;if(gMulti()){[r0,r1,c0,c1]=gRect()}
+  const g=p.g;let n=0;
+  if(one&&r1!=null){for(let i=r0;i<=r1;i++)for(let j=c0;j<=c1;j++){gSet(gCell(g,i,j),data[0][0]);n++}}
+  else{for(let i=0;i<data.length;i++){if(data[i].every(v=>!String(v).trim())&&i===data.length-1)continue;if(!gGrow(g,r0+i))break;for(let j=0;j<data[i].length;j++){const el=gCell(g,r0+i,c0+j);if(!el)break;if(!String(data[i][j]).trim())continue;gSet(el,data[i][j]);n++}}}
+  const back=gCell(g,r0,c0);if(back)back.focus();gSel=null;gPaint();toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table`:"Nothing pasted: these cells are locked")});
+
+/* ---------- daily backup ---------- */
+const BK_SKIP=["lastBackup","me","theme","po","est"];
+const isDesktop=()=>!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)&&!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);
+const lastBk=()=>store.get("lastBackup",null);
+async function deliver(blob,filename){
+  let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null}catch(e){dl=null}
+  if(dl){try{await dl.save({filename,data:blob});return true}catch(e){if(e&&e.code!=="declined")toast("Download is not available in this view");return false}}
+  if(!inFrame){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();return true}
+  toast("Download is not available in this view");return false}
+function backupBook(){
+  if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return null}
+  const data={};if(CLOUD){Object.keys(SYNC).forEach(k=>{if(cloud.cache[k]!=null)data[k]=JSON.stringify(cloud.cache[k])})}else for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("zpo:")&&!BK_SKIP.includes(k.slice(4)))data[k.slice(4)]=localStorage.getItem(k)}
+  const wb=XLSX.utils.book_new();const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{"(none)":""}]),n);
+  add("Summary",[{Company:COMPANY.name,"Backup date":dmy(today()),Time:new Date().toLocaleTimeString("en-IN"),"Taken by":me?me.name:"",Requests:reqs.length,POs:saved.length,GRNs:grns.length,Payments:pays.length,"Stock items":stockItems().length,"Issue/return slips":slips.length,"Returnable challans":rgps.length}]);
+  add("Requests",reqs.map(r=>({No:r.no,Date:dmy(r.date),By:r.by,Dept:r.dept,"Job No":r.job,"Need by":dmy(r.need),Status:r.status,Lines:r.lines.length})));
+  add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Description:l.desc,Spec:l.spec,Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
+  add("POs",saved.map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
+  add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
+  add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
+  add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":(x.alloc||[]).map(a=>a.grn).join(", ")})));
+  add("Stock",stockItems().map(i=>({Item:i.desc,Unit:i.unit,Location:i.loc,Received:i.recv,Issued:i.iss,Returned:i.ret,"In stock":i.bal,"Avg rate":Math.round(i.avg*100)/100,Value:Math.round(i.value*100)/100})));
+  add("Issue slips",slips.flatMap(s=>s.lines.map(l=>({Slip:SLIP[s.type].pre+s.no,Type:s.type,Date:dmy(s.date),"Job No":s.job,Person:s.to,Item:l.desc,Qty:l.qty,Unit:l.unit,Rate:l.rate}))));
+  add("Challans",rgps.map(c=>({No:"RC-"+c.no,Date:dmy(c.date),Party:c.party,Purpose:c.purpose,"Return by":dmy(c.expected),Status:c.status,Pending:rgpPend(c)})));
+  const js=JSON.stringify({app:"zoom-po-desk",v:1,at:new Date().toISOString(),by:me?me.name:"",data});const rows=[["Restore data (do not edit)"]];for(let i=0;i<js.length;i+=30000)rows.push([js.slice(i,i+30000)]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"_restore");
+  return new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
+}
+async function runBackup(auto){const blob=backupBook();if(!blob)return;const fn=`Zoom-PO-backup-${today()}-${String(me?me.name:"user").replace(/[^A-Za-z0-9]+/g,"-")}.xlsx`;
+  if(await deliver(blob,fn)){store.set("lastBackup",{date:today(),at:new Date().toISOString(),auto:!!auto});toast(`Backup saved: ${fn}`)}renderBackup()}
+function backupDue(){if(!isDesktop())return false;const l=lastBk(),n=new Date();if(l&&l.date===today())return false;if(n.getHours()>=18)return true;
+  const y=new Date();y.setDate(y.getDate()-1);return!!l&&l.date<y.toISOString().slice(0,10)}
+function renderBackup(){const P=$("#homeBackup");if(!P)return;const l=lastBk(),due=backupDue();
+  P.hidden=!isDesktop()&&!has("page.users");
+  P.innerHTML=`<div class="row"><h2 class="sec">Daily backup</h2><span class="note">${l?`Last backup ${dmy(l.date)} ${new Date(l.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}${l.auto?" (automatic)":""}`:"No backup taken on this PC yet"} · runs every day at 6 PM on desktop PCs</span><span style="flex:1"></span>
+  ${has("page.users")?`<button class="btn" id="btn-bk-restore">Restore from backup</button><input type="file" id="bk-file" accept=".xlsx" hidden>`:""}<button class="btn${due?" primary":""}" id="btn-bk-now">${due?"Save today's backup":"Backup now"}</button></div>
+  ${due?`<div class="banner back">${new Date().getHours()>=18?"Today's 6 PM backup is due.":`A backup was missed. The last one was on ${dmy(l.date)}.`} Click "Save today's backup" to save the Excel file to this PC.</div>`:""}<div id="bkConfirm"></div>`;
+  if($("#btn-bk-now"))$("#btn-bk-now").onclick=()=>runBackup(false);
+  if($("#btn-bk-restore")){$("#btn-bk-restore").onclick=()=>$("#bk-file").click();$("#bk-file").onchange=readRestore}}
+async function readRestore(e){const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const sh=wb.Sheets["_restore"];if(!sh)throw 0;const rows=XLSX.utils.sheet_to_json(sh,{header:1});const B=JSON.parse(rows.slice(1).map(r=>r[0]||"").join(""));if(B.app!=="zoom-po-desk")throw 0;
+    $("#bkConfirm").innerHTML=`<div class="banner back stack" style="gap:8px"><b>Restore the backup taken ${dmy(B.at.slice(0,10))} by ${esc(B.by||"-")}?</b><span>This replaces all requests, POs, GRNs, payments, stock and masters in this browser with the backup. Anything entered after the backup is lost.</span><span class="row"><button class="btn" id="btn-bk-no">Cancel</button><button class="btn primary" id="btn-bk-yes">Restore backup</button></span></div>`;
+    $("#btn-bk-no").onclick=()=>$("#bkConfirm").innerHTML="";
+    $("#btn-bk-yes").onclick=async()=>{if(CLOUD){$("#btn-bk-yes").disabled=true;Object.keys(SYNC).forEach(k=>{if(B.data[k]!=null)cloud.set(k,JSON.parse(B.data[k]))});await cloudFlush();location.reload();return}const keep={};BK_SKIP.forEach(k=>keep[k]=localStorage.getItem("zpo:"+k));Object.keys(localStorage).filter(k=>k.startsWith("zpo:")).forEach(k=>localStorage.removeItem(k));
+      Object.entries(B.data).forEach(([k,v])=>localStorage.setItem("zpo:"+k,v));Object.entries(keep).forEach(([k,v])=>{if(v!=null&&k!=="po"&&k!=="est")localStorage.setItem("zpo:"+k,v)});location.reload()}}
+  catch(err){toast("This is not a Zoom PO Desk backup file")}}
+setInterval(()=>{if(!me)return;if(backupDue()){if(!inFrame&&!backupDue.busy){backupDue.busy=true;runBackup(true).finally(()=>backupDue.busy=false)}else if(!$("#view-home").hidden)renderBackup();if(inFrame&&!backupDue.told){backupDue.told=true;toast("Today's 6 PM backup is due. Open Home to save it.")}}},60000);
+
+/* ---------- accounts ---------- */
+let acctSel=null,vendSel=null;
+let pays=store.get("pays",[]);const savePays=()=>store.set("pays",pays);
+const grnPaid=g=>pays.reduce((a,p)=>a+p.alloc.filter(x=>x.grn===g.no).reduce((b,x)=>b+x.amt,0),0);
+const grnBal=g=>Math.round((grnCalc(g).total-grnPaid(g))*100)/100;
+function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").forEach(g=>{const v=m[g.sup]||(m[g.sup]={sup:g.sup,booked:0,paid:0,overdue:0,due7:0});const b=grnBal(g);v.booked+=grnCalc(g).total;v.paid+=grnPaid(g);
+  const d=dueDate(g);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});return Object.values(m)}
+function addDays(iso,n){const t=new Date(iso);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
+function payChip(p){const gs=grns.filter(g=>String(g.poNo)===String(p.no)&&g.status!=="With accounts");if(!gs.length)return"";const bal=gs.reduce((a,g)=>a+grnBal(g),0),tot=gs.reduce((a,g)=>a+grnCalc(g).total,0);
+  return" "+(bal<=0.004?`<span class="chip st-PO">Paid</span>`:bal<tot-0.004?`<span class="chip st-Submitted">Part paid</span>`:`<span class="chip st-Draft">Unpaid</span>`)}
+function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully received"){const gs=grns.filter(g=>String(g.poNo)===String(p.no));if(gs.length&&gs.every(g=>g.status==="Paid")){p.closed=true;p.recv="Closed";if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r){r.status="Closed";saveReqs()}}}}});store.set("saved",saved)}
+function dueDate(g){const d=parseInt(g.terms,10);const base=g.invDate||g.date;if(!base||isNaN(d))return"";const t=new Date(base);t.setDate(t.getDate()+d);return t.toISOString().slice(0,10)}
+function acctRow(g){return`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">${esc(g.sup)} · PO ${esc(g.poNo)} · <span class="note">Inv ${esc(g.inv||"-")}${dueDate(g)?" · due "+dmy(dueDate(g)):""}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><button class="btn${g.status==="With accounts"?" primary":""}" data-acct="${g.no}">Open</button></div>`}
+function renderAcct(){
+  const pend=grns.filter(g=>g.status==="With accounts"),done=grns.filter(g=>g.status!=="With accounts");
+  const vs=vendSummary();
+  $("#vendList").innerHTML=vs.length?`<div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th>Supplier</th><th class="num">Booked</th><th class="num">Paid</th><th class="num">Outstanding</th><th class="num">Overdue</th><th class="num">Due in 7 days</th><th></th></tr></thead><tbody>${vs.map(v=>`<tr><td><b>${esc(v.sup)}</b></td><td class="num">${fmt(v.booked)}</td><td class="num">${fmt(v.paid)}</td><td class="num"><b>${fmt(v.booked-v.paid)}</b></td><td class="num" style="${v.overdue>0?"color:var(--danger);font-weight:600":""}">${fmt(v.overdue)}</td><td class="num">${fmt(v.due7)}</td><td><button class="btn${v.booked-v.paid>0.004?" primary":""}" data-vend="${esc(v.sup)}">${v.booked-v.paid>0.004&&has("acct.book")?"Pay / ledger":"Ledger"}</button></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No booked GRNs yet. Book a GRN above and the supplier appears here.</div>`;
+  renderVend();
+  $("#acctPending").innerHTML=pend.length?pend.map(acctRow).join(""):`<div class="empty">No GRNs waiting. New GRNs from the store appear here automatically.</div>`;
+  $("#acctDone").innerHTML=done.length?done.map(acctRow).join(""):`<div class="empty">Nothing booked yet.</div>`;
+  const D=$("#acctDetail");const g=grns.find(x=>x.no===acctSel);if(!g){D.hidden=true;return}D.hidden=false;
+  const c=grnCalc(g);const p=saved.find(x=>String(x.no)===String(g.poNo));
+  D.innerHTML=`<div class="row"><h2 class="sec">GRN ${g.no}</h2>${stChip(g.status)}<span class="note">${esc(g.sup)} · PO ${esc(g.poNo)}${g.job?" · "+esc(g.job):""} · received by ${esc(g.by)} on ${dmy(g.date)}</span></div>
+  <div class="grid-fields"><div><div class="note">Supplier invoice</div><b>${esc(g.inv||"-")}</b> ${g.invDate?dmy(g.invDate):""}</div><div><div class="note">Delivery challan</div><b>${esc(g.dc||"-")}</b> ${g.dcDate?dmy(g.dcDate):""}</div><div><div class="note">Payment terms</div><b>${esc(g.terms||"-")}</b></div><div><div class="note">Payment due</div><b>${dueDate(g)?dmy(dueDate(g)):"-"}</b></div></div>
+  <div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th>Description</th><th>HSN</th><th class="num">Accepted</th><th class="num">Rejected</th><th class="num">Rate</th><th class="num">Tax%</th><th class="num">Amount</th></tr></thead><tbody>
+  ${g.lines.map(l=>`<tr><td>${esc(l.desc)}</td><td>${esc(l.hsn||"")}</td><td class="num">${fmt0((+l.recv)-(+l.rej||0))} ${esc(l.unit)}</td><td class="num">${fmt0(l.rej||0)}</td><td class="num">${fmt(lineNet(l))}</td><td class="num">${l.tax}</td><td class="num">${fmt(((+l.recv)-(+l.rej||0))*lineNet(l))}</td></tr>`).join("")}</tbody></table></div>
+  <div class="row" style="justify-content:flex-end;gap:24px;font-variant-numeric:tabular-nums"><span>Taxable ₹ ${fmt(c.sub)}</span><span>${g.gstmode==="inter"?"IGST":"CGST + SGST"} ₹ ${fmt(c.tax)}</span><b>Payable ₹ ${fmt(c.total)}</b></div>
+  ${p?`<div class="note">PO ${esc(p.no)} total ₹ ${fmt(p.total)} · ${esc(p.recv||"")} · approved by ${esc(p.approvedBy||"-")}</div>`:""}
+  ${g.status==="With accounts"&&has("acct.book")?`<div class="row"><label class="f" style="flex:1 1 200px">Purchase voucher / bill entry no.<input id="a-voucher"></label><button class="btn primary" id="btn-a-book" style="align-self:flex-end">Mark as booked</button></div>`:""}
+  ${g.status!=="With accounts"?`<div class="note">Booked as ${esc(g.voucher)} by ${esc(g.bookedBy)} on ${dmy(g.bookedAt)} · paid ₹ ${fmt(grnPaid(g))} · balance ₹ ${fmt(grnBal(g))}</div>${pays.filter(p=>p.alloc.some(x=>x.grn===g.no)).map(p=>`<div class="note">Payment ${p.no} · ${dmy(p.date)} · ${esc(p.mode)} ${esc(p.ref)} · ₹ ${fmt(p.alloc.find(x=>x.grn===g.no).amt)}</div>`).join("")}`:""}`;
+}
+["#acctPending","#acctDone"].forEach(id=>$(id).addEventListener("click",e=>{const n=e.target.dataset.acct;if(n!=null){acctSel=+n;renderAcct();$("#acctDetail").scrollIntoView({block:"start"})}}));
+$("#acctDetail").addEventListener("click",e=>{const g=grns.find(x=>x.no===acctSel);if(!g)return;
+  if(e.target.id==="btn-a-book"){const v=$("#a-voucher").value.trim();if(!v){toast("Enter the voucher or bill entry number");return}g.status="Booked";g.voucher=v;g.bookedBy=me.name;g.bookedAt=today();saveGRNs();toast(`GRN ${g.no} booked`);renderAcct()}
+});
+function renderVend(){
+  const D=$("#vendDetail");if(!vendSel){D.hidden=true;return}D.hidden=false;
+  const open=grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts"&&grnBal(g)>0.004).sort((a,b)=>(dueDate(a)||"").localeCompare(dueDate(b)||""));
+  const led=[];grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts").forEach(g=>led.push({d:g.bookedAt||g.date,t:`GRN ${g.no} booked (${g.voucher}) · PO ${g.poNo}`,cr:grnCalc(g).total,dr:0}));
+  pays.filter(p=>p.sup===vendSel).forEach(p=>led.push({d:p.date,t:`Payment ${p.no} · ${p.mode} ${p.ref} · GRN ${p.alloc.map(x=>x.grn).join(", ")}`,cr:0,dr:p.amount}));
+  led.sort((a,b)=>a.d.localeCompare(b.d));let bal=0;
+  D.innerHTML=`<div class="row"><h2 class="sec">${esc(vendSel)}</h2><span style="flex:1"></span><button class="btn" id="btn-v-close" type="button">Close</button></div>
+  ${open.length&&has("acct.book")?`<h3 class="rg">Record a payment</h3>
+  <div class="grid-fields"><label class="f">Payment date<input id="v-date" type="date" value="${today()}"></label><label class="f">Mode<select id="v-mode"><option>NEFT</option><option>RTGS</option><option>Cheque</option><option>UPI</option><option>Cash</option></select></label><label class="f">UTR / cheque no.<input id="v-ref"></label><label class="f">Amount paid<input id="v-amt" type="number" step="0.01" value="${open.reduce((a,g)=>a+grnBal(g),0).toFixed(2)}"></label></div>
+  <div class="tablebox"><table class="est" style="min-width:600px"><thead><tr><th>GRN</th><th>Invoice</th><th>Due</th><th class="num">Balance</th><th class="num">Pay now</th></tr></thead><tbody id="v-alloc">${open.map(g=>`<tr data-g="${g.no}"><td>GRN ${g.no} · PO ${esc(g.poNo)}</td><td>${esc(g.inv||"-")}</td><td style="${dueDate(g)&&dueDate(g)<today()?"color:var(--danger);font-weight:600":""}">${dueDate(g)?dmy(dueDate(g)):"-"}</td><td class="num">${fmt(grnBal(g))}</td><td class="num"><input id="va-${g.no}" class="rate" type="number" step="0.01" value="${grnBal(g).toFixed(2)}" data-bal="${grnBal(g)}"></td></tr>`).join("")}</tbody></table></div>
+  <div class="row"><span class="note">Changing the amount spreads it over the oldest due GRNs first. You can also edit each line.</span><span style="flex:1"></span><button class="btn primary" id="btn-v-pay" type="button">Save payment</button></div>`:open.length?"":`<div class="note">Nothing outstanding for this supplier.</div>`}
+  <h3 class="rg">Ledger</h3>
+  <div class="tablebox"><table class="est" style="min-width:600px"><thead><tr><th>Date</th><th>Entry</th><th class="num">Bill (credit)</th><th class="num">Paid (debit)</th><th class="num">Balance</th></tr></thead><tbody>${led.map(l=>{bal+=l.cr-l.dr;return`<tr><td>${dmy(l.d)}</td><td>${esc(l.t)}</td><td class="num">${l.cr?fmt(l.cr):""}</td><td class="num">${l.dr?fmt(l.dr):""}</td><td class="num"><b>${fmt(bal)}</b></td></tr>`}).join("")}</tbody></table></div>`;
+}
+$("#vendList").addEventListener("click",e=>{const v=e.target.dataset.vend;if(v!=null){vendSel=v;renderVend();$("#vendDetail").scrollIntoView({block:"start"})}});
+$("#vendDetail").addEventListener("input",e=>{if(e.target.id!=="v-amt")return;let left=+e.target.value||0;$("#v-alloc").querySelectorAll("input").forEach(inp=>{const b=+inp.dataset.bal;const a=Math.min(b,left);inp.value=a.toFixed(2);left-=a})});
+$("#vendDetail").addEventListener("click",e=>{
+  if(e.target.id==="btn-v-close"){vendSel=null;renderVend();return}
+  if(e.target.id!=="btn-v-pay")return;
+  const ref=$("#v-ref").value.trim();if(!ref&&$("#v-mode").value!=="Cash"){toast("Enter the UTR or cheque number");$("#v-ref").focus();return}
+  const alloc=[...$("#v-alloc").querySelectorAll("tr")].map(tr=>({grn:+tr.dataset.g,amt:Math.round((+tr.querySelector("input").value||0)*100)/100,bal:+tr.querySelector("input").dataset.bal})).filter(x=>x.amt>0);
+  if(!alloc.length){toast("Enter an amount against at least one GRN");return}
+  if(alloc.some(x=>x.amt>x.bal+0.004)){toast("A line is more than that GRN's balance");return}
+  const amount=alloc.reduce((a,x)=>a+x.amt,0);const no=Math.max(500,...pays.map(p=>p.no))+1;
+  pays.push({no,date:$("#v-date").value||today(),sup:vendSel,mode:$("#v-mode").value,ref,amount,alloc:alloc.map(({grn,amt})=>({grn,amt})),by:me.name});savePays();
+  alloc.forEach(x=>{const g=grns.find(y=>y.no===x.grn);g.status=grnBal(g)<=0.004?"Paid":"Part paid"});saveGRNs();
+  toast(`Payment ${no} of ₹ ${fmt(amount)} saved`);renderAcct()});
+
+/* ---------- reports ---------- */
+const dd=(a,b)=>a&&b?Math.round((new Date(b)-new Date(a))/864e5):null;
+const hAt=(p,act)=>{const h=(p.history||[]).find(x=>x.action===act);return h?h.at.slice(0,10):""};
+function trackRows(){
+  return saved.filter(p=>p.status!=="Draft"||p.reqNo).map(p=>{const r=p.reqNo?reqs.find(x=>x.no===p.reqNo):null;const need=(r&&r.need)||p.needBy||"";
+    const sent=hAt(p,"Sent for approval"),appr=p.approvedAt||hAt(p,"Approved");const end=p.closedAt||"";
+    const delay=need?(end?dd(need,end):(today()>need?dd(need,today()):null)):null;
+    return{p,r,need,reqDate:r?r.date:"",hod:r?r.apprAt||"":"",sent,appr,first:p.firstGrnAt||"",end,buyer:(p.history||[]).find(h=>h.action==="Sent for approval")?.by||"",
+      proc:r&&r.apprAt&&sent?dd(r.apprAt,sent):null,apprDays:sent&&appr?dd(sent,appr):null,supDays:appr&&end?dd(appr,end):null,delay,open:!end}});
+}
+const avg=a=>{const v=a.filter(x=>x!=null);return v.length?(v.reduce((x,y)=>x+y,0)/v.length):null};
+const dfmt=v=>v==null?"-":(Math.round(v*10)/10)+" d";
+function renderRep(){
+  $("#repProj").innerHTML=projCostHTML();
+  const T=trackRows();const closed=T.filter(t=>!t.open&&t.need);const ontime=closed.filter(t=>t.delay<=0).length;
+  const late=T.filter(t=>t.open&&t.delay>0);
+  const cards=[[closed.length?Math.round(ontime/closed.length*100)+"%":"-","On-time delivery",`${ontime} of ${closed.length} closed POs on or before the required date`],
+    [dfmt(avg(closed.filter(t=>t.delay>0).map(t=>t.delay))),"Average delay when late","Final GRN after required date"],
+    [late.length,"Running late now","Open POs past the required date",late.length>0],
+    [dfmt(avg(T.map(t=>t.proc))),"Purchaser processing","HOD approval to PO sent"],
+    [dfmt(avg(T.map(t=>t.apprDays))),"PO approval time","Sent to approved"],
+    [dfmt(avg(T.map(t=>t.supDays))),"Supplier delivery","PO approved to final GRN"]];
+  $("#repCards").innerHTML=cards.map(([n,t,d,w])=>`<div class="card${w?" warn":""}" style="cursor:default"><span class="n">${n}</span><span class="t">${t}</span><span class="d">${d}</span></div>`).join("");
+  const dc=t=>t.delay==null?"-":t.delay>0?`<b style="color:var(--danger)">${t.delay} d late${t.open?" (open)":""}</b>`:`<span style="color:var(--accent)">${t.delay===0?"On time":(-t.delay)+" d early"}</span>`;
+  $("#repTrack").innerHTML=T.length?`<table class="est" style="min-width:1000px"><thead><tr><th>Request</th><th>PO</th><th>Supplier</th><th>Required by</th><th>HOD approved</th><th>PO sent</th><th>PO approved</th><th>First GRN</th><th>Closed</th><th>Delay</th></tr></thead><tbody>${T.map(t=>`<tr><td>${t.r?esc(t.r.no)+" · "+esc(t.r.by):"<span class='note'>Direct</span>"}</td><td>${esc(t.p.no)}</td><td>${esc(t.p.sup)}</td><td>${dmy(t.need)||"-"}</td><td>${dmy(t.hod)||"-"}</td><td>${dmy(t.sent)||"-"}</td><td>${dmy(t.appr)||"-"}</td><td>${dmy(t.first)||"-"}</td><td>${t.end?dmy(t.end):stChip(t.p.recv||t.p.status)}</td><td>${dc(t)}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">No POs yet. Rows appear once a PO is sent for approval.</div>`;
+  const grp=(k)=>{const m={};T.forEach(t=>{const g=t[k]||"-";(m[g]=m[g]||[]).push(t)});return m};
+  const B=grp("buyer");$("#repBuyer").innerHTML=Object.keys(B).length?`<table class="est" style="min-width:420px"><thead><tr><th>Purchaser</th><th class="num">POs</th><th class="num">Avg processing</th><th class="num">On time</th><th class="num">Late now</th></tr></thead><tbody>${Object.entries(B).map(([n,a])=>{const c=a.filter(t=>!t.open&&t.need);return`<tr><td>${esc(n)}</td><td class="num">${a.length}</td><td class="num">${dfmt(avg(a.map(t=>t.proc)))}</td><td class="num">${c.length?Math.round(c.filter(t=>t.delay<=0).length/c.length*100)+"%":"-"}</td><td class="num">${a.filter(t=>t.open&&t.delay>0).length}</td></tr>`}).join("")}</tbody></table>`:`<div class="empty">No data yet.</div>`;
+  const S={};T.forEach(t=>{(S[t.p.sup]=S[t.p.sup]||[]).push(t)});$("#repSup").innerHTML=Object.keys(S).length?`<table class="est" style="min-width:420px"><thead><tr><th>Supplier</th><th class="num">POs</th><th class="num">Avg delivery</th><th class="num">On time</th><th class="num">Avg delay</th></tr></thead><tbody>${Object.entries(S).map(([n,a])=>{const c=a.filter(t=>!t.open&&t.need);return`<tr><td>${esc(n)}</td><td class="num">${a.length}</td><td class="num">${dfmt(avg(a.map(t=>t.supDays)))}</td><td class="num">${c.length?Math.round(c.filter(t=>t.delay<=0).length/c.length*100)+"%":"-"}</td><td class="num">${dfmt(avg(c.map(t=>t.delay)))}</td></tr>`}).join("")}</tbody></table>`:`<div class="empty">No data yet.</div>`;
+}
+
+/* ---------- home ---------- */
+function workItems(){
+  const W=[];const add=(n,t,d,v,warn)=>W.push({n,t,d,v,warn});
+  if(has("req.create")){add(reqs.filter(r=>r.by===me.name&&r.status==="Sent back").length,"My requests sent back","Correct and resubmit","req",true);
+    add(reqs.filter(r=>r.by===me.name&&["Submitted","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with HOD or purchase","req")}
+  if(has("req.approve"))add(reqs.filter(r=>r.status==="Submitted"&&(has("req.all")||r.dept===me.dept)).length,"Requests to approve","Waiting for your decision","req",true);
+  if(has("po.create")){add(reqs.filter(r=>r.status==="Approved").length,"Approved requests to process","Start a pre-estimate","req",true);
+    add(saved.filter(p=>p.status==="Sent back").length,"POs sent back","Correct and resend","saved",true);
+    add(saved.filter(p=>p.status==="Draft").length,"Draft POs","Not yet sent for approval","saved");
+    add(saved.filter(p=>p.status==="Pending approval").length,"POs with approver","Waiting for approval","saved");
+    add(saved.filter(p=>!p.closed&&p.needBy&&p.needBy<today()&&p.status!=="Draft").length,"POs past required date","Material is late, follow up with the supplier","saved",true)}
+  if(has("po.approve"))add(saved.filter(p=>p.status==="Pending approval").length,"POs to approve","Review, approve and sign","appr",true);
+  if(has("rgp.manage")){add(rgps.filter(c=>c.status!=="Closed").length,"Returnable challans open","Material out, not yet back","grn");
+    add(rgps.filter(c=>c.status!=="Closed"&&c.expected&&c.expected<today()).length,"Challans overdue for return","Follow up with the party","grn",true)}
+  if(has("grn.create")||has("page.grn"))add(saved.filter(p=>p.status==="Approved"&&!p.closed&&pendingLines(p).length).length,"POs waiting for material","Create GRN when material arrives","grn",true);
+  if(has("stock.issue")){const I=stockItems();W.push({n:I.filter(i=>i.bal>0.0001).length,t:"Items in stock",d:"Issue material against a Job No.",v:"stock"});W.push({n:"₹"+fmt0(Math.round(I.reduce((a,i)=>a+i.value,0))),t:"Stock value",d:"At average purchase rate",v:"stock"})}
+  if(has("acct.book")||has("page.acct")){const vs=vendSummary();
+    add(grns.filter(g=>g.status==="With accounts").length,"GRNs to book","Enter voucher number","acct",true);
+    const od=vs.reduce((a,v)=>a+v.overdue,0),d7=vs.reduce((a,v)=>a+v.due7,0),out=vs.reduce((a,v)=>a+v.booked-v.paid,0);
+    W.push({n:"₹"+fmt0(Math.round(od)),t:"Overdue to vendors",d:"Past payment terms",v:"acct",warn:od>0,zero:od<=0});
+    W.push({n:"₹"+fmt0(Math.round(d7)),t:"Due in next 7 days",d:"Plan payments",v:"acct",zero:d7<=0});
+    W.push({n:"₹"+fmt0(Math.round(out)),t:"Total outstanding",d:"Booked, not yet paid",v:"acct",zero:out<=0})}
+  return W;
+}
+function renderHome(){
+  renderBackup();
+  $("#homeHello").textContent=`${me.name} · ${me.role}${me.dept?" · "+me.dept:""}`;$("#homeDate").textContent=dmy(today());
+  const W=workItems();
+  $("#homeCards").innerHTML=W.length?W.map(w=>`<button class="card${w.warn&&w.n&&w.n!==0?" warn":""}${w.zero||w.n===0?" zero":""}" data-go="${w.v}"><span class="n">${w.n}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></button>`).join(""):`<div class="panel empty">No tasks for your role. Ask the admin to give you rights on the Users &amp; rights page.</div>`;
+  const c=(f)=>f;const st=s=>reqs.filter(r=>r.status===s).length;
+  $("#homeFlow").hidden=!(has("req.all")||has("po.create")||has("po.approve")||has("acct.book"));
+  $("#flowBox").innerHTML=[["Requests with HOD",st("Submitted")],["Approved requests",st("Approved")+st("Estimated")],["POs for approval",saved.filter(p=>p.status==="Pending approval").length],["Approved POs open",saved.filter(p=>p.status==="Approved"&&!p.closed).length],["GRNs to book",grns.filter(g=>g.status==="With accounts").length],["GRNs unpaid",grns.filter(g=>["Booked","Part paid"].includes(g.status)).length],["POs closed",saved.filter(p=>p.closed).length]].map(([t,n])=>`<div><b>${n}</b><span>${t}</span></div>`).join("");
+}
+$("#homeCards").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)show(b.dataset.go)});
+function renderBadges(){
+  if(!me)return;const W=workItems().filter(w=>w.warn&&typeof w.n==="number");const cnt={};W.forEach(w=>cnt[w.v]=(cnt[w.v]||0)+w.n);
+  ["req","saved","appr","grn","acct"].forEach(v=>{const b=$("#tab-"+v);const old=b.querySelector(".badge");if(old)old.remove();if(cnt[v])b.insertAdjacentHTML("beforeend",`<span class="badge">${cnt[v]}</span>`)});
+}
+
+/* ---------- masters ---------- */
+const saveSups=()=>store.set("suppliers",suppliers);
+function renderSups(){
+  $("#m-sups").innerHTML=suppliers.map((x,i)=>`<tr data-si="${i}"><td><input id="ms${i}-n" data-sf="name" value="${esc(x.name)}" style="font-weight:600"></td><td><input id="ms${i}-a" data-sf="addr" value="${esc((x.addr||"").replace(/\n/g,", "))}"></td><td><input id="ms${i}-g" data-sf="gstin" value="${esc(x.gstin||"")}" style="font-family:var(--mono);width:150px"></td><td>${x.state==="27"?"27 Maharashtra":esc(x.state||"-")}</td><td><input id="ms${i}-t" data-sf="terms" value="${esc(x.terms||"")}" style="width:90px"></td><td><input id="ms${i}-c" data-sf="contact" value="${esc(x.contact||"")}"></td><td><button class="x" data-sdel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No suppliers yet.</td></tr>`;
+  $("#suppliers").innerHTML=suppliers.map(x=>`<option value="${esc(x.name)}">`).join("");
+}
+$("#m-sups").addEventListener("change",e=>{const tr=e.target.closest("tr"),f=e.target.dataset.sf;if(!tr||!f)return;const x=suppliers[+tr.dataset.si];x[f]=e.target.value.trim();
+  if(f==="gstin"){const st=x.gstin.slice(0,2);if(/^\d\d$/.test(st))x.state=st}if(f==="addr")x.addr=x.addr.replace(/,\s*/g,",\n");saveSups();renderSups()});
+$("#m-sups").addEventListener("click",e=>{const i=e.target.dataset.sdel;if(i!=null){suppliers.splice(+i,1);saveSups();renderSups()}});
+$("#m-sup-form").onsubmit=e=>{e.preventDefault();const n=$("#ms-name").value.trim();if(!n){toast("Fill in the supplier name");return}
+  if(suppliers.some(x=>key(x.name)===key(n))){toast(`${n} is already in the list`);return}
+  const g=$("#ms-gst").value.trim().toUpperCase();suppliers.push({name:n,addr:"",gstin:g,state:/^\d\d/.test(g)?g.slice(0,2):"27",terms:$("#ms-terms").value.trim()||"60 Days",contact:""});saveSups();renderSups();
+  $("#ms-name").value="";$("#ms-gst").value="";$("#ms-terms").value="";toast(`Added ${n}. Fill in the address in the table.`)};
+function renderMasters(){
+  renderSups();
+  const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
+  $("#mu-dept").innerHTML=opts(depts,"","Department");
+  $("#md-hod").innerHTML=opts(hods,"","HOD (optional)");
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Requester","HOD","Purchaser","Approver","Store","Accounts","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="HOD")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="4" class="empty">No users yet.</td></tr>`;
+  $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
+  $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button></td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
+  refreshWho();if(!$("#view-users").hidden)renderRights();
+  $("#projects").innerHTML=M.projects.filter(p=>p.status==="Active").map(p=>`<option value="${esc(p.no)}">${esc(p.desc)}</option>`).join("");
+}
+["#m-users","#m-depts","#m-projs"].forEach(id=>{
+  $(id).addEventListener("change",e=>{const tr=e.target.closest("tr");const f=e.target.dataset.f;if(!tr||!f)return;const rec=M[tr.dataset.t][+tr.dataset.i];
+    const old=rec[f];rec[f]=e.target.value.trim();
+    if(tr.dataset.t==="depts"&&f==="name")M.users.forEach(u=>{if(u.dept===old)u.dept=rec.name});
+    if(tr.dataset.t==="users"&&f==="name")M.depts.forEach(d=>{if(d.hod===old)d.hod=rec.name});
+    if(tr.dataset.t==="users"&&f==="role"&&rec.rights){delete rec.rights;toast(`${rec.name} now has the standard ${rec.role} rights`)}
+    saveM();renderMasters()});
+  $(id).addEventListener("click",e=>{if(e.target.dataset.mdel===undefined)return;const tr=e.target.closest("tr");M[tr.dataset.t].splice(+tr.dataset.i,1);saveM();renderMasters()});
+});
+let rUser=null;
+function renderRights(){
+  if(!rUser||!M.users.includes(rUser))rUser=M.users[0];if(!rUser)return;
+  $("#r-user").innerHTML=M.users.map((u,i)=>`<option value="${i}"${u===rUser?" selected":""}>${esc(u.name)} (${esc(u.role)})</option>`).join("");
+  $("#r-badge").innerHTML=rUser.rights?`<span class="chip sugg">Custom rights</span>`:`<span class="chip calc">${esc(rUser.role)} defaults</span>`;
+  $("#btn-r-reset").disabled=!rUser.rights;
+  const mine=rightsOf(rUser);
+  $("#rightsBox").innerHTML=["Pages","Actions"].map(g=>`<h3 class="rg">${g==="Pages"?"Pages they can open":"What they can do"}</h3><div class="rgroup">${RIGHTS.filter(r=>r[0]===g).map(([,k,lab,hint])=>`<label><input type="checkbox" id="rt-${k.replace(".","-")}" data-right="${k}"${mine.includes(k)?" checked":""}><span>${esc(lab)}${hint?`<small>${esc(hint)}</small>`:""}</span></label>`).join("")}</div>`).join("");
+}
+$("#r-user").onchange=e=>{rUser=M.users[+e.target.value];renderRights()};
+$("#rightsBox").addEventListener("change",e=>{const k=e.target.dataset.right;if(!k)return;
+  if(rUser===me&&k==="page.users"&&!e.target.checked){e.target.checked=true;toast("You cannot remove your own access to this page");return}
+  const set=new Set(rightsOf(rUser));e.target.checked?set.add(k):set.delete(k);
+  const def=ROLE_RIGHTS[rUser.role]||[];const arr=RIGHTS.map(r=>r[1]).filter(x=>set.has(x));
+  rUser.rights=(arr.length===def.length&&def.every(x=>set.has(x)))?undefined:arr;if(!rUser.rights)delete rUser.rights;
+  saveM();renderRights();if(rUser===me)views.forEach(v=>$("#tab-"+v).hidden=!can(v));toast(`Rights updated for ${rUser.name}`)});
+$("#btn-r-reset").onclick=()=>{if(!rUser)return;if(rUser===me&&!(ROLE_RIGHTS[me.role]||[]).includes("page.users")){toast("Resetting would remove your own access to this page");return}delete rUser.rights;saveM();renderRights();if(rUser===me)views.forEach(v=>$("#tab-"+v).hidden=!can(v));toast(`${rUser.name} is back on ${rUser.role} defaults`)};
+function refreshWho(){
+  $("#who").innerHTML=M.users.map(u=>`<option value="${esc(u.name)}"${me&&u.name===me.name?" selected":""}>${esc(u.name)} (${esc(u.role)})</option>`).join("");
+}
+function setMe(name){
+  me=CLOUD?(M.users.find(u=>u.name===BOOT.me)||{name:BOOT.me,dept:"",role:"Requester",rights:[]}):(M.users.find(u=>u.name===name)||M.users.find(u=>u.role==="Admin")||M.users[0]);store.set("me",me&&me.name);if(CLOUD&&$("#cuName"))$("#cuName").textContent=`${me.name} · ${me.role}`;
+  views.forEach(v=>$("#tab-"+v).hidden=!can(v));refreshWho();
+  cur=null;const open=views.find(v=>!$("#view-"+v).hidden);show("home");
+}
+$("#who").onchange=e=>setMe(e.target.value);
+let sigFor=null;
+$("#m-users").addEventListener("click",e=>{const i=e.target.dataset.sig;if(i!=null){sigFor=+i;$("#mu-sigfile").click()}});
+$("#mu-sigfile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f||sigFor==null)return;
+  try{M.users[sigFor].sig=await shrinkSig(f);saveM();renderMasters();toast(`Signature saved for ${M.users[sigFor].name}`)}catch(err){toast("Could not read that image. Try a JPG or PNG.")}};
+function shrinkSig(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const s=Math.min(1,500/img.width,160/img.height);const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const g=c.getContext("2d");g.drawImage(img,0,0,c.width,c.height);
+  const d=g.getImageData(0,0,c.width,c.height);for(let k=0;k<d.data.length;k+=4){const l=(d.data[k]+d.data[k+1]+d.data[k+2])/3;if(l>200)d.data[k+3]=0}g.putImageData(d,0,0);URL.revokeObjectURL(u);res(c.toDataURL("image/png"))};img.onerror=rej;img.src=u})}
+function addM(t,rec,check){if(!check){toast("Fill in the name first");return false}
+  const k=t==="projects"?"no":"name";if(M[t].some(x=>key(x[k])===key(rec[k]))){toast(`${rec[k]} is already in the list`);return false}
+  M[t].push(rec);saveM();renderMasters();toast(`Added ${rec[k]}`);return true}
+$("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,dept:$("#mu-dept").value,role:$("#mu-role").value},n))$("#mu-name").value=""};
+$("#m-dept-form").onsubmit=e=>{e.preventDefault();const n=$("#md-name").value.trim();if(addM("depts",{name:n,hod:$("#md-hod").value},n))$("#md-name").value=""};
+$("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim().toUpperCase();if(addM("projects",{no:n,desc:$("#mp-desc").value.trim(),cust:$("#mp-cust").value.trim(),status:"Active"},n)){$("#mp-no").value="";$("#mp-desc").value="";$("#mp-cust").value=""}};
+
+/* ---------- cloud: header, passwords, logins ---------- */
+function pwDialog(title,fields){return new Promise(res=>{const d=document.createElement("div");d.className="modal";
+  d.innerHTML=`<form class="panel stack" style="max-width:360px;width:100%"><h2 class="sec">${esc(title)}</h2>${fields.map((f,i)=>`<label class="f">${esc(f)}<input type="password" id="pw${i}" autocomplete="new-password" required minlength="${/current/i.test(f)?1:6}"></label>`).join("")}<div class="row"><span style="flex:1"></span><button type="button" class="btn" id="pw-x">Cancel</button><button class="btn primary">OK</button></div></form>`;
+  document.body.appendChild(d);d.querySelector("#pw0").focus();d.querySelector("#pw-x").onclick=()=>{d.remove();res(null)};
+  d.querySelector("form").onsubmit=e=>{e.preventDefault();const v=fields.map((f,i)=>d.querySelector("#pw"+i).value);d.remove();res(v)}})}
+function renderLogins(){const P=$("#loginPanel");if(!P)return;if(!CLOUD){P.hidden=true;return}P.hidden=!has("page.users");
+  const L={};cloud.logins.forEach(l=>L[l.name]=l.active);
+  P.innerHTML=`<h2 class="sec">Logins</h2><div class="note">Each user logs in with their name and a password you set here. They can change it later from "Password" at the top. Passwords are stored encrypted.</div>
+  ${M.users.map((u,i)=>`<div class="listrow"><b>${esc(u.name)}</b><span class="wide">${esc(u.role)}${u.dept?" · "+esc(u.dept):""}</span><span>${L[u.name]===true?`<span class="chip st-PO">Can log in</span>`:L[u.name]===false?`<span class="chip st-Back">Disabled</span>`:`<span class="chip st-Draft">No password</span>`}</span><span></span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" data-lpw="${i}">${L[u.name]==null?"Set password":"Reset password"}</button>${L[u.name]===true&&u.name!==me.name?`<button class="btn" data-loff="${i}">Disable</button>`:""}</span></div>`).join("")}`}
+async function loginAction(body,ok){try{await api("logins",{method:"POST",body});await cloudPull();renderLogins();if(ok)toast(ok)}catch(e){if(!e.auth)toast(e.message)}}
+function cloudWire(){
+  $("label.who").hidden=true;const box=$("#cloudUser");box.hidden=false;$("#cuName").textContent=me?`${me.name} · ${me.role}`:BOOT.me;
+  $("#btn-cu-out").onclick=async()=>{if(cloud.pending.size)await cloudFlush();try{await api("logout",{method:"POST"})}catch(e){}try{localStorage.removeItem("zpo:token")}catch(e){}location.reload()};
+  $("#btn-cu-pw").onclick=async()=>{const v=await pwDialog("Change your password",["Current password","New password","New password again"]);if(!v)return;if(v[1]!==v[2]){toast("The new passwords do not match");return}
+    try{await api("password",{method:"POST",body:{current:v[0],password:v[1]}});toast("Password changed")}catch(e){if(!e.auth)toast(e.message)}};
+  $("#loginPanel").addEventListener("click",async e=>{const i=e.target.dataset.lpw,j=e.target.dataset.loff;
+    if(i!=null){const u=M.users[+i];const v=await pwDialog(`Password for ${u.name}`,["New password","Again"]);if(!v)return;if(v[0]!==v[1]){toast("The passwords do not match");return}
+      if(cloud.pending.size)await cloudFlush();loginAction({action:"password",name:u.name,password:v[0]},`${u.name} can now log in`)}
+    if(j!=null){const u=M.users[+j];loginAction({action:"disable",name:u.name},`${u.name} can no longer log in`)}});
+  $("#m-users").addEventListener("change",e=>{if(e.target.dataset.f!=="name")return;const tr=e.target.closest("tr");const u=M.users[+tr.dataset.i];const old=u&&u.name,nn=e.target.value.trim();
+    if(old&&nn&&old!==nn&&cloud.logins.some(l=>l.name===old))loginAction({action:"rename",name:old,newName:nn})},true);
+  $("#m-users").addEventListener("click",e=>{if(e.target.dataset.mdel===undefined)return;const tr=e.target.closest("tr");const u=M.users[+tr.dataset.i];
+    if(u&&u.name===me.name){e.stopImmediatePropagation();toast("You cannot remove yourself");return}if(u&&cloud.logins.some(l=>l.name===u.name&&l.active))loginAction({action:"disable",name:u.name})},true);
+}
+/* ---------- amount in words (Indian system) ---------- */
+function words(n){
+  n=Math.round(n);if(n===0)return"Zero";
+  const a=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"],
+        b=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  const two=x=>x<20?a[x]:b[Math.floor(x/10)]+(x%10?" "+a[x%10]:"");
+  const three=x=>(x>=100?a[Math.floor(x/100)]+" Hundred"+(x%100?" ":""):"")+(x%100?two(x%100):"");
+  const parts=[];const cr=Math.floor(n/1e7);n%=1e7;const l=Math.floor(n/1e5);n%=1e5;const th=Math.floor(n/1e3);n%=1e3;
+  if(cr)parts.push(three(cr)+" Crore");if(l)parts.push(two(l)+" Lakh");if(th)parts.push(two(th)+" Thousand");if(n)parts.push(three(n));
+  return parts.join(" ");
+}
+window.__words=words;
+
+if(CLOUD)cloudWire();
+bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
+}
+</script>
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const DEF_MASTERS={users:[],depts:[{name:"Design",hod:""},{name:"Tool Room",hod:""},{name:"Purchase",hod:""},{name:"Store",hod:""},{name:"Accounts",hod:""}],
+    projects:["ZT2329","ZT2335","ZT2347","ZT2348","ZT2349"].map(no=>({no,desc:"",cust:"",status:"Active"}))};
+  async function getSync(t){const r=await fetch("/api/sync?since=0",{headers:{authorization:"Bearer "+t},cache:"no-store"});if(!r.ok)return null;return r.json()}
+  function start(t,d){$("#gate").hidden=true;document.body.classList.remove("gated");zpoMain({token:t,me:d.me,data:d})}
+  function gate(setup,msg){const G=$("#gate");G.hidden=false;document.body.classList.add("gated");
+    G.innerHTML=`<form class="panel stack gatebox" autocomplete="on"><div class="brand">Zoom PO Desk<small>Zoom Technologies · Purchase</small></div>
+    <h2 class="sec">${setup?"First-time setup: create the Admin login":"Log in"}</h2>${msg?`<div class="banner back">${msg}</div>`:""}
+    <label class="f">Name<input id="g-name" autocomplete="username" required></label>
+    <label class="f">Password<input id="g-pass" type="password" autocomplete="${setup?"new-password":"current-password"}" required minlength="${setup?6:1}"></label>
+    ${setup?`<label class="f">Password again<input id="g-pass2" type="password" autocomplete="new-password" required></label><div class="note">This person becomes the Admin. The Admin adds the other users and sets their passwords on the Users &amp; rights page.</div>`:`<div class="note">Forgot your password? Ask the Admin to reset it.</div>`}
+    <button class="btn primary" id="g-go">${setup?"Create Admin and start":"Log in"}</button></form>`;
+    $("#g-name").focus();
+    G.querySelector("form").onsubmit=async e=>{e.preventDefault();const name=$("#g-name").value.trim(),password=$("#g-pass").value;
+      if(setup&&password!==$("#g-pass2").value){gate(setup,"The passwords do not match");return}
+      $("#g-go").disabled=true;$("#g-go").textContent="Please wait…";
+      try{const r=await fetch(setup?"/api/setup":"/api/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(setup?{name,password,masters:DEF_MASTERS}:{name,password})});const j=await r.json().catch(()=>({}));
+        if(!r.ok){gate(setup&&r.status!==409,j.error||"Could not log in");$("#g-name").value=name;return}
+        try{localStorage.setItem("zpo:token",j.token)}catch(e){}const d=await getSync(j.token);if(!d){gate(false,"Logged in, but could not load data. Try again.");return}start(j.token,d)}
+      catch(err){gate(setup,"No connection to the server. Check the internet and try again.")}}}
+  (async()=>{let st=null;try{const r=await fetch("/api/status",{cache:"no-store"});if(r.ok&&(r.headers.get("content-type")||"").includes("json"))st=await r.json()}catch(e){}
+    if(!st||!st.ok){zpoMain(null);return}
+    let t=null;try{t=localStorage.getItem("zpo:token")}catch(e){}
+    if(t){try{const d=await getSync(t);if(d){start(t,d);return}}catch(e){gate(false,"No connection to the server. Check the internet and try again.");return}}
+    gate(st.needsSetup)})();
+})();
+</script>

@@ -1,0 +1,8 @@
+{
+  "name": "zoom-po-desk",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "^2.0.1"
+  }
+}
