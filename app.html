@@ -172,6 +172,16 @@ body.gated header.bar,body.gated main{display:none}
 .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
 @media (max-width:640px){table.est input:not(.qty):not(.rate):not([type=number]){min-width:150px}table.est input,table.est select{border:1px solid var(--line)!important;border-radius:4px;background:var(--panel)}}
 @media (pointer:coarse){.xlhint{display:none}}
+.sb-board{display:grid;grid-template-columns:repeat(5,minmax(190px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}
+.sb-col{background:var(--bg);border-radius:8px;padding:8px;min-width:0}
+.sb-col h3{margin:2px 4px 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
+.sb-card{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;font:inherit;font-size:13px;color:inherit;cursor:pointer}
+.sb-card:hover{border-color:var(--accent)}.sb-card .m{color:var(--muted);font-size:12px}.sb-card .v{font-weight:600;font-family:var(--mono)}
+.sb-empty{font-size:12px;color:var(--muted);padding:6px 4px}
+.sb-bar{display:grid;grid-template-columns:minmax(90px,150px) 1fr auto;gap:8px;align-items:center;font-size:13px;margin:5px 0}.sb-bar i{display:block;height:10px;background:var(--accent);border-radius:3px;min-width:2px}.sb-bar span:first-child{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fu{display:grid;grid-template-columns:78px 1fr auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:start}.fu .when{font-size:12px;color:var(--muted)}.fu.late .when{color:var(--danger);font-weight:600}
+.dlog{font-size:12.5px;border-left:2px solid var(--line);padding:2px 0 2px 10px;margin:4px 0}.dlog small{color:var(--muted)}
+@media (max-width:640px){.sb-board{grid-template-columns:repeat(5,80vw)}.fu{grid-template-columns:64px 1fr}.fu .btn{grid-column:2;justify-self:start}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -188,6 +198,7 @@ body.gated header.bar,body.gated main{display:none}
     <button id="tab-grn" data-view="grn">Store / GRN</button>
     <button id="tab-stock" data-view="stock">Stock &amp; issue</button>
     <button id="tab-acct" data-view="acct">Accounts</button>
+    <button id="tab-sales" data-view="sales">Sales</button>
     <button id="tab-rep" data-view="rep">Reports</button>
     <button id="tab-rates" data-view="rates">Rate list</button>
     <button id="tab-mast" data-view="mast">Masters</button>
@@ -392,7 +403,7 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-users" class="stack" hidden>
   <div class="masters">
     <div class="panel stack"><h2 class="sec">Users</h2><div class="note">Choosing a role gives the standard rights for that role. Fine-tune them on the right.</div>
-      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><select id="mu-dept"></select><select id="mu-role"><option>Requester</option><option>HOD</option><option>Purchaser</option><option>Approver</option><option>Store</option><option>Accounts</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
+      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><select id="mu-dept"></select><select id="mu-role"><option>Requester</option><option>HOD</option><option>Purchaser</option><option>Approver</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Department</th><th>Role</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
@@ -402,6 +413,25 @@ body.gated header.bar,body.gated main{display:none}
       <div id="rightsBox" class="stack"></div>
     </div>
   </div>
+</section>
+
+<!-- SALES -->
+<section id="view-sales" class="stack" hidden>
+  <div class="cards" id="salesTiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Sales pipeline</h2><select id="sb-owner" style="width:auto"></select><input id="sb-q" placeholder="Search customer, enquiry or QT No." style="max-width:260px"><span style="flex:1"></span><button class="btn primary" id="btn-deal-new" type="button">+ New enquiry</button></div>
+    <div class="sb-board" id="sb-board"></div>
+    <div class="note">Won and Lost show the last 90 days. Click a card to open it, change the stage, add notes and follow-ups, or make the quotation PDF.</div></div>
+  <div class="panel stack" id="dealForm" hidden></div>
+  <div class="masters">
+    <div class="panel stack"><h2 class="sec">Follow-ups</h2>
+      <form class="addrow" id="fu-form"><input id="fu-date" type="date" style="max-width:150px"><input id="fu-time" type="time" style="max-width:110px"><input id="fu-cust" list="custnames" placeholder="Customer"><input id="fu-what" placeholder="Call, visit, send quote…"><button class="btn primary" type="submit">Add</button></form>
+      <div id="fupList"></div></div>
+    <div class="panel stack"><h2 class="sec">Quotation value by customer</h2><div class="note">Quotes and orders dated in the last 90 days, not counting lost ones.</div><div id="sb-bars"></div>
+      <h2 class="sec">Won orders, cost so far</h2><div class="tablebox" id="sb-won"></div><div class="note">Material cost comes from approved POs and store issues for the same Job No.</div></div>
+  </div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Customers</h2><input id="cu-q" placeholder="Search customer" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-cu-import" type="button">Import from Excel</button><input type="file" id="cu-file" accept=".xlsx,.xls,.csv" hidden></div>
+    <form class="addrow" id="cu-form"><input id="cu-name" placeholder="Customer name"><input id="cu-contact" placeholder="Contact person"><input id="cu-phone" placeholder="Mobile"><input id="cu-city" placeholder="City" style="max-width:140px"><button class="btn primary" type="submit">Add</button></form>
+    <div class="tablebox"><table class="mt" style="min-width:1300px"><thead><tr><th>Customer</th><th>Contact person</th><th>Mobile</th><th>Email</th><th>City</th><th>GSTIN</th><th>Address</th><th class="num">Open quotes</th><th class="num">Won this year</th><th>Last contact</th><th></th></tr></thead><tbody id="cu-body"></tbody></table></div></div>
 </section>
 
 <!-- MASTERS -->
@@ -429,6 +459,7 @@ body.gated header.bar,body.gated main{display:none}
 
 <datalist id="suppliers"></datalist>
 <datalist id="itemcats"></datalist>
+<datalist id="custnames"></datalist>
 <datalist id="itemnames"></datalist>
 <datalist id="projects"></datalist>
 </main>
@@ -449,7 +480,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -476,11 +507,12 @@ async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pendi
     await cloudPull();cloudBadge(cloud.pending.size?"saving":errs.length?"error":"ok");if(cloud.pending.size)cloudSoon(200);
   }catch(e){cloud.busy=false;if(e.auth)return;batch.forEach(c=>{const kk=c.coll+"\u0001"+c.id;if(!cloud.pending.has(kk))cloud.pending.set(kk,c)});cloudBadge("offline");cloudSoon(15000)}}
 async function cloudRenumber(list){
-  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1};
+  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>nextDealNo()};
   for(const c of list){const k=c.coll,arr=cloud.cache[k];const obj=arr.find(r=>SYNC[k].id(r)===c.id);if(!obj)continue;const old=obj.no;
     delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):nexts[k]();
     if(k==="saved"&&po&&String(po.no)===String(old)){po.no=obj.no;store.set("po",po)}
     if(k==="reqs"&&est&&est.reqNo===old){est.reqNo=obj.no;saveEst()}
+    if(k==="deals"){fups.forEach(f=>{if(String(f.deal)===String(old))f.deal=obj.no});saveFups();if(dealCur&&String(dealCur.no)===String(old)){dealCur.no=obj.no;renderDealForm()}}
     cloud.set(k,arr);toast(`Number ${old} was just used by another user, so this was saved as ${obj.no}`)}
 }
 function cloudApply(r){const k=r.coll,S=SYNC[k];if(!S)return false;const kk=k+"\u0001"+r.id;if(cloud.pending.has(kk))return false;
@@ -497,7 +529,7 @@ function cloudRefresh(){
   if(me){const nm=me.name;const u=M.users.find(x=>x.name===nm);if(u&&u!==me){me=u;views.forEach(v=>$("#tab-"+v).hidden=!can(v))}}
   renderBadges();const v=views.find(x=>!$("#view-"+x).hidden);const a=document.activeElement;
   const busy=a&&a!==document.body&&a.matches&&a.matches("input,select,textarea")&&a.closest("main");
-  const forms=["#grnForm","#rgpForm","#slipForm","#acctDetail","#vendDetail"].some(s=>$(s)&&!$(s).hidden);
+  const forms=["#grnForm","#rgpForm","#slipForm","#acctDetail","#vendDetail","#dealForm"].some(s=>$(s)&&!$(s).hidden);
   if(busy||forms||["est","po"].includes(v)||(v==="req"&&cur&&["Draft","Sent back"].includes(cur.status)))return;
   const y=window.scrollY;show(v);window.scrollTo(0,y)}
 function cloudStart(){if(!CLOUD)return;cloudLoad(BOOT.data);
@@ -538,7 +570,8 @@ if(!M){M={users:[{name:"Niksal",dept:"Design",role:"Requester"},{name:"M.K. Sing
   projects:[{no:"ZT2329",desc:"Mould & tool child parts",cust:"",status:"Active"},{no:"ZT2335",desc:"Mould (BOM released 17/10/2026)",cust:"",status:"Active"},{no:"ZT2347",desc:"",cust:"",status:"Active"},{no:"ZT2348",desc:"",cust:"",status:"Active"},{no:"ZT2349",desc:"",cust:"",status:"Active"}]};store.set("masters",M)}
 if(!CLOUD&&!M.users.some(u=>u.role==="Store"))M.users.push({name:"Store Keeper",dept:"Store",role:"Store"});
 if(!CLOUD&&!M.users.some(u=>u.role==="Accounts"))M.users.push({name:"Accounts Desk",dept:"Accounts",role:"Accounts"});
-["Store","Accounts"].forEach(d=>{if(!M.depts.some(x=>x.name===d))M.depts.push({name:d,hod:""})});
+if(!CLOUD&&!M.users.some(u=>u.role==="Sales"))M.users.push({name:"Sales Desk",dept:"Sales",role:"Sales"});
+["Store","Accounts","Sales"].forEach(d=>{if(!M.depts.some(x=>x.name===d))M.depts.push({name:d,hod:""})});
 if(!CLOUD&&!M.users.some(u=>u.role==="Approver"))M.users.push({name:"Director",dept:"",role:"Approver"});
 if(!CLOUD&&!M.users.some(u=>u.role==="Admin"))M.users.push({name:"Admin",dept:"",role:"Admin"});
 const saveM=()=>store.set("masters",M);
@@ -550,14 +583,14 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","req","est","po","saved","appr","grn","stock","acct","rep","rates","mast","users"];
+const views=["home","req","est","po","saved","appr","grn","stock","acct","sales","rep","rates","mast","users"];
 const RIGHTS=[
- ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
+ ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.approve","Approve or send back requests","For their own department"],["Actions","req.all","See all departments' requests","Approve any department if also allowed to approve"],
  ["Actions","po.create","Create POs and send for approval","Includes pre-estimate and direct PO"],["Actions","po.approve","Approve and sign POs","Their signature goes on the PO"],["Actions","po.delete","Delete POs","Including approved POs, if no material received yet"],
- ["Actions","grn.create","Create GRN","Receive material against approved POs"],["Actions","acct.book","Book and mark GRNs paid","Voucher and payment reference"],["Actions","rgp.manage","Returnable challans","Send material out and receive it back"],["Actions","stock.issue","Issue and return material","Issue slips, returns to store, opening stock, bin locations"]];
+ ["Actions","grn.create","Create GRN","Receive material against approved POs"],["Actions","acct.book","Book and mark GRNs paid","Voucher and payment reference"],["Actions","rgp.manage","Returnable challans","Send material out and receive it back"],["Actions","stock.issue","Issue and return material","Issue slips, returns to store, opening stock, bin locations"],["Actions","sales.edit","Manage enquiries, quotations and customers","Add and update the sales pipeline and follow-ups"],["Actions","sales.all","See all salespeople's enquiries","Otherwise only their own"]];
 const ROLE_RIGHTS={Requester:["page.req","req.create"],HOD:["page.req","req.create","req.approve"],Purchaser:["page.req","page.est","page.po","page.saved","page.rates","po.create"],
- Approver:["page.po","page.saved","page.appr","page.rep","page.stock","po.approve","po.delete"],Store:["page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.acct","acct.book"],Admin:RIGHTS.map(r=>r[1])};
+ Approver:["page.po","page.saved","page.appr","page.rep","page.stock","page.sales","sales.all","po.approve","po.delete"],Store:["page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.acct","acct.book"],Sales:["page.sales","sales.edit"],Admin:RIGHTS.map(r=>r[1])};
 const rightsOf=u=>u?(u.rights||ROLE_RIGHTS[u.role]||[]):[];
 const has=r=>rightsOf(me).includes(r);
 const TABS={req:["Requester","HOD","Purchaser","Admin"],est:["Purchaser","Admin"],po:["Purchaser","Approver","Admin"],saved:["Purchaser","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchaser","Admin"],mast:["Admin"]};
@@ -565,7 +598,7 @@ const can=v=>v==="home"||has("page."+v);
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users")renderMasters();if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users")renderMasters();if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();window.scrollTo(0,0)}
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>show(b.dataset.view));
 
 /* ---------- estimate ---------- */
@@ -1284,6 +1317,8 @@ function backupBook(){
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
   add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":(x.alloc||[]).map(a=>a.grn).join(", ")})));
   add("Items",items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})));
+  add("Customers",customers.map(c=>({Customer:c.name,"Contact person":c.contact||"",Mobile:c.phone||"",Email:c.email||"",City:c.city||"",GSTIN:c.gstin||"",Address:c.addr||""})));
+  add("Enquiries",deals.map(d=>({"QT No":"QT-"+d.no,Date:d.date,Customer:d.cust,"Enquiry for":d.title,Stage:d.stage,Salesperson:d.owner||"",Value:Math.round(dealVal(d)),"Customer PO":d.custPO||"","Job No":d.job||"","Lost reason":d.lostWhy||""})));
   add("Stock",stockItems().map(i=>({Item:i.desc,Unit:i.unit,Location:i.loc,Received:i.recv,Issued:i.iss,Returned:i.ret,"In stock":i.bal,"Avg rate":Math.round(i.avg*100)/100,Value:Math.round(i.value*100)/100})));
   add("Issue slips",slips.flatMap(s=>s.lines.map(l=>({Slip:SLIP[s.type].pre+s.no,Type:s.type,Date:dmy(s.date),"Job No":s.job,Person:s.to,Item:l.desc,Qty:l.qty,Unit:l.unit,Rate:l.rate}))));
   add("Challans",rgps.map(c=>({No:"RC-"+c.no,Date:dmy(c.date),Party:c.party,Purpose:c.purpose,"Return by":dmy(c.expected),Status:c.status,Pending:rgpPend(c)})));
@@ -1419,6 +1454,8 @@ function workItems(){
   if(has("rgp.manage")){add(rgps.filter(c=>c.status!=="Closed").length,"Returnable challans open","Material out, not yet back","grn");
     add(rgps.filter(c=>c.status!=="Closed"&&c.expected&&c.expected<today()).length,"Challans overdue for return","Follow up with the party","grn",true)}
   if(has("grn.create")||has("page.grn"))add(saved.filter(p=>p.status==="Approved"&&!p.closed&&pendingLines(p).length).length,"POs waiting for material","Create GRN when material arrives","grn",true);
+  if(has("page.sales")){const t=today(),F=fups.filter(f=>!f.done&&myFup(f)&&f.date<=t);add(F.length,"Sales follow-ups due",F.some(f=>f.date<t)?"Some are overdue":"Calls and visits for today","sales",true);
+    add(deals.filter(d=>myDeal(d)&&!["Won","Lost"].includes(d.stage)).length,"Open enquiries","Quote and follow up","sales")}
   if(has("stock.issue")){const I=stockItems();W.push({n:I.filter(i=>i.bal>0.0001).length,t:"Items in stock",d:"Issue material against a Job No.",v:"stock"});W.push({n:"₹"+fmt0(Math.round(I.reduce((a,i)=>a+i.value,0))),t:"Stock value",d:"At average purchase rate",v:"stock"})}
   if(has("acct.book")||has("page.acct")){const vs=vendSummary();
     add(grns.filter(g=>g.status==="With accounts").length,"GRNs to book","Enter voucher number","acct",true);
@@ -1461,7 +1498,7 @@ function renderMasters(){
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   $("#md-hod").innerHTML=opts(hods,"","HOD (optional)");
-  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Requester","HOD","Purchaser","Approver","Store","Accounts","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="HOD")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="4" class="empty">No users yet.</td></tr>`;
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Requester","HOD","Purchaser","Approver","Store","Accounts","Sales","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="HOD")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="4" class="empty">No users yet.</td></tr>`;
   $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button></td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
   refreshWho();if(!$("#view-users").hidden)renderRights();
@@ -1576,10 +1613,10 @@ $("#it-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(
       for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r]);const sc=Object.keys(m).length+(m.name!=null?5:0);if(m.name!=null&&(!best||sc>best.sc))best={sc,sn,rows,hr:r,map:m}}});
     if(!best){toast("Could not find an item name column. Make sure the sheet has a heading like Item Name or Description.");return}
     itPreview(f.name,best)}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
-function itGuess(hrow){const H=(hrow||[]).map(itNorm),m={},used=new Set();
+function itGuess(hrow,F=IT_FIELDS){const H=(hrow||[]).map(itNorm),m={},used=new Set();
   const take=(f,j)=>{m[f]=j;used.add(j)};
-  IT_FIELDS.forEach(([f,,syn])=>{for(const s of syn){const j=H.findIndex((h,j)=>h===s&&!used.has(j));if(j>=0){take(f,j);break}}});
-  IT_FIELDS.forEach(([f,,syn])=>{if(m[f]!=null)return;for(const s of syn.filter(s=>s.length>=4)){const j=H.findIndex((h,j)=>h&&!used.has(j)&&h.startsWith(s));if(j>=0){take(f,j);break}}});
+  F.forEach(([f,,syn])=>{for(const s of syn){const j=H.findIndex((h,j)=>h===s&&!used.has(j));if(j>=0){take(f,j);break}}});
+  F.forEach(([f,,syn])=>{if(m[f]!=null)return;for(const s of syn.filter(s=>s.length>=4)){const j=H.findIndex((h,j)=>h&&!used.has(j)&&h.startsWith(s));if(j>=0){take(f,j);break}}});
   return m}
 function itParse(B){const out=[];let skipped=0;
   B.rows.slice(B.hr+1).forEach(r=>{const g=f=>B.map[f]==null?"":r[B.map[f]];const name=String(g("name")).trim();
@@ -1613,6 +1650,178 @@ function itPreview(fname,B){const d=document.createElement("div");d.className="m
       d.remove();itShow=100;renderItems();
       toast(`Imported: ${nw} new${up?`, ${up} updated`:""}${opl.length?`, opening stock for ${opl.length} items`:""}`)}};
   draw()}
+
+/* ---------- sales & CRM ---------- */
+const STAGES=["Enquiry","Quotation sent","Negotiation","Won","Lost"];
+const LOST_WHY=["Price too high","Delivery time","Lost to competitor","Project cancelled / on hold","No response","Other"];
+const SOURCES=["Phone","Email","Visit","Reference","Existing customer","Exhibition","Website","Other"];
+const QT_TERMS="Prices: Ex-works Pune\nGST: Extra as applicable\nPayment: 40% advance with PO, 50% on T1 sample approval, 10% before dispatch\nDelivery: 10 to 12 weeks from PO and final drawing approval\nValidity: 30 days from the date of this quotation";
+let customers=store.get("customers",[]);const saveCusts=()=>store.set("customers",customers);
+let deals=store.get("deals",[]);const saveDeals=()=>store.set("deals",deals);
+let fups=store.get("fups",[]);const saveFups=()=>store.set("fups",fups);
+const nextDealNo=()=>Math.max(1000,...deals.map(d=>+d.no||0))+1;
+const dealVal=d=>{const L=(d.lines||[]).filter(l=>+l.qty&&+l.rate);return L.length?L.reduce((a,l)=>a+(+l.qty)*(+l.rate),0):(+d.value||0)};
+const fmtL=v=>v>=100000?"₹ "+(v/100000).toFixed(v>=1e7?0:1)+" L":"₹ "+fmt0(Math.round(v));
+const seeAllSales=()=>has("sales.all");
+const salesOwners=()=>M.users.filter(u=>rightsOf(u).includes("page.sales")).map(u=>u.name);
+const myDeal=d=>seeAllSales()||d.owner===me.name||d.by===me.name;
+const myFup=f=>seeAllSales()||f.by===me.name;
+const custByName=n=>customers.find(c=>key(c.name)===key(n));
+let dealCur=null;
+function salesTiles(){const D=deals.filter(myDeal),t=today(),mo=t.slice(0,7),d90=addDays(t,-90);
+  const open=D.filter(d=>!["Won","Lost"].includes(d.stage));const due=fups.filter(f=>!f.done&&myFup(f)&&f.date<=t);
+  const won=D.filter(d=>d.stage==="Won"&&(d.closedAt||"").slice(0,7)===mo);
+  const cl=D.filter(d=>["Won","Lost"].includes(d.stage)&&(d.closedAt||"")>=d90);const wv=cl.filter(d=>d.stage==="Won").reduce((a,d)=>a+dealVal(d),0),av=cl.reduce((a,d)=>a+dealVal(d),0);
+  return [{n:open.length,t:"Open enquiries",d:"Not yet won or lost"},{n:fmtL(open.reduce((a,d)=>a+dealVal(d),0)),t:"Pipeline value",d:"Open enquiries and quotes"},
+    {n:due.length,t:"Follow-ups due",d:due.some(f=>f.date<t)?`${due.filter(f=>f.date<t).length} overdue`:"Today",warn:due.length>0,zero:!due.length},
+    {n:fmtL(won.reduce((a,d)=>a+dealVal(d),0)),t:"Orders won this month",d:`${won.length} order${won.length===1?"":"s"}`},
+    {n:av?Math.round(wv*100/av)+"%":"-",t:"Win rate",d:"Last 90 days, by value",zero:!av}]}
+function renderSales(){
+  if(!$("#view-sales")||$("#view-sales").hidden)return;
+  $("#salesTiles").innerHTML=salesTiles().map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("");
+  const os=$("#sb-owner"),ov=os.value;os.hidden=!seeAllSales();
+  os.innerHTML=`<option value="">All salespeople</option>`+[...new Set([...salesOwners(),...deals.map(d=>d.owner).filter(Boolean)])].map(n=>`<option${n===ov?" selected":""}>${esc(n)}</option>`).join("");
+  const q=key($("#sb-q").value),own=os.value,d90=addDays(today(),-90),t=today();
+  const D=deals.filter(myDeal).filter(d=>(!own||d.owner===own)&&(!q||key(d.cust+" "+d.title+" QT "+d.no).includes(q)));
+  const nextF=no=>fups.filter(f=>!f.done&&String(f.deal)===String(no)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
+  $("#sb-board").innerHTML=STAGES.map(s=>{let L=D.filter(d=>d.stage===s);if(s==="Won"||s==="Lost")L=L.filter(d=>(d.closedAt||d.date)>=d90).sort((a,b)=>(b.closedAt||"").localeCompare(a.closedAt||""));
+    const v=L.reduce((a,d)=>a+dealVal(d),0);
+    return`<div class="sb-col"><h3><span>${s} · ${L.length}</span><span>${v?fmtL(v):""}</span></h3>${L.map(d=>{const f=nextF(d.no);
+      const chip=s==="Won"?(d.job?`<span class="chip calc">Job ${esc(d.job)}</span>`:`<span class="chip sugg">Job No. needed</span>`):s==="Lost"?`<span class="chip st-Back">${esc(d.lostWhy||"Lost")}</span>`:f?`<span class="chip ${f.date<t?"st-Back":f.date===t?"sugg":"calc"}">${f.date<t?"Overdue":f.date===t?"Follow up today":"Next "+dmy(f.date).slice(0,5)}</span>`:"";
+      return`<button type="button" class="sb-card" data-deal="${esc(d.no)}"><b>${esc(d.cust)}</b><span class="m">QT-${esc(d.no)} · ${esc(d.title)}</span><span class="v">${dealVal(d)?fmtL(dealVal(d)):"Value not set"}</span>${chip?`<span>${chip}</span>`:""}${seeAllSales()&&d.owner?`<span class="m">${esc(d.owner)}</span>`:""}</button>`}).join("")||`<div class="sb-empty">None</div>`}</div>`}).join("");
+  renderFups();renderSalesCharts();renderCusts();renderDealForm();
+  $("#custnames").innerHTML=customers.map(c=>`<option value="${esc(c.name)}">`).join("");
+}
+$("#sb-owner").onchange=()=>renderSales();$("#sb-q").oninput=()=>renderSales();
+$("#sb-board").addEventListener("click",e=>{const b=e.target.closest("[data-deal]");if(!b)return;openDeal(b.dataset.deal)});
+function openDeal(no){const d=deals.find(x=>String(x.no)===String(no));if(!d)return;dealCur=JSON.parse(JSON.stringify(d));dealCur._new=false;renderDealForm();$("#dealForm").scrollIntoView({block:"start"})}
+$("#btn-deal-new").onclick=()=>{if(!has("sales.edit")){toast("You can view sales but not add enquiries");return}
+  dealCur={_new:true,no:nextDealNo(),date:today(),cust:"",title:"",stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:QT_TERMS,log:[]};renderDealForm();$("#dealForm").scrollIntoView({block:"start"});$("#dl-cust").focus()};
+function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.innerHTML="";return}F.hidden=false;const d=dealCur,ro=!has("sales.edit");
+  const owners=[...new Set([...salesOwners(),d.owner].filter(Boolean))];const tot=(d.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0);
+  const my=fups.filter(f=>String(f.deal)===String(d.no)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  F.innerHTML=`<div class="row"><h2 class="sec">${d._new?"New enquiry":"Enquiry"} · QT-${esc(d.no)}${+d.rev?" R"+d.rev:""}</h2>${d._new?"":`<span class="chip ${d.stage==="Won"?"st-PO":d.stage==="Lost"?"st-Back":"sugg"}">${esc(d.stage)}</span>`}<span style="flex:1"></span>
+    ${d._new?"":`<button class="btn" id="dl-pdf" type="button">Quotation PDF</button>`}${!d._new&&!ro&&(isRole("Admin")||d.owner===me.name)?`<button class="btn" id="dl-del" type="button">Delete</button>`:""}<button class="btn" id="dl-close" type="button">Close</button>${ro?"":`<button class="btn primary" id="dl-save" type="button">Save</button>`}</div>
+  <div class="grid-fields">
+    <label class="f">Customer<input id="dl-cust" list="custnames" value="${esc(d.cust)}" placeholder="Type or pick a customer"></label>
+    <label class="f">Enquiry for<input id="dl-title" value="${esc(d.title)}" placeholder="e.g. Door trim mould, 2 cavity"></label>
+    <label class="f">Enquiry date<input id="dl-date" type="date" value="${esc(d.date)}"></label>
+    <label class="f">Stage<select id="dl-stage">${STAGES.map(s=>`<option${s===d.stage?" selected":""}>${s}</option>`).join("")}</select></label>
+    <label class="f">Salesperson<select id="dl-owner">${owners.map(o=>`<option${o===d.owner?" selected":""}>${esc(o)}</option>`).join("")}</select></label>
+    <label class="f">Expected order date<input id="dl-expClose" type="date" value="${esc(d.expClose)}"></label>
+    <label class="f">Source<select id="dl-src"><option value="">Choose</option>${SOURCES.map(s=>`<option${s===d.src?" selected":""}>${s}</option>`).join("")}</select></label>
+    <label class="f">Customer RFQ / ref.<input id="dl-ref" value="${esc(d.ref)}"></label>
+    <label class="f">Estimated value ₹<input id="dl-value" type="number" step="any" value="${esc(d.value)}" ${tot?`disabled placeholder="From quotation lines"`:`placeholder="If no quotation lines yet"`}></label>
+  </div>
+  ${d.stage==="Won"?`<div class="grid-fields"><label class="f">Customer PO No.<input id="dl-custPO" value="${esc(d.custPO)}"></label><label class="f">Customer PO date<input id="dl-custPODate" type="date" value="${esc(d.custPODate)}"></label><label class="f">Job No.<input id="dl-job" list="projects" value="${esc(d.job)}" placeholder="e.g. ZT2350"></label></div>
+    <div class="note">${isRole("Admin")?"Saving with a new Job No. adds it to Projects, so purchase and store can use it.":"Give the Job No. The admin adds it in Masters, Projects, so purchase and store can use it."}</div>`:""}
+  ${d.stage==="Lost"?`<div class="grid-fields"><label class="f">Why was it lost<select id="dl-lostWhy"><option value="">Choose</option>${LOST_WHY.map(s=>`<option${s===d.lostWhy?" selected":""}>${s}</option>`).join("")}</select></label><label class="f">Details<input id="dl-lostNote" value="${esc(d.lostNote)}" placeholder="e.g. Local tool room quoted 15% less"></label></div>`:""}
+  <h3 class="rg">Quotation lines</h3>
+  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th class="num">Qty</th><th>Unit</th><th class="num">Rate ₹</th><th class="num">Amount ₹</th><th></th></tr></thead><tbody id="dl-lines">${(d.lines||[]).map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input id="dq${i}-desc" data-q="desc" value="${esc(l.desc)}" list="itemnames" style="min-width:240px"></td><td><input id="dq${i}-hsn" data-q="hsn" value="${esc(l.hsn)}" style="width:90px"></td><td class="num"><input id="dq${i}-qty" class="qty" data-q="qty" type="number" step="any" value="${l.qty??""}"></td><td><input id="dq${i}-unit" data-q="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="dq${i}-rate" class="rate" data-q="rate" type="number" step="any" value="${l.rate??""}"></td><td class="num" data-amt>${fmt((+l.qty||0)*(+l.rate||0))}</td><td>${ro?"":`<button class="x" type="button" data-qldel="${i}" aria-label="Remove line ${i+1}">×</button>`}</td></tr>`).join("")||`<tr><td colspan="8" class="empty">No lines yet. Add the mould or parts you are quoting for.</td></tr>`}</tbody></table></div>
+  <div class="row">${ro?"":`<button class="btn" id="dl-addline" type="button">+ Add line</button>`}<label class="f" style="flex-direction:row;align-items:center;gap:6px">GST %<select id="dl-gst" style="width:auto">${[18,12,5,28,0].map(g=>`<option${+d.gst===g?" selected":""}>${g}</option>`).join("")}</select></label><label class="f" style="flex-direction:row;align-items:center;gap:6px">Revision<input id="dl-rev" type="number" min="0" value="${+d.rev||0}" style="width:64px"></label><span style="flex:1"></span><span class="total"><span>Total before GST</span><b id="dl-tot">${fmt(tot)}</b></span></div>
+  <label class="f">Terms printed on the quotation<textarea id="dl-terms" rows="5">${esc(d.terms)}</textarea></label>
+  <div class="masters">
+    <div class="stack" style="gap:8px"><h3 class="rg">Follow-ups</h3>${d._new?`<div class="note">Save the enquiry first, then add follow-ups.</div>`:`<div class="row"><input id="dlf-date" type="date" value="${addDays(today(),2)}" style="max-width:150px"><input id="dlf-time" type="time" style="max-width:110px"><input id="dlf-what" placeholder="Call, visit, send revised quote…" style="flex:1"><button class="btn" id="dlf-add" type="button">Add</button></div>
+      ${my.map(f=>`<div class="dlog">${f.done?"✓ ":""}<b>${dmy(f.date)}${f.time?" "+esc(f.time):""}</b> ${esc(f.what)} <small>· ${esc(f.by)}${f.done?" · done":""}</small></div>`).join("")||`<div class="note">No follow-ups yet.</div>`}`}</div>
+    <div class="stack" style="gap:8px"><h3 class="rg">Notes and history</h3><div class="row"><input id="dl-note" placeholder="What did the customer say?" style="flex:1"><button class="btn" id="dl-addnote" type="button">Add note</button></div>
+      ${(d.log||[]).slice().reverse().map(n=>`<div class="dlog">${esc(n.text)} <small>· ${esc(n.by)} · ${dmy(n.at.slice(0,10))}</small></div>`).join("")||`<div class="note">No notes yet.</div>`}</div>
+  </div>`;
+  if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>{if(!el.id.startsWith("dl-note"))el.disabled=true});
+}
+const DL_FIELDS=["cust","title","date","stage","owner","expClose","src","ref","value","custPO","custPODate","job","lostWhy","lostNote","gst","rev","terms"];
+$("#dealForm").addEventListener("input",e=>{if(!dealCur)return;const t=e.target;
+  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-stage")renderDealForm();return}
+  const q=t.dataset.q;if(!q)return;const tr=t.closest("tr"),l=dealCur.lines[+tr.dataset.i];l[q]=["qty","rate"].includes(q)?(t.value===""?"":+t.value):t.value;
+  tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0));$("#dl-tot").textContent=fmt(dealCur.lines.reduce((a,x)=>a+(+x.qty||0)*(+x.rate||0),0))});
+$("#dealForm").addEventListener("change",e=>{if(!dealCur)return;const t=e.target;
+  if(t.id==="dl-cust"){const c=custByName(t.value);if(c&&c.name!==t.value){dealCur.cust=c.name;t.value=c.name}}
+  if(t.dataset.q==="desc"){const tr=t.closest("tr"),l=dealCur.lines[+tr.dataset.i],it=typeof itemByName==="function"&&itemByName(l.desc);if(it){l.desc=it.name;if(it.hsn&&!l.hsn)l.hsn=it.hsn;if(it.unit)l.unit=it.unit;renderDealForm()}}
+  if(t.dataset.q==="rate"||t.dataset.q==="qty"){const v=$("#dl-value");if(v){const tot=dealCur.lines.reduce((a,x)=>a+(+x.qty||0)*(+x.rate||0),0);v.disabled=!!tot}}});
+$("#dealForm").addEventListener("click",e=>{if(!dealCur)return;const id=e.target.id,d=dealCur;
+  if(id==="dl-close"){dealCur=null;renderDealForm();return}
+  if(id==="dl-addline"){d.lines.push({desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""});renderDealForm();const n=d.lines.length-1;$(`#dq${n}-desc`).focus();return}
+  if(e.target.dataset.qldel!=null){d.lines.splice(+e.target.dataset.qldel,1);renderDealForm();return}
+  if(id==="dl-addnote"){const v=$("#dl-note").value.trim();if(!v)return;d.log=d.log||[];d.log.push({at:new Date().toISOString(),by:me.name,text:v});
+    if(!d._new){const o=deals.find(x=>String(x.no)===String(d.no));if(o){o.log=(o.log||[]).concat([d.log[d.log.length-1]]);saveDeals()}}renderDealForm();toast("Note added");return}
+  if(id==="dlf-add"){const w=$("#dlf-what").value.trim();if(!w){toast("Write what the follow-up is");return}
+    fups.push({id:itId(),date:$("#dlf-date").value||today(),time:$("#dlf-time").value,deal:d.no,cust:d.cust,what:w,by:d.owner||me.name,done:false});saveFups();renderSales();toast("Follow-up added");return}
+  if(id==="dl-pdf"){const o=deals.find(x=>String(x.no)===String(d.no));savePDF(docQuote({...o,...d}),`Quotation-QT-${d.no}${+d.rev?"-R"+d.rev:""}.pdf`);return}
+  if(id==="dl-del"){if(!confirm(`Delete enquiry QT-${d.no} for ${d.cust}? This cannot be undone.`))return;deals=deals.filter(x=>String(x.no)!==String(d.no));fups=fups.filter(f=>String(f.deal)!==String(d.no));saveDeals();saveFups();dealCur=null;renderSales();toast(`QT-${d.no} deleted`);return}
+  if(id==="dl-save")saveDeal()});
+function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=String(d.title||"").trim();
+  if(!d.cust){toast("Fill in the customer");$("#dl-cust").focus();return}if(!d.title){toast("Fill in what the enquiry is for");$("#dl-title").focus();return}
+  if(d.stage==="Lost"&&!d.lostWhy){toast("Choose why it was lost");return}
+  d.lines=(d.lines||[]).filter(l=>String(l.desc||"").trim()||+l.rate);d.gst=+d.gst;d.rev=+d.rev||0;d.value=d.value===""?"":+d.value;d.job=String(d.job||"").trim().toUpperCase();
+  if(!custByName(d.cust)){customers.push({id:itId(),name:d.cust,contact:"",phone:"",email:"",city:"",gstin:"",addr:""});saveCusts();toast(`${d.cust} added to customers`)}
+  const old=deals.find(x=>String(x.no)===String(d.no));const prev=old?old.stage:null;
+  if(prev!==d.stage){d.log=d.log||[];d.log.push({at:new Date().toISOString(),by:me.name,text:prev?`Stage changed from ${prev} to ${d.stage}`:`Enquiry created (${d.stage})`})}
+  if(["Won","Lost"].includes(d.stage)){if(!["Won","Lost"].includes(prev)||!d.closedAt)d.closedAt=today()}else delete d.closedAt;
+  if(d.stage==="Won"&&d.job&&!M.projects.some(p=>key(p.no)===key(d.job))){if(isRole("Admin")){M.projects.push({no:d.job,desc:d.title,cust:d.cust,status:"Active"});saveM();toast(`Job ${d.job} added to Projects`)}else toast(`Ask the admin to add Job ${d.job} in Masters, Projects`)}
+  const {_new,...rec}=d;rec.updatedAt=new Date().toISOString();
+  if(old)Object.assign(old,rec);else{rec.createdAt=rec.updatedAt;deals.unshift(rec)}
+  saveDeals();dealCur=JSON.parse(JSON.stringify(rec));dealCur._new=false;renderSales();toast(`QT-${rec.no} saved`)}
+function renderFups(){const t=today();const L=fups.filter(f=>!f.done&&myFup(f)).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
+  $("#fu-date").value=$("#fu-date").value||t;
+  $("#fupList").innerHTML=L.slice(0,40).map(f=>{const d=f.deal?deals.find(x=>String(x.no)===String(f.deal)):null;
+    return`<div class="fu${f.date<t?" late":""}"><div class="when"><b>${f.date<t?"Overdue":f.date===t?"Today":f.date===addDays(t,1)?"Tomorrow":dmy(f.date).slice(0,5)}</b>${f.time?"<br>"+esc(f.time):f.date<t?"<br>"+dmy(f.date).slice(0,5):""}</div><div><b>${esc(f.what)}</b><br><span class="note">${esc(f.cust||"")}${d?` · <a href="#" data-fdeal="${esc(d.no)}">QT-${esc(d.no)}</a>`:""}${seeAllSales()?" · "+esc(f.by):""}</span></div><button class="btn" type="button" data-fdone="${esc(f.id)}">Done</button></div>`}).join("")||`<div class="empty">No follow-ups pending.</div>`}
+$("#fupList").addEventListener("click",e=>{const id=e.target.dataset.fdone,dl=e.target.dataset.fdeal;
+  if(dl!=null){e.preventDefault();openDeal(dl);return}if(id==null)return;const f=fups.find(x=>x.id===id);if(!f)return;f.done=true;f.doneAt=new Date().toISOString();f.doneBy=me.name;
+  const d=f.deal&&deals.find(x=>String(x.no)===String(f.deal));if(d){d.log=d.log||[];d.log.push({at:f.doneAt,by:me.name,text:"Follow-up done: "+f.what});saveDeals()}
+  saveFups();renderSales();toast("Marked done")});
+$("#fu-form").onsubmit=e=>{e.preventDefault();const w=$("#fu-what").value.trim(),c=$("#fu-cust").value.trim();if(!w){toast("Write what the follow-up is");return}
+  const open=c?deals.find(d=>key(d.cust)===key(c)&&!["Won","Lost"].includes(d.stage)):null;
+  fups.push({id:itId(),date:$("#fu-date").value||today(),time:$("#fu-time").value,deal:open?open.no:"",cust:(custByName(c)||{}).name||c,what:w,by:me.name,done:false});saveFups();
+  $("#fu-what").value="";$("#fu-time").value="";$("#fu-cust").value="";renderSales();toast("Follow-up added")};
+function renderSalesCharts(){const d90=addDays(today(),-90),m={};
+  deals.filter(myDeal).filter(d=>d.stage!=="Lost"&&d.date>=d90).forEach(d=>{m[d.cust]=(m[d.cust]||0)+dealVal(d)});
+  const L=Object.entries(m).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8),mx=L.length?L[0][1]:1;
+  $("#sb-bars").innerHTML=L.map(([c,v])=>`<div class="sb-bar"><span title="${esc(c)}">${esc(c)}</span><i style="width:${Math.max(2,v*100/mx)}%"></i><b style="font-family:var(--mono)">${fmtL(v)}</b></div>`).join("")||`<div class="empty">No quotes in the last 90 days.</div>`;
+  const PC={};projCost().forEach(r=>PC[key(r.job)]=r);
+  const W=deals.filter(myDeal).filter(d=>d.stage==="Won"&&d.job).sort((a,b)=>(b.closedAt||"").localeCompare(a.closedAt||"")).slice(0,10);
+  $("#sb-won").innerHTML=W.length?`<table class="mt"><thead><tr><th>Job</th><th class="num">Order</th><th class="num">Material POs</th><th class="num">Store issued</th><th class="num">Margin</th></tr></thead><tbody>${W.map(d=>{const r=PC[key(d.job)]||{po:0,iss:0,ret:0},v=dealVal(d),mat=Math.max(r.po,r.iss-r.ret),mg=v?Math.round((v-mat)*100/v):0;
+    return`<tr><td><b>${esc(d.job)}</b> <span class="note">${esc(d.cust)}</span></td><td class="num">${fmtL(v)}</td><td class="num">${fmtL(r.po)}</td><td class="num">${fmtL(r.iss-r.ret)}</td><td class="num"><span class="chip ${mg>=40?"calc":mg>=20?"sugg":"st-Back"}">${v?mg+"%":"-"}</span></td></tr>`}).join("")}</tbody></table>`:`<div class="empty">No won orders with a Job No. yet.</div>`}
+function renderCusts(){const q=key($("#cu-q").value),y=today().slice(0,4);const L=customers.map((c,i)=>[c,i]).filter(([c])=>!q||key(c.name+" "+c.city+" "+c.contact).includes(q));
+  const last=n=>{let a="";deals.filter(d=>key(d.cust)===key(n)).forEach(d=>(d.log||[]).forEach(l=>{if(l.at>a)a=l.at}));fups.filter(f=>f.done&&key(f.cust)===key(n)).forEach(f=>{if(f.doneAt>a)a=f.doneAt});return a};
+  $("#cu-body").innerHTML=L.slice(0,200).map(([c,i])=>{const D=deals.filter(d=>key(d.cust)===key(c.name)),lc=last(c.name);
+    return`<tr data-ci="${i}"><td><input id="cu${i}-n" data-cf="name" value="${esc(c.name)}" style="font-weight:600;min-width:180px"></td><td><input id="cu${i}-c" data-cf="contact" value="${esc(c.contact)}" style="min-width:130px"></td><td><input id="cu${i}-p" data-cf="phone" value="${esc(c.phone)}" style="width:120px"></td><td><input id="cu${i}-e" data-cf="email" value="${esc(c.email)}" style="min-width:170px"></td><td><input id="cu${i}-t" data-cf="city" value="${esc(c.city)}" style="width:110px"></td><td><input id="cu${i}-g" data-cf="gstin" value="${esc(c.gstin)}" style="font-family:var(--mono);width:150px"></td><td><input id="cu${i}-a" data-cf="addr" value="${esc((c.addr||"").replace(/\n/g,", "))}" style="min-width:200px"></td>
+      <td class="num">${D.filter(d=>!["Won","Lost"].includes(d.stage)).length}</td><td class="num" style="white-space:nowrap">${fmtL(D.filter(d=>d.stage==="Won"&&(d.closedAt||"").startsWith(y)).reduce((a,d)=>a+dealVal(d),0))}</td><td>${lc?dmy(lc.slice(0,10)):"-"}</td><td>${has("sales.edit")?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="11" class="empty">${customers.length?"No customer matches.":"No customers yet. Add them above or import your customer list from Excel."}</td></tr>`;
+  if(!has("sales.edit"))$("#cu-body").querySelectorAll("input").forEach(x=>x.disabled=true)}
+$("#cu-q").oninput=()=>renderCusts();
+$("#cu-body").addEventListener("change",e=>{const f=e.target.dataset.cf,tr=e.target.closest("tr");if(!f||!tr)return;const c=customers[+tr.dataset.ci],v=e.target.value.trim(),old=c.name;
+  if(f==="name"){if(!v){e.target.value=old;return}if(customers.some(o=>o!==c&&key(o.name)===key(v))){toast(`${v} is already in the list`);e.target.value=old;return}
+    deals.forEach(d=>{if(d.cust===old)d.cust=v});fups.forEach(x=>{if(x.cust===old)x.cust=v});saveDeals();saveFups()}
+  c[f]=f==="addr"?v.replace(/,\s*/g,",\n"):f==="gstin"?v.toUpperCase():v;saveCusts();if(f==="name")renderSales()});
+$("#cu-body").addEventListener("click",e=>{const i=e.target.dataset.cdel;if(i==null)return;const c=customers[+i];if(deals.some(d=>key(d.cust)===key(c.name))&&!confirm(`${c.name} has enquiries. Remove the customer anyway? The enquiries stay.`))return;customers.splice(+i,1);saveCusts();renderSales()});
+$("#cu-form").onsubmit=e=>{e.preventDefault();if(!has("sales.edit")){toast("You can view sales but not add customers");return}const n=$("#cu-name").value.trim();if(!n){toast("Fill in the customer name");return}
+  if(custByName(n)){toast(`${n} is already in the list`);return}customers.push({id:itId(),name:n,contact:$("#cu-contact").value.trim(),phone:$("#cu-phone").value.trim(),email:"",city:$("#cu-city").value.trim(),gstin:"",addr:""});saveCusts();
+  ["#cu-name","#cu-contact","#cu-phone","#cu-city"].forEach(s=>$(s).value="");renderSales();toast(`Added ${n}`)};
+const CU_FIELDS=[["name","Customer",["customername","partyname","customer","party","name","companyname","company","ledgername","nameofledger","accountname","account","clientname","client"]],
+  ["contact","Contact person",["contactperson","contactname","kindattn","attention","person","contact"]],["phone","Mobile",["mobile","mobileno","mobilenumber","phone","phoneno","phonenumber","contactno","telephone","cell","whatsapp"]],
+  ["email","Email",["email","emailid","emailaddress","mail"]],["city","City",["city","town","location","place","district"]],["gstin","GSTIN",["gstin","gstno","gstnumber","gstinuin","gstinno","gst"]],["addr","Address",["address","billingaddress","address1","addressline1","fulladdress","addr"]]];
+$("#btn-cu-import").onclick=()=>{if(!has("sales.edit")){toast("You can view sales but not import customers");return}$("#cu-file").click()};
+$("#cu-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:false});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],CU_FIELDS);const sc=Object.keys(m).length;if(m.name!=null&&sc>=2&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m}}});
+    if(!best){toast("Could not find a customer name column with a heading like Customer Name or Party Name");return}
+    const L=new Map();best.rows.slice(best.hr+1).forEach(r=>{const g=k=>best.map[k]==null?"":String(r[best.map[k]]??"").trim();const n=g("name");if(!n||/^total/i.test(n))return;const o=L.get(key(n))||{name:n};CU_FIELDS.forEach(([k])=>{const v=g(k);if(v)o[k]=k==="gstin"?v.toUpperCase():v});L.set(key(n),o)});
+    const all=[...L.values()],nw=all.filter(x=>!custByName(x.name)).length;
+    if(!all.length){toast("No customer rows found under the headings");return}
+    if(!confirm(`Found ${all.length} customers in ${f.name}: ${nw} new, ${all.length-nw} already in the list (their blank details will be filled in).\n\nColumns used: ${CU_FIELDS.filter(([k])=>best.map[k]!=null).map(([k,l])=>l+" = "+best.rows[best.hr][best.map[k]]).join(", ")}\n\nImport them?`))return;
+    all.forEach(x=>{const c=custByName(x.name);if(c){CU_FIELDS.forEach(([k])=>{if(x[k]&&!c[k])c[k]=x[k]})}else customers.push({id:itId(),contact:"",phone:"",email:"",city:"",gstin:"",addr:"",...x})});
+    saveCusts();renderSales();toast(`Imported ${nw} new customers${all.length-nw?`, updated ${all.length-nw}`:""}`)}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
+function docQuote(d){const c=custByName(d.cust)||{name:d.cust};const L=(d.lines||[]).filter(l=>String(l.desc||"").trim()||+l.rate);
+  const sub=L.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0)||(+d.value||0),g=+d.gst||0,gst=sub*g/100,tot=sub+gst;const intra=!c.gstin||c.gstin.startsWith("27");
+  const tax=g?(intra?`<tr><td>C-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr><tr><td>S-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr>`:`<tr><td>I-GST ${g}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst)}</td></tr>`):"";
+  const terms=String(d.terms||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  return docHead("QUOTATION")+`<div class="two"><div><b>To,</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${c.contact?`<br><b>Kind Attn.:</b> ${esc(c.contact)}${c.phone?" · "+esc(c.phone):""}`:""}</div><div class="kv"><b>Quotation No.</b><span>QT-${esc(d.no)}${+d.rev?" R"+d.rev:""}</span><b>Date</b><span>${dmy(d.qtDate||today())}</span><b>Your Ref.</b><span>${esc(d.ref||"-")}</span><b>Subject</b><span>${esc(d.title)}</span></div></div>
+  <p style="margin:8px 0">Dear Sir / Madam,<br>Thank you for your enquiry. We are pleased to quote as below.</p>
+  <table><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${(L.length?L:[{desc:d.title,hsn:"",qty:1,unit:"SET",rate:d.value}]).map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn||"")}</td><td class="r">${fmt0(+l.qty||0)}</td><td>${esc(l.unit||"")}</td><td class="r">${fmt(+l.rate||0)}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0))}</td></tr>`).join("")}</tbody></table>
+  <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(sub)}</td></tr>${tax}<tr><td><b>Total</b></td><td class="amt"><b>${fmt(tot)}</b></td></tr></tbody></table>
+  <p style="margin:4px 0"><b>Amount In Words :</b> Rupees ${words(tot)} Only.</p>
+  ${terms.length?`<table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms and conditions</th></tr></thead><tbody>${terms.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t)}</td></tr>`).join("")}</tbody></table>`:""}
+  <p class="small" style="margin:8px 0">We hope our offer is in line with your requirement and look forward to your valued order.</p>
+  <div class="row small" style="justify-content:space-between;margin-top:6px"><span>" Subject to Pune jurisdiction only "</span><b>For ZOOM TECHNOLOGIES</b></div>
+  <div class="row small" style="justify-content:flex-end;margin-top:34px"><span>${esc(d.owner||"")}<br>Authorised Signatory</span></div>`}
 
 /* ---------- cloud: header, passwords, logins ---------- */
 function pwDialog(title,fields){return new Promise(res=>{const d=document.createElement("div");d.className="modal";
