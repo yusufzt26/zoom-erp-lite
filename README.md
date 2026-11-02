@@ -1,4 +1,4 @@
-# Zoom PO Desk
+# ZT-ERP LITE
 
 Purchase ERP for Zoom Technologies: purchase request → HOD approval → pre-estimate → PO → approval with signature → GRN (partial inward) → stock and issue → accounts booking → vendor payment. Includes returnable challans, reports, PDFs, Excel-style tables and a daily 6 PM Excel backup on desktop PCs.
 
