@@ -870,7 +870,7 @@ function renderPO(){
   <table><thead><tr><th>Sn</th><th>Item / service (from master)</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
   <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
     <td><input id="pl${i}-item" data-lk="item" list="masteritems" value="${esc(l.item||"")}" placeholder="Pick from item master" class="${poBad(l)?"badcell":""}" title="${poBad(l)?BADITEM:""}" style="width:100%;min-width:170px"></td>
-    <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description" style="width:100%;min-width:170px"></td>
+    <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description / finished size" style="width:100%;min-width:170px">${poRawOn(l)?`<div class="row" style="gap:4px;flex-wrap:nowrap;margin-top:3px"><b style="font-size:11px;white-space:nowrap">Raw size</b><input id="pl${i}-raw" data-lk="raw" value="${esc(l.raw||"")}" placeholder="e.g. 560 x 410 x 85" style="width:100%"></div>`:`<button class="noprint" type="button" data-praw="${i}" style="font-size:11px;border:none;background:none;color:var(--accent,#0b6e8a);cursor:pointer;padding:2px 0">+ raw size</button>`}</td>
     <td><input id="pl${i}-hsn" data-lk="hsn" value="${esc(l.hsn)}" style="width:72px"></td>
     <td class="r"><input id="pl${i}-tax" data-lk="tax" type="number" value="${l.tax}" style="width:44px"></td>
     <td class="r"><input id="pl${i}-qty" data-lk="qty" type="number" step="any" value="${l.qty}" style="width:56px"></td>
@@ -918,17 +918,18 @@ function renderTotals(){
 }
 $("#paper").addEventListener("change",e=>{if(e.target.dataset.lk!=="item")return;const l=po.lines[+e.target.closest("tr").dataset.i],it=itemByName(l.item);
   e.target.classList.toggle("badcell",poBad(l));e.target.title=poBad(l)?BADITEM:"";if(!it){store.set("po",po);return}
-  l.item=it.name;poSetDesc(l);e.target.value=it.name;e.target.classList.remove("badcell");e.target.title="";if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
+  const wasRaw=!!e.target.closest("tr").querySelector("[data-lk=raw]");l.item=it.name;poSetDesc(l);e.target.value=it.name;e.target.classList.remove("badcell");e.target.title="";
+  if(!wasRaw&&poRawOn(l)){const i=+e.target.closest("tr").dataset.i;if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;store.set("po",po);renderPO();const r=$("#pl"+i+"-raw");if(r)r.focus();return}if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
 $("#paper").addEventListener("input",e=>{
   const t=e.target;
   if(t.dataset.pk==="plant"){const old=po.deliv;if(!old||old===COMPANY.addr||plants().some(p=>plantAddr(p.id)===old))po.deliv=plantAddr(t.value);po.plant=t.value;store.set("po",po);renderPO();return}
   if(t.dataset.pk){po[t.dataset.pk]=t.value;
     if(t.dataset.pk==="sup"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp&&!po.supAddr){po.supAddr=sp.addr;$("#po-supAddr").value=sp.addr;if(sp.terms){po.terms=sp.terms;$("#po-terms").value=sp.terms}po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra";$("#p-gstmode").value=po.gstmode;renderTotals()}}}
-  else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;if(k==="pdesc"){poDesc(l,t.value)}else{l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;if(k==="item")poSetDesc(l)}
+  else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;if(k==="pdesc"){poDesc(l,t.value)}else{l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;if(k==="item"||k==="raw")poSetDesc(l)}
     tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100));renderTotals()}
   store.set("po",po);
 });
-$("#paper").addEventListener("click",e=>{if(e.target.id==="btn-po-line"){po.lines.push({desc:"",item:"",spec:"",hsn:"84801000",tax:18,qty:1,unit:"NOS",rate:0,dis:0});store.set("po",po);renderPO();return}const d=e.target.dataset.pdel;if(d!=null){po.lines.splice(+d,1);store.set("po",po);renderPO()}});
+$("#paper").addEventListener("click",e=>{if(e.target.dataset.praw!==undefined){const i=+e.target.dataset.praw;po.lines[i].rawOn=true;store.set("po",po);renderPO();const r=$("#pl"+i+"-raw");if(r)r.focus();return}if(e.target.id==="btn-po-line"){po.lines.push({desc:"",item:"",spec:"",hsn:"84801000",tax:18,qty:1,unit:"NOS",rate:0,dis:0});store.set("po",po);renderPO();return}const d=e.target.dataset.pdel;if(d!=null){po.lines.splice(+d,1);store.set("po",po);renderPO()}});
 function applySupplier(name){const sp=suppliers.find(x=>key(x.name)===key(name));po.sup=name;
   if(sp){po.supAddr=sp.addr||"";if(sp.terms)po.terms=sp.terms;if(sp.gstin)po.venCode=sp.gstin;po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra"}store.set("po",po);renderPO()}
 $("#p-sup").onchange=e=>{if(po)applySupplier(e.target.value)};
@@ -1752,8 +1753,11 @@ const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const masterHasItems=()=>items.some(i=>i.active!=="No");
 /* PO lines: item from the item master, description free text; desc = both, used by GRN, stock and the printed PO */
 const BADITEM="Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.";
-const poDesc=(l,v)=>{if(v===undefined)return l.item?String(l.spec||""):String(l.desc||"");l.spec=v;poSetDesc(l)};
-function poSetDesc(l){l.desc=[l.item,l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")}
+const poDesc=(l,v)=>{if(v===undefined)return l.item?String(l.spec||""):String(l.desc||"").replace(/ · Raw size: .*$/,"");l.spec=v;poSetDesc(l)};
+function poSetDesc(l){l.desc=[l.item,l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+(String(l.raw||"").trim()?" · Raw size: "+String(l.raw).trim():"")}
+/* raw material: the BOM gives finished sizes, so the purchaser can add the raw (purchase) size */
+const isRawItem=it=>!!it&&/raw/i.test([it.type,it.cat,it.subcat,it.name].join(" "));
+const poRawOn=l=>!!(l.rawOn||String(l.raw||"").trim()||isRawItem(itemByName(l.item||"")));
 const poBad=l=>{if(!masterHasItems())return false;const it=itemByName(l.item||"");return!(it&&it.active!=="No"&&it.name===l.item)};
 const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
 function rqFlat(l){if(l&&l.item!==undefined){l.desc=rqText(l);delete l.item}return l}
