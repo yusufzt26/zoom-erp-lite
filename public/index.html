@@ -53,6 +53,7 @@ input,select,textarea{font:inherit;font-size:14px;color:var(--ink);background:va
 .stack{display:flex;flex-direction:column;gap:16px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .note{font-size:12.5px;color:var(--muted)}
+.badcell{outline:2px solid var(--danger)!important;background:color-mix(in srgb,var(--danger) 10%,transparent)!important}
 .example{background:var(--sugg-bg);color:var(--sugg);border-radius:6px;padding:8px 12px;font-size:13px}
 .quick{display:flex;gap:8px;flex-wrap:wrap}
 .quick input{flex:1 1 280px;font-family:var(--mono)}
@@ -270,8 +271,8 @@ body.gated header.bar,body.gated main{display:none}
       <div class="attach" id="q-attach"></div>
     </div>
     <div class="tablebox">
-      <table class="est" style="min-width:760px">
-        <thead><tr><th style="width:34px">Sr</th><th>Description of material</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
+      <table class="est" style="min-width:980px">
+        <thead><tr><th style="width:34px">Sr</th><th>Item / service (from master)</th><th>Description of part</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
         <tbody id="reqBody"></tbody>
       </table>
     </div>
@@ -523,7 +524,7 @@ body.gated header.bar,body.gated main{display:none}
 <datalist id="suppliers"></datalist>
 <datalist id="itemcats"></datalist>
 <datalist id="custnames"></datalist>
-<datalist id="itemnames"></datalist>
+<datalist id="itemnames"></datalist><datalist id="masteritems"></datalist>
 <datalist id="projects"></datalist>
 </main>
 <div class="toast" id="toast" hidden></div>
@@ -981,7 +982,7 @@ $("#rateForm").onsubmit=e=>{e.preventDefault();const n=$("#r-item").value.trim()
 /* ---------- purchase requests ---------- */
 function saveReqs(){store.set("reqs",reqs)}
 function nextReqNo(){const n=Math.max(66,...reqs.map(r=>parseInt(r.no,10)||0))+1;return String(n).padStart(3,"0")}
-function blankReq(){return{no:nextReqNo(),date:today(),plant:defPlant(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,lines:[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
+function blankReq(){return{no:nextReqNo(),date:today(),plant:defPlant(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,lines:[{item:"",desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
 const ST={"Draft":"Draft","Submitted":"Submitted","Sent back":"Back","Approved":"Approved","Estimated":"Estimated","PO raised":"Estimated","PO approved":"PO","Pending approval":"Submitted","With accounts":"Submitted","Booked":"Approved","Paid":"PO","Part paid":"Submitted","Closed":"PO","Open":"Submitted","Partly returned":"Estimated","Partly received":"Estimated","Fully received":"PO","Issued":"Submitted","Returned":"Approved","Opening":"Estimated"};
 const stChip=s=>`<span class="chip st-${ST[s]||"Estimated"}">${esc(s)}</span>`;
 const hodOf=d=>((M.depts.find(x=>x.name===d)||{}).hod||"");
@@ -1007,12 +1008,13 @@ function renderReq(){
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="q${i}-desc" data-k="desc" value="${esc(l.desc)}" list="itemnames"></td>
+    <td><input id="q${i}-item" data-k="item" value="${esc(rqItem(l))}" list="masteritems" placeholder="Pick from item master" class="${rqBad(l)?"badcell":""}" title="${rqBad(l)?"Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.":""}"></td>
+    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqDesc(l))}" placeholder="Part description, any text"></td>
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
     <td><input id="q${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
     <td><input id="q${i}-remark" data-k="remark" value="${esc(l.remark)}"></td>
-    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
+    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
   $("#reqBody").querySelectorAll("input").forEach(el=>el.disabled=locked);$("#reqBody").querySelectorAll("button").forEach(el=>el.hidden=locked);
   renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
@@ -1044,15 +1046,17 @@ $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.tar
 ["no","date","by","dept","job","need","plant"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
 $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
-$("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=cur.lines[+tr.dataset.i],k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value;if(cur.status!=="Draft")saveReqs()});
-$("#reqBody").addEventListener("change",e=>{if(e.target.dataset.k!=="desc")return;const tr=e.target.closest("tr"),l=cur.lines[+tr.dataset.i],it=itemByName(l.desc);if(!it)return;
-  if(key(it.name)!==key(l.desc)){l.desc=it.name;e.target.value=it.name}if(it.unit&&(!l.unit||l.unit==="NOS")){l.unit=it.unit;tr.querySelector("[data-k=unit]").value=it.unit}if(cur.status!=="Draft")saveReqs()});
+$("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqNorm(cur.lines[+tr.dataset.i]),k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value;if(cur.status!=="Draft")saveReqs()});
+$("#reqBody").addEventListener("change",e=>{if(e.target.dataset.k!=="item")return;const tr=e.target.closest("tr"),l=rqNorm(cur.lines[+tr.dataset.i]),it=itemByName(l.item);
+  e.target.classList.toggle("badcell",rqBad(l));e.target.title=rqBad(l)?"Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.":"";if(!it){if(cur.status!=="Draft")saveReqs();return}
+  if(it.name!==l.item){l.item=it.name;e.target.value=it.name;e.target.classList.remove("badcell");e.target.title=""}if(it.unit&&(!l.unit||l.unit==="NOS")){l.unit=it.unit;tr.querySelector("[data-k=unit]").value=it.unit}if(cur.status!=="Draft")saveReqs()});
 $("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
-$("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
+$("#btn-q-line").onclick=()=>{cur.lines.push({item:"",desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-item").focus()};
 $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
 $("#btn-q-submit").onclick=()=>{
-  cur.lines=cur.lines.filter(l=>l.desc.trim());
+  cur.lines=cur.lines.map(rqNorm).filter(l=>String(l.item||"").trim()||String(l.desc||"").trim());
   if(!cur.lines.length&&!attList(cur.attach).length){toast("Add at least one item or attach the request slip");renderReq();return}
+  {const bi=cur.lines.findIndex(rqBad);if(bi>=0){renderReq();toast(`Line ${bi+1}: pick the item or service from the item master list`);const el=$("#q"+bi+"-item");if(el)el.focus();return}}
   if(!cur.by){toast("Choose who is requesting");$("#q-by").focus();return}
   if(!cur.job){toast("Choose the project");$("#q-job").focus();return}
   if(!cur.need){toast("Enter when the material is required");$("#q-need").focus();return}
@@ -1066,7 +1070,7 @@ $("#btn-q-approve").onclick=()=>{cur.status="Approved";cur.apprBy=me.name;cur.ap
 $("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
 $("#btn-q-estimate").onclick=()=>{
   const r=cur;r.status="Estimated";saveReqs();
-  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",lines:r.lines.filter(l=>l.desc).map(l=>{const g=suggest(l.desc,l.spec);return{item:l.desc,spec:l.spec,expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
+  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",lines:r.lines.filter(l=>rqItem(l)||rqDesc(l)).map(l=>{const nm=rqItem(l)||rqDesc(l),sp=[rqItem(l)?rqDesc(l):"",l.spec].filter(x=>String(x||"").trim()).join(" - ");const g=suggest(nm,sp);return{item:nm,spec:sp,expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 };
 $("#btn-q-file").onclick=()=>$("#q-file").click();
@@ -1076,7 +1080,7 @@ $("#q-file").onchange=async e=>{
     if(/\.xlsx?$/i.test(f.name)){
       const {job,lines}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
       if(!lines.length){toast(`No item rows found in ${f.name}`);continue}
-      cur.lines=cur.lines.filter(l=>String(l.desc||"").trim()).concat(lines.map(l=>({desc:l.item,spec:l.spec,qty:l.qty,unit:"NOS",vendor:"",remark:""})));if(job&&!cur.job)cur.job=job;
+      cur.lines=cur.lines.filter(l=>String(rqItem(l)||rqDesc(l)||"").trim()).concat(lines.map(l=>{const it=itemByName(l.item);return{item:it?it.name:"",desc:l.item,spec:l.spec,qty:l.qty,unit:(it&&it.unit)||"NOS",vendor:"",remark:""}}));if(job&&!cur.job)cur.job=job;
       L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`});filled+=lines.length;
     }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f)});added++}
     else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB"});added++}
@@ -1154,7 +1158,7 @@ const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${wind
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
   return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["HOD approval",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"],["PO No.",esc(r.poNo||"-")]]])+
-  `<table><thead><tr><th>Sr</th><th>Description of material</th><th>Specification</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  `<table><thead><tr><th>Sr</th><th>Item / service</th><th>Description of part</th><th>Specification</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqItem(l))}</td><td>${esc(rqDesc(l))}</td><td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
   ${r.comment?`<p class="small"><b>HOD comment:</b> ${esc(r.comment)}</p>`:""}
   <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:right">HOD: <b>${r.apprBy?esc(r.apprBy)+" (approved "+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
 }
@@ -1434,7 +1438,7 @@ function backupBook(){
   const wb=XLSX.utils.book_new();const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{"(none)":""}]),n);
   add("Summary",[{Company:COMPANY.name,"Backup date":dmy(today()),Time:new Date().toLocaleTimeString("en-IN"),"Taken by":me?me.name:"",Requests:reqs.length,POs:saved.length,GRNs:grns.length,Payments:pays.length,"Stock items":stockItems().length,"Issue/return slips":slips.length,"Returnable challans":rgps.length}]);
   add("Requests",reqs.map(r=>({No:r.no,Date:dmy(r.date),By:r.by,Dept:r.dept,"Job No":r.job,"Need by":dmy(r.need),Status:r.status,Lines:r.lines.length})));
-  add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Description:l.desc,Spec:l.spec,Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
+  add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Item:rqItem(l),Description:rqDesc(l),Spec:l.spec,Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
   add("POs",saved.map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
   add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
@@ -1731,10 +1735,17 @@ const itNorm=s=>String(s??"").toLowerCase().replace(/[^a-z0-9]+/g,"");
 const itNum=v=>{if(v==null||v==="")return "";const n=parseFloat(String(v).replace(/,/g,"").replace(/[^0-9.\-]/g," ").trim().split(/\s+/)[0]);return isFinite(n)?n:""};
 const itGst=v=>{let n=itNum(v);if(n==="")return "";if(n>0&&n<1)n=Math.round(n*10000)/100;return n};
 const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+/* request lines: item comes from the item master, description is free text */
+const masterHasItems=()=>items.some(i=>i.active!=="No");
+const rqItem=l=>l.item!==undefined?String(l.item||""):(()=>{const it=itemByName(l.desc);return it?it.name:""})();
+const rqDesc=l=>l.item!==undefined?String(l.desc||""):(itemByName(l.desc)?"":String(l.desc||""));
+function rqNorm(l){if(l&&l.item===undefined){const i=rqItem(l),d=rqDesc(l);l.item=i;l.desc=d}return l}
+const rqBad=l=>{const i=rqItem(l).trim();if(!i)return masterHasItems()&&(+l.qty>0||rqDesc(l).trim()!=="");const it=itemByName(i);return masterHasItems()&&!(it&&it.active!=="No")};
 function itemByName(n){const k=key(n);if(!k)return null;return items.find(i=>key(i.name)===k)||items.find(i=>i.code&&key(i.code)===k)||null}
 function fillItemList(){
   const seen=new Set(),o=[];const add=n=>{const k=key(n);if(k&&!seen.has(k)){seen.add(k);o.push(`<option value="${esc(n)}">`)}};
   items.filter(i=>i.active!=="No").forEach(i=>add(i.name));Object.values(rates).forEach(r=>add(r.name));$("#itemnames").innerHTML=o.join("");
+  {const mi=$("#masteritems");if(mi)mi.innerHTML=items.filter(i=>i.active!=="No").map(i=>`<option value="${esc(i.name)}">${esc([i.code,i.kind,i.cat].filter(Boolean).join(" · "))}</option>`).join("")}
   const cats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort();$("#itemcats").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");return cats}
 let itShow=100;
 function renderItems(){
@@ -2323,7 +2334,7 @@ function renderReorder(){const P=$("#reorderPanel");if(!P)return;const L=lowStoc
   P.innerHTML=`<div class="row"><h2 class="sec">Below minimum stock</h2><span class="note">${L.length?L.length+" item"+(L.length===1?"":"s"):""}</span><span style="flex:1"></span>${L.length&&can("req")&&has("req.create")?`<button class="btn primary" type="button" id="btn-reorder">Raise purchase request for these</button>`:""}</div>
   <div class="note">Set minimum stock for each item in Masters, Items. Suggested order brings stock up to twice the minimum.</div>
   ${L.length?`<div class="tablebox"><table class="mt"><thead><tr><th>Item</th><th>Code</th><th class="num">In stock</th><th class="num">Minimum</th><th class="num">Suggested order</th><th>Unit</th></tr></thead><tbody>${L.map(r=>`<tr><td>${esc(r.it.name)}</td><td>${esc(r.it.code||"")}</td><td class="num" style="color:var(--danger);font-weight:600">${fmt0(r.bal)}</td><td class="num">${fmt0(r.min)}</td><td class="num">${fmt0(r.order)}</td><td>${esc(r.it.unit||"")}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">All items with a minimum are above it.</div>`}`;
-  const b=$("#btn-reorder");if(b)b.onclick=()=>{show("req");cur=blankReq();cur.by=me.name;cur.dept=me.dept||"";cur.lines=L.map(r=>({desc:r.it.name,spec:r.it.code?"Code "+r.it.code:"",qty:r.order,unit:r.it.unit||"NOS",remark:`Stock ${fmt0(r.bal)}, minimum ${fmt0(r.min)}`}));renderReq();toast(`${L.length} items added. Choose the Job No. (or store stock) and submit.`)}}
+  const b=$("#btn-reorder");if(b)b.onclick=()=>{show("req");cur=blankReq();cur.by=me.name;cur.dept=me.dept||"";cur.lines=L.map(r=>({item:r.it.name,desc:"",spec:r.it.code?"Code "+r.it.code:"",qty:r.order,unit:r.it.unit||"NOS",remark:`Stock ${fmt0(r.bal)}, minimum ${fmt0(r.min)}`}));renderReq();toast(`${L.length} items added. Choose the Job No. (or store stock) and submit.`)}}
 /* receivables */
 const rcptsOf=x=>Array.isArray(x.rcpts)?x.rcpts:(+x.recd?[{date:x.recdDate||x.date,amt:+x.recd,ref:x.recdRef||""}]:[]);
 const recdOf=x=>rcptsOf(x).reduce((a,r)=>a+(+r.amt||0),0);
