@@ -484,27 +484,31 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-cn" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Credit notes to customers</h2><select class="per" id="per-cn" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" id="btn-cn-new">+ Credit note</button></div><div class="note">For sales returns, rate differences or discounts after billing. Open an invoice and press "Credit note" to fill the lines. Credit notes reduce what the customer owes and go into the e-invoice export.</div><div id="cnList"></div></div><div class="panel stack" id="cnForm" hidden></div></section>
 <!-- MASTERS -->
 <section id="view-mast" class="stack" hidden>
-  <div class="note">These lists feed the drop-downs in the purchase request. Edit any cell directly. Set a project to Closed to hide it from new requests. Users are managed on the Users &amp; rights page.</div>
+  <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:10px;font-size:15px"><b>Show list</b><select id="mast-pick" style="width:auto;min-width:240px;font-size:15px">
+    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments and HODs</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
   <div class="masters">
-    <div class="panel stack"><h2 class="sec">Departments</h2>
+    <div class="panel stack" data-mp="depts"><h2 class="sec">Departments</h2>
       <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt"><thead><tr><th>Department</th><th>HOD</th><th></th></tr></thead><tbody id="m-depts"></tbody></table></div></div>
-    <div class="panel stack" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv" hidden></div>
+    <div class="panel stack" data-mp="sups" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv" hidden></div>
       <form class="addrow" id="m-sup-form"><input id="ms-name" placeholder="Supplier name"><input id="ms-gst" placeholder="GSTIN"><input id="ms-terms" placeholder="Pay terms e.g. 60 Days"><button class="btn primary" type="submit">Add</button></form>
       <div class="note">The state is read from the first two digits of the GSTIN (27 is Maharashtra, so CGST + SGST; any other state gets IGST).</div>
       <div class="tablebox"><table class="mt" style="min-width:860px"><thead><tr><th>Name</th><th>Address</th><th>GSTIN</th><th>State</th><th>Pay terms</th><th>Contact</th><th></th></tr></thead><tbody id="m-sups"></tbody></table></div></div>
-    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Projects</h2>
+    <div class="panel stack" data-mp="custs" style="grid-column:1/-1"><div class="row"><h2 class="sec">Customers</h2><span class="note" id="mc-n"></span><input id="mc-q" placeholder="Search name, city, GSTIN" style="max-width:240px"><span style="flex:1"></span><button class="btn" id="btn-mc-import" type="button">Import customers &amp; suppliers</button></div>
+      <form class="addrow" id="m-cust-form"><input id="mc-name" placeholder="Customer name"><input id="mc-gst" placeholder="GSTIN"><input id="mc-city" placeholder="City" style="max-width:140px"><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt" style="min-width:1100px"><thead><tr><th>Name</th><th>Address</th><th>City</th><th>PIN</th><th>GSTIN</th><th>State</th><th>Contact</th><th>Mobile</th><th>Email</th><th></th></tr></thead><tbody id="m-custs"></tbody></table></div><div class="note" id="mc-more"></div></div>
+    <div class="panel stack" data-mp="projs" style="grid-column:1/-1"><h2 class="sec">Projects</h2>
       <form class="addrow" id="m-proj-form"><input id="mp-no" placeholder="Job No. e.g. ZT2350"><input id="mp-desc" placeholder="Description"><input id="mp-cust" placeholder="Customer"><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt" style="min-width:560px"><thead><tr><th>Job No.</th><th>Description</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody id="m-projs"></tbody></table></div></div>
-    <div class="panel stack" style="grid-column:1/-1" id="itemsPanel"><div class="row"><h2 class="sec">Items</h2><span class="note" id="itCount"></span><span style="flex:1"></span><button class="btn" id="btn-it-import" type="button">Import from Excel</button><input type="file" id="it-file" accept=".xlsx,.xls,.csv" hidden><button class="btn" id="btn-it-export" type="button">Download list</button></div>
+    <div class="panel stack" data-mp="items" style="grid-column:1/-1" id="itemsPanel"><div class="row"><h2 class="sec">Items</h2><span class="note" id="itCount"></span><span style="flex:1"></span><button class="btn" id="btn-it-import" type="button">Import from Excel</button><input type="file" id="it-file" accept=".xlsx,.xls,.csv" hidden><button class="btn" id="btn-it-export" type="button">Download list</button></div>
       <div class="note">Import your Item &amp; Service Master workbook (ITEM MASTER and SERVICE MASTER sheets are both read), or a product list exported from your old ERP. Columns are matched by their headings and you see a preview, with missing codes, HSN/SAC and GST flagged, before anything is saved. "Download list" gives the same two-sheet layout back. Item names then show up as suggestions on requests, estimates, POs and sales documents.</div>
       <form class="addrow" id="m-item-form"><select id="mi-kind" style="max-width:110px"><option>Item</option><option>Service</option></select><input id="mi-code" placeholder="Code" style="max-width:110px"><input id="mi-name" placeholder="Item name"><input id="mi-cat" placeholder="Category" list="itemcats" style="max-width:160px"><input id="mi-unit" placeholder="Unit" style="max-width:70px"><input id="mi-hsn" placeholder="HSN" style="max-width:90px"><input id="mi-gst" placeholder="GST %" type="number" step="any" style="max-width:70px"><button class="btn primary" type="submit">Add</button></form>
       <div class="row"><input id="it-q" placeholder="Search name or code" style="max-width:260px"><select id="it-kind" style="width:auto"><option value="">Items and services</option><option value="Item">Items only</option><option value="Service">Services only</option></select><select id="it-cat" style="width:auto"></select></div><datalist id="itemtypes"><option value="Raw Material"><option value="Bought-out"><option value="Finished Good"><option value="Semi-finished"><option value="Consumable"><option value="Tooling"><option value="Spare"><option value="Packing Material"><option value="Job Work"><option value="Machining"><option value="Heat Treatment"><option value="Surface Treatment"><option value="Design"><option value="CAM Programming"><option value="Inspection"><option value="Transport"></datalist>
       <div class="tablebox"><table class="mt" style="min-width:1200px"><thead><tr><th>Code</th><th>Item / service name</th><th>Type</th><th>Category</th><th>Unit</th><th>HSN / SAC</th><th class="num">GST %</th><th class="num">Purchase rate</th><th class="num">Sales rate</th><th class="num">Min stock</th><th>Active</th><th></th></tr></thead><tbody id="m-items"></tbody></table></div>
       <div class="note" id="itMore"></div></div>
-    <div class="panel stack" id="plantPanel" style="grid-column:1/-1"></div>
-    <div class="panel stack" id="salesCfgPanel" style="grid-column:1/-1"></div>
-    <div class="panel stack" id="machPanel"></div>
+    <div class="panel stack" data-mp="plants" id="plantPanel" style="grid-column:1/-1"></div>
+    <div class="panel stack" data-mp="salescfg" id="salesCfgPanel" style="grid-column:1/-1"></div>
+    <div class="panel stack" data-mp="mach" id="machPanel"></div>
   </div>
 </section>
 
@@ -1614,7 +1618,7 @@ $("#m-sup-form").onsubmit=e=>{e.preventDefault();const n=$("#ms-name").value.tri
   const g=$("#ms-gst").value.trim().toUpperCase();suppliers.push({name:n,addr:"",gstin:g,state:/^\d\d/.test(g)?g.slice(0,2):"27",terms:$("#ms-terms").value.trim()||"60 Days",contact:""});saveSups();renderSups();
   $("#ms-name").value="";$("#ms-gst").value="";$("#ms-terms").value="";toast(`Added ${n}. Fill in the address in the table.`)};
 function renderMasters(){
-  renderSups();renderItems();renderSalesCfg();renderMachines();
+  renderSups();renderItems();renderSalesCfg();renderMachines();renderMastCusts();mastPick();
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   $("#md-hod").innerHTML=opts(hods,"","HOD (optional)");
@@ -2367,6 +2371,26 @@ function renderPlants(){const P=$("#plantPanel");if(!P)return;const L=plants(),a
   P.innerHTML=`<h2 class="sec">Plants</h2><div class="note">Each purchase and sales document belongs to one plant. The plant's address prints on the document, and tax invoices are numbered separately per plant with its own prefix (both plants share one GSTIN). Pick the plant you work at in the header bar; new documents start in that plant and lists show only that plant.</div>
   <div class="tablebox"><table class="mt" style="min-width:1000px"><thead><tr><th>Plant</th><th>Short name</th><th>Invoice prefix</th><th>Last invoice No. (this year, old ERP)</th><th>Address line 1</th><th>Address line 2</th><th>City</th><th>PIN</th><th>Next invoice</th></tr></thead><tbody>${L.map(p=>`<tr>${[["name",200],["short",110],["pre",70],["lastNo",90],["addr1",260],["addr2",180],["loc",80],["pin",80]].map(([f,w])=>`<td><input id="pl-${p.id}-${f}" data-pl="${p.id}" data-pf="${f}" value="${esc(p[f]??"")}" style="width:${w}px"${ad?"":" disabled"}></td>`).join("")}<td style="font-family:var(--mono)">${esc(p.pre)}${nextInvNo(fyOf(today()),p.id)}/${fyOf(today())}</td></tr>`).join("")}</tbody></table></div>`}
 $("#plantPanel").addEventListener("change",e=>{const id=e.target.dataset.pl,f=e.target.dataset.pf;if(!id||!f)return;const m=(M.plants||[]).slice();let o=m.find(x=>x.id===id);if(!o){o={id};m.push(o)}o[f]=e.target.value.trim();M.plants=m;saveM();renderPlants();fillPlantSels();toast("Saved")});
+/* masters: one list at a time, customer master */
+let mastSel="items";try{mastSel=localStorage.getItem("zpo:mastPick")||"items"}catch(e){}
+function mastPick(){const sel=$("#mast-pick");if(!sel)return;sel.value=mastSel;document.querySelectorAll("#view-mast [data-mp]").forEach(p=>{p.hidden=mastSel!=="all"&&p.dataset.mp!==mastSel;if(!p.hidden&&mastSel!=="all")p.style.gridColumn="1/-1"})}
+$("#mast-pick").onchange=e=>{mastSel=e.target.value;try{localStorage.setItem("zpo:mastPick",mastSel)}catch(err){}mastPick();window.scrollTo(0,0)};
+const MC_F=[["name",200],["addr",260],["city",100],["pin",80],["gstin",150],["state",50],["contact",130],["phone",120],["email",180]];
+function renderMastCusts(){const B=$("#m-custs");if(!B)return;const q=key($("#mc-q").value),ed=has("mast.edit")||has("sales.edit");
+  const L=customers.map((c,i)=>[c,i]).filter(([c])=>!q||key([c.name,c.city,c.gstin,c.contact].join(" ")).includes(q)).sort((a,b)=>String(a[0].name).localeCompare(String(b[0].name)));
+  $("#mc-n").textContent=customers.length+" customers";
+  B.innerHTML=L.slice(0,q?300:150).map(([c,i])=>`<tr data-ci="${i}">${MC_F.map(([f,w])=>`<td><input id="mc${i}-${f}" data-cf="${f}" value="${esc(f==="state"?stOf(c):c[f]??"")}" style="width:${w}px${f==="gstin"?";font-family:var(--mono)":""}${f==="name"?";font-weight:600":""}"${ed?"":" disabled"}></td>`).join("")}<td>${has("sales.delete")?`<button class="x" type="button" data-mcdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="10" class="empty">${customers.length?"No customer matches the search.":"No customers yet. Import your list or add one above."}</td></tr>`;
+  $("#mc-more").textContent=L.length>(q?300:150)?`Showing ${q?300:150} of ${L.length}. Search to find the rest.`:"";
+  $("#m-cust-form").hidden=!ed}
+$("#mc-q").oninput=renderMastCusts;
+$("#btn-mc-import").onclick=()=>$("#sup-file").click();
+$("#m-custs").addEventListener("change",e=>{const f=e.target.dataset.cf,tr=e.target.closest("tr");if(!f||!tr)return;const c=customers[+tr.dataset.ci];let v=e.target.value.trim();
+  if(f==="name"){if(!v){e.target.value=c.name;return}if(customers.some(o=>o!==c&&key(o.name)===key(v))){toast(`${v} is already in the list`);e.target.value=c.name;return}}
+  if(f==="gstin"){v=v.toUpperCase();if(/^\d\d/.test(v))c.state=v.slice(0,2)}if(f==="state")v=v.replace(/\D/g,"").padStart(2,"0");
+  c[f]=v;saveCusts();toast("Saved")});
+$("#m-custs").addEventListener("click",e=>{const i=e.target.dataset.mcdel;if(i==null)return;const c=customers[+i];if(!confirm(`Remove ${c.name} from customers?`))return;customers.splice(+i,1);saveCusts();renderMastCusts()});
+$("#m-cust-form").onsubmit=e=>{e.preventDefault();const n=$("#mc-name").value.trim();if(!n){toast("Fill in the customer name");return}if(custByName(n)){toast(`${n} is already in the list`);return}
+  const g=$("#mc-gst").value.trim().toUpperCase();customers.push({id:itId(),name:n,gstin:g,state:/^\d\d/.test(g)?g.slice(0,2):"27",city:$("#mc-city").value.trim(),contact:"",phone:"",email:"",addr:""});saveCusts();["#mc-name","#mc-gst","#mc-city"].forEach(s=>$(s).value="");renderMastCusts();toast(`Added ${n}`)};
 /* sales settings (admin, in Masters) */
 function renderSalesCfg(){const P=$("#salesCfgPanel");if(!P)return;const c=salesCfg();
   P.innerHTML=`<h2 class="sec">Sales documents</h2><div class="note">Invoice prefixes, numbering and addresses are set per plant above. The details below are shared by both plants.</div>
