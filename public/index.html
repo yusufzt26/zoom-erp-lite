@@ -690,7 +690,7 @@ const LEG2NEW={"page.req":["req.view"],"req.create":["req.create","req.edit"],"p
   "page.sales":["sales.view","so.view","dc.view","inv.view","cn.view"],"sales.edit":["sales.create","sales.edit","so.create","so.edit","dc.create","dc.edit","inv.create","inv.edit","cn.create","cn.edit"],
   "page.prod":["prod.view"],"prod.edit":["prod.create","prod.edit"],"page.rep":["rep.view"],"page.mast":["mast.view","mast.edit"],"page.users":["users.view","users.edit"],"page.appr":[]};
 const legToNew=arr=>[...new Set(arr.flatMap(k=>LEG2NEW[k]||[k]))].filter(k=>ALL_KEYS.includes(k));
-const ROLE_RIGHTS_OLD={Requester:["page.req","req.create"],HOD:["page.req","req.create","req.approve"],Purchaser:["page.req","page.est","page.po","page.saved","page.rates","po.create"],
+const ROLE_RIGHTS_OLD={Requester:["page.req","req.create"],HOD:["page.req","req.create","req.approve"],Purchaser:["page.req","req.create","page.est","page.po","page.saved","page.rates","po.create"],
  Approver:["page.po","page.saved","page.appr","page.rep","page.stock","page.sales","sales.all","page.prod","po.approve","po.delete"],Store:["page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.acct","acct.book"],Sales:["page.sales","sales.edit"],Production:["page.prod","prod.edit","page.stock"]};
 const ROLE_RIGHTS=Object.fromEntries(Object.entries(ROLE_RIGHTS_OLD).map(([r,a])=>[r,legToNew(a)]));ROLE_RIGHTS.Admin=ALL_KEYS.slice();
 const rightsOf=u=>{if(!u)return[];if(Array.isArray(u.rights))return u.rights.includes("v2")?u.rights.filter(k=>ALL_KEYS.includes(k)):legToNew(u.rights);return ROLE_RIGHTS[u.role]||[]};
@@ -979,10 +979,11 @@ function nextReqNo(){const n=Math.max(66,...reqs.map(r=>parseInt(r.no,10)||0))+1
 function blankReq(){return{no:nextReqNo(),date:today(),plant:defPlant(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,lines:[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
 const ST={"Draft":"Draft","Submitted":"Submitted","Sent back":"Back","Approved":"Approved","Estimated":"Estimated","PO raised":"Estimated","PO approved":"PO","Pending approval":"Submitted","With accounts":"Submitted","Booked":"Approved","Paid":"PO","Part paid":"Submitted","Closed":"PO","Open":"Submitted","Partly returned":"Estimated","Partly received":"Estimated","Fully received":"PO","Issued":"Submitted","Returned":"Approved","Opening":"Estimated"};
 const stChip=s=>`<span class="chip st-${ST[s]||"Estimated"}">${esc(s)}</span>`;
+const hodOf=d=>((M.depts.find(x=>x.name===d)||{}).hod||"");
 function visibleReqs(){
   if(!me)return[];
   if(has("req.all"))return reqs;
-  return reqs.filter(r=>r.by===me.name||(has("req.approve")&&r.dept===me.dept)||(has("po.create")&&["Approved","Estimated","PO raised","PO approved"].includes(r.status)));
+  return reqs.filter(r=>r.by===me.name||(has("req.approve")&&(r.dept===me.dept||hodOf(r.dept)===me.name))||(has("po.create")&&(["Approved","Estimated","PO raised","PO approved"].includes(r.status)||(r.status==="Submitted"&&!hodOf(r.dept)))));
 }
 function renderReq(){
   const vis=visibleReqs();
@@ -993,7 +994,7 @@ function renderReq(){
   if(!cur){$("#reqNone").innerHTML=`No purchase requests approved by an HOD yet. Approved requests appear here for purchase. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
   const r=cur;const mine=r.status==="Draft"||r.by===me.name||has("req.all");
   const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&(reqs.includes(r)?has("req.edit"):has("req.create")));
-  const canApprove=r.status==="Submitted"&&has("req.approve")&&(has("req.all")||me.dept===r.dept);
+  const canApprove=r.status==="Submitted"&&((has("req.approve")&&(has("req.all")||me.dept===r.dept||hodOf(r.dept)===me.name))||(!hodOf(r.dept)&&has("po.create")));
   $("#reqBanner").hidden=!(r.status==="Sent back"&&r.comment);$("#reqBanner").className="banner back";$("#reqBanner").textContent=`Sent back by ${r.backBy||"HOD"}: ${r.comment||""}`;
   $("#reqTitle").textContent=r.status==="Draft"?"New purchase request":`Purchase request ${r.no}`;
   $("#reqStatus").innerHTML=r.status==="Draft"?"":stChip(r.status);
@@ -1017,7 +1018,7 @@ function renderReq(){
 }
 function opts(list,val,ph){const vals=[...list];if(val&&!vals.includes(val))vals.push(val);return`<option value="">${ph}</option>`+vals.map(v=>`<option${v===val?" selected":""}>${esc(v)}</option>`).join("")}
 function fillReqSelects(){
-  $("#q-by").innerHTML=opts(M.users.filter(u=>u.role!=="Purchaser").map(u=>u.name),cur.by,"Choose user");
+  $("#q-by").innerHTML=opts(M.users.map(u=>u.name),cur.by,"Choose user");
   $("#q-dept").innerHTML=opts(M.depts.map(d=>d.name),cur.dept,"Choose department");
   $("#q-job").innerHTML=opts(M.projects.filter(p=>p.status==="Active").map(p=>p.no),cur.job,"Choose project");
   const hod=(M.depts.find(d=>d.name===cur.dept)||{}).hod;
@@ -1051,7 +1052,10 @@ $("#btn-q-submit").onclick=()=>{
   if(!cur.job){toast("Choose the project");$("#q-job").focus();return}
   if(!cur.need){toast("Enter when the material is required");$("#q-need").focus();return}
   if(cur.need<cur.date){toast("Required date cannot be before the request date");$("#q-need").focus();return}
-  cur.status="Submitted";cur.comment="";cur.subAt=today();if(!reqs.includes(cur))reqs.unshift(cur);saveReqs();renderReq();toast(`Request ${cur.no} submitted to the HOD`);
+  cur.status="Submitted";cur.comment="";cur.subAt=today();if(!reqs.includes(cur))reqs.unshift(cur);
+  const hod=hodOf(cur.dept),byU=M.users.find(u=>u.name===cur.by)||{},selfOk=hod&&hod===cur.by;
+  if(!hod||selfOk){cur.status="Approved";cur.apprBy=selfOk?cur.by+" (HOD, own request)":"Auto: no HOD set for "+(cur.dept||"this department");cur.apprAt=today();saveReqs();renderReq();toast(`Request ${cur.no} sent straight to Purchase${hod?"":" (no HOD is set for this department)"}`);return}
+  saveReqs();renderReq();toast(`Request ${cur.no} submitted to ${hod} (HOD) for approval`);
 };
 $("#btn-q-approve").onclick=()=>{cur.status="Approved";cur.apprBy=me.name;cur.apprAt=today();cur.comment=$("#q-comment").value.trim();saveReqs();renderReq();toast(`Request ${cur.no} approved. It now shows for the purchaser.`)};
 $("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
