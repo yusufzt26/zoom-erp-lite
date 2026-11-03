@@ -795,12 +795,34 @@ $("#file-bom").onchange=async e=>{
   e.target.value="";
 };
 function parseBOM(wb){
-    let job="",lines=[],section="";
-    wb.SheetNames.forEach(sn=>{
-      const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:null});
-      rows.forEach(r=>{
+  /* reads BOM sheets by their column headings (description, qty, sizes, material, make, remarks...);
+     falls back to the old fixed ZT layout when no heading row is found */
+  const H=v=>String(v??"").toLowerCase().replace(/\s+/g," ").trim();
+  const isDesc=h=>/desc|descr|part ?name|particular|component|item ?name|^item$|^name$/.test(h);
+  const isQty=h=>/^(qty|qnty|quantity|req\.? ?qty|nos|no\.? ?of)/.test(h);
+  const isDim=h=>/^(l|b|h|w|t|d|od|id|length|width|breadth|height|thk|thickness|dia|diameter|size|dimension|dimensions)$/.test(h.replace(/[().]/g,"").trim());
+  const isSr=h=>/^(sr|s\.? ?no|sl|sn|no\.?|#|[a-z])\.?$/.test(h);
+  const isRem=h=>/remark|note/.test(h),isUnit=h=>/^(unit|uom|units)$/.test(h),isCode=h=>/code|part ?no|drg|drawing/.test(h);
+  const headOf=r=>{const hs=r.map(H);const di=hs.findIndex(isDesc),qi=hs.findIndex(isQty);if(di<0||qi<0)return null;
+    const m={d:di,q:qi,dims:[],pre:[],post:[],rem:[],u:-1,c:-1};
+    hs.forEach((h,i)=>{if(!h||i===di||i===qi)return;if(isRem(h))m.rem.push(i);else if(isUnit(h))m.u=i;else if(isCode(h)&&m.c<0)m.c=i;else if(isDim(h))m.dims.push(i);else if(isSr(h)&&i<di)return;else if(i>di)(m.dims.length?m.post:m.pre).push(i)});return m};
+  const val=v=>v==null?"":v instanceof Date?v.toLocaleDateString("en-IN"):String(v).trim();
+  let job="",lines=[],found=false;
+  const sheets=wb.SheetNames.map(sn=>XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:null}));
+  sheets.forEach(rows=>rows.forEach(r=>{if(!job){const j=r.find(c=>typeof c==="string"&&/ZT[-\s]?\d{3,5}/i.test(c));if(j)job=j.match(/ZT[-\s]?\d{3,5}/i)[0].replace(/[\s-]/g,"").toUpperCase()}}));
+  sheets.forEach(rows=>{let m=null;rows.forEach(r=>{
+    const hm=headOf(r);if(hm){m=hm;found=true;return}
+    if(!m)return;const d=val(r[m.d]);if(!d||/^(prepared|checked|approved|total|sub ?total|signature)\b/i.test(d))return;
+    const qv=r[m.q],qn=typeof qv==="number"?qv:parseFloat(String(qv??"").replace(/[^\d.]/g,""));
+    const dims=m.dims.map(i=>val(r[i])).filter(Boolean),pre=m.pre.map(i=>val(r[i])).filter(Boolean),post=m.post.map(i=>val(r[i])).filter(Boolean),rem=m.rem.map(i=>val(r[i])).filter(Boolean);
+    if(!(qn>0)&&!dims.length&&!pre.length&&!post.length)return;
+    let spec=[...pre,dims.join("x"),...post].filter(Boolean).join(" ");if(rem.length)spec+=(spec?" · ":"")+rem.join(", ");
+    lines.push({item:d,spec,qty:qn>0?qn:1,unit:m.u>=0?val(r[m.u]):"",code:m.c>=0?val(r[m.c]):""});
+  })});
+  if(found)return{job,lines};
+  let section="";
+  sheets.forEach(rows=>rows.forEach(r=>{
         const a=r[0],b=r[1];
-        if(!job){const j=r.find(c=>typeof c==="string"&&/ZT[-\s]?\d{3,5}/i.test(c));if(j)job=j.match(/ZT[-\s]?\d{3,5}/i)[0].replace(/[\s-]/g,"").toUpperCase()}
         if(typeof a==="string"&&/^[A-Z]$/.test(a.trim())&&b){section=String(b).toLowerCase();return}
         if(typeof a!=="number"||!b||!String(b).trim())return;
         const qty=+r[5]||1;let spec="";
@@ -808,9 +830,8 @@ function parseBOM(wb){
         else{spec=[r[2]&&r[3]&&r[4]?`${r[2]}x${r[3]}x${r[4]}`:"",r[6]].filter(Boolean).join(" ")}
         if(r[8])spec+=(spec?" · ":"")+r[8];
         lines.push({item:String(b).trim(),spec,qty});
-      });
-    });
-    return{job,lines};
+  }));
+  return{job,lines};
 }
 
 /* ---------- PO ---------- */
@@ -1080,7 +1101,7 @@ $("#q-file").onchange=async e=>{
     if(/\.xlsx?$/i.test(f.name)){
       const {job,lines}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
       if(!lines.length){toast(`No item rows found in ${f.name}`);continue}
-      cur.lines=cur.lines.filter(l=>String(rqItem(l)||rqDesc(l)||"").trim()).concat(lines.map(l=>{const it=itemByName(l.item);return{item:it?it.name:"",desc:l.item,spec:l.spec,qty:l.qty,unit:(it&&it.unit)||"NOS",vendor:"",remark:""}}));if(job&&!cur.job)cur.job=job;
+      cur.lines=cur.lines.filter(l=>String(rqItem(l)||rqDesc(l)||"").trim()).concat(lines.map(l=>{const it=(l.code&&itemByName(l.code))||itemByName(l.item);return{item:it?it.name:"",desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",vendor:"",remark:""}}));if(job&&!cur.job)cur.job=job;
       L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`});filled+=lines.length;
     }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f)});added++}
     else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB"});added++}
