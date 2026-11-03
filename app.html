@@ -643,9 +643,10 @@ let isExample=false;
 if(!est){est=exampleEstimate();isExample=true}
 let po=store.get("po",null);
 let reqs=store.get("reqs",null);
-if(!reqs){reqs=[{no:"066",date:"2026-11-02",by:"Niksal",dept:"Design",job:"ZT2349",need:"2026-11-10",status:"Submitted",example:true,attach:null,
-  lines:EXAMPLE.map(([n,e,q])=>({desc:n,spec:"",qty:q,unit:"NOS",vendor:"M/S. R A ENGINEERING",remark:""}))}];store.set("reqs",reqs)}
-let cur=reqs[0];
+if(!reqs)reqs=[];
+/* the old demo request (no. 066, ZT2349) is removed from real data */
+if(reqs.some(r=>r&&r.example)){reqs=reqs.filter(r=>!(r&&r.example));store.set("reqs",reqs)}
+let cur=null;
 let M=store.get("masters",null);
 if(!M){M={users:[{name:"Niksal",dept:"Design",role:"Requester"},{name:"M.K. Singh",dept:"Design",role:"HOD"},{name:"Purchase Desk",dept:"Purchase",role:"Purchaser"}],
   depts:[{name:"Design",hod:"M.K. Singh"},{name:"Tool Room",hod:""},{name:"Purchase",hod:""}],
@@ -984,7 +985,7 @@ function visibleReqs(){
 function renderReq(){
   const vis=visibleReqs();
   if(cur&&cur.status!=="Draft"&&!vis.includes(cur))cur=null;
-  if(!cur)cur=vis[0]||(has("req.create")?blankReq():null);
+  if(!cur){const rv=has("req.approve")||has("req.all")||has("po.create");if(rv&&vis[0])cur=vis[0];else if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
   $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
   $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
   if(!cur){$("#reqNone").innerHTML=`No purchase requests approved by an HOD yet. Approved requests appear here for purchase. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
