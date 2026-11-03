@@ -20,6 +20,9 @@ async function profile(name) { const m = await mastersDoc(); const u = m && (m.u
 const ADMIN_RIGHT = "page.users";
 async function isAdmin(name) { const u = await profile(name); if (!u) return false; return u.role === "Admin" || (Array.isArray(u.rights) && u.rights.includes(ADMIN_RIGHT)); }
 
+const PROJ_ROLES = ["Sales", "Admin"];
+function canProjects(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["proj.create", "proj.edit", "proj.delete", "mast.edit"].some((k) => r.includes(k)); return PROJ_ROLES.includes(u.role) || (!!r && (r.includes("page.mast") || r.includes("sales.edit"))); }
+
 async function auth(req) {
   const h = req.headers.get("authorization") || ""; const t = h.startsWith("Bearer ") ? h.slice(7) : "";
   if (!t) return null;
@@ -72,7 +75,12 @@ export default async (req) => {
       for (const c of changes.slice(0, 500)) {
         const coll = String(c.coll || ""), id = String(c.id || "");
         if (!COLLS.has(coll) || !id || id.length > 200) { results.push({ coll, id, error: "bad" }); continue; }
-        if (coll === "masters" && !admin) { results.push({ coll, id, error: "Only the admin can change masters and users" }); continue; }
+        if (coll === "masters" && !admin) {
+          // Non-admins with project rights may change only the projects (Job Nos.) list; everything else is kept as stored.
+          const u = await profile(me); const cur = await mastersDoc();
+          if (!u || !cur || c.deleted || id !== "_" || !canProjects(u) || !Array.isArray(c.data?.projects)) { results.push({ coll, id, error: "Only the admin can change masters and users" }); continue; }
+          c.data = { ...cur, projects: c.data.projects.slice(0, 5000) }; c.isNew = false;
+        }
         if (c.isNew) {
           const ex = await q("SELECT rev FROM records WHERE coll=$1 AND id=$2 AND NOT deleted", [coll, id]);
           if (ex[0]) { results.push({ coll, id, conflict: true }); continue; }
