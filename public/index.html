@@ -271,8 +271,8 @@ body.gated header.bar,body.gated main{display:none}
       <div class="attach" id="q-attach"></div>
     </div>
     <div class="tablebox">
-      <table class="est" style="min-width:980px">
-        <thead><tr><th style="width:34px">Sr</th><th>Item / service (from master)</th><th>Description of part</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
+      <table class="est" style="min-width:760px">
+        <thead><tr><th style="width:34px">Sr</th><th>Description of material</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
         <tbody id="reqBody"></tbody>
       </table>
     </div>
@@ -842,9 +842,12 @@ $("#btn-convert").onclick=()=>{
   const sup=suppliers.find(s=>key(s.name)===key(est.sup))||{name:est.sup||"",addr:"",state:"27"};
   po={no:nextPONo(),date:today(),sup:sup.name,supAddr:sup.addr,ref:est.job,refDate:est.date,attn:"",venCode:sup.gstin||"",terms:sup.terms||"60 Days",transport:"",validity:"",
       reqNo:est.reqNo||"",needBy:est.need||"",plant:est.plant||defPlant(),deliv:plantAddr(est.plant||defPlant()),gstmode:sup.state&&sup.state!=="27"?"inter":"intra",remark:"",
-      lines:lines.map(l=>{const it=itemByName(l.item);return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:l.item,spec:l.spec||"",hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
+      lines:lines.map(l=>{const it=itemByName(l.item);return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:it?it.name:"",spec:it?(l.spec||""):[l.item,l.spec].filter(Boolean).join(" - "),hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
   store.set("po",po);show("po");
 };
+/* GST lines on the PO, one per tax rate */
+function poGstRows(p){const g={};p.lines.forEach(l=>{const b=(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100),t=+l.tax||0;if(!b||!t)return;g[t]=(g[t]||0)+b});
+  return Object.keys(g).sort((a,b)=>a-b).map(t=>{const b=g[t],x=b*t/100;return p.gstmode==="intra"?`<tr><td>C-GST ${t/2}% On Amt : ${fmt(b)}</td><td class="amt">${fmt(x/2)}</td></tr><tr><td>S-GST ${t/2}% On Amt : ${fmt(b)}</td><td class="amt">${fmt(x/2)}</td></tr>`:`<tr><td>I-GST ${t}% On Amt : ${fmt(b)}</td><td class="amt">${fmt(x)}</td></tr>`}).join("")}
 function poCalc(){
   const sub=po.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100),0);
   const tax=po.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100)*(+l.tax||0)/100,0);
@@ -872,9 +875,10 @@ function renderPO(){
     <div class="kv"><b>Ref. No.</b><div>${inp("ref","90px")} <b>Dt.</b> ${inp("refDate","120px",'type="date"')}</div><b>Ven. Code</b>${inp("venCode","100%")}</div>
     <div class="kv"><b>Kind Attn.</b>${inp("attn","100%")}<b>Transport</b>${inp("transport","100%")}<b>Delivery by</b>${inp("needBy","130px",'type="date"')}</div>
   </div>
-  <table><thead><tr><th>Sn</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
+  <table><thead><tr><th>Sn</th><th>Item / service (from master)</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
   <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="pl${i}-desc" data-lk="desc" list="itemnames" value="${esc(l.desc)}" style="width:100%;min-width:200px"></td>
+    <td><input id="pl${i}-item" data-lk="item" list="masteritems" value="${esc(l.item||"")}" placeholder="Pick from item master" class="${poBad(l)?"badcell":""}" title="${poBad(l)?BADITEM:""}" style="width:100%;min-width:170px"></td>
+    <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description" style="width:100%;min-width:170px"></td>
     <td><input id="pl${i}-hsn" data-lk="hsn" value="${esc(l.hsn)}" style="width:72px"></td>
     <td class="r"><input id="pl${i}-tax" data-lk="tax" type="number" value="${l.tax}" style="width:44px"></td>
     <td class="r"><input id="pl${i}-qty" data-lk="qty" type="number" step="any" value="${l.qty}" style="width:56px"></td>
@@ -916,19 +920,19 @@ function poControls(){
 }
 function renderTotals(){
   const c=poCalc();let rows=`<tr><td>Sub Total</td><td class="amt">${fmt(c.sub)}</td></tr>`;
-  if(po.gstmode==="intra")rows+=`<tr><td>C-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr><tr><td>S-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr>`;
-  else rows+=`<tr><td>I-GST 18% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax)}</td></tr>`;
+  rows+=poGstRows(po);
   rows+=`<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr>`;
   $("#poTot").innerHTML=rows;$("#poWords").innerHTML=`<b>Amount In Words :</b> Rupees ${words(c.total)} Only.`;
 }
-$("#paper").addEventListener("change",e=>{if(e.target.dataset.lk!=="desc")return;const l=po.lines[+e.target.closest("tr").dataset.i],it=itemByName(l.desc);if(!it)return;
-  if(key(it.name)!==key(l.desc))l.desc=it.name;if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;e.target.value=l.desc;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
+$("#paper").addEventListener("change",e=>{if(e.target.dataset.lk!=="item")return;const l=po.lines[+e.target.closest("tr").dataset.i],it=itemByName(l.item);
+  e.target.classList.toggle("badcell",poBad(l));e.target.title=poBad(l)?BADITEM:"";if(!it){store.set("po",po);return}
+  l.item=it.name;poSetDesc(l);e.target.value=it.name;e.target.classList.remove("badcell");e.target.title="";if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
 $("#paper").addEventListener("input",e=>{
   const t=e.target;
   if(t.dataset.pk==="plant"){const old=po.deliv;if(!old||old===COMPANY.addr||plants().some(p=>plantAddr(p.id)===old))po.deliv=plantAddr(t.value);po.plant=t.value;store.set("po",po);renderPO();return}
   if(t.dataset.pk){po[t.dataset.pk]=t.value;
     if(t.dataset.pk==="sup"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp&&!po.supAddr){po.supAddr=sp.addr;$("#po-supAddr").value=sp.addr;if(sp.terms){po.terms=sp.terms;$("#po-terms").value=sp.terms}po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra";$("#p-gstmode").value=po.gstmode;renderTotals()}}}
-  else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;
+  else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;if(k==="pdesc"){poDesc(l,t.value)}else{l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;if(k==="item")poSetDesc(l)}
     tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100));renderTotals()}
   store.set("po",po);
 });
@@ -951,6 +955,7 @@ $("#btn-save").onclick=()=>{
 $("#btn-send").onclick=()=>{
   if(!po)return;if(!po.sup.trim()){toast("Fill in the supplier first");return}
   if(!po.lines.some(l=>l.desc&&(+l.qty)*(+l.rate)>0)){toast("Add at least one line with qty and rate");return}
+  {const bi=po.lines.findIndex(l=>(l.desc||l.item)&&poBad(l));if(bi>=0){toast(`Line ${bi+1}: pick the item or service from the item master list`);const el=$("#pl"+bi+"-item");if(el){el.classList.add("badcell");el.focus()}return}}
   if(!po.needBy){toast("Fill in the delivery-by date on the PO");$("#po-needBy").focus();return}
   recordPO("Pending approval","Sent for approval");learnFromPO();
   if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO raised";r.poNo=po.no;saveReqs()}}
@@ -1003,7 +1008,7 @@ $("#rateForm").onsubmit=e=>{e.preventDefault();const n=$("#r-item").value.trim()
 /* ---------- purchase requests ---------- */
 function saveReqs(){store.set("reqs",reqs)}
 function nextReqNo(){const n=Math.max(66,...reqs.map(r=>parseInt(r.no,10)||0))+1;return String(n).padStart(3,"0")}
-function blankReq(){return{no:nextReqNo(),date:today(),plant:defPlant(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,lines:[{item:"",desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
+function blankReq(){return{no:nextReqNo(),date:today(),plant:defPlant(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,lines:[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
 const ST={"Draft":"Draft","Submitted":"Submitted","Sent back":"Back","Approved":"Approved","Estimated":"Estimated","PO raised":"Estimated","PO approved":"PO","Pending approval":"Submitted","With accounts":"Submitted","Booked":"Approved","Paid":"PO","Part paid":"Submitted","Closed":"PO","Open":"Submitted","Partly returned":"Estimated","Partly received":"Estimated","Fully received":"PO","Issued":"Submitted","Returned":"Approved","Opening":"Estimated"};
 const stChip=s=>`<span class="chip st-${ST[s]||"Estimated"}">${esc(s)}</span>`;
 const hodOf=d=>((M.depts.find(x=>x.name===d)||{}).hod||"");
@@ -1029,13 +1034,12 @@ function renderReq(){
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="q${i}-item" data-k="item" value="${esc(rqItem(l))}" list="masteritems" placeholder="Pick from item master" class="${rqBad(l)?"badcell":""}" title="${rqBad(l)?"Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.":""}"></td>
-    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqDesc(l))}" placeholder="Part description, any text"></td>
+    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description of material, any text"></td>
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
     <td><input id="q${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
     <td><input id="q${i}-remark" data-k="remark" value="${esc(l.remark)}"></td>
-    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
+    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
   $("#reqBody").querySelectorAll("input").forEach(el=>el.disabled=locked);$("#reqBody").querySelectorAll("button").forEach(el=>el.hidden=locked);
   renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
@@ -1067,17 +1071,13 @@ $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.tar
 ["no","date","by","dept","job","need","plant"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
 $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
-$("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqNorm(cur.lines[+tr.dataset.i]),k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value;if(cur.status!=="Draft")saveReqs()});
-$("#reqBody").addEventListener("change",e=>{if(e.target.dataset.k!=="item")return;const tr=e.target.closest("tr"),l=rqNorm(cur.lines[+tr.dataset.i]),it=itemByName(l.item);
-  e.target.classList.toggle("badcell",rqBad(l));e.target.title=rqBad(l)?"Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.":"";if(!it){if(cur.status!=="Draft")saveReqs();return}
-  if(it.name!==l.item){l.item=it.name;e.target.value=it.name;e.target.classList.remove("badcell");e.target.title=""}if(it.unit&&(!l.unit||l.unit==="NOS")){l.unit=it.unit;tr.querySelector("[data-k=unit]").value=it.unit}if(cur.status!=="Draft")saveReqs()});
+$("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqFlat(cur.lines[+tr.dataset.i]),k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value;if(cur.status!=="Draft")saveReqs()});
 $("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
-$("#btn-q-line").onclick=()=>{cur.lines.push({item:"",desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-item").focus()};
+$("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
 $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
 $("#btn-q-submit").onclick=()=>{
-  cur.lines=cur.lines.map(rqNorm).filter(l=>String(l.item||"").trim()||String(l.desc||"").trim());
+  cur.lines=cur.lines.map(rqFlat).filter(l=>String(l.desc||"").trim());
   if(!cur.lines.length&&!attList(cur.attach).length){toast("Add at least one item or attach the request slip");renderReq();return}
-  {const bi=cur.lines.findIndex(rqBad);if(bi>=0){renderReq();toast(`Line ${bi+1}: pick the item or service from the item master list`);const el=$("#q"+bi+"-item");if(el)el.focus();return}}
   if(!cur.by){toast("Choose who is requesting");$("#q-by").focus();return}
   if(!cur.job){toast("Choose the project");$("#q-job").focus();return}
   if(!cur.need){toast("Enter when the material is required");$("#q-need").focus();return}
@@ -1091,7 +1091,7 @@ $("#btn-q-approve").onclick=()=>{cur.status="Approved";cur.apprBy=me.name;cur.ap
 $("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
 $("#btn-q-estimate").onclick=()=>{
   const r=cur;r.status="Estimated";saveReqs();
-  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",lines:r.lines.filter(l=>rqItem(l)||rqDesc(l)).map(l=>{const nm=rqItem(l)||rqDesc(l),sp=[rqItem(l)?rqDesc(l):"",l.spec].filter(x=>String(x||"").trim()).join(" - ");const g=suggest(nm,sp);return{item:nm,spec:sp,expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
+  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",lines:r.lines.filter(l=>rqText(l)).map(l=>{const nm=rqText(l),sp=l.spec||"";const g=suggest(nm,sp);return{item:nm,spec:sp,expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 };
 $("#btn-q-file").onclick=()=>$("#q-file").click();
@@ -1101,7 +1101,7 @@ $("#q-file").onchange=async e=>{
     if(/\.xlsx?$/i.test(f.name)){
       const {job,lines}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
       if(!lines.length){toast(`No item rows found in ${f.name}`);continue}
-      cur.lines=cur.lines.filter(l=>String(rqItem(l)||rqDesc(l)||"").trim()).concat(lines.map(l=>{const it=(l.code&&itemByName(l.code))||itemByName(l.item);return{item:it?it.name:"",desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",vendor:"",remark:""}}));if(job&&!cur.job)cur.job=job;
+      cur.lines=cur.lines.filter(l=>rqText(l).trim()).concat(lines.map(l=>{return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:""}}));if(job&&!cur.job)cur.job=job;
       L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`});filled+=lines.length;
     }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f)});added++}
     else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB"});added++}
@@ -1179,7 +1179,7 @@ const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${wind
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
   return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["HOD approval",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"],["PO No.",esc(r.poNo||"-")]]])+
-  `<table><thead><tr><th>Sr</th><th>Item / service</th><th>Description of part</th><th>Specification</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqItem(l))}</td><td>${esc(rqDesc(l))}</td><td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  `<table><thead><tr><th>Sr</th><th>Description of material</th><th>Specification</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td><td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
   ${r.comment?`<p class="small"><b>HOD comment:</b> ${esc(r.comment)}</p>`:""}
   <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:right">HOD: <b>${r.apprBy?esc(r.apprBy)+" (approved "+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
 }
@@ -1191,7 +1191,7 @@ function docEstimate(e){
 }
 function docPO(p){
   const c=(()=>{const o=po;po=p;const r=poCalc();po=o;return r})();
-  const tax=p.gstmode==="intra"?`<tr><td>C-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr><tr><td>S-GST 9% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax/2)}</td></tr>`:`<tr><td>I-GST 18% On Amt : ${fmt(c.sub)}</td><td class="amt">${fmt(c.tax)}</td></tr>`;
+  const tax=poGstRows(p);
   return `${p.status!=="Approved"?`<div class="draftmark">${p.status==="Pending approval"?"PENDING APPROVAL":"DRAFT"} · NOT VALID UNTIL APPROVED</div>`:""}`+docHead("PURCHASE ORDER")+
   `<div class="two"><div><b>${esc(p.sup)}</b><br>${esc(p.supAddr||"").replace(/\n/g,"<br>")}</div><div class="kv"><b>P.O. No.</b><span>${esc(p.no)} &nbsp; <b>Date</b> ${dmy(p.date)}</span><b>Delivery</b><span>${esc(p.deliv)}</span><b>Pay. Terms</b><span>${esc(p.terms)}</span><b>Validity</b><span>${esc(p.validity)}</span></div></div>
   <div class="two" style="border-top:none"><div class="kv"><b>Ref. No.</b><span>${esc(p.ref)} &nbsp; <b>Dt.</b> ${dmy(p.refDate)}</span><b>Ven. Code</b><span>${esc(p.venCode)}</span></div><div class="kv"><b>Kind Attn.</b><span>${esc(p.attn)}</span><b>Transport</b><span>${esc(p.transport)}</span><b>Delivery by</b><span>${dmy(p.needBy)}</span></div></div>
@@ -1459,7 +1459,7 @@ function backupBook(){
   const wb=XLSX.utils.book_new();const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{"(none)":""}]),n);
   add("Summary",[{Company:COMPANY.name,"Backup date":dmy(today()),Time:new Date().toLocaleTimeString("en-IN"),"Taken by":me?me.name:"",Requests:reqs.length,POs:saved.length,GRNs:grns.length,Payments:pays.length,"Stock items":stockItems().length,"Issue/return slips":slips.length,"Returnable challans":rgps.length}]);
   add("Requests",reqs.map(r=>({No:r.no,Date:dmy(r.date),By:r.by,Dept:r.dept,"Job No":r.job,"Need by":dmy(r.need),Status:r.status,Lines:r.lines.length})));
-  add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Item:rqItem(l),Description:rqDesc(l),Spec:l.spec,Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
+  add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Description:rqText(l),Spec:l.spec,Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
   add("POs",saved.map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
   add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
@@ -1758,10 +1758,13 @@ const itGst=v=>{let n=itNum(v);if(n==="")return "";if(n>0&&n<1)n=Math.round(n*10
 const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 /* request lines: item comes from the item master, description is free text */
 const masterHasItems=()=>items.some(i=>i.active!=="No");
-const rqItem=l=>l.item!==undefined?String(l.item||""):(()=>{const it=itemByName(l.desc);return it?it.name:""})();
-const rqDesc=l=>l.item!==undefined?String(l.desc||""):(itemByName(l.desc)?"":String(l.desc||""));
-function rqNorm(l){if(l&&l.item===undefined){const i=rqItem(l),d=rqDesc(l);l.item=i;l.desc=d}return l}
-const rqBad=l=>{const i=rqItem(l).trim();if(!i)return masterHasItems()&&(+l.qty>0||rqDesc(l).trim()!=="");const it=itemByName(i);return masterHasItems()&&!(it&&it.active!=="No")};
+/* PO lines: item from the item master, description free text; desc = both, used by GRN, stock and the printed PO */
+const BADITEM="Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.";
+const poDesc=(l,v)=>{if(v===undefined)return l.item?String(l.spec||""):String(l.desc||"");l.spec=v;poSetDesc(l)};
+function poSetDesc(l){l.desc=[l.item,l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")}
+const poBad=l=>{if(!masterHasItems())return false;const it=itemByName(l.item||"");return!(it&&it.active!=="No"&&it.name===l.item)};
+const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
+function rqFlat(l){if(l&&l.item!==undefined){l.desc=rqText(l);delete l.item}return l}
 function itemByName(n){const k=key(n);if(!k)return null;return items.find(i=>key(i.name)===k)||items.find(i=>i.code&&key(i.code)===k)||null}
 function fillItemList(){
   const seen=new Set(),o=[];const add=n=>{const k=key(n);if(k&&!seen.has(k)){seen.add(k);o.push(`<option value="${esc(n)}">`)}};
@@ -2355,7 +2358,7 @@ function renderReorder(){const P=$("#reorderPanel");if(!P)return;const L=lowStoc
   P.innerHTML=`<div class="row"><h2 class="sec">Below minimum stock</h2><span class="note">${L.length?L.length+" item"+(L.length===1?"":"s"):""}</span><span style="flex:1"></span>${L.length&&can("req")&&has("req.create")?`<button class="btn primary" type="button" id="btn-reorder">Raise purchase request for these</button>`:""}</div>
   <div class="note">Set minimum stock for each item in Masters, Items. Suggested order brings stock up to twice the minimum.</div>
   ${L.length?`<div class="tablebox"><table class="mt"><thead><tr><th>Item</th><th>Code</th><th class="num">In stock</th><th class="num">Minimum</th><th class="num">Suggested order</th><th>Unit</th></tr></thead><tbody>${L.map(r=>`<tr><td>${esc(r.it.name)}</td><td>${esc(r.it.code||"")}</td><td class="num" style="color:var(--danger);font-weight:600">${fmt0(r.bal)}</td><td class="num">${fmt0(r.min)}</td><td class="num">${fmt0(r.order)}</td><td>${esc(r.it.unit||"")}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">All items with a minimum are above it.</div>`}`;
-  const b=$("#btn-reorder");if(b)b.onclick=()=>{show("req");cur=blankReq();cur.by=me.name;cur.dept=me.dept||"";cur.lines=L.map(r=>({item:r.it.name,desc:"",spec:r.it.code?"Code "+r.it.code:"",qty:r.order,unit:r.it.unit||"NOS",remark:`Stock ${fmt0(r.bal)}, minimum ${fmt0(r.min)}`}));renderReq();toast(`${L.length} items added. Choose the Job No. (or store stock) and submit.`)}}
+  const b=$("#btn-reorder");if(b)b.onclick=()=>{show("req");cur=blankReq();cur.by=me.name;cur.dept=me.dept||"";cur.lines=L.map(r=>({desc:r.it.name,spec:r.it.code?"Code "+r.it.code:"",qty:r.order,unit:r.it.unit||"NOS",remark:`Stock ${fmt0(r.bal)}, minimum ${fmt0(r.min)}`}));renderReq();toast(`${L.length} items added. Choose the Job No. (or store stock) and submit.`)}}
 /* receivables */
 const rcptsOf=x=>Array.isArray(x.rcpts)?x.rcpts:(+x.recd?[{date:x.recdDate||x.date,amt:+x.recd,ref:x.recdRef||""}]:[]);
 const recdOf=x=>rcptsOf(x).reduce((a,r)=>a+(+r.amt||0),0);
