@@ -569,7 +569,7 @@ async function api(path,opts={}){const r=await fetch("/api/"+path,{method:opts.m
   if(r.status===401){cloudExpired();throw Object.assign(new Error("auth"),{auth:true})}const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||"Server error"),{status:r.status});return j}
 function cloudExpired(){if(cloudExpired.done)return;cloudExpired.done=true;try{localStorage.removeItem("zpo:token")}catch(e){}alert("Your login has expired. Please log in again.");location.reload()}
 async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pending.size){cloudBadge("ok");return}
-  cloud.busy=true;cloudBadge("saving");const batch=[...cloud.pending.values()].slice(0,250);batch.forEach(c=>cloud.pending.delete(c.coll+"\u0001"+c.id));
+  cloud.busy=true;cloudBadge("saving");const batch=[...cloud.pending.values()].slice(0,500);batch.forEach(c=>cloud.pending.delete(c.coll+"\u0001"+c.id));
   try{const res=await api("sync",{method:"POST",body:{changes:batch}});const confl=[],errs=[];
     res.results.forEach((x,i)=>{if(x.conflict)confl.push(batch[i]);else if(x.error)errs.push(x.error)});
     if(errs.length)toast(errs[0]);
@@ -2056,7 +2056,7 @@ async function partyImport(f,dflt){if(!window.XLSX){toast("Excel tools did not l
       if(doC){C.forEach(({kind,bad,...x})=>{const c=custByName(x.name);if(c){fill(c,x);uc++}else{customers.push({id:itId(),contact:"",phone:"",email:"",city:"",gstin:"",addr:"",...x});nc++}});saveCusts()}
       if(doS){S.forEach(({kind,bad,addr,...x})=>{const full=[addr,[x.city,x.pin].filter(Boolean).join(" - "),x.stname].filter(Boolean).join("\n");const v={...x,addr:full,terms:x.terms||"60 Days"};
         const s=suppliers.find(s=>key(s.name)===key(x.name));if(s){fill(s,v);us++}else{suppliers.push({contact:"",...v,state:v.state||"27"});ns++}});saveSups()}
-      d.remove();if(typeof renderSups==="function")renderSups();if(can("sales"))renderSales();
+      d.remove();if(typeof renderSups==="function")renderSups();if(typeof renderMastCusts==="function")renderMastCusts();if(can("sales"))renderSales();
       toast(`Imported ${nc} new customers${uc?` (${uc} updated)`:""}, ${ns} new suppliers${us?` (${us} updated)`:""}`)}}
   catch(err){console.error(err);toast("Could not read that file. Save it as .xlsx or .csv and try again.")}}
 function docQuote(d){const c=custByName(d.cust)||{name:d.cust};const L=(d.lines||[]).filter(l=>String(l.desc||"").trim()||+l.rate);

@@ -72,7 +72,21 @@ export default async (req) => {
     if (path === "sync" && m === "POST") {
       const { changes } = await body(req); if (!Array.isArray(changes)) return json({ error: "Bad request" }, 400);
       const admin = await isAdmin(me); const results = [];
-      for (const c of changes.slice(0, 500)) {
+      const list = changes.slice(0, 500);
+      // fast path: plain saves (not new-numbered docs, not masters) go in one statement, so a 1,000-row import takes one round trip
+      const plain = list.filter((c) => COLLS.has(String(c.coll || "")) && c.id && String(c.id).length <= 200 && !c.isNew && c.coll !== "masters");
+      const done = new Map();
+      if (plain.length) {
+        const seen = new Set(); const rows = [];
+        for (const c of plain) { const k = c.coll + "\u0001" + c.id; if (seen.has(k)) continue; seen.add(k); rows.push({ coll: String(c.coll), id: String(c.id), data: c.deleted ? null : (c.data ?? null), deleted: !!c.deleted }); }
+        const r = await q(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by)
+          SELECT x.coll,x.id,x.data,x.deleted,nextval('rev_seq'),currval('rev_seq'),$2 FROM jsonb_to_recordset($1::jsonb) AS x(coll text,id text,data jsonb,deleted boolean)
+          ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=EXCLUDED.deleted,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by RETURNING coll,id,rev,created_rev`, [JSON.stringify(rows), me]);
+        r.forEach((x) => done.set(x.coll + "\u0001" + x.id, { coll: x.coll, id: x.id, rev: Number(x.rev), created_rev: Number(x.created_rev) }));
+      }
+      for (const c of list) {
+        const dk = String(c.coll || "") + "\u0001" + String(c.id || "");
+        if (done.has(dk)) { results.push(done.get(dk)); continue; }
         const coll = String(c.coll || ""), id = String(c.id || "");
         if (!COLLS.has(coll) || !id || id.length > 200) { results.push({ coll, id, error: "bad" }); continue; }
         if (coll === "masters" && !admin) {
