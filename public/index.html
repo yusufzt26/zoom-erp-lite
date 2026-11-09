@@ -440,8 +440,8 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-users" class="stack" hidden>
   <div class="masters">
     <div class="panel stack"><h2 class="sec">Users</h2><div class="note">Choosing a role gives the standard rights for that role. Fine-tune them on the right.</div>
-      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><select id="mu-dept"></select><select id="mu-role"><option>Requester</option><option>HOD</option><option>Purchaser</option><option>Approver</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
-      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Department</th><th>Role</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
+      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-role"><option>Requester</option><option>HOD</option><option>Purchaser</option><option>Approver</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Role</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
@@ -1661,7 +1661,7 @@ function renderMasters(){
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   $("#md-hod").innerHTML=opts(hods,"","HOD (optional)");
-  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Requester","HOD","Purchaser","Approver","Store","Accounts","Sales","Production","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="HOD")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="4" class="empty">No users yet.</td></tr>`;
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Requester","HOD","Purchaser","Approver","Store","Accounts","Sales","Production","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="HOD")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="4" class="empty">No users yet.</td></tr>`;
   $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
   const pjE=projCan("edit"),pjD=projCan("delete"),pjRO=pjE?"":" disabled";$("#m-proj-form").hidden=!projCan("create");
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input${pjRO} id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input${pjRO} id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input${pjRO} id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select${pjRO} id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td>${pjD?`<button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
@@ -1717,7 +1717,7 @@ function shrinkSig(file){return new Promise((res,rej)=>{const img=new Image();co
 function addM(t,rec,check){if(!check){toast("Fill in the name first");return false}
   const k=t==="projects"?"no":"name";if(M[t].some(x=>key(x[k])===key(rec[k]))){toast(`${rec[k]} is already in the list`);return false}
   M[t].push(rec);saveM();renderMasters();toast(`Added ${rec[k]}`);return true}
-$("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,dept:$("#mu-dept").value,role:$("#mu-role").value},n))$("#mu-name").value=""};
+$("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,email:$("#mu-email").value.trim(),dept:$("#mu-dept").value,role:$("#mu-role").value},n)){$("#mu-name").value="";$("#mu-email").value=""}};
 $("#m-dept-form").onsubmit=e=>{e.preventDefault();const n=$("#md-name").value.trim();if(addM("depts",{name:n,hod:$("#md-hod").value},n))$("#md-name").value=""};
 $("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim().toUpperCase();if(addM("projects",{no:n,desc:$("#mp-desc").value.trim(),cust:$("#mp-cust").value.trim(),status:"Active"},n)){$("#mp-no").value="";$("#mp-desc").value="";$("#mp-cust").value=""}};
 
@@ -2600,9 +2600,10 @@ bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
     <h2 class="sec">${setup?"First-time setup: create the Admin login":"Log in"}</h2>${msg?`<div class="banner back">${msg}</div>`:""}
     <label class="f">Name<input id="g-name" autocomplete="username" required></label>
     <label class="f">Password<input id="g-pass" type="password" autocomplete="${setup?"new-password":"current-password"}" required minlength="${setup?6:1}"></label>
-    ${setup?`<label class="f">Password again<input id="g-pass2" type="password" autocomplete="new-password" required></label><div class="note">This person becomes the Admin. The Admin adds the other users and sets their passwords on the Users &amp; rights page.</div>`:`<div class="note">Forgot your password? Ask the Admin to reset it.</div>`}
+    ${setup?`<label class="f">Password again<input id="g-pass2" type="password" autocomplete="new-password" required></label><div class="note">This person becomes the Admin. The Admin adds the other users and sets their passwords on the Users &amp; rights page.</div>`:`<div class="note"><a href="#" id="g-forgot">Forgot password?</a> We email you a code. No email on file? Ask the Admin to reset it.</div>`}
     <button class="btn primary" id="g-go">${setup?"Create Admin and start":"Log in"}</button></form>`;
     $("#g-name").focus();
+    const fg=$("#g-forgot");if(fg)fg.onclick=e=>{e.preventDefault();forgot($("#g-name").value.trim())};
     G.querySelector("form").onsubmit=async e=>{e.preventDefault();const name=$("#g-name").value.trim(),password=$("#g-pass").value;
       if(setup&&password!==$("#g-pass2").value){gate(setup,"The passwords do not match");return}
       $("#g-go").disabled=true;$("#g-go").textContent="Please wait…";
@@ -2610,6 +2611,27 @@ bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
         if(!r.ok){gate(setup&&r.status!==409,j.error||"Could not log in");$("#g-name").value=name;return}
         try{localStorage.setItem("zpo:token",j.token)}catch(e){}const d=await getSync(j.token);if(!d){gate(false,"Logged in, but could not load data. Try again.");return}start(j.token,d)}
       catch(err){gate(setup,"No connection to the server. Check the internet and try again.")}}}
+  /* forgot password: code by email, then a new password */
+  const post=async(u,b)=>{const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});return{ok:r.ok,j:await r.json().catch(()=>({}))}};
+  function forgot(name,msg,sent){const G=$("#gate");
+    G.innerHTML=`<form class="panel stack gatebox"><img class="gatelogo" src="${window.ZT_LOGO}" alt="Zoom Technologies"><div class="brand" style="justify-content:center">ZT-ERP LITE</div>
+    <h2 class="sec">Reset your password</h2>${msg?`<div class="banner ${sent?"":"back"}">${msg}</div>`:""}
+    <label class="f">Your name (as you log in)<input id="f-name" autocomplete="username" required value="${String(name||"").replace(/"/g,"&quot;")}"></label>
+    ${sent?`<label class="f">6-digit code from the email<input id="f-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
+    <label class="f">New password (at least 6 characters)<input id="f-pass" type="password" autocomplete="new-password" minlength="6" required></label>
+    <label class="f">New password again<input id="f-pass2" type="password" autocomplete="new-password" required></label>
+    <button class="btn primary" id="f-go">Set new password</button><a href="#" id="f-resend">Send a new code</a>`:`<button class="btn primary" id="f-go">Email me a code</button>`}
+    <a href="#" id="f-back">Back to log in</a></form>`;
+    $(sent?"#f-code":"#f-name").focus();
+    $("#f-back").onclick=e=>{e.preventDefault();gate(false)};
+    if(sent)$("#f-resend").onclick=e=>{e.preventDefault();forgot($("#f-name").value.trim())};
+    G.querySelector("form").onsubmit=async e=>{e.preventDefault();const n=$("#f-name").value.trim();$("#f-go").disabled=true;$("#f-go").textContent="Please wait…";
+      try{if(!sent){const r=await post("/api/forgot",{name:n});if(!r.ok){forgot(n,r.j.error||"Could not send the code. Try again.");return}
+          forgot(n,r.j.message||"If this name has an email on file, a code has been sent. Check your inbox (and spam).",true);return}
+        const p1=$("#f-pass").value;if(p1!==$("#f-pass2").value){forgot(n,"The passwords do not match",true);return}
+        const r=await post("/api/reset",{name:n,code:$("#f-code").value.trim(),password:p1});if(!r.ok){forgot(n,r.j.error||"That code did not work",true);return}
+        gate(false,"Password changed. Log in with the new password.");$("#g-name").value=n;$("#g-pass").focus()}
+      catch(err){forgot(n,"No connection to the server. Check the internet and try again.",sent)}}}
   (async()=>{let st=null;try{const r=await fetch("/api/status",{cache:"no-store"});if(r.ok&&(r.headers.get("content-type")||"").includes("json"))st=await r.json()}catch(e){}
     if(!st||!st.ok){zpoMain(null);return}
     let t=null;try{t=localStorage.getItem("zpo:token")}catch(e){}

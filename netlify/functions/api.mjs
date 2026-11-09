@@ -1,6 +1,7 @@
 // Zoom PO Desk API: login, shared data sync and user logins.
 import { getDatabase } from "@netlify/database";
-import { scryptSync, randomBytes, timingSafeEqual, createHash } from "node:crypto";
+import { scryptSync, randomBytes, randomInt, timingSafeEqual, createHash } from "node:crypto";
+import nodemailer from "nodemailer";
 
 const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes"]);
 const SESSION_DAYS = 30;
@@ -47,6 +48,38 @@ export default async (req) => {
       md.users = (md.users || []).filter((u) => u.name !== n); md.users.unshift({ name: n, dept: "", role: "Admin" });
       await q("INSERT INTO records(coll,id,data,rev,created_rev,updated_by) VALUES('masters','_',$1,nextval('rev_seq'),currval('rev_seq'),$2) ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by", [JSON.stringify(md), n]);
       return json({ token: await newSession(n), name: n });
+    }
+
+    // forgot password: email a 6-digit code (Gmail app password in ZPO_SMTP_USER / ZPO_SMTP_PASS)
+    if (path === "forgot" && m === "POST") {
+      const generic = { ok: true, message: "If this name has an email on file, a code has been sent. Check your inbox (and spam)." };
+      const { name } = await body(req); const n = normName(name); if (!n) return json({ error: "Enter your name" }, 400);
+      if (!process.env.ZPO_SMTP_USER || !process.env.ZPO_SMTP_PASS) return json({ error: "Email is not set up yet. Ask the Admin to reset your password." }, 503);
+      const lg = await q("SELECT name FROM logins WHERE lower(name)=lower($1) AND active", [n]); if (!lg[0]) return json(generic);
+      const u = await profile(lg[0].name); const to = u && String(u.email || "").trim();
+      if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return json(generic);
+      const last = await q("SELECT 1 FROM reset_codes WHERE name=$1 AND sent_at>NOW()-interval '60 seconds'", [lg[0].name]);
+      if (last[0]) return json({ error: "A code was just sent. Wait a minute before asking again." }, 429);
+      const code = String(randomInt(0, 1000000)).padStart(6, "0");
+      await q("INSERT INTO reset_codes(name,code_hash,expires_at,tries,sent_at) VALUES($1,$2,NOW()+interval '10 minutes',0,NOW()) ON CONFLICT (name) DO UPDATE SET code_hash=EXCLUDED.code_hash,expires_at=EXCLUDED.expires_at,tries=0,sent_at=NOW()", [lg[0].name, sha(code)]);
+      try {
+        const tr = nodemailer.createTransport({ host: process.env.ZPO_SMTP_HOST || "smtp.gmail.com", port: +(process.env.ZPO_SMTP_PORT || 465), secure: +(process.env.ZPO_SMTP_PORT || 465) === 465, ignoreTLS: !!process.env.ZPO_SMTP_PLAIN, auth: { user: process.env.ZPO_SMTP_USER, pass: process.env.ZPO_SMTP_PASS } });
+        await tr.sendMail({ from: `"ZT-ERP LITE" <${process.env.ZPO_SMTP_USER}>`, to, subject: `ZT-ERP LITE password code: ${code}`,
+          text: `Hello ${lg[0].name},\n\nYour code to reset your ZT-ERP LITE password is ${code}.\nIt works for 10 minutes. If you did not ask for this, ignore this email.\n\nZoom Technologies` });
+      } catch (e) { console.error("mail", e && e.message); return json({ error: "Could not send the email. Ask the Admin to reset your password." }, 502); }
+      return json(generic);
+    }
+
+    if (path === "reset" && m === "POST") {
+      const { name, code, password } = await body(req); const n = normName(name);
+      if (String(password || "").length < 6) return json({ error: "Password must be at least 6 characters" }, 400);
+      const r = await q("SELECT r.name,r.code_hash,r.tries,r.expires_at>NOW() AS live FROM reset_codes r WHERE lower(r.name)=lower($1)", [n]);
+      const row = r[0]; const bad = () => json({ error: "That code is wrong or has expired. Ask for a new code." }, 400);
+      if (!row || !row.live || row.tries >= 5) return bad();
+      if (sha(String(code || "").trim()) !== row.code_hash) { await q("UPDATE reset_codes SET tries=tries+1 WHERE name=$1", [row.name]); await new Promise((s) => setTimeout(s, 600)); return bad(); }
+      await q("UPDATE logins SET pass_hash=$2 WHERE name=$1", [row.name, hashPass(password)]);
+      await q("DELETE FROM sessions WHERE name=$1", [row.name]); await q("DELETE FROM reset_codes WHERE name=$1", [row.name]);
+      return json({ ok: true });
     }
 
     if (path === "login" && m === "POST") {

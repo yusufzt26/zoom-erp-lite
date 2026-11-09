@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS reset_codes (
+  name TEXT PRIMARY KEY,
+  code_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  tries INT NOT NULL DEFAULT 0,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
