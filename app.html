@@ -2420,9 +2420,9 @@ const MST={draft:"Being estimated",costing:"Being estimated",costed:"Being estim
 const canLinkProj=()=>isRole("Admin")||has("proj.edit")||has("mast.edit");
 function renderMould(){$("#mo-newjob").innerHTML=`<option value="">No Job No. yet</option>`+M.projects.filter(p=>p.status==="Active").map(p=>`<option value="${esc(p.no)}">For ${esc(p.no)}${p.desc?" · "+esc(p.desc):""}</option>`).join("");$("#mo-tab-app").setAttribute("aria-pressed",String(moTab==="app"));$("#mo-tab-link").setAttribute("aria-pressed",String(moTab==="link"));
   $("#mo-app").hidden=moTab!=="app";$("#mo-link").hidden=moTab!=="link";
-  if(moTab==="app"){const f=$("#mo-frame");if(!f.getAttribute("src"))f.setAttribute("src",MOULD_URL);return}
+  if(moTab==="app"){const f=$("#mo-frame");if(!f.getAttribute("src"))f.setAttribute("src",MOULD_URL);let n=$("#mo-pv");if(!CLOUD&&!n){f.insertAdjacentHTML("beforebegin",`<div class="banner back" id="mo-pv">This test copy cannot load the estimator, so the box below stays empty. On the live ERP the estimator opens here, on a new enquiry with the details filled in.</div>`)}return}
   renderMouldLink();loadMould().then(()=>{if(moTab==="link"&&!$("#view-mould").hidden)renderMouldLink()})}
-function openMouldNew(o){const q=new URLSearchParams({erp:"new"});Object.entries(o||{}).forEach(([k,v])=>{if(v)q.set(k,String(v))});moTab="app";$("#mo-frame").setAttribute("src",MOULD_URL+"/?"+q.toString());show("mould");toast("Choose what you are estimating in the estimator; the details are filled in")}
+function openMouldNew(o){const q=new URLSearchParams({erp:"new"});Object.entries(o||{}).forEach(([k,v])=>{if(v)q.set(k,String(v))});moTab="app";$("#mo-frame").setAttribute("src",MOULD_URL+"/?"+q.toString());show("mould");if(CLOUD)toast("Choose what you are estimating in the estimator; the details are filled in")}
 $("#mo-new").onclick=()=>{const no=$("#mo-newjob").value,p=no&&M.projects.find(x=>x.no===no);openMouldNew(p?{customer:p.cust,part:p.desc,job:p.no}:{})};
 $("#mo-tab-app").onclick=()=>{moTab="app";renderMould()};$("#mo-tab-link").onclick=()=>{moTab="link";renderMould()};
 function renderMouldLink(){const B=$("#mo-link"),L=MOULD.jobs,link=canLinkProj(),act=M.projects.filter(p=>p.status==="Active");
