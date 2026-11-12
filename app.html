@@ -486,7 +486,7 @@ body.gated header.bar,body.gated main{display:none}
 <!-- MASTERS -->
 <section id="view-mast" class="stack" hidden>
   <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:10px;font-size:15px"><b>Show list</b><select id="mast-pick" style="width:auto;min-width:240px;font-size:15px">
-    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments and HODs</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
+    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments and HODs</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="opening">Opening bills (old ERP)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
   <div class="masters">
     <div class="panel stack" data-mp="depts"><h2 class="sec">Departments</h2>
       <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
@@ -510,6 +510,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack" data-mp="plants" id="plantPanel" style="grid-column:1/-1"></div>
     <div class="panel stack" data-mp="salescfg" id="salesCfgPanel" style="grid-column:1/-1"></div>
     <div class="panel stack" data-mp="mach" id="machPanel"></div>
+    <div class="panel stack" data-mp="opening" id="openPanel" style="grid-column:1/-1"></div>
   </div>
 </section>
 
@@ -551,7 +552,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -1456,7 +1457,7 @@ function backupBook(){
   add("POs",saved.map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
   add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
-  add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":(x.alloc||[]).map(a=>a.grn).join(", ")})));
+  add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":(x.alloc||[]).map(a=>a.ob?obBill(a.ob):a.grn).join(", ")})));
   add("Items",items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})));
   add("Customers",customers.map(c=>({Customer:c.name,"Contact person":c.contact||"",Mobile:c.phone||"",Email:c.email||"",City:c.city||"",GSTIN:c.gstin||"",Address:c.addr||""})));
   add("Enquiries",deals.map(d=>({"QT No":"QT-"+d.no,Date:d.date,Customer:d.cust,"Enquiry for":d.title,Stage:d.stage,Salesperson:d.owner||"",Value:Math.round(dealVal(d)),"Customer PO":d.custPO||"","Job No":d.job||"","Lost reason":d.lostWhy||""})));
@@ -1499,10 +1500,17 @@ setInterval(()=>{if(!me)return;if(backupDue()){if(!inFrame&&!backupDue.busy){bac
 /* ---------- accounts ---------- */
 let acctSel=null,vendSel=null;
 let pays=store.get("pays",[]);const savePays=()=>store.set("pays",pays);
+let obills=store.get("obills",[]);const saveOB=()=>store.set("obills",obills);
+const obPaid=o=>(+o.prior||0)+(o.kind==="sup"?pays.reduce((a,p)=>a+(p.alloc||[]).filter(x=>x.ob===o.id).reduce((b,x)=>b+x.amt,0),0):rcptsOf(o).reduce((a,r)=>a+(+r.amt||0),0));
+const obBal=o=>Math.round(((+o.amt||0)-obPaid(o))*100)/100;
+const obDue=o=>o.days!==""&&o.days!=null&&!isNaN(+o.days)?addDays(o.date,+o.days):(o.due||"");
+const obCustDue=()=>obills.filter(o=>o.kind==="cust").reduce((a,o)=>a+obBal(o),0);
+const obBill=id=>{const o=obills.find(x=>x.id===id);return o?`bill ${o.bill||"(no number)"} (old ERP)`:"old bill"};
 const grnPaid=g=>pays.reduce((a,p)=>a+p.alloc.filter(x=>x.grn===g.no).reduce((b,x)=>b+x.amt,0),0);
 const grnBal=g=>Math.round((grnCalc(g).total-grnPaid(g)-dnAdj(g))*100)/100;
 function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").forEach(g=>{const v=m[g.sup]||(m[g.sup]={sup:g.sup,booked:0,paid:0,overdue:0,due7:0});const b=grnBal(g);v.booked+=grnCalc(g).total-dnAdj(g);v.paid+=grnPaid(g);
-  const d=dueDate(g);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});return Object.values(m)}
+  const d=dueDate(g);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});
+  obills.filter(o=>o.kind==="sup").forEach(o=>{const v=m[o.party]||(m[o.party]={sup:o.party,booked:0,paid:0,overdue:0,due7:0});const b=obBal(o);v.booked+=+o.amt||0;v.paid+=obPaid(o);const d=obDue(o);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});return Object.values(m)}
 function addDays(iso,n){const t=new Date(iso);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
 function payChip(p){const gs=grns.filter(g=>String(g.poNo)===String(p.no)&&g.status!=="With accounts");if(!gs.length)return"";const bal=gs.reduce((a,g)=>a+grnBal(g),0),tot=gs.reduce((a,g)=>a+grnCalc(g).total,0);
   return" "+(bal<=0.004?`<span class="chip st-PO">Paid</span>`:bal<tot-0.004?`<span class="chip st-Submitted">Part paid</span>`:`<span class="chip st-Draft">Unpaid</span>`)}
@@ -1534,15 +1542,17 @@ $("#acctDetail").addEventListener("click",e=>{const g=grns.find(x=>x.no===acctSe
 function renderVend(){
   const D=$("#vendDetail");if(!vendSel){D.hidden=true;return}D.hidden=false;
   const open=grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts"&&grnBal(g)>0.004).sort((a,b)=>(dueDate(a)||"").localeCompare(dueDate(b)||""));
+  const obo=obills.filter(o=>o.kind==="sup"&&o.party===vendSel&&obBal(o)>0.004).sort((a,b)=>(obDue(a)||a.date).localeCompare(obDue(b)||b.date));const opTot=open.reduce((a,g)=>a+grnBal(g),0)+obo.reduce((a,o)=>a+obBal(o),0);
   const led=[];grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts").forEach(g=>led.push({d:g.bookedAt||g.date,t:`GRN ${g.no} booked (${g.voucher}) · PO ${g.poNo}`,cr:grnCalc(g).total,dr:0}));
+  obills.filter(o=>o.kind==="sup"&&o.party===vendSel).forEach(o=>{led.push({d:o.date,t:`Opening bill ${o.bill||""} (old ERP)`,cr:+o.amt||0,dr:0});if(+o.prior)led.push({d:o.date,t:`Paid before start (old ERP) · bill ${o.bill||""}`,cr:0,dr:+o.prior})});
   dnotes.filter(d=>key(d.party)===key(vendSel)&&d.reason!=="Rejected at GRN").forEach(d=>led.push({d:d.date,t:`Debit note DN-${d.no} · ${d.reason}${d.grn?" · GRN "+d.grn:""}`,cr:0,dr:ntCalc("dn",d).grand}));
-  pays.filter(p=>p.sup===vendSel).forEach(p=>led.push({d:p.date,t:`Payment ${p.no} · ${p.mode} ${p.ref} · GRN ${p.alloc.map(x=>x.grn).join(", ")}`,cr:0,dr:p.amount}));
+  pays.filter(p=>p.sup===vendSel).forEach(p=>led.push({d:p.date,t:`Payment ${p.no} · ${p.mode} ${p.ref} · ${p.alloc.map(x=>x.ob?obBill(x.ob):"GRN "+x.grn).join(", ")}`,cr:0,dr:p.amount}));
   led.sort((a,b)=>a.d.localeCompare(b.d));let bal=0;
   D.innerHTML=`<div class="row"><h2 class="sec">${esc(vendSel)}</h2><span style="flex:1"></span><button class="btn" id="btn-v-close" type="button">Close</button></div>
-  ${open.length&&has("acct.book")?`<h3 class="rg">Record a payment</h3>
-  <div class="grid-fields"><label class="f">Payment date<input id="v-date" type="date" value="${today()}"></label><label class="f">Mode<select id="v-mode"><option>NEFT</option><option>RTGS</option><option>Cheque</option><option>UPI</option><option>Cash</option></select></label><label class="f">UTR / cheque no.<input id="v-ref"></label><label class="f">Amount paid<input id="v-amt" type="number" step="0.01" value="${open.reduce((a,g)=>a+grnBal(g),0).toFixed(2)}"></label></div>
-  <div class="tablebox"><table class="est" style="min-width:600px"><thead><tr><th>GRN</th><th>Invoice</th><th>Due</th><th class="num">Balance</th><th class="num">Pay now</th></tr></thead><tbody id="v-alloc">${open.map(g=>`<tr data-g="${g.no}"><td>GRN ${g.no} · PO ${esc(g.poNo)}</td><td>${esc(g.inv||"-")}</td><td style="${dueDate(g)&&dueDate(g)<today()?"color:var(--danger);font-weight:600":""}">${dueDate(g)?dmy(dueDate(g)):"-"}</td><td class="num">${fmt(grnBal(g))}</td><td class="num"><input id="va-${g.no}" class="rate" type="number" step="0.01" value="${grnBal(g).toFixed(2)}" data-bal="${grnBal(g)}"></td></tr>`).join("")}</tbody></table></div>
-  <div class="row"><span class="note">Changing the amount spreads it over the oldest due GRNs first. You can also edit each line.</span><span style="flex:1"></span><button class="btn primary" id="btn-v-pay" type="button">Save payment</button></div>`:open.length?"":`<div class="note">Nothing outstanding for this supplier.</div>`}
+  ${(open.length||obo.length)&&has("acct.book")?`<h3 class="rg">Record a payment</h3>
+  <div class="grid-fields"><label class="f">Payment date<input id="v-date" type="date" value="${today()}"></label><label class="f">Mode<select id="v-mode"><option>NEFT</option><option>RTGS</option><option>Cheque</option><option>UPI</option><option>Cash</option></select></label><label class="f">UTR / cheque no.<input id="v-ref"></label><label class="f">Amount paid<input id="v-amt" type="number" step="0.01" value="${opTot.toFixed(2)}"></label></div>
+  <div class="tablebox"><table class="est" style="min-width:600px"><thead><tr><th>GRN</th><th>Invoice</th><th>Due</th><th class="num">Balance</th><th class="num">Pay now</th></tr></thead><tbody id="v-alloc">${obo.map(o=>`<tr data-ob="${o.id}"><td>Old ERP bill</td><td>${esc(o.bill||"-")}</td><td style="${obDue(o)&&obDue(o)<today()?"color:var(--danger);font-weight:600":""}">${obDue(o)?dmy(obDue(o)):"-"}</td><td class="num">${fmt(obBal(o))}</td><td class="num"><input class="rate" type="number" step="0.01" value="${obBal(o).toFixed(2)}" data-bal="${obBal(o)}"></td></tr>`).join("")}${open.map(g=>`<tr data-g="${g.no}"><td>GRN ${g.no} · PO ${esc(g.poNo)}</td><td>${esc(g.inv||"-")}</td><td style="${dueDate(g)&&dueDate(g)<today()?"color:var(--danger);font-weight:600":""}">${dueDate(g)?dmy(dueDate(g)):"-"}</td><td class="num">${fmt(grnBal(g))}</td><td class="num"><input id="va-${g.no}" class="rate" type="number" step="0.01" value="${grnBal(g).toFixed(2)}" data-bal="${grnBal(g)}"></td></tr>`).join("")}</tbody></table></div>
+  <div class="row"><span class="note">Changing the amount spreads it over the oldest due GRNs first. You can also edit each line.</span><span style="flex:1"></span><button class="btn primary" id="btn-v-pay" type="button">Save payment</button></div>`:(open.length||obo.length)?"":`<div class="note">Nothing outstanding for this supplier.</div>`}
   <h3 class="rg">Ledger</h3>
   <div class="tablebox"><table class="est" style="min-width:600px"><thead><tr><th>Date</th><th>Entry</th><th class="num">Bill (credit)</th><th class="num">Paid (debit)</th><th class="num">Balance</th></tr></thead><tbody>${led.map(l=>{bal+=l.cr-l.dr;return`<tr><td>${dmy(l.d)}</td><td>${esc(l.t)}</td><td class="num">${l.cr?fmt(l.cr):""}</td><td class="num">${l.dr?fmt(l.dr):""}</td><td class="num"><b>${fmt(bal)}</b></td></tr>`}).join("")}</tbody></table></div>`;
 }
@@ -1552,12 +1562,12 @@ $("#vendDetail").addEventListener("click",e=>{
   if(e.target.id==="btn-v-close"){vendSel=null;renderVend();return}
   if(e.target.id!=="btn-v-pay")return;
   const ref=$("#v-ref").value.trim();if(!ref&&$("#v-mode").value!=="Cash"){toast("Enter the UTR or cheque number");$("#v-ref").focus();return}
-  const alloc=[...$("#v-alloc").querySelectorAll("tr")].map(tr=>({grn:+tr.dataset.g,amt:Math.round((+tr.querySelector("input").value||0)*100)/100,bal:+tr.querySelector("input").dataset.bal})).filter(x=>x.amt>0);
+  const alloc=[...$("#v-alloc").querySelectorAll("tr")].map(tr=>({...(tr.dataset.ob?{ob:tr.dataset.ob}:{grn:+tr.dataset.g}),amt:Math.round((+tr.querySelector("input").value||0)*100)/100,bal:+tr.querySelector("input").dataset.bal})).filter(x=>x.amt>0);
   if(!alloc.length){toast("Enter an amount against at least one GRN");return}
   if(alloc.some(x=>x.amt>x.bal+0.004)){toast("A line is more than that GRN's balance");return}
   const amount=alloc.reduce((a,x)=>a+x.amt,0);const no=Math.max(500,...pays.map(p=>p.no))+1;
-  pays.push({no,date:$("#v-date").value||today(),sup:vendSel,mode:$("#v-mode").value,ref,amount,alloc:alloc.map(({grn,amt})=>({grn,amt})),by:me.name});savePays();
-  alloc.forEach(x=>{const g=grns.find(y=>y.no===x.grn);g.status=grnBal(g)<=0.004?"Paid":"Part paid"});saveGRNs();
+  pays.push({no,date:$("#v-date").value||today(),sup:vendSel,mode:$("#v-mode").value,ref,amount,alloc:alloc.map(({grn,ob,amt})=>ob?{ob,amt}:{grn,amt}),by:me.name});savePays();
+  alloc.forEach(x=>{if(x.ob)return;const g=grns.find(y=>y.no===x.grn);g.status=grnBal(g)<=0.004?"Paid":"Part paid"});saveGRNs();
   toast(`Payment ${no} of ₹ ${fmt(amount)} saved`);renderAcct()});
 
 /* ---------- reports ---------- */
@@ -1649,7 +1659,7 @@ $("#m-sup-form").onsubmit=e=>{e.preventDefault();const n=$("#ms-name").value.tri
   const g=$("#ms-gst").value.trim().toUpperCase();suppliers.push({name:n,addr:"",gstin:g,state:/^\d\d/.test(g)?g.slice(0,2):"27",terms:$("#ms-terms").value.trim()||"60 Days",contact:""});saveSups();renderSups();
   $("#ms-name").value="";$("#ms-gst").value="";$("#ms-terms").value="";toast(`Added ${n}. Fill in the address in the table.`)};
 function renderMasters(){
-  renderSups();renderItems();renderSalesCfg();renderMachines();renderMastCusts();mastPick();
+  renderSups();renderItems();renderSalesCfg();renderMachines();renderMastCusts();renderOpening();mastPick();
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   $("#md-hod").innerHTML=opts(hods,"","HOD (optional)");
@@ -1888,7 +1898,7 @@ function salesTiles(){const D=deals.filter(myDeal),t=today(),mo=t.slice(0,7),d90
     {n:fmtL(won.reduce((a,d)=>a+dealVal(d),0)),t:"Orders won this month",d:`${won.length} order${won.length===1?"":"s"}`},
     {n:av?Math.round(wv*100/av)+"%":"-",t:"Win rate",d:"Last 90 days, by value",zero:!av},
     {n:sorders.filter(s=>["Open","Part dispatched"].includes(soStatus(s))).length,t:"Orders to dispatch",d:"Sales orders not fully sent"},
-    {n:fmtL(invoices.reduce((a,x)=>a+invDue(x),0)),t:"To collect",d:"Invoices not fully paid"}]}
+    {n:fmtL(invoices.reduce((a,x)=>a+invDue(x),0)+obCustDue()),t:"To collect",d:"Invoices not fully paid"}]}
 function renderSales(){{const b=$("#btn-deal-new");if(b)b.hidden=!has("sales.create")}
   if(!$("#view-sales")||$("#view-sales").hidden)return;
   $("#salesTiles").innerHTML=salesTiles().map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("");
@@ -2362,7 +2372,7 @@ function renderReorder(){const P=$("#reorderPanel");if(!P)return;const L=lowStoc
 /* receivables */
 const rcptsOf=x=>Array.isArray(x.rcpts)?x.rcpts:(+x.recd?[{date:x.recdDate||x.date,amt:+x.recd,ref:x.recdRef||""}]:[]);
 const recdOf=x=>rcptsOf(x).reduce((a,r)=>a+(+r.amt||0),0);
-function custAgeing(){const m={},t=today();invoices.forEach(x=>{const d=invDue(x);if(d<0.5)return;const r=m[x.cust]||(m[x.cust]={cust:x.cust,tot:0,b:[0,0,0,0],n:0});const age=Math.round((new Date(t)-new Date(x.date))/864e5);r.tot+=d;r.n++;r.b[age<=30?0:age<=60?1:age<=90?2:3]+=d});return Object.values(m).sort((a,b)=>b.tot-a.tot)}
+function custAgeing(){const m={},t=today();invoices.concat(obills.filter(o=>o.kind==="cust").map(o=>({cust:o.party,date:o.date,_ob:o}))).forEach(x=>{const d=x._ob?obBal(x._ob):invDue(x);if(d<0.5)return;const r=m[x.cust]||(m[x.cust]={cust:x.cust,tot:0,b:[0,0,0,0],n:0});const age=Math.round((new Date(t)-new Date(x.date))/864e5);r.tot+=d;r.n++;r.b[age<=30?0:age<=60?1:age<=90?2:3]+=d});return Object.values(m).sort((a,b)=>b.tot-a.tot)}
 function renderAgeing(){const P=$("#agePanel");if(!P)return;const A=custAgeing(),T=A.reduce((a,r)=>{r.b.forEach((v,i)=>a[i]+=v);return a},[0,0,0,0]);
   P.innerHTML=`<h2 class="sec">Customer outstanding and ageing</h2><div class="note">Days counted from the invoice date. Payments and credit notes are already taken off.</div>${A.length?`<div class="tablebox"><table class="mt" style="min-width:680px"><thead><tr><th>Customer</th><th class="num">Invoices</th><th class="num">0-30 days</th><th class="num">31-60</th><th class="num">61-90</th><th class="num">Over 90</th><th class="num">Total due</th></tr></thead><tbody>${A.map(r=>`<tr><td><b>${esc(r.cust)}</b></td><td class="num">${r.n}</td>${r.b.map((v,i)=>`<td class="num"${i>=2&&v>0?' style="color:var(--danger);font-weight:600"':""}>${v?fmt0(Math.round(v)):""}</td>`).join("")}<td class="num"><b>${fmt0(Math.round(r.tot))}</b></td></tr>`).join("")}<tr><td><b>Total</b></td><td></td>${T.map(v=>`<td class="num"><b>${fmt0(Math.round(v))}</b></td>`).join("")}<td class="num"><b>${fmt0(Math.round(A.reduce((a,r)=>a+r.tot,0)))}</b></td></tr></tbody></table></div>`:`<div class="empty">Nothing outstanding.</div>`}`}
 /* job costing */
@@ -2395,10 +2405,10 @@ async function gstExport(kind,mo){if(!window.XLSX){toast("Excel tools did not lo
 /* owner summary on Home */
 function renderOwner(){const P=$("#ownerPanel");if(!P)return;if(!(isRole("Admin")||isRole("Approver"))){P.hidden=true;return}P.hidden=false;const mo=today().slice(0,7);
   const sales=invoices.filter(v=>v.date.slice(0,7)===mo).reduce((a,v)=>a+invTot(v),0)-cnotes.filter(n=>n.date.slice(0,7)===mo).reduce((a,n)=>a+ntCalc("cn",n).grand,0);
-  const coll=invoices.reduce((a,v)=>a+rcptsOf(v).filter(r=>(r.date||"").slice(0,7)===mo).reduce((b,r)=>b+(+r.amt||0),0),0);
+  const coll=invoices.concat(obills.filter(o=>o.kind==="cust")).reduce((a,v)=>a+rcptsOf(v).filter(r=>(r.date||"").slice(0,7)===mo).reduce((b,r)=>b+(+r.amt||0),0),0);
   const pur=grns.filter(g=>g.status!=="With accounts"&&(g.bookedAt||g.date).slice(0,7)===mo).reduce((a,g)=>a+grnCalc(g).total,0);
   const paid=pays.filter(p=>(p.date||"").slice(0,7)===mo).reduce((a,p)=>a+(+p.amount||0),0);
-  const recv=invoices.reduce((a,v)=>a+invDue(v),0),payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
+  const recv=invoices.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
   const openSO=sorders.filter(s=>["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),late=J.filter(j=>j.due&&j.due<today()).length,low=lowStock().length;
   const T=[["Sales this month",fmtL(sales),"Invoices less credit notes","inv"],["Collected this month",fmtL(coll),"Customer receipts","inv"],["Purchases this month",fmtL(pur),"Booked GRNs","acct"],["Paid to vendors",fmtL(paid),"This month","acct"],
     ["To collect",fmtL(recv),"All open invoices","inv",recv>0],["To pay",fmtL(payb),"All booked GRNs","acct"],["Orders to dispatch",String(openSO.length),fmtL(openSO.reduce((a,s)=>a+sdSub(s),0))+" order value","so"],["Jobs on the floor",String(J.length),late?late+" past due date":"None past due","prod",late>0],
@@ -2416,6 +2426,92 @@ function renderPlants(){const P=$("#plantPanel");if(!P)return;const L=plants(),a
   P.innerHTML=`<h2 class="sec">Plants</h2><div class="note">Each purchase and sales document belongs to one plant. The plant's address prints on the document, and tax invoices are numbered separately per plant with its own prefix (both plants share one GSTIN). Pick the plant you work at in the header bar; new documents start in that plant and lists show only that plant.</div>
   <div class="tablebox"><table class="mt" style="min-width:1000px"><thead><tr><th>Plant</th><th>Short name</th><th>Invoice prefix</th><th>Last invoice No. (this year, old ERP)</th><th>Address line 1</th><th>Address line 2</th><th>City</th><th>PIN</th><th>Next invoice</th></tr></thead><tbody>${L.map(p=>`<tr>${[["name",200],["short",110],["pre",70],["lastNo",90],["addr1",260],["addr2",180],["loc",80],["pin",80]].map(([f,w])=>`<td><input id="pl-${p.id}-${f}" data-pl="${p.id}" data-pf="${f}" value="${esc(p[f]??"")}" style="width:${w}px"${ad?"":" disabled"}></td>`).join("")}<td style="font-family:var(--mono)">${esc(p.pre)}${nextInvNo(fyOf(today()),p.id)}/${fyOf(today())}</td></tr>`).join("")}</tbody></table></div>`}
 $("#plantPanel").addEventListener("change",e=>{const id=e.target.dataset.pl,f=e.target.dataset.pf;if(!id||!f)return;const m=(M.plants||[]).slice();let o=m.find(x=>x.id===id);if(!o){o={id};m.push(o)}o[f]=e.target.value.trim();M.plants=m;saveM();renderPlants();fillPlantSels();toast("Saved")});
+/* ---------- opening bills from the old ERP (unpaid on the start date) ---------- */
+const OB_FIELDS=[["party","Party",["partyname","customername","suppliername","vendorname","ledgername","nameofledger","accountname","name","party","customer","supplier","vendor","account","particulars"]],
+  ["bill","Bill No",["billno","invoiceno","invno","billnumber","invoicenumber","supplierinvoiceno","voucherno","vchno","refno","reference","ref","docno","no"]],
+  ["date","Bill date",["billdate","invoicedate","invdate","voucherdate","vchdate","docdate","date"]],
+  ["amt","Bill amount",["billamount","invoiceamount","invoicevalue","billvalue","grandtotal","totalamount","amount","total","value","openingamount"]],
+  ["paid","Already received or paid",["alreadyreceivedorpaid","alreadyreceived","alreadypaid","amountreceived","amountpaid","received","paid","receipt","payment"]],
+  ["bal","Balance",["balance","balanceamount","pendingamount","pending","outstanding","outstandingamount","closingbalance","dueamount","due"]],
+  ["days","Credit days",["creditdays","paydays","paymentdays","duedays","creditperiod","days","terms","paymentterms"]],
+  ["due","Due date",["duedate","dueon"]],
+  ["plant","Plant",["plant","branch","unit"]]];
+const obNum=v=>{if(typeof v==="number")return v;const s=String(v??"").replace(/[₹,\s]|rs\.?|inr/gi,"");const n=parseFloat(s.replace(/(dr|cr)$/i,""));return isNaN(n)?0:(/cr$/i.test(s)?-n:n)};
+const MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+function obDate(v){if(v==null||v==="")return"";const p=n=>String(n).padStart(2,"0");
+  if(v instanceof Date&&!isNaN(v))return`${v.getFullYear()}-${p(v.getMonth()+1)}-${p(v.getDate())}`;
+  if(typeof v==="number"&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().slice(0,10)}
+  const s=String(v).trim();let m;
+  if((m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/)))return`${m[1]}-${p(m[2])}-${p(m[3])}`;
+  if((m=s.match(/^(\d{1,2})[-\/. ]([A-Za-z]{3})[A-Za-z]*[-\/. ,]+(\d{2,4})$/))&&MON[m[2].toLowerCase()]){const y=m[3].length===2?"20"+m[3]:m[3];return`${y}-${p(MON[m[2].toLowerCase()])}-${p(m[1])}`}
+  if((m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})$/))){const y=m[3].length===2?"20"+m[3]:m[3];if(+m[2]>12)return"";return`${y}-${p(m[2])}-${p(m[1])}`}
+  return""}
+const OB_TPL=[["Party name","Bill No","Bill date","Bill amount","Already received or paid","Balance","Credit days","Plant"]];
+async function obTemplate(){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const wb=XLSX.utils.book_new(),mk=(rows,n)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:34},{wch:14},{wch:12},{wch:14},{wch:22},{wch:14},{wch:12},{wch:8}];XLSX.utils.book_append_sheet(wb,ws,n)};
+  mk(OB_TPL,"Customer bills");mk(OB_TPL,"Supplier bills");
+  mk([["How to fill"],["Example: ABC Engineering Pvt Ltd | ZT/245 | 15/09/2026 | 118000 | 50000 | (blank) | 45 | P1"],["One row for each bill that is still unpaid (fully or partly) on the day you start the new app."],["Dates as DD/MM/YYYY. Fill either Bill amount (and Already received or paid if part paid), or only Balance."],["Credit days give the due date. Plant is P1 or P2; leave blank for P1."],["Import customer bills and supplier bills separately in Masters > Opening bills. Bills already imported are skipped, so re-importing is safe."]],"Read me");
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Opening-bills-template.xlsx";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+let obPrev=null,obRc=null;
+const obCan=()=>isRole("Admin")||has("acct.book");
+async function obImport(f,kind){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  try{const csv=/\.csv$/i.test(f.name);const wb=XLSX.read(csv?await f.text():await f.arrayBuffer(),{type:csv?"string":"array",raw:csv,cellDates:true});let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:true,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],OB_FIELDS);const sc=Object.keys(m).length;const pref=kind==="cust"?/cust|debtor|receiv|sale/i.test(sn):/supp|vendor|creditor|payab|purch/i.test(sn);
+      if(m.party!=null&&(m.amt!=null||m.bal!=null)&&sc>=3&&(!best||sc+(pref?5:0)>best.sc))best={sc:sc+(pref?5:0),rows,hr:r,map:m,sn}}});
+    if(!best){toast("Could not find the columns. The sheet needs a party name column and a Bill amount or Balance column. Download the template to see the layout.");return}
+    const out=[],bad=[],dup=[];const have=new Set(obills.filter(o=>o.kind===kind).map(o=>key(o.party)+"|"+key(o.bill)));const seen=new Set();
+    const master=kind==="cust"?customers.map(c=>c.name):suppliers.map(s=>s.name);const mk=new Map(master.map(n=>[key(n),n]));
+    best.rows.slice(best.hr+1).forEach((r,i)=>{const g=k=>best.map[k]==null?"":r[best.map[k]];const party=String(g("party")??"").replace(/\s+/g," ").trim();if(!party||/^(grand\s*)?total/i.test(party))return;
+      const bill=String(g("bill")??"").trim(),date=obDate(g("date"));let amt=obNum(g("amt")),paid=Math.abs(obNum(g("paid"))),bal=obNum(g("bal"));amt=Math.abs(amt);bal=Math.abs(bal);
+      const hasBal=best.map.bal!=null&&String(g("bal")).trim()!=="";
+      if(!amt&&hasBal){amt=bal;paid=0}else if(amt&&hasBal&&best.map.paid==null)paid=Math.max(0,amt-bal);
+      const row=i+best.hr+2;
+      if(!amt){bad.push(`Row ${row} (${party}): no amount`);return}
+      if(!date){bad.push(`Row ${row} (${party}): bill date missing or not readable`);return}
+      if(paid>amt+0.004){bad.push(`Row ${row} (${party}): paid is more than the bill`);return}
+      if(amt-paid<0.5){return}
+      const k=key(party)+"|"+key(bill);if(have.has(k)||seen.has(k)){dup.push(`${party} ${bill}`);return}seen.add(k);
+      const dRaw=String(g("days")??"").match(/\d+/),plRaw=String(g("plant")??"").trim().toUpperCase();
+      out.push({id:itId(),kind,party:mk.get(key(party))||party,known:mk.has(key(party)),bill,date,amt:r2(amt),prior:r2(paid),days:dRaw?+dRaw[0]:"",due:obDate(g("due")),plant:plants().some(p=>p.id===plRaw)?plRaw:"P1",rcpts:[],by:me.name,at:today(),file:f.name})});
+    obPrev={kind,fname:f.name,sn:best.sn,rows:out,bad,dup,map:best.map};renderOpening();$("#openPanel").scrollIntoView({block:"start"})}
+  catch(err){console.error(err);toast("Could not read that file. Save it as .xlsx or .csv and try again.")}}
+const obLabel=k=>k==="cust"?"Customer":"Supplier";
+function renderOpening(){const P=$("#openPanel");if(!P)return;const ed=obCan();
+  const q=key(($("#ob-q")||{}).value||""),tf=($("#ob-t")||{}).value||"";
+  const L=obills.filter(o=>(!tf||o.kind===tf)&&(!q||key(o.party+" "+o.bill).includes(q))).sort((a,b)=>a.kind.localeCompare(b.kind)||String(a.party).localeCompare(String(b.party))||a.date.localeCompare(b.date));
+  const tot=k=>obills.filter(o=>o.kind===k).reduce((a,o)=>a+obBal(o),0);
+  let pv="";if(obPrev){const R=obPrev.rows,unk=[...new Set(R.filter(o=>!o.known).map(o=>o.party))];
+    pv=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c)"><div class="row"><h3 class="rg" style="margin:0">Check before importing: ${obLabel(obPrev.kind).toLowerCase()} bills from ${esc(obPrev.fname)}</h3></div>
+    <div class="note">Sheet "${esc(obPrev.sn)}". Columns found: ${OB_FIELDS.filter(([f])=>obPrev.map[f]!=null).map(([,l])=>l).join(", ")}.</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip calc">${R.length} bills to import</span><span class="chip sugg">Balance ₹ ${fmt(R.reduce((a,o)=>a+o.amt-o.prior,0))}</span>${obPrev.dup.length?`<span class="chip">${obPrev.dup.length} already imported, skipped</span>`:""}${obPrev.bad.length?`<span class="chip st-Draft">${obPrev.bad.length} rows with problems, skipped</span>`:""}</div>
+    ${obPrev.bad.length?`<div class="note" style="color:var(--danger)">${obPrev.bad.slice(0,8).map(esc).join("<br>")}${obPrev.bad.length>8?"<br>…":""}</div>`:""}
+    ${unk.length?`<div class="note">${unk.length} ${unk.length===1?"party is":"parties are"} not in your ${obPrev.kind==="cust"?"customer":"supplier"} master and will be tracked by the name in the file: ${unk.slice(0,6).map(esc).join("; ")}${unk.length>6?" …":""}</div>`:""}
+    ${R.length?`<div class="tablebox"><table class="mt" style="min-width:720px"><thead><tr><th>Party</th><th>Bill No</th><th>Bill date</th><th class="num">Amount</th><th class="num">Paid before</th><th class="num">Balance</th><th>Due</th><th>Plant</th></tr></thead><tbody>${R.slice(0,100).map(o=>`<tr><td>${esc(o.party)}</td><td>${esc(o.bill)}</td><td>${dmy(o.date)}</td><td class="num">${fmt(o.amt)}</td><td class="num">${o.prior?fmt(o.prior):""}</td><td class="num"><b>${fmt(o.amt-o.prior)}</b></td><td>${obDue(o)?dmy(obDue(o)):""}</td><td>${esc(o.plant)}</td></tr>`).join("")}</tbody></table></div>${R.length>100?`<div class="note">Showing the first 100.</div>`:""}`:""}
+    <div class="row"><span style="flex:1"></span><button class="btn" id="ob-cancel" type="button">Cancel</button>${R.length?`<button class="btn primary" id="ob-go" type="button">Import ${R.length} bills</button>`:""}</div></div>`}
+  P.innerHTML=`<div class="row"><h2 class="sec">Opening bills (old ERP)</h2><span style="flex:1"></span>${ed?`<button class="btn" id="ob-tpl" type="button">Download template</button><button class="btn" id="ob-imp-c" type="button">Import customer bills</button><button class="btn" id="ob-imp-s" type="button">Import supplier bills</button>`:""}</div>
+  <div class="note">Bills from your old ERP that are still unpaid on the day you start. Customer bills show in Customer outstanding and ageing on the Tax invoices page and on the owner summary, and you record their receipts here; supplier bills show in Accounts &gt; Vendor payments, where you pay them like a GRN. They are not counted in GST registers or stock. Import from Excel (.xlsx, .xls) or CSV; the template shows the columns. PDF cannot be read reliably, so export the outstanding report from the old ERP to Excel instead.</div>
+  <div class="row" style="gap:16px;flex-wrap:wrap"><span>Customers owe <b>₹ ${fmt(tot("cust"))}</b></span><span>You owe suppliers <b>₹ ${fmt(tot("sup"))}</b></span></div>
+  ${pv}
+  <div class="row"><select id="ob-t" style="width:auto"><option value="">Customers and suppliers</option><option value="cust"${tf==="cust"?" selected":""}>Customer bills</option><option value="sup"${tf==="sup"?" selected":""}>Supplier bills</option></select><input id="ob-q" placeholder="Search party or bill" style="max-width:240px" value="${esc(($("#ob-q")||{}).value||"")}"><span class="note">${L.length} bills</span></div>
+  ${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Type</th><th>Party</th><th>Bill No</th><th>Bill date</th><th>Due</th><th class="num">Amount</th><th class="num">Paid before</th><th class="num">Paid since</th><th class="num">Balance</th><th></th></tr></thead><tbody>${L.map(o=>{const since=obPaid(o)-(+o.prior||0),b=obBal(o),d=obDue(o);
+    return`<tr><td>${obLabel(o.kind)}</td><td><b>${esc(o.party)}</b></td><td>${esc(o.bill)}</td><td>${dmy(o.date)}</td><td style="${b>0.004&&d&&d<today()?"color:var(--danger);font-weight:600":""}">${d?dmy(d):""}</td><td class="num">${fmt(o.amt)}</td><td class="num">${o.prior?fmt(o.prior):""}</td><td class="num">${since?fmt(since):""}</td><td class="num"><b>${b>0.004?fmt(b):"Paid"}</b></td><td style="white-space:nowrap">${ed&&o.kind==="cust"&&b>0.004?`<button class="btn" data-obrc="${o.id}" type="button">Receipt</button> `:""}${ed&&!since?`<button class="btn" data-obdel="${o.id}" type="button" title="Remove this bill">✕</button>`:""}</td></tr>
+    ${o.kind==="cust"&&rcptsOf(o).length?`<tr><td></td><td colspan="9" class="note">${rcptsOf(o).map((r,i)=>`Received ₹ ${fmt(r.amt)} on ${dmy(r.date)}${r.ref?" ("+esc(r.ref)+")":""}${ed?` <a href="#" data-obrcdel="${o.id}:${i}">remove</a>`:""}`).join(" · ")}</td></tr>`:""}
+    ${obRc===o.id?`<tr><td></td><td colspan="9"><div class="row" style="gap:8px;flex-wrap:wrap"><label class="f">Date<input id="obr-date" type="date" value="${today()}"></label><label class="f">Amount ₹<input id="obr-amt" type="number" step="0.01" value="${b.toFixed(2)}"></label><label class="f">Cheque / UTR ref.<input id="obr-ref"></label><button class="btn primary" id="obr-save" type="button" style="align-self:flex-end">Save receipt</button><button class="btn" id="obr-x" type="button" style="align-self:flex-end">Cancel</button></div></td></tr>`:""}`}).join("")}</tbody></table></div>`:`<div class="empty">${obills.length?"No bill matches.":"No opening bills yet. Download the template, fill it from your old ERP's outstanding report, and import it."}</div>`}
+  <input type="file" id="ob-file" accept=".xlsx,.xls,.csv" hidden>`}
+$("#openPanel").addEventListener("click",e=>{const t=e.target;
+  if(t.id==="ob-tpl"){obTemplate();return}
+  if(t.id==="ob-imp-c"||t.id==="ob-imp-s"){const inp=$("#ob-file");inp.dataset.kind=t.id==="ob-imp-c"?"cust":"sup";inp.click();return}
+  if(t.id==="ob-cancel"){obPrev=null;renderOpening();return}
+  if(t.id==="ob-go"&&obPrev){const R=obPrev.rows.map(({known,...o})=>o);obills.push(...R);saveOB();toast(`Imported ${R.length} ${obLabel(obPrev.kind).toLowerCase()} bills`);obPrev=null;renderOpening();return}
+  if(t.dataset.obdel){const o=obills.find(x=>x.id===t.dataset.obdel);if(!o||!confirm(`Remove opening bill ${o.bill||""} of ${o.party}?`))return;obills.splice(obills.indexOf(o),1);saveOB();renderOpening();return}
+  if(t.dataset.obrc){obRc=t.dataset.obrc;renderOpening();const a=$("#obr-amt");if(a)a.focus();return}
+  if(t.id==="obr-x"){obRc=null;renderOpening();return}
+  if(t.id==="obr-save"){const o=obills.find(x=>x.id===obRc);if(!o)return;const amt=r2(+$("#obr-amt").value||0);if(amt<=0){toast("Enter the amount received");return}if(amt>obBal(o)+0.004){toast("More than the balance of this bill");return}
+    o.rcpts=rcptsOf(o);o.rcpts.push({date:$("#obr-date").value||today(),amt,ref:$("#obr-ref").value.trim(),by:me.name});saveOB();obRc=null;toast(`Receipt of ₹ ${fmt(amt)} saved`);renderOpening();return}
+  if(t.dataset.obrcdel){e.preventDefault();const [id,i]=t.dataset.obrcdel.split(":");const o=obills.find(x=>x.id===id);if(!o||!confirm("Remove this receipt?"))return;o.rcpts.splice(+i,1);saveOB();renderOpening();return}});
+$("#openPanel").addEventListener("change",e=>{if(e.target.id==="ob-file"){const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(f)obImport(f,k);return}if(e.target.id==="ob-t")renderOpening()});
+$("#openPanel").addEventListener("input",e=>{if(e.target.id==="ob-q"){const pos=e.target.selectionStart;renderOpening();const q=$("#ob-q");q.focus();q.setSelectionRange(pos,pos)}});
 /* masters: one list at a time, customer master */
 const projCan=a=>has("proj."+a)||has("mast.edit");const projOnly=()=>!has("mast.view");
 let mastSel="items";try{mastSel=localStorage.getItem("zpo:mastPick")||"items"}catch(e){}
