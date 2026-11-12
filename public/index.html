@@ -460,7 +460,7 @@ body.gated header.bar,body.gated main{display:none}
 
 <!-- SALES -->
 <section id="view-mould" class="stack" hidden>
-  <div class="panel stack"><div class="row"><h2 class="sec">Mould estimator</h2><div class="mo-seg" role="group" aria-label="Show"><button type="button" class="btn" id="mo-tab-app">Estimator</button><button type="button" class="btn" id="mo-tab-link">Estimates and projects</button></div><span style="flex:1"></span><a class="btn" id="mo-open" href="https://mould-estimator.netlify.app" target="_blank" rel="noopener">Open in new tab</a></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Mould estimator</h2><div class="mo-seg" role="group" aria-label="Show"><button type="button" class="btn" id="mo-tab-app">Estimator</button><button type="button" class="btn" id="mo-tab-link">Estimates and projects</button></div><span style="flex:1"></span><select id="mo-newjob" aria-label="Job No. for the new estimate" style="width:auto"></select><button type="button" class="btn primary" id="mo-new">+ New estimate</button><a class="btn" id="mo-open" href="https://mould-estimator.netlify.app" target="_blank" rel="noopener">Open in new tab</a></div>
     <div id="mo-app" class="stack"><div class="note">This is the live Mould Estimator app, so its latest version always shows here. Sign in with your estimator login the first time.</div><iframe id="mo-frame" title="Mould Estimator" style="width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></iframe></div>
     <div id="mo-link" class="stack" hidden></div></div>
 </section>
@@ -2000,6 +2000,7 @@ $("#dealForm").addEventListener("click",e=>{if(!dealCur)return;const id=e.target
   if(id==="dl-pdf"){const o=deals.find(x=>String(x.no)===String(d.no));savePDF(docQuote({...o,...d}),`Quotation-QT-${d.no}${+d.rev?"-R"+d.rev:""}.pdf`);return}
   if(id==="dl-del"){if(!confirm(`Delete enquiry QT-${d.no} for ${d.cust}? This cannot be undone.`))return;deals=deals.filter(x=>String(x.no)!==String(d.no));fups=fups.filter(f=>String(f.deal)!==String(d.no));saveDeals();saveFups();dealCur=null;renderSales();toast(`QT-${d.no} deleted`);return}
   if(id==="dl-mprice"){mouldPriceToDeal(d);return}
+  if(id==="dl-mnew"){if(d._new){toast("Save the RFQ first, so the new estimate links back to it");return}openMouldNew({customer:d.cust,part:d.title,ref:"QT-"+d.no,job:d.job});return}
   if(id==="dl-save")saveDeal()});
 function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=String(d.title||"").trim();
   if(!d.cust){toast("Fill in the customer");$("#dl-cust").focus();return}if(!d.title){toast("Fill in what the enquiry is for");$("#dl-title").focus();return}
@@ -2419,15 +2420,18 @@ const MOULD_URL="https://mould-estimator.netlify.app";
 const MOULD={jobs:[],at:0,err:"",busy:null};let moTab="app",moOpen="";
 function loadMould(force){if(!CLOUD){MOULD.err="The estimator link works on the live site only.";return Promise.resolve()}
   if(MOULD.busy)return MOULD.busy;if(!force&&MOULD.at&&Date.now()-MOULD.at<60000)return Promise.resolve();
-  MOULD.busy=api("mould/jobs").then(j=>{MOULD.jobs=(j.jobs||[]).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));MOULD.err=""},e=>{if(!e.auth)MOULD.err=e.message}).then(()=>{MOULD.at=Date.now();MOULD.busy=null});return MOULD.busy}
+  MOULD.busy=api("mould/jobs").then(j=>{MOULD.jobs=(j.jobs||[]).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));MOULD.err="";mouldAutoLink()},e=>{if(!e.auth)MOULD.err=e.message}).then(()=>{MOULD.at=Date.now();MOULD.busy=null});return MOULD.busy}
+function mouldAutoLink(){if(!canLinkProj())return;let ch=0;MOULD.jobs.forEach(j=>{if(!j.erpJob||M.projects.some(p=>p.mould===j.id))return;const p=M.projects.find(x=>key(x.no)===key(j.erpJob));if(p&&!p.mould){p.mould=j.id;p.mouldNo=j.no;ch++}});if(ch)saveM()}
 const mouldById=id=>id?MOULD.jobs.find(j=>j.id===id):null;
 const mouldOfJob=no=>{const p=M.projects.find(x=>key(x.no)===key(no));return p&&p.mould?mouldById(p.mould):null};
 const MST={draft:"Being estimated",costing:"Being estimated",costed:"Being estimated",quoted:"Quoted",won:"Won",lost:"Lost"};
 const canLinkProj=()=>isRole("Admin")||has("proj.edit")||has("mast.edit");
-function renderMould(){$("#mo-tab-app").setAttribute("aria-pressed",String(moTab==="app"));$("#mo-tab-link").setAttribute("aria-pressed",String(moTab==="link"));
+function renderMould(){$("#mo-newjob").innerHTML=`<option value="">No Job No. yet</option>`+M.projects.filter(p=>p.status==="Active").map(p=>`<option value="${esc(p.no)}">For ${esc(p.no)}${p.desc?" · "+esc(p.desc):""}</option>`).join("");$("#mo-tab-app").setAttribute("aria-pressed",String(moTab==="app"));$("#mo-tab-link").setAttribute("aria-pressed",String(moTab==="link"));
   $("#mo-app").hidden=moTab!=="app";$("#mo-link").hidden=moTab!=="link";
   if(moTab==="app"){const f=$("#mo-frame");if(!f.getAttribute("src"))f.setAttribute("src",MOULD_URL);return}
   renderMouldLink();loadMould().then(()=>{if(moTab==="link"&&!$("#view-mould").hidden)renderMouldLink()})}
+function openMouldNew(o){const q=new URLSearchParams({erp:"new"});Object.entries(o||{}).forEach(([k,v])=>{if(v)q.set(k,String(v))});moTab="app";$("#mo-frame").setAttribute("src",MOULD_URL+"/?"+q.toString());show("mould");toast("Choose what you are estimating in the estimator; the details are filled in")}
+$("#mo-new").onclick=()=>{const no=$("#mo-newjob").value,p=no&&M.projects.find(x=>x.no===no);openMouldNew(p?{customer:p.cust,part:p.desc,job:p.no}:{})};
 $("#mo-tab-app").onclick=()=>{moTab="app";renderMould()};$("#mo-tab-link").onclick=()=>{moTab="link";renderMould()};
 function renderMouldLink(){const B=$("#mo-link"),L=MOULD.jobs,link=canLinkProj(),act=M.projects.filter(p=>p.status==="Active");
   const projOf=id=>M.projects.find(p=>p.mould===id),dealsOf=id=>deals.filter(d=>d.mould===id);
@@ -2436,7 +2440,7 @@ function renderMouldLink(){const B=$("#mo-link"),L=MOULD.jobs,link=canLinkProj()
   if(!L.length){B.innerHTML=head+`<div class="empty">${MOULD.busy||!MOULD.at?"Loading estimates…":"No estimates in the Mould Estimator yet."}</div>`;$("#mo-refresh").onclick=()=>loadMould(true).then(renderMouldLink);return}
   const rows=L.map(j=>{const e=j.erp,p=projOf(j.id),ds=dealsOf(j.id);
     const jobCell=link?`<select data-mlink="${esc(j.id)}" aria-label="Job No. for ${esc(j.no)}" style="width:auto"><option value="">Not linked</option>${act.concat(p&&!act.includes(p)?[p]:[]).map(x=>`<option value="${esc(x.no)}"${p===x?" selected":""}${x.mould&&x.mould!==j.id?" disabled":""}>${esc(x.no)}</option>`).join("")}</select>`:(p?`<b>${esc(p.no)}</b>`:"-");
-    return`<tr><td><button type="button" class="btn" data-mdet="${esc(j.id)}" aria-expanded="${moOpen===j.id}" style="font-family:var(--mono);padding:4px 8px">${esc(j.no)}</button></td><td>${esc(j.customer||"-")}<br><span class="note">${esc(j.part||"")}${j.mouldNo?" · Mould "+esc(j.mouldNo):""}</span></td><td>${esc(MST[j.status]||j.status)}</td><td class="num">${e?fmt0(e.price):"-"}</td><td class="num">${e?fmt0(e.cost.total):"-"}</td><td>${jobCell}</td><td>${ds.map(d=>`QT-${esc(d.no)}`).join(", ")||"-"}</td><td>${e&&p&&has("req.create")?`<button class="btn" type="button" data-mreq="${esc(j.id)}">Purchase request</button>`:""}</td></tr>`+(moOpen===j.id?`<tr><td colspan="8">${mouldDetHTML(j)}</td></tr>`:"")}).join("");
+    return`<tr><td><button type="button" class="btn" data-mdet="${esc(j.id)}" aria-expanded="${moOpen===j.id}" style="font-family:var(--mono);padding:4px 8px">${esc(j.no)}</button></td><td>${esc(j.customer||"-")}<br><span class="note">${esc(j.part||"")}${j.mouldNo?" · Mould "+esc(j.mouldNo):""}</span></td><td>${esc(MST[j.status]||j.status)}</td><td class="num">${e?fmt0(e.price):"-"}</td><td class="num">${e?fmt0(e.cost.total):"-"}</td><td>${jobCell}</td><td>${[...new Set(ds.map(d=>`QT-${d.no}`).concat(j.erpRef?[j.erpRef]:[]))].map(esc).join(", ")||"-"}</td><td>${e&&p&&has("req.create")?`<button class="btn" type="button" data-mreq="${esc(j.id)}">Purchase request</button>`:""}</td></tr>`+(moOpen===j.id?`<tr><td colspan="8">${mouldDetHTML(j)}</td></tr>`:"")}).join("");
   B.innerHTML=head+`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Estimate</th><th>Customer / part</th><th>Status</th><th class="num">Price ₹ (before GST)</th><th class="num">Estimated cost ₹</th><th>Job No.</th><th>RFQ</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="note">Last read ${new Date(MOULD.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}. An estimate shows figures once it has been saved in the estimator.</div>`;
   $("#mo-refresh").onclick=()=>loadMould(true).then(renderMouldLink)}
 function mouldDetHTML(j){const e=j.erp;if(!e)return`<div class="note">No figures yet. Open this estimate once in the estimator so it sends its figures.</div>`;const c=e.cost;
@@ -2458,10 +2462,10 @@ function mouldToReq(j,jobNo){const e=j.erp;if(!e)return;
   if(reqs.some(r=>r.job===jobNo&&(r.lines||[]).some(l=>l.remark===`Estimate ${j.no}`))&&!confirm(`A purchase request for Job ${jobNo} was already made from estimate ${j.no}. Make another one?`))return;
   cur=blankReq();cur.by=me.name;cur.dept=me.dept||"";cur.job=jobNo;cur.lines=lines;show("req");
   toast(`${lines.length} lines from estimate ${j.no}. Check them, set the required date and submit.`)}
-function mouldDealHTML(d){if(!can("mould"))return"";if(CLOUD&&!MOULD.at&&!MOULD.busy){const no=d.no;loadMould().then(()=>{if(dealCur&&dealCur.no===no)renderDealForm()})}
+function mouldDealHTML(d){if(!can("mould"))return"";if(!d.mould&&!d._new){const m=MOULD.jobs.find(x=>x.erpRef==="QT-"+d.no);if(m)d.mould=m.id}if(CLOUD&&!MOULD.at&&!MOULD.busy){const no=d.no;loadMould().then(()=>{if(dealCur&&dealCur.no===no)renderDealForm()})}
   const cu=key(d.cust),L=MOULD.jobs.slice().sort((a,b)=>(key(b.customer)===cu)-(key(a.customer)===cu)),j=mouldById(d.mould);
   return`<div class="grid-fields"><label class="f">Mould estimate<select id="dl-mould"><option value="">${MOULD.busy?"Loading…":MOULD.err?"Estimator not reachable":"Not linked"}</option>${L.concat(d.mould&&!j?[{id:d.mould,no:"(linked estimate)"}]:[]).map(x=>`<option value="${esc(x.id)}"${x.id===d.mould?" selected":""}>${esc(x.no)}${x.customer?" · "+esc(x.customer):""}${x.part?" · "+esc(x.part):""}</option>`).join("")}</select></label>
-    ${j&&j.erp?`<label class="f">Price in the estimator<input value="₹ ${fmt0(j.erp.price)} + GST ${j.erp.gstPct}% (${esc(MST[j.status]||j.status)})" disabled></label><div class="f" style="justify-content:flex-end"><button class="btn" id="dl-mprice" type="button">Use as quotation line</button></div>`:j?`<div class="note">This estimate has no price yet.</div>`:""}</div>`}
+    ${j&&j.erp?`<label class="f">Price in the estimator<input value="₹ ${fmt0(j.erp.price)} + GST ${j.erp.gstPct}% (${esc(MST[j.status]||j.status)})" disabled></label><div class="f" style="justify-content:flex-end"><button class="btn" id="dl-mprice" type="button">Use as quotation line</button></div>`:j?`<div class="note">This estimate has no price yet.</div>`:""}<div class="f" style="justify-content:flex-end"><button class="btn" id="dl-mnew" type="button">New estimate in Mould Estimator</button></div></div>`}
 function mouldPriceToDeal(d){const j=mouldById(d.mould);if(!j||!j.erp)return;
   const line={desc:`Injection mould${j.part?" for "+j.part:""}${j.mouldNo?" (Mould No. "+j.mouldNo+")":""}, as per estimate ${j.no}`,hsn:"84807100",qty:1,unit:"SET",rate:j.erp.price};
   const has1=(d.lines||[]).some(l=>String(l.desc||"").trim()||+l.rate);
