@@ -3,7 +3,7 @@ import { getDatabase } from "@netlify/database";
 import { scryptSync, randomBytes, randomInt, timingSafeEqual, createHash } from "node:crypto";
 import nodemailer from "nodemailer";
 
-const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills"]);
+const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank"]);
 const SESSION_DAYS = 30;
 let db;
 const q = async (text, params = []) => {

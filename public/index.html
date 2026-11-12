@@ -404,6 +404,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="note">Outstanding is booked GRN value less payments made. Pick a supplier to record a payment or see their ledger.</div>
     <div id="vendList"></div></div>
   <div class="panel stack" id="vendDetail" hidden></div>
+  <div class="panel stack" id="bankPanel"></div>
   <div class="panel stack"><h2 class="sec">Booked and paid GRNs</h2><div id="acctDone"></div></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Debit notes to suppliers</h2><select class="per" id="per-dn" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" id="btn-dn-new">+ Debit note</button></div><div class="note">For material rejected or returned, rate differences or short supply. Pick the GRN and the lines fill in. Returns after acceptance reduce what you owe and take the quantity out of stock.</div><div id="dnList"></div></div>
   <div class="panel stack" id="dnForm" hidden></div>
@@ -560,7 +561,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -1509,6 +1510,7 @@ setInterval(()=>{if(!me)return;if(backupDue()){if(!inFrame&&!backupDue.busy){bac
 let acctSel=null,vendSel=null;
 let pays=store.get("pays",[]);const savePays=()=>store.set("pays",pays);
 let obills=store.get("obills",[]);const saveOB=()=>store.set("obills",obills);
+let bank=store.get("bank",[]);const saveBank=()=>store.set("bank",bank);
 const obPaid=o=>(+o.prior||0)+(o.kind==="sup"?pays.reduce((a,p)=>a+(p.alloc||[]).filter(x=>x.ob===o.id).reduce((b,x)=>b+x.amt,0),0):rcptsOf(o).reduce((a,r)=>a+(+r.amt||0),0));
 const obBal=o=>Math.round(((+o.amt||0)-obPaid(o))*100)/100;
 const obDue=o=>o.days!==""&&o.days!=null&&!isNaN(+o.days)?addDays(o.date,+o.days):(o.due||"");
@@ -1526,6 +1528,7 @@ function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully 
 function dueDate(g){const d=parseInt(g.terms,10);const base=g.invDate||g.date;if(!base||isNaN(d))return"";const t=new Date(base);t.setDate(t.getDate()+d);return t.toISOString().slice(0,10)}
 function acctRow(g){return`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">${esc(g.sup)} · PO ${esc(g.poNo)} · <span class="note">Inv ${esc(g.inv||"-")}${dueDate(g)?" · due "+dmy(dueDate(g)):""}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><button class="btn${g.status==="With accounts"?" primary":""}" data-acct="${g.no}">Open</button></div>`}
 function renderAcct(){
+  renderBank();
   const pend=grns.filter(g=>g.status==="With accounts"),done=grns.filter(g=>g.status!=="With accounts");
   const vs=vendSummary();
   $("#vendList").innerHTML=vs.length?`<div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th>Supplier</th><th class="num">Booked</th><th class="num">Paid</th><th class="num">Outstanding</th><th class="num">Overdue</th><th class="num">Due in 7 days</th><th></th></tr></thead><tbody>${vs.map(v=>`<tr><td><b>${esc(v.sup)}</b></td><td class="num">${fmt(v.booked)}</td><td class="num">${fmt(v.paid)}</td><td class="num"><b>${fmt(v.booked-v.paid)}</b></td><td class="num" style="${v.overdue>0?"color:var(--danger);font-weight:600":""}">${fmt(v.overdue)}</td><td class="num">${fmt(v.due7)}</td><td><button class="btn${v.booked-v.paid>0.004?" primary":""}" data-vend="${esc(v.sup)}">${v.booked-v.paid>0.004&&has("acct.book")?"Pay / ledger":"Ledger"}</button></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No booked GRNs yet. Book a GRN above and the supplier appears here.</div>`;
@@ -2520,6 +2523,101 @@ $("#openPanel").addEventListener("click",e=>{const t=e.target;
   if(t.dataset.obrcdel){e.preventDefault();const [id,i]=t.dataset.obrcdel.split(":");const o=obills.find(x=>x.id===id);if(!o||!confirm("Remove this receipt?"))return;o.rcpts.splice(+i,1);saveOB();renderOpening();return}});
 $("#openPanel").addEventListener("change",e=>{if(e.target.id==="ob-file"){const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(f)obImport(f,k);return}if(e.target.id==="ob-t")renderOpening()});
 $("#openPanel").addEventListener("input",e=>{if(e.target.id==="ob-q"){const pos=e.target.selectionStart;renderOpening();const q=$("#ob-q");q.focus();q.setSelectionRange(pos,pos)}});
+/* ---------- bank statement: import, match to pending bills ---------- */
+let bkF="open",bkMore=60,bkPick=null,bkPrev=null;
+const BK_FIELDS=[["date","Date",["txndate","transactiondate","trandate","postingdate","date","valuedate","valuedt"]],
+  ["narr","Narration",["narration","description","particulars","transactionremarks","remarks","transactiondetails","details"]],
+  ["ref","Ref",["chqrefno","chequerefno","refnochequeno","chequeno","chqno","refno","referenceno","reference","utr","utrno"]],
+  ["dr","Withdrawal",["withdrawalamt","withdrawalamount","withdrawals","withdrawal","debitamount","debit","dr","paidout"]],
+  ["cr","Deposit",["depositamt","depositamount","deposits","deposit","creditamount","credit","cr","paidin"]],
+  ["amt","Amount",["transactionamount","amount"]],["type","Dr/Cr",["drcr","crdr","debitcredit","type"]],
+  ["bal","Balance",["closingbalance","runningbalance","balance"]]];
+const BK_STOP=new Set("PVT PRIVATE LTD LIMITED LLP INDIA INDUSTRIES INDUSTRY ENTERPRISES ENTERPRISE ENGINEERING ENGINEERS TECHNOLOGIES TECHNOLOGY TRADERS TRADING COMPANY CORPORATION SERVICES SOLUTIONS AND THE OF M S MS NEFT RTGS IMPS UPI".split(" "));
+const bkWords=n=>key(n).split(" ").filter(w=>w.length>=4&&!BK_STOP.has(w));
+const bkNameHit=(party,narr)=>{const N=" "+key(narr).replace(/ /g,"")+" ",W=bkWords(party);return W.length?W.some(w=>N.includes(w)):false};
+const bkMode=n=>/RTGS/i.test(n)?"RTGS":/IMPS|NEFT|NFT/i.test(n)?"NEFT":/UPI/i.test(n)?"UPI":/CHQ|CHEQUE|CLG|CLEARING/i.test(n)?"Cheque":/CASH/i.test(n)?"Cash":"NEFT";
+const bkAmt=l=>+(l.dr||l.cr)||0;
+function bkBills(side){const B=[];
+  if(side==="dr"){grns.filter(g=>g.status!=="With accounts").forEach(g=>{const b=grnBal(g);if(b>0.004)B.push({k:"grn",r:g.no,party:g.sup,bal:b,date:g.invDate||g.date,lab:`GRN ${g.no}${g.inv?" · inv "+g.inv:""}`})});
+    obills.filter(o=>o.kind==="sup").forEach(o=>{const b=obBal(o);if(b>0.004)B.push({k:"ob",r:o.id,party:o.party,bal:b,date:o.date,lab:`old bill ${o.bill||""}`})})}
+  else{invoices.filter(x=>!x.cancelled).forEach(x=>{const b=invDue(x);if(b>0.5)B.push({k:"inv",r:SYNC.invoices.id(x),party:x.cust,bal:Math.round(b*100)/100,date:x.date,lab:invNo(x)})});
+    obills.filter(o=>o.kind==="cust").forEach(o=>{const b=obBal(o);if(b>0.004)B.push({k:"ob",r:o.id,party:o.party,bal:b,date:o.date,lab:`old bill ${o.bill||""}`})})}
+  return B.sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
+const bkTaken=()=>{const s=new Set();bank.forEach(l=>{if(l.link&&l.link.ex)s.add(l.link.ex)});return s};
+function bkSuggest(l,B,taken){const A=bkAmt(l),side=l.dr?"dr":"cr",S=[],seen=new Set();const add=(score,party,al,note)=>{const k=party+"|"+al.map(a=>a.k+a.r+":"+a.amt).join(",");if(seen.has(k))return;seen.add(k);S.push({score,party,al,note})};
+  /* already entered by hand */
+  if(side==="dr")pays.forEach(p=>{const ex="pay:"+p.no;if(taken.has(ex)||Math.abs(p.amount-A)>0.5)return;const days=Math.abs(new Date(p.date)-new Date(l.date))/864e5;const refHit=p.ref&&key(l.narr+" "+l.ref).replace(/ /g,"").includes(key(p.ref).replace(/ /g,""));if(refHit||days<=5)S.push({score:refHit?120:105,party:p.sup,ex,note:`Already entered as payment ${p.no} on ${dmy(p.date)}`})});
+  else{const R=[];invoices.forEach(x=>rcptsOf(x).forEach((r,i)=>R.push({x,r,i,party:x.cust,id:"inv:"+SYNC.invoices.id(x)+":"+i})));obills.filter(o=>o.kind==="cust").forEach(o=>rcptsOf(o).forEach((r,i)=>R.push({x:o,r,i,party:o.party,id:"ob:"+o.id+":"+i})));
+    R.forEach(({r,party,id})=>{if(r.bank||taken.has(id)||Math.abs((+r.amt||0)-A)>0.5)return;const days=Math.abs(new Date(r.date)-new Date(l.date))/864e5;if(days<=5)S.push({score:105,party,ex:id,note:`Already entered as a receipt on ${dmy(r.date)}`})})}
+  const by={};B.forEach(b=>(by[b.party]=by[b.party]||[]).push(b));
+  Object.entries(by).forEach(([party,L])=>{const nm=bkNameHit(party,l.narr)?15:0;
+    L.forEach(b=>{if(Math.abs(b.bal-A)<=1)add(100+nm,party,[{...b,amt:A}],"Amount matches one bill")});
+    let run=0;for(let i=0;i<L.length;i++){run+=L[i].bal;if(i>0&&Math.abs(run-A)<=1){add(92+nm,party,L.slice(0,i+1).map(b=>({...b,amt:b.bal})),`Matches the oldest ${i+1} bills`);break}}
+    if(L.length<=14&&L.length>1){const n=L.length;let found=null;for(let m=1;m<(1<<n)&&!found;m++){let s=0;for(let j=0;j<n;j++)if(m&(1<<j))s+=L[j].bal;if(Math.abs(s-A)<=1&&(m&(m-1)))found=m}
+      if(found)add(88+nm,party,L.filter((b,j)=>found&(1<<j)).map(b=>({...b,amt:b.bal})),"Amount matches these bills together")}
+    L.forEach(b=>{const d=b.bal-A;if(d>1&&d<=b.bal*0.025)add(60+nm,party,[{...b,amt:A}],`₹ ${fmt(d)} short of the bill (TDS or charges?)`)});
+    if(nm){let left=A;const al=[];for(const b of L){if(left<=0.004)break;const a=Math.min(b.bal,left);al.push({...b,amt:Math.round(a*100)/100});left-=a}if(left<=0.004)add(50,party,al,"Name found in the narration; spread over the oldest bills")}});
+  return S.sort((a,b)=>b.score-a.score).slice(0,3)}
+function bkApply(l,s){if(s.ex){l.link={ex:s.ex,party:s.party,note:s.note};if(s.ex.startsWith("pay:")){const p=pays.find(x=>"pay:"+x.no===s.ex);if(p){p.bank=l.id;savePays()}}else{const [t,id,i]=s.ex.split(":");const o=t==="inv"?invoices.find(x=>SYNC.invoices.id(x)===id):obills.find(x=>x.id===id);if(o){o.rcpts=rcptsOf(o);if(t==="inv")o.recd="";o.rcpts[+i].bank=l.id;t==="inv"?store.set("invoices",invoices):saveOB()}}l.status="linked";saveBank();return}
+  const A=s.al.reduce((a,x)=>a+x.amt,0);
+  if(l.dr){const no=Math.max(500,...pays.map(p=>p.no))+1;pays.push({no,date:l.date,sup:s.party,mode:bkMode(l.narr),ref:l.ref||String(l.narr).slice(0,40),amount:Math.round(A*100)/100,alloc:s.al.map(x=>x.k==="ob"?{ob:x.r,amt:x.amt}:{grn:x.r,amt:x.amt}),by:me.name,bank:l.id});savePays();
+    s.al.forEach(x=>{if(x.k==="grn"){const g=grns.find(y=>y.no===x.r);if(g)g.status=grnBal(g)<=0.004?"Paid":"Part paid"}});saveGRNs();l.link={pay:no,party:s.party}}
+  else{s.al.forEach(x=>{const o=x.k==="inv"?invoices.find(y=>SYNC.invoices.id(y)===x.r):obills.find(y=>y.id===x.r);if(!o)return;o.rcpts=rcptsOf(o);if(x.k==="inv")o.recd="";o.rcpts.push({date:l.date,amt:x.amt,ref:l.ref||String(l.narr).slice(0,40),bank:l.id})});store.set("invoices",invoices);saveOB();l.link={rcpt:1,party:s.party,bills:s.al.map(x=>x.lab)}}
+  l.status="linked";saveBank()}
+function bkUndo(l){if(l.link&&l.link.ex){if(l.link.ex.startsWith("pay:")){const p=pays.find(x=>"pay:"+x.no===l.link.ex);if(p){delete p.bank;savePays()}}else{const [t,id,i]=l.link.ex.split(":");const o=t==="inv"?invoices.find(x=>SYNC.invoices.id(x)===id):obills.find(x=>x.id===id);const r=o&&rcptsOf(o)[+i];if(r){delete r.bank;t==="inv"?store.set("invoices",invoices):saveOB()}}}
+  else if(l.dr){const i=pays.findIndex(p=>p.bank===l.id);if(i>=0){const p=pays[i];pays.splice(i,1);savePays();p.alloc.forEach(x=>{if(x.grn!=null){const g=grns.find(y=>y.no===x.grn);if(g&&g.status!=="With accounts")g.status=grnPaid(g)<=0.004?"Booked":grnBal(g)<=0.004?"Paid":"Part paid"}});saveGRNs()}}
+  else{invoices.forEach(x=>{if(Array.isArray(x.rcpts))x.rcpts=x.rcpts.filter(r=>r.bank!==l.id)});obills.forEach(o=>{if(Array.isArray(o.rcpts))o.rcpts=o.rcpts.filter(r=>r.bank!==l.id)});store.set("invoices",invoices);saveOB()}
+  l.status="";l.link=null;saveBank()}
+async function bkImport(f){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  try{const csv=/\.csv$/i.test(f.name);const wb=XLSX.read(csv?await f.text():await f.arrayBuffer(),{type:csv?"string":"array",raw:csv,cellDates:true});let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:true,defval:"",raw:true});for(let r=0;r<Math.min(40,rows.length);r++){const m=itGuess(rows[r],BK_FIELDS);const sc=Object.keys(m).length;
+      if(m.date!=null&&((m.dr!=null&&m.cr!=null)||m.amt!=null)&&sc>=3&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
+    if(!best){toast("Could not find the columns. The statement needs Date, Narration and Withdrawal/Deposit (or Amount with Dr/Cr) headings.");return}
+    const have=new Set(bank.map(l=>l.id)),out=[];let dup=0,skip=0;
+    best.rows.slice(best.hr+1).forEach(r=>{const g=k=>best.map[k]==null?"":r[best.map[k]];const date=obDate(g("date"));if(!date){return}
+      let dr=Math.abs(obNum(g("dr"))),cr=Math.abs(obNum(g("cr")));if(best.map.amt!=null&&!dr&&!cr){const a=obNum(g("amt")),t=String(g("type")).toUpperCase();if(/^D|DR|DEBIT|WITHDRAW/.test(t)||(!t&&a<0))dr=Math.abs(a);else cr=Math.abs(a)}
+      if(!dr&&!cr){skip++;return}const narr=String(g("narr")??"").replace(/\s+/g," ").trim(),ref=String(g("ref")??"").trim().replace(/^0+(?=\d{6,})/,"");
+      const id=(date+"|"+(dr?"D":"C")+Math.round((dr||cr)*100)+"|"+key(ref)+"|"+key(narr).slice(0,50)+"|"+String(g("bal"))).replace(/\s+/g,"");
+      if(have.has(id)){dup++;return}have.add(id);out.push({id,date,narr,ref,dr:dr?Math.round(dr*100)/100:0,cr:cr?Math.round(cr*100)/100:0,bal:obNum(g("bal"))||"",status:"",link:null,file:f.name,at:today(),by:me.name})});
+    bank.push(...out);bank.sort((a,b)=>b.date.localeCompare(a.date));saveBank();bkF="open";renderBank();
+    toast(`${out.length} new lines from ${f.name}${dup?`, ${dup} already uploaded`:""}`)}
+  catch(err){console.error(err);toast("Could not read that file. Save the statement as .xlsx or .csv and try again.")}}
+function renderBank(){const P=$("#bankPanel");if(!P)return;const ed=has("acct.book");
+  const q=key(($("#bk-q")||{}).value||"");const taken=bkTaken(),BD=bkBills("dr"),BC=bkBills("cr");
+  const L=bank.filter(l=>(bkF==="all"||(bkF==="open"?!l.status:l.status===bkF))&&(!q||key(l.narr+" "+l.ref+" "+bkAmt(l)+" "+((l.link||{}).party||"")).includes(q)));
+  const sg=new Map();L.slice(0,bkMore).forEach(l=>{if(!l.status)sg.set(l.id,bkSuggest(l,l.dr?BD:BC,taken))});
+  const exact=[...sg.entries()].filter(([,s])=>s.length&&s[0].score>=100&&!(s[1]&&s[1].score>=100));
+  const cnt=k=>bank.filter(l=>k==="open"?!l.status:l.status===k).length;
+  const row=l=>{const s=sg.get(l.id)||[],A=bkAmt(l);let act="";
+    if(!l.status&&ed){act=`<div class="stack" style="gap:6px">${s.map((x,i)=>`<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn${i===0&&x.score>=100?" primary":""}" type="button" data-bka="${esc(l.id)}" data-i="${i}">Link</button><span><b>${esc(x.party)}</b> · ${x.ex?esc(x.note):`${x.al.map(a=>`${esc(a.lab)} ₹ ${fmt(a.amt)}`).join(", ")} <span class="note">${esc(x.note)}</span>`}</span></div>`).join("")||`<span class="note">No bill with this amount.</span>`}
+      <div class="row" style="gap:8px"><button class="btn" type="button" data-bkp="${esc(l.id)}">Pick bills</button><button class="btn" type="button" data-bki="${esc(l.id)}">Ignore</button></div>
+      ${bkPick&&bkPick.id===l.id?bkPickForm(l):""}</div>`}
+    else if(l.status==="linked"){const k=l.link||{};act=`<span class="chip calc">Linked</span> <b>${esc(k.party||"")}</b> <span class="note">${k.pay?`payment ${k.pay}`:k.bills?esc(k.bills.join(", ")):esc(k.note||"")}</span>${ed?` <a href="#" data-bku="${esc(l.id)}">undo</a>`:""}`}
+    else if(l.status==="ignored")act=`<span class="chip">Ignored</span>${l.note?` <span class="note">${esc(l.note)}</span>`:""}${ed?` <a href="#" data-bku="${esc(l.id)}">undo</a>`:""}`;
+    return`<tr><td style="white-space:nowrap">${dmy(l.date)}</td><td style="max-width:320px">${esc(l.narr)}${l.ref?`<div class="note">Ref ${esc(l.ref)}</div>`:""}</td><td class="num">${l.dr?fmt(l.dr):""}</td><td class="num">${l.cr?fmt(l.cr):""}</td><td>${act}</td></tr>`};
+  P.innerHTML=`<div class="row"><h2 class="sec">Bank statement</h2><span style="flex:1"></span>${ed?`<button class="btn" id="bk-up" type="button">Upload statement (.xlsx / .csv)</button>`:""}<input type="file" id="bks-file" accept=".xlsx,.xls,.csv" hidden></div>
+  <div class="note">Download the statement from net banking as Excel or CSV and upload it here. Lines already uploaded are skipped. For each withdrawal the app suggests the supplier bills it pays, and for each deposit the customer invoices it settles, by matching the amount (one bill, several bills together, or a short payment for TDS) and the party name in the narration. Linking a withdrawal records the vendor payment; linking a deposit records the receipt on the invoices. Payments you already entered by hand are offered as "already entered" so nothing is counted twice.</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap">${[["open","To link"],["linked","Linked"],["ignored","Ignored"],["all","All"]].map(([k,t])=>`<button class="btn${bkF===k?" primary":""}" type="button" data-bkf="${k}">${t}${k!=="all"?` (${cnt(k)})`:""}</button>`).join("")}<input id="bk-q" placeholder="Search narration, amount, party" style="max-width:240px" value="${esc(($("#bk-q")||{}).value||"")}">${ed&&bkF==="open"&&exact.length?`<span style="flex:1"></span><button class="btn primary" type="button" id="bk-all">Link ${exact.length} exact match${exact.length>1?"es":""}</button>`:""}</div>
+  ${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Date</th><th>Narration</th><th class="num">Withdrawal</th><th class="num">Deposit</th><th>Bill</th></tr></thead><tbody>${L.slice(0,bkMore).map(row).join("")}</tbody></table></div>${L.length>bkMore?`<button class="btn" type="button" id="bk-more">Show more (${L.length-bkMore} left)</button>`:""}`:`<div class="empty">${bank.length?"Nothing here.":"No statement uploaded yet."}</div>`}`}
+function bkPickForm(l){const side=l.dr?"dr":"cr",B=bkBills(side),parties=[...new Set(B.map(b=>b.party))].sort();const pty=bkPick.party||"";const bl=B.filter(b=>b.party===pty);let left=bkAmt(l);
+  return`<div class="panel stack" style="padding:10px"><label class="f">${side==="dr"?"Supplier":"Customer"}<select id="bkp-party"><option value="">Pick…</option>${parties.map(p=>`<option${p===pty?" selected":""}>${esc(p)}</option>`).join("")}</select></label>
+  ${pty?`<table class="mt"><thead><tr><th>Bill</th><th>Date</th><th class="num">Balance</th><th class="num">Apply</th></tr></thead><tbody>${bl.map((b,i)=>{const a=Math.min(b.bal,Math.max(0,left));left-=a;return`<tr><td>${esc(b.lab)}</td><td>${dmy(b.date)}</td><td class="num">${fmt(b.bal)}</td><td class="num"><input class="rate" type="number" step="0.01" data-bkpi="${i}" data-bal="${b.bal}" value="${a?a.toFixed(2):""}"></td></tr>`}).join("")}</tbody></table>
+  <div class="row"><span class="note">Statement amount ₹ ${fmt(bkAmt(l))}. The amounts applied must add up to it.</span><span style="flex:1"></span><button class="btn primary" type="button" id="bkp-save">Link</button></div>`:""}</div>`}
+$("#bankPanel").addEventListener("click",e=>{const t=e.target,d=t.dataset;const L=id=>bank.find(x=>x.id===id);
+  if(t.id==="bk-up"){$("#bks-file").click();return}
+  if(d.bkf){bkF=d.bkf;bkMore=60;bkPick=null;renderBank();return}
+  if(t.id==="bk-more"){bkMore+=60;renderBank();return}
+  if(d.bka){const l=L(d.bka);if(!l)return;const s=bkSuggest(l,bkBills(l.dr?"dr":"cr"),bkTaken())[+d.i];if(!s)return;bkApply(l,s);toast(`Linked to ${s.party}`);renderAcct();return}
+  if(t.id==="bk-all"){const taken=bkTaken();let n=0;bank.filter(l=>!l.status).slice(0,bkMore).forEach(l=>{const s=bkSuggest(l,bkBills(l.dr?"dr":"cr"),taken);if(s.length&&s[0].score>=100&&!(s[1]&&s[1].score>=100)){bkApply(l,s[0]);if(s[0].ex)taken.add(s[0].ex);n++}});toast(`${n} lines linked`);renderAcct();return}
+  if(d.bki){const l=L(d.bki);if(!l)return;const n=prompt("Note (optional), e.g. bank charges, salary, GST payment","");if(n===null)return;l.status="ignored";l.note=n;saveBank();renderBank();return}
+  if(d.bku){e.preventDefault();const l=L(d.bku);if(!l)return;if(l.status==="ignored"){l.status="";l.note="";saveBank()}else if(confirm("Undo this link? A payment or receipt created from this line is removed."))bkUndo(l);renderAcct();return}
+  if(d.bkp){bkPick=bkPick&&bkPick.id===d.bkp?null:{id:d.bkp,party:""};renderBank();return}
+  if(t.id==="bkp-save"&&bkPick){const l=L(bkPick.id);const B=bkBills(l.dr?"dr":"cr").filter(b=>b.party===bkPick.party);const al=[...document.querySelectorAll("[data-bkpi]")].map(i=>({...B[+i.dataset.bkpi],amt:Math.round((+i.value||0)*100)/100})).filter(x=>x.amt>0);
+    if(!al.length){toast("Enter an amount against at least one bill");return}if(al.some(x=>x.amt>x.bal+0.004)){toast("A line is more than that bill's balance");return}
+    const s=al.reduce((a,x)=>a+x.amt,0);if(Math.abs(s-bkAmt(l))>0.5){toast(`Applied ₹ ${fmt(s)} but the statement line is ₹ ${fmt(bkAmt(l))}`);return}
+    bkApply(l,{party:bkPick.party,al});bkPick=null;toast("Linked");renderAcct();return}});
+$("#bankPanel").addEventListener("change",e=>{if(e.target.id==="bks-file"){const f=e.target.files[0];e.target.value="";if(f)bkImport(f);return}if(e.target.id==="bkp-party"&&bkPick){bkPick.party=e.target.value;renderBank()}});
+$("#bankPanel").addEventListener("input",e=>{if(e.target.id==="bk-q"){const pos=e.target.selectionStart;renderBank();const q=$("#bk-q");q.focus();q.setSelectionRange(pos,pos)}});
 /* masters: one list at a time, customer master */
 const projCan=a=>has("proj."+a)||has("mast.edit");const projOnly=()=>!has("mast.view");
 let mastSel="items";try{mastSel=localStorage.getItem("zpo:mastPick")||"items"}catch(e){}
