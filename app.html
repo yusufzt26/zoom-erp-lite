@@ -35,6 +35,8 @@ nav button[aria-current="true"]{color:var(--ink);border-color:var(--line);backgr
 .subnav{max-width:1180px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left,0px)) 8px;align-items:center}.subnav-t{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-right:6px}
 nav button.grp-on{color:var(--ink);border-color:var(--line);background:var(--bg)}
 nav .step{font-family:var(--mono);font-size:11px;margin-right:6px;color:var(--accent)}
+.mo-seg{display:flex;gap:4px}.mo-seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.mo-det{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
 button.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button.btn:focus-visible,nav button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
@@ -227,6 +229,7 @@ body.gated header.bar,body.gated main{display:none}
     <button id="tab-dc" data-view="dc">Delivery challans</button>
     <button id="tab-inv" data-view="inv">Tax invoices</button>
     <button id="tab-cn" data-view="cn">Credit notes</button>
+    <button id="tab-mould" data-view="mould">Mould estimator</button>
 </nav></header>
 
 <div id="gate" hidden></div>
@@ -447,6 +450,11 @@ body.gated header.bar,body.gated main{display:none}
 </section>
 
 <!-- SALES -->
+<section id="view-mould" class="stack" hidden>
+  <div class="panel stack"><div class="row"><h2 class="sec">Mould estimator</h2><div class="mo-seg" role="group" aria-label="Show"><button type="button" class="btn" id="mo-tab-app">Estimator</button><button type="button" class="btn" id="mo-tab-link">Estimates and projects</button></div><span style="flex:1"></span><button type="button" class="btn" id="mo-open">Open in new tab</button></div>
+    <div id="mo-app" class="stack"><div class="note">This is the live Mould Estimator app, so its latest version always shows here. Sign in with your estimator login the first time.</div><iframe id="mo-frame" title="Mould Estimator" style="width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></iframe></div>
+    <div id="mo-link" class="stack" hidden></div></div>
+</section>
 <section id="view-sales" class="stack" hidden>
   <div class="cards" id="salesTiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div>
   <div class="panel stack"><div class="row"><h2 class="sec">RFQs and quotations</h2><select id="sb-owner" style="width:auto"></select><input id="sb-q" placeholder="Search customer, enquiry or QT No." style="max-width:260px"><span style="flex:1"></span><button class="btn primary" id="btn-deal-new" type="button">+ New RFQ</button></div>
@@ -670,7 +678,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
+const views=["home","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","mould","rep","rates","mast","users"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.approve","Approve or send back requests","For their own department"],["Actions","req.all","See all departments' requests","Approve any department if also allowed to approve"],
@@ -701,12 +709,12 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Requester","HOD","Purchaser","Admin"],est:["Purchaser","Admin"],po:["Purchaser","Approver","Admin"],saved:["Purchaser","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchaser","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||(v==="mould"?(has("sales.view")||has("proj.view")):["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
-const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg();if(can("mould"))loadMould().then(()=>{if(!$("#view-rep").hidden)renderJobCost()})}if(v==="mould")renderMould();if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
+const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn","mould"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 function syncGroups(v){Object.keys(GROUPS).forEach(g=>{const M=GROUPS[g],any=M.some(x=>can(x)),on=M.includes(v);const b=$("#tab-"+g);b.hidden=!any;b.classList.toggle("grp-on",on);b.setAttribute("aria-expanded",on?"true":"false");$("#subnav-"+g).hidden=!on||!any;
   const old=b.querySelector(".badge");if(old)old.remove();const n=M.reduce((a,x)=>{const e=$("#tab-"+x).querySelector(".badge");return a+(e?+e.textContent||0:0)},0);if(n&&!on)b.insertAdjacentHTML("beforeend",`<span class="badge">${n}</span>`)})}
@@ -1946,6 +1954,7 @@ function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.in
     <label class="f">Customer RFQ / ref.<input id="dl-ref" value="${esc(d.ref)}"></label>
     <label class="f">Estimated value ₹<input id="dl-value" type="number" step="any" value="${esc(d.value)}" ${tot?`disabled placeholder="From quotation lines"`:`placeholder="If no quotation lines yet"`}></label>
   </div>
+  ${mouldDealHTML(d)}
   ${d.stage==="Won"?`<div class="grid-fields"><label class="f">Customer PO No.<input id="dl-custPO" value="${esc(d.custPO)}"></label><label class="f">Customer PO date<input id="dl-custPODate" type="date" value="${esc(d.custPODate)}"></label><label class="f">Job No.<input id="dl-job" list="projects" value="${esc(d.job)}" placeholder="e.g. ZT2350"></label></div>
     <div class="note">${isRole("Admin")?"Saving with a new Job No. adds it to Projects, so purchase and store can use it.":"Give the Job No. The admin adds it in Masters, Projects, so purchase and store can use it."}</div>`:""}
   ${d.stage==="Lost"?`<div class="grid-fields"><label class="f">Why was it lost<select id="dl-lostWhy"><option value="">Choose</option>${LOST_WHY.map(s=>`<option${s===d.lostWhy?" selected":""}>${s}</option>`).join("")}</select></label><label class="f">Details<input id="dl-lostNote" value="${esc(d.lostNote)}" placeholder="e.g. Local tool room quoted 15% less"></label></div>`:""}
@@ -1961,9 +1970,9 @@ function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.in
   </div>`;
   if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>{if(!el.id.startsWith("dl-note"))el.disabled=true});
 }
-const DL_FIELDS=["plant","cust","title","date","stage","owner","expClose","src","ref","value","custPO","custPODate","job","lostWhy","lostNote","gst","rev","terms"];
+const DL_FIELDS=["plant","cust","title","date","stage","owner","expClose","src","ref","value","custPO","custPODate","job","lostWhy","lostNote","gst","rev","terms","mould"];
 $("#dealForm").addEventListener("input",e=>{if(!dealCur)return;const t=e.target;
-  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-stage")renderDealForm();return}
+  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-stage"||t.id==="dl-mould")renderDealForm();return}
   const q=t.dataset.q;if(!q)return;const tr=t.closest("tr"),l=dealCur.lines[+tr.dataset.i];l[q]=["qty","rate"].includes(q)?(t.value===""?"":+t.value):t.value;
   tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0));$("#dl-tot").textContent=fmt(dealCur.lines.reduce((a,x)=>a+(+x.qty||0)*(+x.rate||0),0))});
 $("#dealForm").addEventListener("change",e=>{if(!dealCur)return;const t=e.target;
@@ -1981,6 +1990,7 @@ $("#dealForm").addEventListener("click",e=>{if(!dealCur)return;const id=e.target
   if(id==="dl-so"){const o=deals.find(x=>String(x.no)===String(d.no));if(o)sdFromDeal(o);return}
   if(id==="dl-pdf"){const o=deals.find(x=>String(x.no)===String(d.no));savePDF(docQuote({...o,...d}),`Quotation-QT-${d.no}${+d.rev?"-R"+d.rev:""}.pdf`);return}
   if(id==="dl-del"){if(!confirm(`Delete enquiry QT-${d.no} for ${d.cust}? This cannot be undone.`))return;deals=deals.filter(x=>String(x.no)!==String(d.no));fups=fups.filter(f=>String(f.deal)!==String(d.no));saveDeals();saveFups();dealCur=null;renderSales();toast(`QT-${d.no} deleted`);return}
+  if(id==="dl-mprice"){mouldPriceToDeal(d);return}
   if(id==="dl-save")saveDeal()});
 function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=String(d.title||"").trim();
   if(!d.cust){toast("Fill in the customer");$("#dl-cust").focus();return}if(!d.title){toast("Fill in what the enquiry is for");$("#dl-title").focus();return}
@@ -1991,6 +2001,7 @@ function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=Str
   if(prev!==d.stage){d.log=d.log||[];d.log.push({at:new Date().toISOString(),by:me.name,text:prev?`Stage changed from ${prev} to ${d.stage}`:`Enquiry created (${d.stage})`})}
   if(["Won","Lost"].includes(d.stage)){if(!["Won","Lost"].includes(prev)||!d.closedAt)d.closedAt=today()}else delete d.closedAt;
   if(d.stage==="Won"&&d.job&&!M.projects.some(p=>key(p.no)===key(d.job))){if(isRole("Admin")){M.projects.push({no:d.job,desc:d.title,cust:d.cust,status:"Active"});saveM();toast(`Job ${d.job} added to Projects`)}else toast(`Ask the admin to add Job ${d.job} in Masters, Projects`)}
+  if(d.stage==="Won"&&d.job&&d.mould&&canLinkProj()){const p=M.projects.find(x=>key(x.no)===key(d.job));if(p&&!p.mould){const mj=mouldById(d.mould);p.mould=d.mould;p.mouldNo=mj?mj.no:"";saveM()}}
   const {_new,...rec}=d;rec.updatedAt=new Date().toISOString();
   if(old)Object.assign(old,rec);else{rec.createdAt=rec.updatedAt;deals.unshift(rec)}
   saveDeals();dealCur=JSON.parse(JSON.stringify(rec));dealCur._new=false;renderSales();toast(`QT-${rec.no} saved`)}
@@ -2387,12 +2398,67 @@ function custAgeing(){const m={},t=today();invoices.concat(obills.filter(o=>o.ki
 function renderAgeing(){const P=$("#agePanel");if(!P)return;const A=custAgeing(),T=A.reduce((a,r)=>{r.b.forEach((v,i)=>a[i]+=v);return a},[0,0,0,0]);
   P.innerHTML=`<h2 class="sec">Customer outstanding and ageing</h2><div class="note">Days counted from the invoice date. Payments and credit notes are already taken off.</div>${A.length?`<div class="tablebox"><table class="mt" style="min-width:680px"><thead><tr><th>Customer</th><th class="num">Invoices</th><th class="num">0-30 days</th><th class="num">31-60</th><th class="num">61-90</th><th class="num">Over 90</th><th class="num">Total due</th></tr></thead><tbody>${A.map(r=>`<tr><td><b>${esc(r.cust)}</b></td><td class="num">${r.n}</td>${r.b.map((v,i)=>`<td class="num"${i>=2&&v>0?' style="color:var(--danger);font-weight:600"':""}>${v?fmt0(Math.round(v)):""}</td>`).join("")}<td class="num"><b>${fmt0(Math.round(r.tot))}</b></td></tr>`).join("")}<tr><td><b>Total</b></td><td></td>${T.map(v=>`<td class="num"><b>${fmt0(Math.round(v))}</b></td>`).join("")}<td class="num"><b>${fmt0(Math.round(A.reduce((a,r)=>a+r.tot,0)))}</b></td></tr></tbody></table></div>`:`<div class="empty">Nothing outstanding.</div>`}`}
 /* job costing */
-function jobCosting(){const PC={};projCost().forEach(r=>PC[key(r.job)]=r);const nos=new Set([...jobs.map(j=>key(j.no)),...sorders.filter(s=>s.job).map(s=>key(s.job))]);
+function jobCosting(){const PC={};projCost().forEach(r=>PC[key(r.job)]=r);const nos=new Set([...jobs.map(j=>key(j.no)),...sorders.filter(s=>s.job).map(s=>key(s.job)),...M.projects.filter(p=>p.mould&&mouldById(p.mould)).map(p=>key(p.no))]);
   return[...nos].map(k=>{const j=jobs.find(x=>key(x.no)===k),S=sorders.filter(s=>key(s.job)===k),pc=PC[k]||{po:0,iss:0,ret:0};const order=S.reduce((a,s)=>a+sdSub(s),0);
     const billed=invoices.filter(v=>S.some(s=>String(s.no)===String(v.so))).reduce((a,v)=>a+invCalc(v).ass,0);const mat=Math.max(pc.po,pc.iss-pc.ret),lab=j?jobLabour(j):0,cost=mat+lab;
-    return{no:j?j.no:(S[0]||{}).job,cust:(j&&j.cust)||(S[0]||{}).cust||"",status:j?j.status:"No job card",order,billed,po:pc.po,iss:pc.iss-pc.ret,lab,cost,profit:order-cost,mg:order?Math.round((order-cost)*100/order):null}}).sort((a,b)=>String(a.no).localeCompare(String(b.no)))}
+    const no=j?j.no:(S[0]||{}).job||(M.projects.find(p=>key(p.no)===k)||{}).no||k,mj=mouldOfJob(no),e=mj&&mj.erp;
+    return{no,cust:(j&&j.cust)||(S[0]||{}).cust||(mj&&mj.customer)||"",status:j?j.status:"No job card",order,billed,po:pc.po,iss:pc.iss-pc.ret,lab,cost,profit:order-cost,mg:order?Math.round((order-cost)*100/order):null,est:e?e.cost.total:null,estNo:mj?mj.no:"",quoted:e?e.price:null}}).sort((a,b)=>String(a.no).localeCompare(String(b.no)))}
 function renderJobCost(){const P=$("#jobCostPanel");if(!P)return;const L=jobCosting();
-  P.innerHTML=`<h2 class="sec">Job costing</h2><div class="note">Order value from sales orders (before GST). Material is the larger of approved PO value and net store issues for the Job No. Labour is actual job-card hours × machine-hour rate.</div>${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th class="num">Order</th><th class="num">Billed</th><th class="num">Material POs</th><th class="num">Store issued</th><th class="num">Labour</th><th class="num">Total cost</th><th class="num">Profit</th><th class="num">Margin</th></tr></thead><tbody>${L.map(r=>`<tr><td><b>${esc(r.no)}</b></td><td>${esc(r.cust)}</td><td>${esc(r.status)}</td><td class="num">${fmt0(Math.round(r.order))}</td><td class="num">${fmt0(Math.round(r.billed))}</td><td class="num">${fmt0(Math.round(r.po))}</td><td class="num">${fmt0(Math.round(r.iss))}</td><td class="num">${fmt0(Math.round(r.lab))}</td><td class="num">${fmt0(Math.round(r.cost))}</td><td class="num"${r.profit<0?' style="color:var(--danger);font-weight:600"':""}>${fmt0(Math.round(r.profit))}</td><td class="num">${r.mg==null?"-":`<span class="chip ${r.mg>=30?"calc":r.mg>=10?"sugg":"st-Back"}">${r.mg}%</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No jobs yet. Costing appears once a sales order or job card has a Job No.</div>`}`}
+  P.innerHTML=`<h2 class="sec">Job costing</h2><div class="note">Order value from sales orders (before GST). Material is the larger of approved PO value and net store issues for the Job No. Labour is actual job-card hours × machine-hour rate. Estimate is the total cost from the linked Mould Estimator job (Sales, Mould estimator).</div>${L.length?`<div class="tablebox"><table class="mt" style="min-width:1080px"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th class="num">Order</th><th class="num">Billed</th><th class="num">Material POs</th><th class="num">Store issued</th><th class="num">Labour</th><th class="num">Total cost</th><th class="num">Estimate</th><th class="num">Cost vs estimate</th><th class="num">Profit</th><th class="num">Margin</th></tr></thead><tbody>${L.map(r=>`<tr><td><b>${esc(r.no)}</b></td><td>${esc(r.cust)}</td><td>${esc(r.status)}</td><td class="num">${fmt0(Math.round(r.order))}</td><td class="num">${fmt0(Math.round(r.billed))}</td><td class="num">${fmt0(Math.round(r.po))}</td><td class="num">${fmt0(Math.round(r.iss))}</td><td class="num">${fmt0(Math.round(r.lab))}</td><td class="num">${fmt0(Math.round(r.cost))}</td><td class="num"${r.estNo?` title="Estimate ${esc(r.estNo)}${r.quoted!=null?", quoted ₹"+fmt0(r.quoted):""}"`:""}>${r.est==null?"-":fmt0(r.est)}</td><td class="num">${r.est&&r.cost?`<span class="chip ${r.cost<=r.est?"calc":r.cost<=r.est*1.1?"sugg":"st-Back"}">${r.cost>r.est?"+":""}${Math.round((r.cost-r.est)*100/r.est)}%</span>`:"-"}</td><td class="num"${r.profit<0?' style="color:var(--danger);font-weight:600"':""}>${fmt0(Math.round(r.profit))}</td><td class="num">${r.mg==null?"-":`<span class="chip ${r.mg>=30?"calc":r.mg>=10?"sugg":"st-Back"}">${r.mg}%</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No jobs yet. Costing appears once a sales order or job card has a Job No.</div>`}`}
+/* ---------- Mould Estimator link: the estimator is its own app (shown in a frame); the ERP only reads its estimates ---------- */
+const MOULD_URL="https://mould-estimator.netlify.app";
+const MOULD={jobs:[],at:0,err:"",busy:null};let moTab="app",moOpen="";
+function loadMould(force){if(!CLOUD){MOULD.err="The estimator link works on the live site only.";return Promise.resolve()}
+  if(MOULD.busy)return MOULD.busy;if(!force&&MOULD.at&&Date.now()-MOULD.at<60000)return Promise.resolve();
+  MOULD.busy=api("mould/jobs").then(j=>{MOULD.jobs=(j.jobs||[]).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));MOULD.err=""},e=>{if(!e.auth)MOULD.err=e.message}).then(()=>{MOULD.at=Date.now();MOULD.busy=null});return MOULD.busy}
+const mouldById=id=>id?MOULD.jobs.find(j=>j.id===id):null;
+const mouldOfJob=no=>{const p=M.projects.find(x=>key(x.no)===key(no));return p&&p.mould?mouldById(p.mould):null};
+const MST={draft:"Being estimated",costing:"Being estimated",costed:"Being estimated",quoted:"Quoted",won:"Won",lost:"Lost"};
+const canLinkProj=()=>isRole("Admin")||has("proj.edit")||has("mast.edit");
+function renderMould(){$("#mo-tab-app").setAttribute("aria-pressed",String(moTab==="app"));$("#mo-tab-link").setAttribute("aria-pressed",String(moTab==="link"));
+  $("#mo-app").hidden=moTab!=="app";$("#mo-link").hidden=moTab!=="link";
+  if(moTab==="app"){const f=$("#mo-frame");if(!f.getAttribute("src"))f.setAttribute("src",MOULD_URL);return}
+  renderMouldLink();loadMould().then(()=>{if(moTab==="link"&&!$("#view-mould").hidden)renderMouldLink()})}
+$("#mo-tab-app").onclick=()=>{moTab="app";renderMould()};$("#mo-tab-link").onclick=()=>{moTab="link";renderMould()};
+$("#mo-open").onclick=()=>window.open(MOULD_URL,"_blank","noopener");
+function renderMouldLink(){const B=$("#mo-link"),L=MOULD.jobs,link=canLinkProj(),act=M.projects.filter(p=>p.status==="Active");
+  const projOf=id=>M.projects.find(p=>p.mould===id),dealsOf=id=>deals.filter(d=>d.mould===id);
+  const head=`<div class="row"><div class="note" style="flex:1">Estimates come straight from the Mould Estimator. Give each won estimate its Job No. here; Reports, Job costing then shows estimate against actual cost, and Purchase can turn its raw material list into a purchase request.</div><button class="btn" type="button" id="mo-refresh">${MOULD.busy?"Loading…":"Refresh"}</button></div>`;
+  if(MOULD.err){B.innerHTML=head+`<div class="banner back">${esc(MOULD.err)}</div>`;$("#mo-refresh").onclick=()=>loadMould(true).then(renderMouldLink);return}
+  if(!L.length){B.innerHTML=head+`<div class="empty">${MOULD.busy||!MOULD.at?"Loading estimates…":"No estimates in the Mould Estimator yet."}</div>`;$("#mo-refresh").onclick=()=>loadMould(true).then(renderMouldLink);return}
+  const rows=L.map(j=>{const e=j.erp,p=projOf(j.id),ds=dealsOf(j.id);
+    const jobCell=link?`<select data-mlink="${esc(j.id)}" aria-label="Job No. for ${esc(j.no)}" style="width:auto"><option value="">Not linked</option>${act.concat(p&&!act.includes(p)?[p]:[]).map(x=>`<option value="${esc(x.no)}"${p===x?" selected":""}${x.mould&&x.mould!==j.id?" disabled":""}>${esc(x.no)}</option>`).join("")}</select>`:(p?`<b>${esc(p.no)}</b>`:"-");
+    return`<tr><td><button type="button" class="btn" data-mdet="${esc(j.id)}" aria-expanded="${moOpen===j.id}" style="font-family:var(--mono);padding:4px 8px">${esc(j.no)}</button></td><td>${esc(j.customer||"-")}<br><span class="note">${esc(j.part||"")}${j.mouldNo?" · Mould "+esc(j.mouldNo):""}</span></td><td>${esc(MST[j.status]||j.status)}</td><td class="num">${e?fmt0(e.price):"-"}</td><td class="num">${e?fmt0(e.cost.total):"-"}</td><td>${jobCell}</td><td>${ds.map(d=>`QT-${esc(d.no)}`).join(", ")||"-"}</td><td>${e&&p&&has("req.create")?`<button class="btn" type="button" data-mreq="${esc(j.id)}">Purchase request</button>`:""}</td></tr>`+(moOpen===j.id?`<tr><td colspan="8">${mouldDetHTML(j)}</td></tr>`:"")}).join("");
+  B.innerHTML=head+`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Estimate</th><th>Customer / part</th><th>Status</th><th class="num">Price ₹ (before GST)</th><th class="num">Estimated cost ₹</th><th>Job No.</th><th>RFQ</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="note">Last read ${new Date(MOULD.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}. An estimate shows figures once it has been saved in the estimator.</div>`;
+  $("#mo-refresh").onclick=()=>loadMould(true).then(renderMouldLink)}
+function mouldDetHTML(j){const e=j.erp;if(!e)return`<div class="note">No figures yet. Open this estimate once in the estimator so it sends its figures.</div>`;const c=e.cost;
+  const kv=(a)=>`<table class="mt"><tbody>${a.map(([k,v,b])=>`<tr><td>${esc(k)}</td><td class="num">${b?"<b>":""}${v}${b?"</b>":""}</td></tr>`).join("")}</tbody></table>`;
+  return`<div class="mo-det"><div><h3 class="rg">Cost break-up</h3>${kv([["A. Raw material (plates)",fmt0(c.material)],["B. Round parts, bought-out, other",fmt0(c.other)],["C. Design",fmt0(c.design)],["D. Process",fmt0(c.process)],["E. CMM, packing, transport",fmt0(c.others)],["Total cost",fmt0(c.total),1],[`Profit and overheads (${e.profitPct}%)`,fmt0(e.profit)],...(e.discount?[["Discount","-"+fmt0(e.discount)]]:[]),["Price before GST",fmt0(e.price),1],[`GST ${e.gstPct}%`,fmt0(e.gst)],["Price with GST",fmt0(e.grand),1]])}</div>
+    <div><h3 class="rg">Hours</h3>${e.hours.length?kv(e.hours.map(h=>[h.label,`${h.hrs} h · ₹${fmt0(h.amt)}`])):`<div class="note">No hours.</div>`}<div class="note">Mould size ${esc(e.size)} · tool weight ${fmt0(e.toolKg)} kg · class ${esc(e.cls)}</div></div>
+    <div><h3 class="rg">To buy</h3>${kv([["Steel lines",String(e.raw.length)],["Steel weight (kg)",fmt0(e.raw.reduce((a,r)=>a+r.kg,0))],["Steel value",fmt0(e.raw.reduce((a,r)=>a+r.amt,0))],["Bought-out lines",String(e.bo.length)],["Bought-out value",fmt0(e.bo.reduce((a,r)=>a+r.amt,0))]])}</div></div>`}
+$("#mo-link").addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.mdet){moOpen=moOpen===t.dataset.mdet?"":t.dataset.mdet;renderMouldLink();return}
+  if(t.dataset.mreq){const j=mouldById(t.dataset.mreq),p=M.projects.find(x=>x.mould===t.dataset.mreq);if(j&&p)mouldToReq(j,p.no)}});
+$("#mo-link").addEventListener("change",e=>{const id=e.target.dataset.mlink;if(!id)return;const j=mouldById(id),no=e.target.value;
+  M.projects.forEach(p=>{if(p.mould===id){delete p.mould;delete p.mouldNo}});
+  const p=no&&M.projects.find(x=>x.no===no);if(p){p.mould=id;p.mouldNo=j?j.no:""}
+  saveM();renderMouldLink();toast(p?`${j?j.no:"Estimate"} linked to Job ${p.no}`:"Link removed")});
+function mouldToReq(j,jobNo){const e=j.erp;if(!e)return;
+  const lines=[...e.raw.map(r=>({desc:`${r.grade} ${r.type==="Plate"?"plate":"round bar"} ${r.raw}`,spec:`${r.name}, finish ${String(r.finish).replace(/×/g,"x")}${r.ht?", "+r.ht:""}, about ${r.kg} kg`,qty:r.qty,unit:"NOS",vendor:"",remark:`Estimate ${j.no}`})),
+    ...e.bo.map(b=>({desc:b.name,spec:[b.spec,b.make].filter(Boolean).join(", "),qty:b.qty,unit:"NOS",vendor:"",remark:`Estimate ${j.no}`}))];
+  if(!lines.length){toast("This estimate has nothing to buy");return}
+  if(reqs.some(r=>r.job===jobNo&&(r.lines||[]).some(l=>l.remark===`Estimate ${j.no}`))&&!confirm(`A purchase request for Job ${jobNo} was already made from estimate ${j.no}. Make another one?`))return;
+  cur=blankReq();cur.by=me.name;cur.dept=me.dept||"";cur.job=jobNo;cur.lines=lines;show("req");
+  toast(`${lines.length} lines from estimate ${j.no}. Check them, set the required date and submit.`)}
+function mouldDealHTML(d){if(!can("mould"))return"";if(CLOUD&&!MOULD.at&&!MOULD.busy){const no=d.no;loadMould().then(()=>{if(dealCur&&dealCur.no===no)renderDealForm()})}
+  const cu=key(d.cust),L=MOULD.jobs.slice().sort((a,b)=>(key(b.customer)===cu)-(key(a.customer)===cu)),j=mouldById(d.mould);
+  return`<div class="grid-fields"><label class="f">Mould estimate<select id="dl-mould"><option value="">${MOULD.busy?"Loading…":MOULD.err?"Estimator not reachable":"Not linked"}</option>${L.concat(d.mould&&!j?[{id:d.mould,no:"(linked estimate)"}]:[]).map(x=>`<option value="${esc(x.id)}"${x.id===d.mould?" selected":""}>${esc(x.no)}${x.customer?" · "+esc(x.customer):""}${x.part?" · "+esc(x.part):""}</option>`).join("")}</select></label>
+    ${j&&j.erp?`<label class="f">Price in the estimator<input value="₹ ${fmt0(j.erp.price)} + GST ${j.erp.gstPct}% (${esc(MST[j.status]||j.status)})" disabled></label><div class="f" style="justify-content:flex-end"><button class="btn" id="dl-mprice" type="button">Use as quotation line</button></div>`:j?`<div class="note">This estimate has no price yet.</div>`:""}</div>`}
+function mouldPriceToDeal(d){const j=mouldById(d.mould);if(!j||!j.erp)return;
+  const line={desc:`Injection mould${j.part?" for "+j.part:""}${j.mouldNo?" (Mould No. "+j.mouldNo+")":""}, as per estimate ${j.no}`,hsn:"84807100",qty:1,unit:"SET",rate:j.erp.price};
+  const has1=(d.lines||[]).some(l=>String(l.desc||"").trim()||+l.rate);
+  if(has1&&!confirm("Replace the quotation lines with the estimator price?"))return;
+  d.lines=[line];if([18,12,5,28,0].includes(+j.erp.gstPct))d.gst=+j.erp.gstPct;renderDealForm();toast("Quotation line filled from the estimator. Save to keep it.")}
 /* GST registers for the CA */
 function renderGstReg(){const P=$("#gstPanel");if(!P)return;const mo=P.dataset.mo||today().slice(0,7);
   P.innerHTML=`<h2 class="sec">GST registers for your CA</h2><div class="note">Sales register (invoices and credit notes, GSTR-1 style) and purchase register (booked GRNs and debit notes) for one month, as Excel.</div>
