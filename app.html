@@ -36,6 +36,7 @@ nav button[aria-current="true"]{color:var(--ink);border-color:var(--line);backgr
 nav button.grp-on{color:var(--ink);border-color:var(--line);background:var(--bg)}
 nav .step{font-family:var(--mono);font-size:11px;margin-right:6px;color:var(--accent)}
 .mo-seg{display:flex;gap:4px}.mo-seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+a.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none;display:inline-block}
 .mo-det{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
 button.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -451,7 +452,7 @@ body.gated header.bar,body.gated main{display:none}
 
 <!-- SALES -->
 <section id="view-mould" class="stack" hidden>
-  <div class="panel stack"><div class="row"><h2 class="sec">Mould estimator</h2><div class="mo-seg" role="group" aria-label="Show"><button type="button" class="btn" id="mo-tab-app">Estimator</button><button type="button" class="btn" id="mo-tab-link">Estimates and projects</button></div><span style="flex:1"></span><button type="button" class="btn" id="mo-open">Open in new tab</button></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Mould estimator</h2><div class="mo-seg" role="group" aria-label="Show"><button type="button" class="btn" id="mo-tab-app">Estimator</button><button type="button" class="btn" id="mo-tab-link">Estimates and projects</button></div><span style="flex:1"></span><a class="btn" id="mo-open" href="https://mould-estimator.netlify.app" target="_blank" rel="noopener">Open in new tab</a></div>
     <div id="mo-app" class="stack"><div class="note">This is the live Mould Estimator app, so its latest version always shows here. Sign in with your estimator login the first time.</div><iframe id="mo-frame" title="Mould Estimator" style="width:100%;height:calc(100vh - 230px);min-height:520px;border:1px solid var(--line);border-radius:8px;background:var(--panel)"></iframe></div>
     <div id="mo-link" class="stack" hidden></div></div>
 </section>
@@ -2420,7 +2421,6 @@ function renderMould(){$("#mo-tab-app").setAttribute("aria-pressed",String(moTab
   if(moTab==="app"){const f=$("#mo-frame");if(!f.getAttribute("src"))f.setAttribute("src",MOULD_URL);return}
   renderMouldLink();loadMould().then(()=>{if(moTab==="link"&&!$("#view-mould").hidden)renderMouldLink()})}
 $("#mo-tab-app").onclick=()=>{moTab="app";renderMould()};$("#mo-tab-link").onclick=()=>{moTab="link";renderMould()};
-$("#mo-open").onclick=()=>window.open(MOULD_URL,"_blank","noopener");
 function renderMouldLink(){const B=$("#mo-link"),L=MOULD.jobs,link=canLinkProj(),act=M.projects.filter(p=>p.status==="Active");
   const projOf=id=>M.projects.find(p=>p.mould===id),dealsOf=id=>deals.filter(d=>d.mould===id);
   const head=`<div class="row"><div class="note" style="flex:1">Estimates come straight from the Mould Estimator. Give each won estimate its Job No. here; Reports, Job costing then shows estimate against actual cost, and Purchase can turn its raw material list into a purchase request.</div><button class="btn" type="button" id="mo-refresh">${MOULD.busy?"Loading…":"Refresh"}</button></div>`;
