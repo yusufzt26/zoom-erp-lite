@@ -405,6 +405,7 @@ body.gated header.bar,body.gated main{display:none}
     <div id="vendList"></div></div>
   <div class="panel stack" id="vendDetail" hidden></div>
   <div class="panel stack" id="bankPanel"></div>
+  <div class="panel stack" id="advPanel"></div>
   <div class="panel stack"><h2 class="sec">Booked and paid GRNs</h2><div id="acctDone"></div></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Debit notes to suppliers</h2><select class="per" id="per-dn" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" id="btn-dn-new">+ Debit note</button></div><div class="note">For material rejected or returned, rate differences or short supply. Pick the GRN and the lines fill in. Returns after acceptance reduce what you owe and take the quantity out of stock.</div><div id="dnList"></div></div>
   <div class="panel stack" id="dnForm" hidden></div>
@@ -1466,7 +1467,7 @@ function backupBook(){
   add("POs",saved.map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
   add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
-  add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":(x.alloc||[]).map(a=>a.ob?obBill(a.ob):a.grn).join(", ")})));
+  add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":x.adv?"Advance, PO "+x.po:(x.alloc||[]).map(a=>a.ob?obBill(a.ob):a.grn).join(", ")})));
   add("Items",items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})));
   add("Customers",customers.map(c=>({Customer:c.name,"Contact person":c.contact||"",Mobile:c.phone||"",Email:c.email||"",City:c.city||"",GSTIN:c.gstin||"",Address:c.addr||""})));
   add("Enquiries",deals.map(d=>({"QT No":"QT-"+d.no,Date:d.date,Customer:d.cust,"Enquiry for":d.title,Stage:d.stage,Salesperson:d.owner||"",Value:Math.round(dealVal(d)),"Customer PO":d.custPO||"","Job No":d.job||"","Lost reason":d.lostWhy||""})));
@@ -1516,10 +1517,15 @@ const obBal=o=>Math.round(((+o.amt||0)-obPaid(o))*100)/100;
 const obDue=o=>o.days!==""&&o.days!=null&&!isNaN(+o.days)?addDays(o.date,+o.days):(o.due||"");
 const obCustDue=()=>obills.filter(o=>o.kind==="cust").reduce((a,o)=>a+obBal(o),0);
 const obBill=id=>{const o=obills.find(x=>x.id===id);return o?`bill ${o.bill||"(no number)"} (old ERP)`:"old bill"};
-const grnPaid=g=>pays.reduce((a,p)=>a+p.alloc.filter(x=>x.grn===g.no).reduce((b,x)=>b+x.amt,0),0);
+const grnDirect=g=>pays.reduce((a,p)=>a+(p.alloc||[]).filter(x=>x.grn===g.no).reduce((b,x)=>b+x.amt,0),0);
+const poAdv=no=>pays.filter(p=>p.adv&&String(p.po)===String(no)).reduce((a,p)=>a+(+p.amount||0),0);
+function grnAdv(g){if(g.status==="With accounts")return 0;let left=poAdv(g.poNo);if(left<=0.004)return 0;for(const h of grns.filter(x=>String(x.poNo)===String(g.poNo)&&x.status!=="With accounts").sort((a,b)=>a.no-b.no)){const take=Math.min(Math.max(0,grnCalc(h).total-grnDirect(h)-dnAdj(h)),left);if(h.no===g.no)return take;left-=take}return 0}
+const grnPaid=g=>grnDirect(g)+grnAdv(g);
+const poAdvLeft=no=>Math.max(0,poAdv(no)-grns.filter(x=>String(x.poNo)===String(no)).reduce((a,h)=>a+grnAdv(h),0));
 const grnBal=g=>Math.round((grnCalc(g).total-grnPaid(g)-dnAdj(g))*100)/100;
 function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").forEach(g=>{const v=m[g.sup]||(m[g.sup]={sup:g.sup,booked:0,paid:0,overdue:0,due7:0});const b=grnBal(g);v.booked+=grnCalc(g).total-dnAdj(g);v.paid+=grnPaid(g);
   const d=dueDate(g);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});
+  [...new Set(pays.filter(p=>p.adv).map(p=>String(p.po)))].forEach(po=>{const p=pays.find(x=>x.adv&&String(x.po)===po),left=poAdvLeft(po);if(left<=0.004)return;const v=m[p.sup]||(m[p.sup]={sup:p.sup,booked:0,paid:0,overdue:0,due7:0});v.paid+=left});
   obills.filter(o=>o.kind==="sup").forEach(o=>{const v=m[o.party]||(m[o.party]={sup:o.party,booked:0,paid:0,overdue:0,due7:0});const b=obBal(o);v.booked+=+o.amt||0;v.paid+=obPaid(o);const d=obDue(o);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});return Object.values(m)}
 function addDays(iso,n){const t=new Date(iso);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
 function payChip(p){const gs=grns.filter(g=>String(g.poNo)===String(p.no)&&g.status!=="With accounts");if(!gs.length)return"";const bal=gs.reduce((a,g)=>a+grnBal(g),0),tot=gs.reduce((a,g)=>a+grnCalc(g).total,0);
@@ -1528,10 +1534,10 @@ function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully 
 function dueDate(g){const d=parseInt(g.terms,10);const base=g.invDate||g.date;if(!base||isNaN(d))return"";const t=new Date(base);t.setDate(t.getDate()+d);return t.toISOString().slice(0,10)}
 function acctRow(g){return`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">${esc(g.sup)} · PO ${esc(g.poNo)} · <span class="note">Inv ${esc(g.inv||"-")}${dueDate(g)?" · due "+dmy(dueDate(g)):""}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><button class="btn${g.status==="With accounts"?" primary":""}" data-acct="${g.no}">Open</button></div>`}
 function renderAcct(){
-  renderBank();
+  renderBank();renderAdv();
   const pend=grns.filter(g=>g.status==="With accounts"),done=grns.filter(g=>g.status!=="With accounts");
   const vs=vendSummary();
-  $("#vendList").innerHTML=vs.length?`<div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th>Supplier</th><th class="num">Booked</th><th class="num">Paid</th><th class="num">Outstanding</th><th class="num">Overdue</th><th class="num">Due in 7 days</th><th></th></tr></thead><tbody>${vs.map(v=>`<tr><td><b>${esc(v.sup)}</b></td><td class="num">${fmt(v.booked)}</td><td class="num">${fmt(v.paid)}</td><td class="num"><b>${fmt(v.booked-v.paid)}</b></td><td class="num" style="${v.overdue>0?"color:var(--danger);font-weight:600":""}">${fmt(v.overdue)}</td><td class="num">${fmt(v.due7)}</td><td><button class="btn${v.booked-v.paid>0.004?" primary":""}" data-vend="${esc(v.sup)}">${v.booked-v.paid>0.004&&has("acct.book")?"Pay / ledger":"Ledger"}</button></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No booked GRNs yet. Book a GRN above and the supplier appears here.</div>`;
+  $("#vendList").innerHTML=vs.length?`<div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th>Supplier</th><th class="num">Booked</th><th class="num">Paid</th><th class="num">Outstanding</th><th class="num">Overdue</th><th class="num">Due in 7 days</th><th></th></tr></thead><tbody>${vs.map(v=>`<tr><td><b>${esc(v.sup)}</b></td><td class="num">${fmt(v.booked)}</td><td class="num">${fmt(v.paid)}</td><td class="num"><b>${fmt(v.booked-v.paid)}</b>${v.booked-v.paid<-0.004?` <span class="note">advance</span>`:""}</td><td class="num" style="${v.overdue>0?"color:var(--danger);font-weight:600":""}">${fmt(v.overdue)}</td><td class="num">${fmt(v.due7)}</td><td><button class="btn${v.booked-v.paid>0.004?" primary":""}" data-vend="${esc(v.sup)}">${v.booked-v.paid>0.004&&has("acct.book")?"Pay / ledger":"Ledger"}</button></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No booked GRNs yet. Book a GRN above and the supplier appears here.</div>`;
   renderVend();
   $("#acctPending").innerHTML=pend.length?pend.map(acctRow).join(""):`<div class="empty">No GRNs waiting. New GRNs from the store appear here automatically.</div>`;
   $("#acctDone").innerHTML=done.length?done.map(acctRow).join(""):`<div class="empty">Nothing booked yet.</div>`;
@@ -1557,7 +1563,7 @@ function renderVend(){
   const led=[];grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts").forEach(g=>led.push({d:g.bookedAt||g.date,t:`GRN ${g.no} booked (${g.voucher}) · PO ${g.poNo}`,cr:grnCalc(g).total,dr:0}));
   obills.filter(o=>o.kind==="sup"&&o.party===vendSel).forEach(o=>{led.push({d:o.date,t:`Opening bill ${o.bill||""} (old ERP)`,cr:+o.amt||0,dr:0});if(+o.prior)led.push({d:o.date,t:`Paid before start (old ERP) · bill ${o.bill||""}`,cr:0,dr:+o.prior})});
   dnotes.filter(d=>key(d.party)===key(vendSel)&&d.reason!=="Rejected at GRN").forEach(d=>led.push({d:d.date,t:`Debit note DN-${d.no} · ${d.reason}${d.grn?" · GRN "+d.grn:""}`,cr:0,dr:ntCalc("dn",d).grand}));
-  pays.filter(p=>p.sup===vendSel).forEach(p=>led.push({d:p.date,t:`Payment ${p.no} · ${p.mode} ${p.ref} · ${p.alloc.map(x=>x.ob?obBill(x.ob):"GRN "+x.grn).join(", ")}`,cr:0,dr:p.amount}));
+  pays.filter(p=>p.sup===vendSel).forEach(p=>led.push({d:p.date,t:`Payment ${p.no} · ${p.mode} ${p.ref} · ${p.adv?"advance against PO "+p.po:p.alloc.map(x=>x.ob?obBill(x.ob):"GRN "+x.grn).join(", ")}`,cr:0,dr:p.amount}));
   led.sort((a,b)=>a.d.localeCompare(b.d));let bal=0;
   D.innerHTML=`<div class="row"><h2 class="sec">${esc(vendSel)}</h2><span style="flex:1"></span><button class="btn" id="btn-v-close" type="button">Close</button></div>
   ${(open.length||obo.length)&&has("acct.book")?`<h3 class="rg">Record a payment</h3>
@@ -2118,7 +2124,9 @@ const sentQ=(so,i)=>dchallans.filter(d=>String(d.so)===String(so)).reduce((a,d)=
 const billQ=(so,i)=>invoices.filter(v=>String(v.so)===String(so)).reduce((a,v)=>a+v.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
 function soStatus(s){if(s.closed)return"Closed";const L=s.lines.map((l,i)=>({q:+l.qty||0,s:sentQ(s.no,i),b:billQ(s.no,i)}));
   if(L.every(x=>x.b>=x.q-1e-9))return"Billed";if(L.every(x=>x.s>=x.q-1e-9))return"Dispatched";if(L.some(x=>x.s>0||x.b>0))return"Part dispatched";return"Open"}
-const invDue=x=>Math.max(0,invTot(x)-recdOf(x)-cnAdj(x));
+const invDue0=x=>Math.max(0,invTot(x)-recdOf(x)-cnAdj(x));
+function invAdv(x){if(!x.so||x.cancelled)return 0;const s=sorders.find(y=>String(y.no)===String(x.so));if(!s||!(s.adv||[]).length)return 0;let left=soAdvTot(s);for(const y of invoices.filter(z=>!z.cancelled&&String(z.so)===String(x.so)).sort((a,b)=>String(a.date).localeCompare(String(b.date))||(+a.no)-(+b.no))){const take=Math.min(invDue0(y),left);if(y===x)return take;left-=take}return 0}
+const invDue=x=>Math.max(0,invDue0(x)-invAdv(x));
 let sdCur=null;// {t, rec, isNew}
 function sdOpen(t,rec,isNew){sdCur={t,rec:JSON.parse(JSON.stringify(rec)),isNew};show(t);renderSDForm();$(`#${t}-form`).scrollIntoView({block:"start"})}
 function sdNew(t,extra){const pl=(extra&&extra.plant)||defPlant();const c={so:{no:nextSO(),date:today(),cust:"",deal:"",custPO:"",custPODate:"",job:"",due:"",gst:18,terms:salesCfg().soTerms,lines:[]},
@@ -2527,13 +2535,13 @@ $("#openPanel").addEventListener("input",e=>{if(e.target.id==="ob-q"){const pos=
 let bkF="open",bkMore=60,bkPick=null,bkPrev=null;
 const BK_FIELDS=[["date","Date",["txndate","transactiondate","trandate","postingdate","date","valuedate","valuedt"]],
   ["narr","Narration",["narration","description","particulars","transactionremarks","remarks","transactiondetails","details"]],
-  ["ref","Ref",["chqrefno","chequerefno","refnochequeno","chequeno","chqno","refno","referenceno","reference","utr","utrno"]],
+  ["ref","Ref",["chqrefno","chequerefno","refnochequeno","chequeno","chqno","refno","referenceno","reference","utr","utrno","ref"]],
   ["dr","Withdrawal",["withdrawalamt","withdrawalamount","withdrawals","withdrawal","debitamount","debit","dr","paidout"]],
   ["cr","Deposit",["depositamt","depositamount","deposits","deposit","creditamount","credit","cr","paidin"]],
   ["amt","Amount",["transactionamount","amount"]],["type","Dr/Cr",["drcr","crdr","debitcredit","type"]],
   ["bal","Balance",["closingbalance","runningbalance","balance"]]];
 const BK_STOP=new Set("PVT PRIVATE LTD LIMITED LLP INDIA INDUSTRIES INDUSTRY ENTERPRISES ENTERPRISE ENGINEERING ENGINEERS TECHNOLOGIES TECHNOLOGY TRADERS TRADING COMPANY CORPORATION SERVICES SOLUTIONS AND THE OF M S MS NEFT RTGS IMPS UPI".split(" "));
-const bkWords=n=>key(n).split(" ").filter(w=>w.length>=4&&!BK_STOP.has(w));
+const bkWords=n=>{const W=key(n).split(" ").filter(w=>w.length>=3&&!BK_STOP.has(w));return W.length?W:[key(n).replace(/ /g,"")].filter(w=>w.length>=4)};
 const bkNameHit=(party,narr)=>{const N=" "+key(narr).replace(/ /g,"")+" ",W=bkWords(party);return W.length?W.some(w=>N.includes(w)):false};
 const bkMode=n=>/RTGS/i.test(n)?"RTGS":/IMPS|NEFT|NFT/i.test(n)?"NEFT":/UPI/i.test(n)?"UPI":/CHQ|CHEQUE|CLG|CLEARING/i.test(n)?"Cheque":/CASH/i.test(n)?"Cash":"NEFT";
 const bkAmt=l=>+(l.dr||l.cr)||0;
@@ -2566,7 +2574,7 @@ function bkApply(l,s){if(s.ex){l.link={ex:s.ex,party:s.party,note:s.note};if(s.e
   l.status="linked";saveBank()}
 function bkUndo(l){if(l.link&&l.link.ex){if(l.link.ex.startsWith("pay:")){const p=pays.find(x=>"pay:"+x.no===l.link.ex);if(p){delete p.bank;savePays()}}else{const [t,id,i]=l.link.ex.split(":");const o=t==="inv"?invoices.find(x=>SYNC.invoices.id(x)===id):obills.find(x=>x.id===id);const r=o&&rcptsOf(o)[+i];if(r){delete r.bank;t==="inv"?store.set("invoices",invoices):saveOB()}}}
   else if(l.dr){const i=pays.findIndex(p=>p.bank===l.id);if(i>=0){const p=pays[i];pays.splice(i,1);savePays();p.alloc.forEach(x=>{if(x.grn!=null){const g=grns.find(y=>y.no===x.grn);if(g&&g.status!=="With accounts")g.status=grnPaid(g)<=0.004?"Booked":grnBal(g)<=0.004?"Paid":"Part paid"}});saveGRNs()}}
-  else{invoices.forEach(x=>{if(Array.isArray(x.rcpts))x.rcpts=x.rcpts.filter(r=>r.bank!==l.id)});obills.forEach(o=>{if(Array.isArray(o.rcpts))o.rcpts=o.rcpts.filter(r=>r.bank!==l.id)});store.set("invoices",invoices);saveOB()}
+  else{sorders.forEach(s=>{if(Array.isArray(s.adv)&&s.adv.some(r=>r.bank===l.id)){s.adv=s.adv.filter(r=>r.bank!==l.id);store.set("sorders",sorders)}});invoices.forEach(x=>{if(Array.isArray(x.rcpts))x.rcpts=x.rcpts.filter(r=>r.bank!==l.id)});obills.forEach(o=>{if(Array.isArray(o.rcpts))o.rcpts=o.rcpts.filter(r=>r.bank!==l.id)});store.set("invoices",invoices);saveOB()}
   l.status="";l.link=null;saveBank()}
 async function bkImport(f){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   try{const csv=/\.csv$/i.test(f.name);const wb=XLSX.read(csv?await f.text():await f.arrayBuffer(),{type:csv?"string":"array",raw:csv,cellDates:true});let best=null;
@@ -2590,9 +2598,9 @@ function renderBank(){const P=$("#bankPanel");if(!P)return;const ed=has("acct.bo
   const cnt=k=>bank.filter(l=>k==="open"?!l.status:l.status===k).length;
   const row=l=>{const s=sg.get(l.id)||[],A=bkAmt(l);let act="";
     if(!l.status&&ed){act=`<div class="stack" style="gap:6px">${s.map((x,i)=>`<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn${i===0&&x.score>=100?" primary":""}" type="button" data-bka="${esc(l.id)}" data-i="${i}">Link</button><span><b>${esc(x.party)}</b> · ${x.ex?esc(x.note):`${x.al.map(a=>`${esc(a.lab)} ₹ ${fmt(a.amt)}`).join(", ")} <span class="note">${esc(x.note)}</span>`}</span></div>`).join("")||`<span class="note">No bill with this amount.</span>`}
-      <div class="row" style="gap:8px"><button class="btn" type="button" data-bkp="${esc(l.id)}">Pick bills</button><button class="btn" type="button" data-bki="${esc(l.id)}">Ignore</button></div>
-      ${bkPick&&bkPick.id===l.id?bkPickForm(l):""}</div>`}
-    else if(l.status==="linked"){const k=l.link||{};act=`<span class="chip calc">Linked</span> <b>${esc(k.party||"")}</b> <span class="note">${k.pay?`payment ${k.pay}`:k.bills?esc(k.bills.join(", ")):esc(k.note||"")}</span>${ed?` <a href="#" data-bku="${esc(l.id)}">undo</a>`:""}`}
+      <div class="row" style="gap:8px"><button class="btn" type="button" data-bkp="${esc(l.id)}">Pick bills</button><button class="btn" type="button" data-bkadv="${esc(l.id)}">Advance against ${l.dr?"PO":"sales order"}</button><button class="btn" type="button" data-bki="${esc(l.id)}">Ignore</button></div>
+      ${bkPick&&bkPick.id===l.id?bkPickForm(l):""}${advForm&&advForm.bank===l.id?`<div class="panel stack" style="padding:10px">${advFormHTML(l.dr?"dr":"cr",bkAmt(l),l.narr,advForm.doc)}</div>`:""}</div>`}
+    else if(l.status==="linked"){const k=l.link||{};act=`<span class="chip calc">Linked</span> <b>${esc(k.party||"")}</b> <span class="note">${k.adv?esc(k.adv):k.pay?`payment ${k.pay}`:k.bills?esc(k.bills.join(", ")):esc(k.note||"")}</span>${ed?` <a href="#" data-bku="${esc(l.id)}">undo</a>`:""}`}
     else if(l.status==="ignored")act=`<span class="chip">Ignored</span>${l.note?` <span class="note">${esc(l.note)}</span>`:""}${ed?` <a href="#" data-bku="${esc(l.id)}">undo</a>`:""}`;
     return`<tr><td style="white-space:nowrap">${dmy(l.date)}</td><td style="max-width:320px">${esc(l.narr)}${l.ref?`<div class="note">Ref ${esc(l.ref)}</div>`:""}</td><td class="num">${l.dr?fmt(l.dr):""}</td><td class="num">${l.cr?fmt(l.cr):""}</td><td>${act}</td></tr>`};
   P.innerHTML=`<div class="row"><h2 class="sec">Bank statement</h2><span style="flex:1"></span>${ed?`<button class="btn" id="bk-up" type="button">Upload statement (.xlsx / .csv)</button>`:""}<input type="file" id="bks-file" accept=".xlsx,.xls,.csv" hidden></div>
@@ -2611,13 +2619,48 @@ $("#bankPanel").addEventListener("click",e=>{const t=e.target,d=t.dataset;const 
   if(t.id==="bk-all"){const taken=bkTaken();let n=0;bank.filter(l=>!l.status).slice(0,bkMore).forEach(l=>{const s=bkSuggest(l,bkBills(l.dr?"dr":"cr"),taken);if(s.length&&s[0].score>=100&&!(s[1]&&s[1].score>=100)){bkApply(l,s[0]);if(s[0].ex)taken.add(s[0].ex);n++}});toast(`${n} lines linked`);renderAcct();return}
   if(d.bki){const l=L(d.bki);if(!l)return;const n=prompt("Note (optional), e.g. bank charges, salary, GST payment","");if(n===null)return;l.status="ignored";l.note=n;saveBank();renderBank();return}
   if(d.bku){e.preventDefault();const l=L(d.bku);if(!l)return;if(l.status==="ignored"){l.status="";l.note="";saveBank()}else if(confirm("Undo this link? A payment or receipt created from this line is removed."))bkUndo(l);renderAcct();return}
-  if(d.bkp){bkPick=bkPick&&bkPick.id===d.bkp?null:{id:d.bkp,party:""};renderBank();return}
+  if(d.bkp){bkPick=bkPick&&bkPick.id===d.bkp?null:{id:d.bkp,party:""};advForm=null;renderBank();return}
+  if(d.bkadv){const l=L(d.bkadv);const top=advParty(l.dr?"dr":"cr",l.narr)[0];advForm=advForm&&advForm.bank===d.bkadv?null:{bank:d.bkadv,doc:top&&top.hit?top.id:""};bkPick=null;renderBank();return}
+  if(t.id==="adv-save"&&advForm&&advForm.bank){const l=L(advForm.bank),doc=$("#adv-doc").value;if(!doc){toast("Pick the order");return}const r=advSave(l.dr?"dr":"cr",doc,bkAmt(l),l.date,l.ref||String(l.narr).slice(0,40),bkMode(l.narr),l.id);if(r){l.link=r;l.status="linked";saveBank();toast(`Linked as ${r.adv}`)}advForm=null;renderAcct();return}
   if(t.id==="bkp-save"&&bkPick){const l=L(bkPick.id);const B=bkBills(l.dr?"dr":"cr").filter(b=>b.party===bkPick.party);const al=[...document.querySelectorAll("[data-bkpi]")].map(i=>({...B[+i.dataset.bkpi],amt:Math.round((+i.value||0)*100)/100})).filter(x=>x.amt>0);
     if(!al.length){toast("Enter an amount against at least one bill");return}if(al.some(x=>x.amt>x.bal+0.004)){toast("A line is more than that bill's balance");return}
     const s=al.reduce((a,x)=>a+x.amt,0);if(Math.abs(s-bkAmt(l))>0.5){toast(`Applied ₹ ${fmt(s)} but the statement line is ₹ ${fmt(bkAmt(l))}`);return}
     bkApply(l,{party:bkPick.party,al});bkPick=null;toast("Linked");renderAcct();return}});
 $("#bankPanel").addEventListener("change",e=>{if(e.target.id==="bks-file"){const f=e.target.files[0];e.target.value="";if(f)bkImport(f);return}if(e.target.id==="bkp-party"&&bkPick){bkPick.party=e.target.value;renderBank()}});
 $("#bankPanel").addEventListener("input",e=>{if(e.target.id==="bk-q"){const pos=e.target.selectionStart;renderBank();const q=$("#bk-q");q.focus();q.setSelectionRange(pos,pos)}});
+/* ---------- advances against PO (suppliers) and sales order (customers) ---------- */
+let advForm=null;
+const poOpen=()=>saved.filter(p=>p.status==="Approved"&&!p.closed);
+const soOpen=()=>sorders.filter(s=>!s.cancelled&&s.status!=="Cancelled");
+const soTotal=s=>{try{return invCalc(s).grand}catch(e){return 0}};
+const soAdvTot=s=>(s.adv||[]).reduce((a,r)=>a+(+r.amt||0),0);
+const soAdvLeft=s=>Math.max(0,soAdvTot(s)-invoices.filter(x=>!x.cancelled&&String(x.so)===String(s.no)).reduce((a,x)=>a+invAdv(x),0));
+const advParty=(side,narr)=>{const L=side==="dr"?poOpen().map(p=>({id:String(p.no),party:p.sup,lab:`PO ${p.no}`,tot:+p.total||0,date:p.date})):soOpen().map(s=>({id:String(s.no),party:s.cust,lab:`SO-${s.no}`,tot:soTotal(s),date:s.date}));
+  return L.map(o=>({...o,hit:narr?bkNameHit(o.party,narr):false})).sort((a,b)=>(b.hit-a.hit)||String(b.date).localeCompare(String(a.date)))};
+function advSave(side,docId,amt,date,ref,mode,bankId){amt=Math.round(amt*100)/100;
+  if(side==="dr"){const p=saved.find(x=>String(x.no)===String(docId));if(!p)return null;const no=Math.max(500,...pays.map(x=>x.no))+1;pays.push({no,date,sup:p.sup,mode:mode||"NEFT",ref,amount:amt,alloc:[],adv:true,po:p.no,by:me.name,...(bankId?{bank:bankId}:{})});savePays();return{pay:no,party:p.sup,adv:`advance against PO ${p.no}`}}
+  const s=sorders.find(x=>String(x.no)===String(docId));if(!s)return null;s.adv=s.adv||[];s.adv.push({id:itId(),date,amt,ref,by:me.name,...(bankId?{bank:bankId}:{})});store.set("sorders",sorders);return{party:s.cust,adv:`advance against SO-${s.no}`,so:s.no}}
+function advFormHTML(side,amt,narr,pre){const L=advParty(side,narr);
+  return`<div class="grid-fields"><label class="f">${side==="dr"?"Purchase order":"Sales order"}<select id="adv-doc"><option value="">Pick…</option>${L.map(o=>`<option value="${esc(o.id)}"${pre===o.id?" selected":""}>${esc(o.lab)} · ${esc(o.party)}${o.tot?` · ₹ ${fmt0(Math.round(o.tot))}`:""}${o.hit?" ✓ name in narration":""}</option>`).join("")}</select></label>
+  ${amt==null?`<label class="f">Date<input id="adv-date" type="date" value="${today()}"></label>${side==="dr"?`<label class="f">Mode<select id="adv-mode"><option>NEFT</option><option>RTGS</option><option>Cheque</option><option>UPI</option><option>Cash</option></select></label>`:""}<label class="f">UTR / cheque no.<input id="adv-ref"></label><label class="f">Amount ₹<input id="adv-amt" type="number" step="0.01"></label>`:`<span class="note" style="align-self:flex-end">Amount ₹ ${fmt(amt)}</span>`}</div>
+  <div class="row"><span class="note">The advance is adjusted automatically against ${side==="dr"?"GRNs of this PO when they are booked":"invoices made from this sales order"}.</span><span style="flex:1"></span><button class="btn primary" type="button" id="adv-save">Save advance</button></div>`}
+function renderAdv(){const P=$("#advPanel");if(!P)return;const edS=has("acct.book"),edC=has("acct.book")||has("sales.edit");
+  const S=pays.filter(p=>p.adv).map(p=>({side:"dr",party:p.sup,doc:`PO ${p.po}`,date:p.date,amt:+p.amount||0,left:null,po:p.po,ref:[p.mode,p.ref].filter(Boolean).join(" "),bank:p.bank,key:"p"+p.no}));
+  const C=[];sorders.forEach(s=>(s.adv||[]).forEach(r=>C.push({side:"cr",party:s.cust,doc:`SO-${s.no}`,date:r.date,amt:+r.amt||0,ref:r.ref||"",bank:r.bank,key:"s"+s.no+":"+r.id})));
+  const pl={},sl={};S.forEach(x=>{if(!(x.po in pl))pl[x.po]=poAdvLeft(x.po)});sorders.forEach(s=>{if((s.adv||[]).length)sl[s.no]=soAdvLeft(s)});
+  const totS=Object.values(pl).reduce((a,v)=>a+v,0),totC=Object.values(sl).reduce((a,v)=>a+v,0);
+  const L=S.concat(C).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  P.innerHTML=`<div class="row"><h2 class="sec">Advances</h2><span style="flex:1"></span>${edS?`<button class="btn" type="button" id="adv-new-dr">+ Advance to supplier (PO)</button>`:""}${edC?`<button class="btn" type="button" id="adv-new-cr">+ Advance from customer (SO)</button>`:""}</div>
+  <div class="note">Money paid before the bill. A supplier advance is linked to a PO and is taken off that PO's GRNs as they are booked. A customer advance is linked to a sales order and is taken off the invoices made from it. Not yet adjusted: suppliers ₹ ${fmt(totS)}, customers ₹ ${fmt(totC)}.</div>
+  ${advForm&&!advForm.bank?`<div class="panel stack" style="padding:10px"><h3 class="rg" style="margin:0">${advForm.side==="dr"?"Advance to supplier against a PO":"Advance from customer against a sales order"}</h3>${advFormHTML(advForm.side,null,"",advForm.doc)}<div class="row"><button class="btn" type="button" id="adv-x">Cancel</button></div></div>`:""}
+  ${L.length?`<div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th>Date</th><th>Type</th><th>Party</th><th>Against</th><th>Ref</th><th class="num">Amount</th><th class="num">Not yet adjusted (per order)</th><th></th></tr></thead><tbody>${L.map(x=>{const left=x.side==="dr"?pl[x.po]:sl[x.doc.slice(3)];
+    return`<tr><td>${dmy(x.date)}</td><td>${x.side==="dr"?"Paid to supplier":"Received from customer"}</td><td><b>${esc(x.party)}</b></td><td>${esc(x.doc)}</td><td>${esc(x.ref)}${x.bank?` <span class="chip calc">bank</span>`:""}</td><td class="num">${fmt(x.amt)}</td><td class="num">${fmt(left||0)}</td><td>${!x.bank&&(x.side==="dr"?edS:edC)?`<button class="btn" type="button" data-advdel="${esc(x.key)}" title="Remove">✕</button>`:""}</td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">No advances yet.</div>`}`}
+$("#advPanel").addEventListener("click",e=>{const t=e.target;
+  if(t.id==="adv-new-dr"||t.id==="adv-new-cr"){advForm={side:t.id==="adv-new-dr"?"dr":"cr"};renderAdv();return}
+  if(t.id==="adv-x"){advForm=null;renderAdv();return}
+  if(t.id==="adv-save"&&advForm){const doc=$("#adv-doc").value,amt=+$("#adv-amt").value||0,ref=$("#adv-ref").value.trim();if(!doc){toast("Pick the order");return}if(amt<=0){toast("Enter the amount");return}
+    const r=advSave(advForm.side,doc,amt,$("#adv-date").value||today(),ref,($("#adv-mode")||{}).value);if(r)toast(`Saved: ${r.adv}`);advForm=null;renderAcct();return}
+  if(t.dataset.advdel){if(!confirm("Remove this advance?"))return;const k=t.dataset.advdel;if(k[0]==="p"){const i=pays.findIndex(p=>"p"+p.no===k);if(i>=0){pays.splice(i,1);savePays()}}else{const [sno,id]=k.slice(1).split(":");const s=sorders.find(x=>String(x.no)===sno);if(s){s.adv=(s.adv||[]).filter(r=>r.id!==id);store.set("sorders",sorders)}}renderAcct()}});
 /* masters: one list at a time, customer master */
 const projCan=a=>has("proj."+a)||has("mast.edit");const projOnly=()=>!has("mast.view");
 let mastSel="items";try{mastSel=localStorage.getItem("zpo:mastPick")||"items"}catch(e){}
