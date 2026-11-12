@@ -881,7 +881,7 @@ function renderPO(){
   <table><thead><tr><th>Sn</th><th>Item / service (from master)</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
   <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
     <td><input id="pl${i}-item" data-lk="item" list="masteritems" value="${esc(l.item||"")}" placeholder="Pick from item master" class="${poBad(l)?"badcell":""}" title="${poBad(l)?BADITEM:""}" style="width:100%;min-width:170px"></td>
-    <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description / finished size" style="width:100%;min-width:170px">${poRawOn(l)?`<div class="row" style="gap:4px;flex-wrap:nowrap;margin-top:3px"><b style="font-size:11px;white-space:nowrap">Raw size</b><input id="pl${i}-raw" data-lk="raw" value="${esc(l.raw||"")}" placeholder="e.g. 560 x 410 x 85" style="width:100%"></div>`:`<button class="noprint" type="button" data-praw="${i}" style="font-size:11px;border:none;background:none;color:var(--accent,#0b6e8a);cursor:pointer;padding:2px 0">+ raw size</button>`}</td>
+    <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description / finished size" style="width:100%;min-width:170px">${poRawOn(l)?poRawBox(l,i):`<button class="noprint" type="button" data-praw="${i}" style="font-size:11px;border:none;background:none;color:var(--accent,#0b6e8a);cursor:pointer;padding:2px 0">+ raw size</button>`}</td>
     <td><input id="pl${i}-hsn" data-lk="hsn" value="${esc(l.hsn)}" style="width:72px"></td>
     <td class="r"><input id="pl${i}-tax" data-lk="tax" type="number" value="${l.tax}" style="width:44px"></td>
     <td class="r"><input id="pl${i}-qty" data-lk="qty" type="number" step="any" value="${l.qty}" style="width:56px"></td>
@@ -927,7 +927,7 @@ function renderTotals(){
   rows+=`<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr>`;
   $("#poTot").innerHTML=rows;$("#poWords").innerHTML=`<b>Amount In Words :</b> Rupees ${words(c.total)} Only.`;
 }
-$("#paper").addEventListener("change",e=>{if(e.target.dataset.lk!=="item")return;const l=po.lines[+e.target.closest("tr").dataset.i],it=itemByName(l.item);
+$("#paper").addEventListener("change",e=>{if(e.target.dataset.lk==="unit"){const tr=e.target.closest("tr"),l=po.lines[+tr.dataset.i];if(poRawOn(l)){poRawCalc(l,true);store.set("po",po);renderPO()}return}if(e.target.dataset.lk!=="item")return;const l=po.lines[+e.target.closest("tr").dataset.i],it=itemByName(l.item);
   e.target.classList.toggle("badcell",poBad(l));e.target.title=poBad(l)?BADITEM:"";if(!it){store.set("po",po);return}
   const wasRaw=!!e.target.closest("tr").querySelector("[data-lk=raw]");l.item=it.name;poSetDesc(l);e.target.value=it.name;e.target.classList.remove("badcell");e.target.title="";
   if(!wasRaw&&poRawOn(l)){const i=+e.target.closest("tr").dataset.i;if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;store.set("po",po);renderPO();const r=$("#pl"+i+"-raw");if(r)r.focus();return}if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
@@ -936,7 +936,7 @@ $("#paper").addEventListener("input",e=>{
   if(t.dataset.pk==="plant"){const old=po.deliv;if(!old||old===COMPANY.addr||plants().some(p=>plantAddr(p.id)===old))po.deliv=plantAddr(t.value);po.plant=t.value;store.set("po",po);renderPO();return}
   if(t.dataset.pk){po[t.dataset.pk]=t.value;
     if(t.dataset.pk==="sup"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp&&!po.supAddr){po.supAddr=sp.addr;$("#po-supAddr").value=sp.addr;if(sp.terms){po.terms=sp.terms;$("#po-terms").value=sp.terms}po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra";$("#p-gstmode").value=po.gstmode;renderTotals()}}}
-  else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;if(k==="pdesc"){poDesc(l,t.value)}else{l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;if(k==="item"||k==="raw")poSetDesc(l)}
+  else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;if(k==="pdesc"){poDesc(l,t.value)}else if(["fin","raw","grade","pcs"].includes(k)){poRawInput(l,k,t.value,tr)}else{l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;if(k==="item")poSetDesc(l);if(k==="qty"&&poRawOn(l)){poRawCalc(l);poRawShow(l,tr)}}
     tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100));renderTotals()}
   store.set("po",po);
 });
@@ -1784,8 +1784,41 @@ const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const masterHasItems=()=>items.some(i=>i.active!=="No");
 /* PO lines: item from the item master, description free text; desc = both, used by GRN, stock and the printed PO */
 const BADITEM="Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.";
-const poDesc=(l,v)=>{if(v===undefined)return l.item?String(l.spec||""):String(l.desc||"").replace(/ · Raw size: .*$/,"");l.spec=v;poSetDesc(l)};
-function poSetDesc(l){l.desc=[l.item,l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+(String(l.raw||"").trim()?" · Raw size: "+String(l.raw).trim():"")}
+const poDesc=(l,v)=>{if(v===undefined)return l.item?String(l.spec||""):String(l.desc||"").replace(/ · (Finished size|Raw size|Grade|Total wt): .*$/,"");l.spec=v;poSetDesc(l)};
+function poSetDesc(l){const t=x=>String(x||"").trim(),raw=poRawOn(l);l.desc=[l.item,l.spec].map(t).filter(Boolean).join(" - ")+(raw&&t(l.fin)?" · Finished size: "+t(l.fin):"")+(t(l.raw)?" · Raw size: "+t(l.raw):"")+(raw&&t(poGrade(l))?" · Grade: "+t(poGrade(l)):"")+(raw&&l.wt?" · Total wt: "+fmtKg(l.wt)+" kg":"")}
+/* raw material sizes and weight. Sizes in mm: plate/block "L x W x T", round bar "Ø D x L".
+   Raw size = finished size + RAW_ALLOW mm on every dimension (purchaser can overwrite it). */
+const RAW_ALLOW=7;
+const SZ_NUM=/((?:^|[\sx×*Ø⌀]|dia|d)\s*)(\d+(?:\.\d+)?)/gi;
+const fmtKg=n=>(Math.round(n*100)/100).toFixed(2);
+const szNums=s=>{const o=[];String(s||"").replace(/,/g,".").replace(SZ_NUM,(m,a,n)=>{o.push(+n);return m});return o};
+const szRound=s=>/ø|⌀|dia|(^|[^a-z])d\s*\d|round|\brd\b/i.test(String(s||""));
+const rawFromFin=f=>String(f||"").trim()?String(f).replace(/,/g,".").replace(SZ_NUM,(m,a,n)=>a+String(Math.round((+n+RAW_ALLOW)*100)/100)):"";
+const DENS=[[/beryl|becu/i,8.25],[/brass/i,8.5],[/bronze/i,8.8],[/copper|\bcu\b/i,8.96],[/alu|\bal\b|6061|6082|7075|5083/i,2.7],[/titan/i,4.51],[/nylon|acetal|delrin|\bpom\b/i,1.41],[/cast iron|\bci\b/i,7.2],[/ss\s*-?\s*420|stavax|2083/i,7.75],[/stainless|\bss\b|\bss\d|\b30[34]\b|\b316/i,7.95],[/h13|2344|8407/i,7.8],[/\bd2\b|2379|hchcr|hcrc/i,7.7]];
+function poGrade(l){if(l.grade!==undefined)return l.grade;const it=itemByName(l.item||"");return it&&it.spec||""}
+function poDensity(l){const t=[poGrade(l),l.item].join(" ");const d=DENS.find(([r])=>r.test(t));return{d:d?d[1]:7.85,known:!!d||!!String(poGrade(l)).trim()}}
+const poKgUnit=l=>/^kgs?\.?$|^kilo/i.test(String(l.unit||"").trim());
+function poRawCalc(l,setQty){const n=szNums(l.raw),rd=szRound(l.raw)&&n.length>=2,ok=rd||n.length>=3;
+  if(!ok){l.wpc=0;l.wt=0;poSetDesc(l);return}
+  const vol=rd?Math.PI/4*n[0]*n[0]*n[1]:n[0]*n[1]*n[2],den=poDensity(l).d;
+  l.wpc=vol*den*1e-6;const pcs=poKgUnit(l)?(+l.pcs||1):(+l.qty||0);l.wt=l.wpc*pcs;
+  if(setQty&&poKgUnit(l))l.qty=Math.round(l.wt*100)/100;poSetDesc(l)}
+function poWtText(l){if(!String(l.raw||"").trim())return`<span class="note">Enter the finished size</span>`;
+  if(!l.wpc)return`<span class="note">Size as L x W x T or Ø D x L (mm) to get the weight</span>`;const dn=poDensity(l),pcs=poKgUnit(l)?(+l.pcs||1):(+l.qty||0);
+  return`${fmtKg(l.wpc)} kg/pc × ${pcs} = <b>${fmtKg(l.wt)} kg</b> <span class="note">(${dn.d} g/cc${dn.known?"":", steel assumed"})</span>`}
+function poRawBox(l,i){poRawCalc(l);const lab='style="font-size:11px;white-space:nowrap"';
+  return`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 6px;align-items:center;margin-top:3px">
+  <b ${lab}>Finished size</b><input id="pl${i}-fin" data-lk="fin" value="${esc(l.fin||"")}" placeholder="e.g. 553 x 403 x 78 or Ø50 x 200" style="width:100%">
+  <b ${lab}>Raw size</b><input id="pl${i}-raw" data-lk="raw" value="${esc(l.raw||"")}" placeholder="finished + ${RAW_ALLOW} mm" style="width:100%">
+  <b ${lab}>Grade</b><input id="pl${i}-grade" data-lk="grade" value="${esc(poGrade(l))}" placeholder="e.g. P20, EN8, Aluminium" style="width:100%">
+  ${poKgUnit(l)?`<b ${lab}>Pieces</b><input id="pl${i}-pcs" data-lk="pcs" type="number" min="1" step="1" value="${+l.pcs||1}" style="width:60px">`:""}
+  <b ${lab}>Total wt</b><span data-wt style="font-size:11.5px">${poWtText(l)}</span></div>`}
+function poRawShow(l,tr){const w=tr.querySelector("[data-wt]");if(w)w.innerHTML=poWtText(l);const q=tr.querySelector("[data-lk=qty]");if(q&&poKgUnit(l))q.value=l.qty;tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}
+function poRawInput(l,k,v,tr){
+  if(k==="fin"){l.fin=v;const auto=l.rawAuto!==false||!String(l.raw||"").trim();if(auto){l.raw=rawFromFin(v);l.rawAuto=true;const r=tr.querySelector("[data-lk=raw]");if(r)r.value=l.raw}}
+  else if(k==="raw"){l.raw=v;l.rawAuto=!String(v).trim()}
+  else if(k==="pcs")l.pcs=+v||1;else l.grade=v;
+  poRawCalc(l,true);poRawShow(l,tr)}
 /* raw material: the BOM gives finished sizes, so the purchaser can add the raw (purchase) size */
 const isRawItem=it=>!!it&&/raw/i.test([it.type,it.cat,it.subcat,it.name].join(" "));
 const poRawOn=l=>!!(l.rawOn||String(l.raw||"").trim()||isRawItem(itemByName(l.item||"")));
