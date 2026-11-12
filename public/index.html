@@ -259,9 +259,9 @@ body.gated header.bar,body.gated main{display:none}
     <div class="grid-fields">
       <label class="f">Request No.<input id="q-no"></label>
       <label class="f">Date<input id="q-date" type="date"></label>
-      <label class="f">Requested by<select id="q-by"></select></label>
-      <label class="f">Department / To<select id="q-dept"></select></label>
-      <label class="f">Project / Job No.<select id="q-job"></select></label>
+      <label class="f">Requested by<select id="q-by" title="Not needed when a project is chosen"></select></label>
+      <label class="f">Department / To *<select id="q-dept"></select></label>
+      <label class="f">Project / Job No.<select id="q-job" title="With a project, the department checker's check is enough"></select></label>
       <label class="f">Material required by *<input id="q-need" type="date" required></label>
       <label class="f">Plant<select id="q-plant" class="plantsel"></select></label>
     </div>
@@ -1031,6 +1031,8 @@ function reqAdvance(r){
   if(r.status==="Submitted"){const c=checkersOf(r.dept);
     if(!c.length){r.status="Checked";r.chkBy="Auto: no checker set for "+(r.dept||"this department");r.chkAt=today()}
     else if(c.includes(r.by)){r.status="Checked";r.chkBy=r.by+" (checker, own request)";r.chkAt=today()}}
+  /* linked to a project (Job No.): the department's check is enough, no separate approver */
+  if(r.status==="Checked"&&r.job){r.status="Approved";r.apprBy="Not needed: linked to "+r.job;r.apprAt=today()}
   if(r.status==="Checked"){const a=approversAll();
     if(!a.length){r.status="Approved";r.apprBy="Auto: no approver set";r.apprAt=today()}
     else if(a.includes(r.by)){r.status="Approved";r.apprBy=r.by+" (approver, own request)";r.apprAt=today()}}
@@ -1101,8 +1103,9 @@ $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name
 $("#btn-q-submit").onclick=()=>{
   cur.lines=cur.lines.map(rqFlat).filter(l=>String(l.desc||"").trim());
   if(!cur.lines.length&&!attList(cur.attach).length){toast("Add at least one item or attach the request slip");renderReq();return}
-  if(!cur.by){toast("Choose who is requesting");$("#q-by").focus();return}
-  if(!cur.job){toast("Choose the project");$("#q-job").focus();return}
+  if(!cur.dept){toast("Choose the department");$("#q-dept").focus();return}
+  if(!cur.job&&!cur.by){toast("Choose who is requesting, or pick the project");$("#q-by").focus();return}
+  if(!cur.by&&me)cur.by=me.name;
   if(!cur.need){toast("Enter when the material is required");$("#q-need").focus();return}
   if(cur.need<cur.date){toast("Required date cannot be before the request date");$("#q-need").focus();return}
   cur.status="Submitted";cur.comment="";cur.subAt=today();if(!reqs.includes(cur))reqs.unshift(cur);
