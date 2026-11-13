@@ -21,6 +21,8 @@ async function profile(name) { const m = await mastersDoc(); const u = m && (m.u
 const ADMIN_RIGHT = "page.users";
 async function isAdmin(name) { const u = await profile(name); if (!u) return false; return u.role === "Admin" || (Array.isArray(u.rights) && u.rights.includes(ADMIN_RIGHT)); }
 
+const MOULD_ROLES = ["Sales", "Approver", "Purchaser", "Admin"];
+function canMould(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["sales.view", "sales.create", "sales.edit"].some((k) => r.includes(k)); return MOULD_ROLES.includes(u.role) || (!!r && r.includes("page.sales")); }
 const PROJ_ROLES = ["Sales", "Admin"];
 function canProjects(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["proj.create", "proj.edit", "proj.delete", "mast.edit"].some((k) => r.includes(k)); return PROJ_ROLES.includes(u.role) || (!!r && (r.includes("page.mast") || r.includes("sales.edit"))); }
 
@@ -138,6 +140,21 @@ export default async (req) => {
         results.push({ coll, id, rev: Number(r[0].rev), created_rev: Number(r[0].created_rev) });
       }
       return json({ results });
+    }
+
+    // Mould Estimator (separate Netlify site): read-only list of estimates, selected fields only; the shared key never reaches the browser
+    if (path === "mould/estimates" && m === "GET") {
+      const u = await profile(me);
+      if (!u || !((await isAdmin(me)) || canMould(u))) return json({ error: "You do not have rights to fetch mould estimates" }, 403);
+      const key = process.env.MOULD_LINK_KEY || "";
+      if (!key) return json({ error: "The Mould Estimator link is not set up yet. Add MOULD_LINK_KEY on Netlify (same value as ERP_LINK_KEY on the estimator site)." }, 503);
+      const base = (process.env.MOULD_URL || "https://mould-estimator.netlify.app").replace(/\/$/, "");
+      let r; try { r = await fetch(base + "/api/erp-feed", { headers: { "x-link-key": key }, signal: AbortSignal.timeout(15000) }); } catch { return json({ error: "Could not reach the Mould Estimator. Try again in a minute." }, 502); }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return json({ error: "Mould Estimator: " + (j.error || "error " + r.status) }, 502);
+      const S = (v) => String(v ?? "").slice(0, 200), N = (v) => (v === null || v === undefined || v === "" || !isFinite(+v) ? null : +v);
+      const estimates = (Array.isArray(j.estimates) ? j.estimates : []).map((e) => ({ id: S(e.id), no: S(e.no), customer: S(e.customer), part: S(e.part), mouldNo: S(e.mouldNo), status: S(e.status), date: S(e.date), updatedAt: N(e.updatedAt) || 0, price: N(e.price), gstPct: N(e.gstPct) }));
+      return json({ estimates, at: j.at || Date.now() });
     }
 
     if (path === "logins" && m === "POST") {
