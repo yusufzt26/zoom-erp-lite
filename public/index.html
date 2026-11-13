@@ -139,6 +139,31 @@ table.est input.qty{text-align:right;width:70px}
 .filechip{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);font-size:13px}
 h2.sec{font-size:15px;margin:0}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}}
+:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}
+.dhead{gap:10px;flex-wrap:wrap;align-items:center}.dhead select{width:auto}
+.dseg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}.dseg button{font:inherit;font-weight:600;border:0;background:var(--panel);color:var(--muted);padding:6px 12px;cursor:pointer}.dseg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+h2.dsec{margin-top:10px}
+.dtiles{grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr))}.dtile{cursor:default}button.dtile{cursor:pointer}.dtile .n{font-variant-numeric:tabular-nums}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px}
+.dchart{display:flex;flex-direction:column;gap:8px;min-width:0}.dchart.wide{grid-column:1/-1}.dchart h3{font-size:14px;margin:0}
+.dempty{color:var(--muted);padding:18px 0;text-align:center}
+.dlegend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}.dlegend span{display:inline-flex;align-items:center;gap:6px}.dlegend i{width:10px;height:10px;border-radius:2px;display:inline-block}.dlegend b{color:var(--ink);font-weight:600}
+.vb{display:flex;gap:6px;height:180px}.vb-y{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--muted);text-align:right;min-width:42px;margin:-6px 0}
+.vb-plot{position:relative;flex:1;display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--line);min-width:0}
+.vb-grid{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}.vb-grid b{border-top:1px dashed var(--line);opacity:.7}.vb-grid b:last-child{border:0}
+.vb-col{position:relative;flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;border-radius:4px;outline:none;min-width:0}.vb-col:hover,.vb-col:focus{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.vb-bars{display:flex;align-items:flex-end;gap:2px;height:100%;width:78%;max-width:56px}.vb-bars i{flex:1;border-radius:4px 4px 0 0;min-width:3px}
+.vb-x{display:flex;gap:2px;margin-left:48px;font-size:11px;color:var(--muted)}.vb-x span{flex:1;text-align:center;white-space:nowrap;overflow:visible;min-width:0}
+.hb{display:flex;flex-direction:column;gap:6px}.hb-row{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;gap:8px;align-items:center;font-size:13px;border-radius:4px;outline:none}.hb-row:hover,.hb-row:focus{background:color-mix(in srgb,var(--ink) 6%,transparent)}.hb-row[data-dgo]:not([data-dgo=""]){cursor:pointer}
+.hb-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hb-t{height:14px;background:color-mix(in srgb,var(--line) 45%,transparent);border-radius:4px;overflow:hidden}.hb-t i{display:block;height:100%;border-radius:0 4px 4px 0}.hb-v{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.sb{display:flex;gap:2px;height:22px;border-radius:4px;overflow:hidden}.sb i{min-width:4px;outline:none}.sb i:hover,.sb i:focus{filter:brightness(1.1)}
+#dashTip{position:fixed;z-index:50;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;display:flex;flex-direction:column;gap:2px;max-width:260px}
+#dashTip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}#dashTip[hidden]{display:none}
+.dteam td{vertical-align:middle}.dmini{display:inline-block;width:90px;height:8px;background:color-mix(in srgb,var(--line) 45%,transparent);border-radius:4px;overflow:hidden;vertical-align:middle}.dmini i{display:block;height:100%;background:var(--s1);border-radius:4px}
+.spark{display:inline-flex;align-items:flex-end;gap:2px;height:22px;width:max-content}.spark i{width:5px;background:var(--s1);border-radius:2px 2px 0 0}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-align:left}.linkbtn:hover{text-decoration:underline}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;text-align:left;font:inherit;color:inherit;cursor:pointer}
 .card:hover{border-color:var(--accent)}
 .card .n{font-family:var(--mono);font-size:28px;font-weight:500;line-height:1}
@@ -207,6 +232,7 @@ body.gated header.bar,body.gated main{display:none}
   <div class="brand"><img class="brandlogo" alt="Zoom Technologies" id="brandLogo"><span>ZT-ERP LITE<small>Zoom Technologies</small></span></div>
   <nav aria-label="Sections">
     <button id="tab-home" data-view="home" aria-current="true">Home</button>
+    <button id="tab-dash" data-view="dash">Dashboard</button>
     <button id="tab-req" data-view="req"><span class="step">1</span>Purchase request</button>
     <button id="tab-pur" data-group="pur">Purchase</button>
     <button id="tab-appr" data-view="appr">PO approvals</button>
@@ -248,6 +274,13 @@ body.gated header.bar,body.gated main{display:none}
   <div class="panel stack" id="ownerPanel" hidden></div>
   <div class="panel stack" id="homeBackup" hidden></div>
   <div class="panel stack" id="homeFlow"><h2 class="sec">Purchase cycle at a glance</h2><div class="flow" id="flowBox"></div></div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="view-dash" class="stack" hidden>
+  <div class="row dhead"><h2 class="sec" id="dashTitle">My dashboard</h2><span class="dseg" id="dashTabs" role="group" aria-label="Dashboard" hidden><button type="button" data-dtab="me" aria-pressed="true">People</button><button type="button" data-dtab="co" aria-pressed="false">Company</button></span>
+    <select id="dashUserSel" aria-label="Show dashboard for" hidden></select><span style="flex:1"></span><span class="note" id="dashRange"></span><select id="dashPer" aria-label="Period"></select></div>
+  <div class="stack" id="dashBody"></div>
 </section>
 
 <section id="view-req" class="stack" hidden>
@@ -381,6 +414,9 @@ body.gated header.bar,body.gated main{display:none}
   <div class="panel stack"><div class="row"><h2 class="sec">Returnable challans</h2><span class="note">Material sent out for job work, repair or trial. Stays open until all of it is received back.</span><span style="flex:1"></span><button class="btn primary" id="btn-rgp-new">New returnable challan</button></div>
     <div id="rgpList"></div></div>
   <div class="panel stack" id="rgpForm" hidden></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Job work inward (customer material)</h2><span class="note">Material a customer sends in on their challan for job work. Bill it from Tax invoices &gt; New invoice &gt; Job work.</span><span style="flex:1"></span><button class="btn primary" id="btn-jw-new">New job work inward</button></div>
+    <div id="jwList"></div></div>
+  <div class="panel stack" id="jwForm" hidden></div>
 </section>
 
 <!-- STOCK -->
@@ -476,7 +512,7 @@ body.gated header.bar,body.gated main{display:none}
 <!-- SALES DOCUMENTS -->
 <section id="view-so" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Sales orders</h2><input id="so-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-so" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="so">+ New sales order</button></div><div class="note">Make a sales order from a won quotation (open it on the Sales page), or start one here. Challans and invoices are made from the order, so you can see what is still to dispatch and bill.</div><div id="so-list"></div></div><div class="panel stack" id="so-form" hidden></div></section>
 <section id="view-dc" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Delivery challans</h2><input id="dc-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-dc" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="dc">+ New challan</button></div><div class="note">Open a sales order and press "Make challan" to send part or all of it. Pending quantity is tracked per line.</div><div id="dc-list"></div></div><div class="panel stack" id="dc-form" hidden></div></section>
-<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-inv" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Make the invoice from a challan or a sales order. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div><div class="panel stack" id="agePanel"></div></section>
+<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-inv" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Start a new invoice from a sales order, a customer PO, job work on customer material, or direct. You can also make one from a challan. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div><div class="panel stack" id="agePanel"></div></section>
 
 <!-- PRODUCTION -->
 <section id="view-prod" class="stack" hidden>
@@ -561,7 +597,7 @@ let inFrame=true;try{inFrame=window.self!==window.top}catch(e){inFrame=true}
 const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
-const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
+const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},jwins:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
   deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
@@ -589,12 +625,13 @@ async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pendi
     await cloudPull();cloudBadge(cloud.pending.size?"saving":errs.length?"error":"ok");if(cloud.pending.size)cloudSoon(200);
   }catch(e){cloud.busy=false;if(e.auth)return;batch.forEach(c=>{const kk=c.coll+"\u0001"+c.id;if(!cloud.pending.has(kk))cloud.pending.set(kk,c)});cloudBadge("offline");cloudSoon(15000)}}
 async function cloudRenumber(list){
-  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>nextDealNo(),sorders:()=>nextSO(),dchallans:()=>nextDC(),dnotes:()=>nextDN()};
+  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,jwins:()=>nextJW(),pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>nextDealNo(),sorders:()=>nextSO(),dchallans:()=>nextDC(),dnotes:()=>nextDN()};
   for(const c of list){const k=c.coll,arr=cloud.cache[k];const obj=arr.find(r=>SYNC[k].id(r)===c.id);if(!obj)continue;const old=obj.no;
     delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):k==="invoices"?nextInvNo(obj.fy,obj.plant):k==="cnotes"?nextCN(obj.fy):nexts[k]();
     if(k==="saved"&&po&&String(po.no)===String(old)){po.no=obj.no;store.set("po",po)}
     if(k==="reqs"&&est&&est.reqNo===old){est.reqNo=obj.no;saveEst()}
     if(k==="sorders"){[dchallans,invoices].forEach(A=>A.forEach(r=>{if(String(r.so)===String(old))r.so=obj.no}));deals.forEach(d=>{if(String(d.so)===String(old))d.so=obj.no});store.set("dchallans",dchallans);store.set("invoices",invoices);saveDeals()}
+    if(k==="jwins"){invoices.forEach(v=>{if(String(v.jw)===String(old))v.jw=obj.no});store.set("invoices",invoices)}
     if(k==="dchallans"){invoices.forEach(v=>{if(v.dc)v.dc=v.dc.map(n=>String(n)===String(old)?obj.no:n)});store.set("invoices",invoices)}
     if(k==="invoices"){cnotes.forEach(n=>{if(n.inv===c.id)n.inv=invKey(obj)});store.set("cnotes",cnotes);dchallans.forEach(d=>{if(d.inv===c.id)d.inv=invKey(obj)});store.set("dchallans",dchallans)}
     if(sdCur&&SD[sdCur.t].coll===k&&String(sdCur.rec.no)===String(old)){sdCur.rec.no=obj.no;renderSDForm()}
@@ -678,7 +715,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
+const views=["home","dash","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.approve","Approve or send back requests","For their own department"],["Actions","req.all","See all departments' requests","Approve any department if also allowed to approve"],
@@ -709,11 +746,11 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Requester","HOD","Purchaser","Admin"],est:["Purchaser","Admin"],po:["Purchaser","Approver","Admin"],saved:["Purchaser","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchaser","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
 const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 function syncGroups(v){Object.keys(GROUPS).forEach(g=>{const M=GROUPS[g],any=M.some(x=>can(x)),on=M.includes(v);const b=$("#tab-"+g);b.hidden=!any;b.classList.toggle("grp-on",on);b.setAttribute("aria-expanded",on?"true":"false");$("#subnav-"+g).hidden=!on||!any;
@@ -1210,7 +1247,7 @@ function docPO(p){
 }
 function docChallan(c){
   return docHead("RETURNABLE DELIVERY CHALLAN",`<p class="small" style="text-align:center;margin:0 0 4px">Material sent for ${esc(c.purpose||"job work")} and to be returned. Not for sale.</p>`)+
-  `<div class="two"><div><b>To: ${esc(c.party)}</b><br>${esc(c.addr||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>RC-${c.no}</span><b>Date</b><span>${dmy(c.date)}</span><b>Return by</b><span>${dmy(c.expected)}</span><b>Vehicle</b><span>${esc(c.vehicle)}</span><b>Job No.</b><span>${esc(c.job)}</span><b>Status</b><span>${esc(c.status)}</span></div></div>
+  `<div class="two"><div><b>To: ${esc(c.party)}</b><br>${esc(c.addr||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>RC-${c.no}</span><b>Date</b><span>${dmy(c.date)}</span><b>Return by</b><span>${dmy(c.expected)}</span><b>Vehicle</b><span>${esc(c.vehicle)}</span><b>Job No.</b><span>${esc(c.job)}</span>${c.po?`<b>Our PO</b><span>${esc(c.po)}</span>`:""}<b>Status</b><span>${esc(c.status)}</span></div></div>
   <table><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th>Qty sent</th><th>Unit</th><th>Approx. value</th><th>Returned</th><th>Remark</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${l.value?fmt(l.value):""}</td><td class="r">${fmt0(l.ret||0)}</td><td>${esc(l.remark)}</td></tr>`).join("")}
   <tr><td colspan="5" class="r"><b>Total approx. value</b></td><td class="r"><b>${fmt(c.lines.reduce((a,l)=>a+(+l.value||0),0))}</b></td><td colspan="2"></td></tr></tbody></table>
   ${(c.returns||[]).length?`<p class="small"><b>Received back:</b> ${c.returns.map(r=>`${dmy(r.date)} (DC ${esc(r.dc||"-")})`).join(", ")}</p>`:""}
@@ -1238,11 +1275,68 @@ $("#btn-e-pdf").onclick=()=>{if(!est.lines.length){toast("Add some lines first")
 $("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),`PO-${po.no}${po.status==="Approved"?"":"-"+String(po.status||"Draft").replace(/\s+/g,"-").toLowerCase()}.pdf`)};
 
 /* ---------- returnable challans ---------- */
+let jwins=store.get("jwins",[]);const saveJw=()=>store.set("jwins",jwins);let jwin=null;
+const nextJW=()=>Math.max(400,...jwins.map(c=>+c.no||0))+1;
+const jwBilled=(no,i)=>invoices.filter(v=>String(v.jw)===String(no)).reduce((a,v)=>a+v.lines.filter(l=>l.jwi===i).reduce((b,l)=>b+(+l.qty||0),0),0);
+const jwPend=c=>c.lines.map((l,i)=>Math.max(0,+((+l.qty||0)-jwBilled(c.no,i)).toFixed(3)));
+const jwOut=(c,i)=>(c.outs||[]).reduce((a,o)=>a+(+o.qty[i]||0),0);
+const jwOutPend=c=>c.lines.map((l,i)=>Math.max(0,+((+l.qty||0)-jwOut(c,i)).toFixed(3)));
+function docJwOut(c,o){const cu=custByName(c.cust)||{name:c.cust};
+  return docHead("DELIVERY CHALLAN",`<p class="small" style="text-align:center;margin:0 0 4px">Return of your material after job work. Received on your challan ${esc(c.custDC)}${c.custDCDate?" dt "+dmy(c.custDCDate):""}. Not for sale.</p>`)+
+  `<div class="two"><div><b>To: ${esc(cu.name)}</b><br>${esc(cu.addr||"").replace(/\n/g,"<br>")}${cu.gstin?`<br>GSTIN: ${esc(cu.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>JWO-${c.no}-${o.n}</span><b>Date</b><span>${dmy(o.date)}</span><b>Your challan</b><span>${esc(c.custDC)}</span><b>Our inward</b><span>JW-${c.no}</span><b>Vehicle</b><span>${esc(o.vehicle||"")}</span><b>Job No.</b><span>${esc(c.job||"")}</span></div></div>
+  <table><thead><tr><th>Sr</th><th>Description</th><th>Job work done</th><th>Qty</th><th>Unit</th></tr></thead><tbody>${c.lines.map((l,i)=>+o.qty[i]>0?`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.process||"")}</td><td class="r">${fmt0(o.qty[i])}</td><td>${esc(l.unit)}</td></tr>`:"").join("")}</tbody></table>
+  <div class="foot small" style="margin-top:46px"><div>Issued by (Store): <b>${esc(o.by||"")}</b></div><div style="text-align:right">For ZOOM TECHNOLOGIES<br><br><br>Authorised Signatory</div></div>
+  <p class="small" style="margin-top:24px">Receiver's signature &amp; stamp: ____________________________</p>`}
+const jwStatus=c=>{const p=jwPend(c),t=p.reduce((a,b)=>a+b,0);return t<=0.0001?"Billed":c.lines.some((l,i)=>jwBilled(c.no,i)>0)?"Part billed":"Open"};
+function renderJwin(){const B=$("#btn-jw-new");if(!B)return;B.hidden=!has("rgp.manage");
+  const L=jwins.filter(inPlant);
+  $("#jwList").innerHTML=L.length?L.map(c=>{const st=jwStatus(c),p=jwPend(c).reduce((a,b)=>a+b,0);return`<div class="listrow"><b style="font-family:var(--mono)">JW-${c.no}</b><span class="wide">${esc(c.cust)} · their challan ${esc(c.custDC||"-")}${c.custDCDate?" dt "+dmy(c.custDCDate):""} · <span class="note">received ${dmy(c.date)} · ${c.lines.map(l=>esc(l.desc)+(l.process?" ("+esc(l.process)+")":"")).join(", ")}${st!=="Billed"?" · "+fmt0(p)+" to bill":""}${(()=>{const r=jwOutPend(c).reduce((a,b)=>a+b,0);return r>0.0001?" · "+fmt0(r)+" still with us":" · all sent back"})()}${c.job?" · Job "+esc(c.job):""}</span></span><span class="chip ${st==="Billed"?"st-Approved":st==="Open"?"st-Submitted":"st-Draft"}">${st}</span><span class="row" style="gap:6px;flex-wrap:nowrap">${st!=="Billed"&&has("inv.create")?`<button class="btn primary" data-jwinv="${esc(c.no)}">Make invoice</button>`:""}${has("rgp.manage")&&jwOutPend(c).some(q=>q>0)?`<button class="btn" data-jwout="${esc(c.no)}">Send back</button>`:""}${(c.outs||[]).length?`<button class="btn" data-jwpdf="${esc(c.no)}">Challan PDF</button>`:""}${has("prod.create")||jobs.some(j=>c.job&&key(j.no)===key(c.job))?`<button class="btn" data-jwjob="${esc(c.no)}">Job card</button>`:""}${st==="Open"&&!(c.outs||[]).length&&has("rgp.manage")?`<button class="btn" data-jwdel="${esc(c.no)}">Delete</button>`:""}</span></div>`}).join(""):`<div class="empty">No customer material received for job work yet.</div>`;
+  renderJwForm()}
+let jwSend=null;
+function renderJwForm(){const F=$("#jwForm");if(jwSend){const c=jwSend,P=jwOutPend(c);F.hidden=false;
+    F.innerHTML=`<div class="row"><h2 class="sec">Send back · JW-${c.no}</h2><span class="note">${esc(c.cust)} · their challan ${esc(c.custDC)}</span><span style="flex:1"></span><button class="btn" id="btn-jw-cancel">Cancel</button></div>
+    <div class="grid-fields"><label class="f">Challan date<input id="jwo-date" type="date" value="${today()}"></label><label class="f">Vehicle No.<input id="jwo-vehicle" value="${esc(c.vehicle||"")}"></label></div>
+    <div class="tablebox"><table class="est" style="min-width:560px"><thead><tr><th>Material</th><th>Job work</th><th class="num">Received</th><th class="num">Already sent</th><th class="num">Send now</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${esc(l.desc)}</td><td>${esc(l.process||"")}</td><td class="num">${fmt0(l.qty)}</td><td class="num">${fmt0(jwOut(c,i))}</td><td class="num"><input id="jwo${i}" class="qty" type="number" step="any" min="0" value="${P[i]}"></td></tr>`).join("")}</tbody></table></div>
+    <div class="row"><span style="flex:1"></span><button class="btn primary" id="btn-jwo-save">Save and download challan</button></div>`;return}
+  if(!jwin){F.hidden=true;return}F.hidden=false;const c=jwin;
+  F.innerHTML=`<div class="row"><h2 class="sec">New job work inward · JW-${c.no}</h2><span style="flex:1"></span><button class="btn" id="btn-jw-cancel">Cancel</button></div>
+  <div class="grid-fields"><label class="f">Customer<input id="jw-cust" list="custnames" value="${esc(c.cust)}"></label><label class="f">Their challan No.<input id="jw-custDC" value="${esc(c.custDC)}"></label><label class="f">Their challan date<input id="jw-custDCDate" type="date" value="${c.custDCDate}"></label><label class="f">Received date<input id="jw-date" type="date" value="${c.date}"></label><label class="f">Customer PO No.<input id="jw-custPO" value="${esc(c.custPO)}"></label><label class="f">Job No.<input id="jw-job" list="projects" value="${esc(c.job)}"></label><label class="f">Vehicle No.<input id="jw-vehicle" value="${esc(c.vehicle)}"></label></div>
+  <div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sr</th><th>Material / part received</th><th class="num">Qty</th><th>Unit</th><th>Job work to do</th><th>SAC</th><th class="num">Rate ₹ / unit</th><th></th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input data-jl="desc" value="${esc(l.desc)}"></td><td class="num"><input class="qty" data-jl="qty" type="number" step="any" value="${l.qty}"></td><td><input data-jl="unit" value="${esc(l.unit)}" style="width:60px"></td><td><input data-jl="process" value="${esc(l.process)}" placeholder="Wire cut, EDM, grinding..."></td><td><input data-jl="hsn" value="${esc(l.hsn)}" style="width:80px"></td><td class="num"><input class="rate" data-jl="rate" type="number" step="0.01" value="${l.rate||""}"></td><td><button class="x" data-jldel="${i}" aria-label="Remove line">×</button></td></tr>`).join("")}</tbody></table></div>
+  <div class="row"><button class="btn" id="btn-jw-line">Add line</button><span style="flex:1"></span><button class="btn primary" id="btn-jw-save">Save inward</button></div>`}
+const jwLine=()=>({desc:"",qty:1,unit:"NOS",process:"",hsn:"998898",rate:""});
+$("#btn-jw-new").onclick=()=>{jwin={no:nextJW(),plant:defPlant(),date:today(),cust:"",custDC:"",custDCDate:today(),custPO:"",job:"",vehicle:"",by:me.name,lines:[jwLine()]};renderJwForm();$("#jw-cust").focus()};
+$("#jwForm").addEventListener("input",e=>{if(!jwin)return;const t=e.target;
+  if(t.id&&t.id.startsWith("jw-"))jwin[t.id.slice(3)]=t.value;
+  else if(t.dataset.jl){const l=jwin.lines[+t.closest("tr").dataset.i];l[t.dataset.jl]=["qty","rate"].includes(t.dataset.jl)?+t.value:t.value}});
+$("#jwForm").addEventListener("click",e=>{const id=e.target.id;
+  if(id==="btn-jw-cancel"){jwin=null;jwSend=null;renderJwForm();return}
+  if(id==="btn-jwo-save"){const c=jwSend,P=jwOutPend(c),qs=c.lines.map((l,i)=>Math.max(0,+($("#jwo"+i).value)||0));
+    if(qs.some((q,i)=>q>P[i]+0.0001)){toast("More than what is still with us");return}if(!qs.some(q=>q>0)){toast("Enter the qty being sent back");return}
+    c.outs=c.outs||[];const o={n:c.outs.length+1,date:$("#jwo-date").value||today(),vehicle:$("#jwo-vehicle").value.trim(),by:me.name,qty:qs};c.outs.push(o);saveJw();jwSend=null;renderJwin();
+    toast(`Challan JWO-${c.no}-${o.n} saved`);savePDF(docJwOut(c,o),`Job-work-return-JWO-${c.no}-${o.n}.pdf`);return}
+  if(e.target.dataset.jldel!=null){jwin.lines.splice(+e.target.dataset.jldel,1);renderJwForm();return}
+  if(id==="btn-jw-line"){jwin.lines.push(jwLine());renderJwForm();return}
+  if(id==="btn-jw-save"){const c=jwin;c.lines=c.lines.filter(l=>String(l.desc).trim()&&+l.qty>0);
+    if(!c.cust.trim()){toast("Enter the customer");renderJwForm();return}
+    if(!c.custDC.trim()){toast("Enter the customer's challan No.");renderJwForm();return}
+    if(!c.lines.length){toast("Add at least one item with qty");c.lines.push(jwLine());renderJwForm();return}
+    jwins.unshift(c);saveJw();jwin=null;renderJwin();toast(`Job work inward JW-${c.no} saved`)}});
+$("#jwList").addEventListener("click",e=>{const a=e.target.dataset.jwinv,d=e.target.dataset.jwdel,O=e.target.dataset.jwout,pd=e.target.dataset.jwpdf,jb=e.target.dataset.jwjob;const F=n=>jwins.find(x=>String(x.no)===n);
+  if(O!=null){const c=F(O);if(c){jwin=null;jwSend=c;renderJwForm();$("#jwForm").scrollIntoView({block:"start"})}return}
+  if(pd!=null){const c=F(pd);if(c&&c.outs&&c.outs.length){const o=c.outs[c.outs.length-1];savePDF(docJwOut(c,o),`Job-work-return-JWO-${c.no}-${o.n}.pdf`)}return}
+  if(jb!=null){const c=F(jb);if(!c)return;if(!c.job){const n=prompt(`Job No. for job work JW-${c.no} (${c.cust})`,"");if(!n||!n.trim())return;c.job=n.trim().toUpperCase();saveJw();renderJwin()}
+    jobFor(c.job,{cust:c.cust,desc:"Job work: "+c.lines.map(l=>(l.process?l.process+" on ":"")+l.desc).join(", "),jw:c.no,start:c.date});return}
+  if(a!=null){const c=jwins.find(x=>String(x.no)===a);if(c)invFromJW(c)}
+  if(d!=null){const c=jwins.find(x=>String(x.no)===d);if(!c||!confirm(`Delete job work inward JW-${c.no}?`))return;jwins.splice(jwins.indexOf(c),1);saveJw();renderJwin()}});
+function invFromJW(c){const P=jwPend(c),L=c.lines.map((l,i)=>({jwi:i,desc:`Job work: ${l.process||"processing"} on ${l.desc}`,hsn:l.hsn||"998898",qty:P[i],unit:l.unit,rate:l.rate})).filter(l=>l.qty>0);
+  if(!L.length){toast("Everything on this inward has been billed");return}
+  if(!has("inv.create")){toast("You can view but not create sales documents");return}
+  sdOpen("inv",sdNew("inv",{plant:c.plant||defPlant(),cust:c.cust,jw:c.no,job:c.job||"",custDC:c.custDC,custDCDate:c.custDCDate,custPO:c.custPO||"",vehicle:c.vehicle||"",gst:18,lines:L}),true)}
 let rgps=store.get("rgps",[]);const saveRgps=()=>store.set("rgps",rgps);let rgp=null,rgpMode="new";
 const rgpPend=c=>c.lines.reduce((a,l)=>a+Math.max(0,(+l.qty||0)-(+l.ret||0)),0);
 function renderRgp(){
   $("#btn-rgp-new").hidden=!has("rgp.manage");
-  $("#rgpList").innerHTML=rgps.length?rgps.map((c,i)=>{const late=c.status!=="Closed"&&c.expected&&c.expected<today();return`<div class="listrow"><b style="font-family:var(--mono)">RC-${c.no}</b><span class="wide">${esc(c.party)} · ${esc(c.purpose||"")} · <span class="note">sent ${dmy(c.date)} · return by <span style="${late?"color:var(--danger);font-weight:600":""}">${dmy(c.expected)}${late?" (overdue)":""}</span> · ${fmt0(rgpPend(c))} pending</span></span><span>${stChip(c.status)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" data-rpdf="${i}">PDF</button>${c.status!=="Closed"&&has("rgp.manage")?`<button class="btn primary" data-rret="${i}">Receive back</button>`:""}</span></div>`}).join(""):`<div class="empty">No returnable challans yet.</div>`;
+  $("#rgpList").innerHTML=rgps.length?rgps.map((c,i)=>{const late=c.status!=="Closed"&&c.expected&&c.expected<today();return`<div class="listrow"><b style="font-family:var(--mono)">RC-${c.no}</b><span class="wide">${esc(c.party)} · ${esc(c.purpose||"")}${c.po?" · PO "+esc(c.po):""} · <span class="note">sent ${dmy(c.date)} · return by <span style="${late?"color:var(--danger);font-weight:600":""}">${dmy(c.expected)}${late?" (overdue)":""}</span> · ${fmt0(rgpPend(c))} pending</span></span><span>${stChip(c.status)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" data-rpdf="${i}">PDF</button>${c.status!=="Closed"&&has("rgp.manage")?`<button class="btn primary" data-rret="${i}">Receive back</button>`:""}</span></div>`}).join(""):`<div class="empty">No returnable challans yet.</div>`;
   renderRgpForm();
 }
 function renderRgpForm(){
@@ -1254,7 +1348,7 @@ function renderRgpForm(){
     <div class="row"><span style="flex:1"></span><button class="btn primary" id="btn-r-ret">Save receipt</button></div>`;return}
   const c=rgp;
   F.innerHTML=`<div class="row"><h2 class="sec">New returnable challan · RC-${c.no}</h2><span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
-  <div class="grid-fields"><label class="f">Send to<input id="rg-party" list="suppliers" value="${esc(c.party)}" placeholder="Supplier or party"></label><label class="f">Purpose<input id="rg-purpose" value="${esc(c.purpose)}" placeholder="Hardening, repair, trial..."></label><label class="f">Challan date<input id="rg-date" type="date" value="${c.date}"></label><label class="f">Expected return by<input id="rg-expected" type="date" value="${c.expected}"></label><label class="f">Vehicle / transport<input id="rg-vehicle" value="${esc(c.vehicle)}"></label><label class="f">Job No.<input id="rg-job" list="projects" value="${esc(c.job)}"></label></div>
+  <div class="grid-fields"><label class="f">Send to<input id="rg-party" list="suppliers" value="${esc(c.party)}" placeholder="Supplier or party"></label><label class="f">Purpose<input id="rg-purpose" value="${esc(c.purpose)}" placeholder="Hardening, repair, trial..."></label><label class="f">Challan date<input id="rg-date" type="date" value="${c.date}"></label><label class="f">Expected return by<input id="rg-expected" type="date" value="${c.expected}"></label><label class="f">Vehicle / transport<input id="rg-vehicle" value="${esc(c.vehicle)}"></label><label class="f">Job No.<input id="rg-job" list="projects" value="${esc(c.job)}"></label><label class="f">Against service PO<select id="rg-po"><option value="">No PO</option>${saved.filter(p=>p.status==="Approved"&&(!c.party||key(p.sup)===key(c.party))).map(p=>`<option value="${esc(p.no)}"${String(c.po||"")===String(p.no)?" selected":""}>PO ${esc(p.no)} · ${esc(p.sup)}${p.ref?" · "+esc(p.ref):""}</option>`).join("")}</select></label></div>
   <label class="f">Party address<textarea id="rg-addr" rows="2">${esc(c.addr)}</textarea></label>
   <div class="tablebox"><table class="est" style="min-width:720px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th class="num">Qty</th><th>Unit</th><th class="num">Approx. value</th><th>Remark</th><th></th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input id="rgl${i}-d" data-rl="desc" value="${esc(l.desc)}"></td><td><input id="rgl${i}-h" data-rl="hsn" value="${esc(l.hsn)}" style="width:90px"></td><td class="num"><input id="rgl${i}-q" class="qty" data-rl="qty" type="number" step="any" value="${l.qty}"></td><td><input id="rgl${i}-u" data-rl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="rgl${i}-v" class="rate" data-rl="value" type="number" step="0.01" value="${l.value||""}"></td><td><input id="rgl${i}-r" data-rl="remark" value="${esc(l.remark)}"></td><td><button class="x" data-rdel="${i}" aria-label="Remove line">×</button></td></tr>`).join("")}</tbody></table></div>
   <div class="row"><button class="btn" id="btn-r-line">Add line</button><span style="flex:1"></span><button class="btn primary" id="btn-r-save">Save and download PDF</button></div>`;
@@ -1264,7 +1358,8 @@ $("#rgpList").addEventListener("click",e=>{const i=e.target.dataset.rpdf,j=e.tar
   if(i!=null){const c=rgps[+i];savePDF(docChallan(c),`Returnable-challan-RC-${c.no}.pdf`)}
   if(j!=null){rgpMode="ret";rgp=rgps[+j];renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"})}});
 $("#rgpForm").addEventListener("input",e=>{if(rgpMode!=="new"||!rgp)return;const t=e.target;
-  if(t.id&&t.id.startsWith("rg-")){const k=t.id.slice(3);rgp[k]=t.value;if(k==="party"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp){rgp.addr=sp.addr||"";rgp.gstin=sp.gstin||"";$("#rg-addr").value=rgp.addr}}}
+  if(t.id&&t.id.startsWith("rg-")){const k=t.id.slice(3);rgp[k]=t.value;if(k==="party"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp){rgp.addr=sp.addr||"";rgp.gstin=sp.gstin||"";$("#rg-addr").value=rgp.addr;const hp=document.activeElement===t;renderRgpForm();if(hp){const n=$("#rg-party");n.focus();n.setSelectionRange(n.value.length,n.value.length)}}}
+    if(k==="po"&&t.value){const p=saved.find(x=>String(x.no)===t.value);if(p&&!rgp.job&&p.ref){rgp.job=p.ref;$("#rg-job").value=p.ref}}}
   else if(t.dataset.rl){const l=rgp.lines[+t.closest("tr").dataset.i];l[t.dataset.rl]=["qty","value"].includes(t.dataset.rl)?+t.value:t.value}});
 $("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
   if(id==="btn-r-cancel"){rgp=null;renderRgpForm();return}
@@ -1280,6 +1375,8 @@ $("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
     if(qs.some((q,i)=>q>(+c.lines[i].qty||0)-(+c.lines[i].ret||0)+0.0001)){toast("Received qty is more than what is still out");return}
     if(!qs.some(q=>q>0)){toast("Enter the qty received back");return}
     c.lines.forEach((l,i)=>l.ret=(+l.ret||0)+qs[i]);c.returns.push({date:$("#rr-date").value||today(),dc:$("#rr-dc").value.trim(),by:me.name,qty:qs});
+    const rcPO=c.po&&saved.find(p=>String(p.no)===String(c.po)&&p.status==="Approved"&&pendingLines(p).length),rcDC=c.returns[c.returns.length-1].dc;
+    if(rcPO&&has("grn.create"))setTimeout(()=>{if(!confirm(`Material is back from ${c.party}. Make the GRN for service PO ${rcPO.no} now, so their bill can be booked?`))return;const b=document.querySelector(`[data-grnpo="${rcPO.no}"]`);if(!b){toast("PO "+rcPO.no+" has nothing pending");return}b.click();if(grn){grn.dc=rcDC;grn.rgp=c.no;grn.remark=(grn.remark?grn.remark+" ":"")+"Against RC-"+c.no;renderGRNForm()}},50);
     c.status=rgpPend(c)<=0.0001?"Closed":"Partly returned";if(c.status==="Closed")c.closedAt=c.returns[c.returns.length-1].date;saveRgps();rgp=null;renderRgp();
     toast(c.status==="Closed"?`RC-${c.no} fully received back and closed`:`Part received. RC-${c.no} stays open`)}});
 
@@ -1293,11 +1390,16 @@ function movements(){
   grns.forEach(g=>g.lines.forEach(l=>{const q=(+l.recv||0)-(+l.rej||0);if(q>0)mv.push({date:g.date,t:g.createdAt||g.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:q,rate:lineNet(l),doc:"GRN "+g.no,type:"GRN",job:g.job,party:g.sup})}));
   slips.forEach(s=>s.lines.forEach(l=>mv.push({date:s.date,t:s.createdAt||s.date,k:l.k,desc:l.desc,unit:l.unit,qty:SLIP[s.type].sign*(+l.qty||0),rate:+l.rate||0,doc:SLIP[s.type].pre+s.no,type:s.type,job:s.job,party:s.to||""})));
   dnotes.filter(d=>d.reason==="Returned after acceptance").forEach(d=>d.lines.forEach(l=>mv.push({date:d.date,t:d.createdAt||d.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:-(+l.qty||0),rate:+l.rate||0,doc:"DN-"+d.no,type:"DN",job:"",party:d.party})));
+  try{const stk=new Set(mv.filter(v=>v.type==="GRN"||v.type==="Opening").map(v=>v.k));items.forEach(i=>{if(i.stock==="Yes")stk.add(key(i.name))});
+    const out=(d,doc,x)=>d.lines.forEach(l=>{const k=key(l.desc);if(stk.has(k)&&+l.qty>0)mv.push({date:x.date,t:x.createdAt||x.date,k,desc:l.desc,unit:l.unit,qty:-(+l.qty),rate:+l.rate||0,doc,type:"Sale",job:x.job||"",party:x.cust})});
+    dchallans.forEach(d=>out(d,"DC-"+d.no,d));
+    invoices.filter(v=>!(v.dc&&v.dc.length)&&!v.jw).forEach(v=>out(v,"INV "+invNo(v),v));
+    cnotes.filter(n=>n.reason==="Sales return").forEach(n=>(n.lines||[]).forEach(l=>{const k=key(l.desc);if(stk.has(k)&&+l.qty>0)mv.push({date:n.date,t:n.createdAt||n.date,k,desc:l.desc,unit:l.unit,qty:+l.qty,rate:0,doc:"CN "+(n.no||""),type:"SR",job:"",party:n.cust||n.party||""})}))}catch(e){}
   return mv.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.t<b.t?-1:a.t>b.t?1:0));
 }
 function stockItems(){
   const m={};movements().forEach(v=>{const it=m[v.k]||(m[v.k]={k:v.k,desc:v.desc,unit:v.unit,recv:0,iss:0,ret:0,bal:0,inQ:0,inV:0});
-    if(v.type==="GRN"||v.type==="Opening"||v.type==="DN"){it.recv+=v.qty;it.inQ+=v.qty;it.inV+=v.qty*v.rate}else if(v.type==="Issue")it.iss-=v.qty;else it.ret+=v.qty;it.bal+=v.qty});
+    if(v.type==="GRN"||v.type==="Opening"||v.type==="DN"){it.recv+=v.qty;it.inQ+=v.qty;it.inV+=v.qty*v.rate}else if(v.type==="Issue"||v.type==="Sale")it.iss-=v.qty;else it.ret+=v.qty;it.bal+=v.qty});
   return Object.values(m).map(it=>{it.avg=it.inQ?it.inV/it.inQ:0;it.value=Math.max(0,it.bal)*it.avg;it.loc=bins[it.k]||"";return it}).sort((a,b)=>a.desc.localeCompare(b.desc));
 }
 const nextSlip=t=>Math.max(SLIP[t].base,...slips.filter(s=>s.type===t).map(s=>+s.no||0))+1;
@@ -1313,10 +1415,11 @@ function projCostHTML(){const P=projCost();if(!P.length)return`<div class="empty
   return`<table class="est" style="min-width:640px"><thead><tr><th>Job No.</th><th>Description</th><th class="num">PO value</th><th class="num">Issued</th><th class="num">Returned</th><th class="num">Net issued</th><th class="num">Slips</th></tr></thead><tbody>${P.map(r=>{const pr=M.projects.find(x=>x.no===r.job);return`<tr><td style="font-family:var(--mono)">${esc(r.job)}</td><td>${esc(pr?pr.desc:"")}</td><td class="num">${fmt(r.po)}</td><td class="num">${fmt(r.iss)}</td><td class="num">${fmt(r.ret)}</td><td class="num"><b>${fmt(r.iss-r.ret)}</b></td><td class="num">${r.n}</td></tr>`}).join("")}</tbody></table>`}
 function renderStock(){
   const I=stockItems();const q=key($("#stk-q").value);const L=q?I.filter(i=>i.k.includes(q)||key(i.loc).includes(q)):I;
+  const AV={},AVw={};rgps.filter(c=>c.status!=="Closed").forEach(c=>c.lines.forEach(l=>{const o=(+l.qty||0)-(+l.ret||0);if(o>0){const k=key(l.desc);AV[k]=(AV[k]||0)+o;(AVw[k]=AVw[k]||[]).push("RC-"+c.no+" "+c.party)}}));
   const ok=has("stock.issue");["#btn-sl-issue","#btn-sl-ret","#btn-sl-open"].forEach(s=>$(s).hidden=!ok);
   const tv=I.reduce((a,i)=>a+i.value,0),todayIss=slips.filter(s=>s.type==="Issue"&&s.date===today()).length;
   $("#stkCards").innerHTML=[[I.filter(i=>i.bal>0.0001).length,"Items in stock",`${I.length} items on the register`],["₹"+fmt0(Math.round(tv)),"Stock value","At average purchase rate, before GST"],[todayIss,"Issue slips today",dmy(today())],[rgps.filter(c=>c.status!=="Closed").length,"Returnable items outside","Open returnable challans"]].map(([n,t,d])=>`<div class="card" style="cursor:default"><span class="n">${n}</span><span class="t">${t}</span><span class="d">${d}</span></div>`).join("");
-  $("#stkTable").innerHTML=L.length?`<table class="est" style="min-width:900px"><thead><tr><th>Item</th><th>Unit</th><th>Location</th><th class="num">Received</th><th class="num">Issued</th><th class="num">Returned</th><th class="num">In stock</th><th class="num">Avg rate</th><th class="num">Value</th><th></th></tr></thead><tbody>${L.map(i=>`<tr><td>${esc(i.desc)}</td><td>${esc(i.unit)}</td><td><input data-bin="${esc(i.k)}" value="${esc(i.loc)}" placeholder="Rack / bin" style="width:100px"${ok?"":" disabled"}></td><td class="num">${fmt0(i.recv)}</td><td class="num">${fmt0(i.iss)}</td><td class="num">${fmt0(i.ret)}</td><td class="num"><b>${fmt0(i.bal)}</b></td><td class="num">${fmt(i.avg)}</td><td class="num">${fmt(i.value)}</td><td><button class="btn" data-ledger="${esc(i.k)}">Ledger</button></td></tr>`).join("")}</tbody></table>`:`<div class="empty">${I.length?"No item matches the search.":"Nothing in stock yet. Stock is added when a GRN is created, or use Opening stock for material already in the store."}</div>`;
+  $("#stkTable").innerHTML=L.length?`<table class="est" style="min-width:900px"><thead><tr><th>Item</th><th>Unit</th><th>Location</th><th class="num">Received</th><th class="num">Issued</th><th class="num">Returned</th><th class="num">In stock</th><th class="num">At vendor</th><th class="num">Avg rate</th><th class="num">Value</th><th></th></tr></thead><tbody>${L.map(i=>`<tr><td>${esc(i.desc)}</td><td>${esc(i.unit)}</td><td><input data-bin="${esc(i.k)}" value="${esc(i.loc)}" placeholder="Rack / bin" style="width:100px"${ok?"":" disabled"}></td><td class="num">${fmt0(i.recv)}</td><td class="num">${fmt0(i.iss)}</td><td class="num">${fmt0(i.ret)}</td><td class="num"><b>${fmt0(i.bal)}</b></td><td class="num">${AV[i.k]?`<span title="${esc(AVw[i.k].join(", "))}">${fmt0(AV[i.k])}</span>`:""}</td><td class="num">${fmt(i.avg)}</td><td class="num">${fmt(i.value)}</td><td><button class="btn" data-ledger="${esc(i.k)}">Ledger</button></td></tr>`).join("")}</tbody></table>`:`<div class="empty">${I.length?"No item matches the search.":"Nothing in stock yet. Stock is added when a GRN is created, or use Opening stock for material already in the store."}</div>`;
   $("#slipList").innerHTML=slips.length?slips.map((s,i)=>`<div class="listrow"><b style="font-family:var(--mono)">${SLIP[s.type].pre}${s.no}</b><span class="wide">${esc(s.type==="Opening"?"Opening stock":s.type==="Issue"?"Issued to "+(s.to||"-"):"Returned by "+(s.to||"-"))}${s.job?" · Job "+esc(s.job):""} · <span class="note">${s.lines.length} item${s.lines.length>1?"s":""} · by ${esc(s.by)}</span></span><span>${stChip(s.type==="Issue"?"Issued":s.type==="Return"?"Returned":"Opening")}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0))}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><span class="note">${dmy(s.date)}</span><button class="btn" data-spdf="${i}">PDF</button></span></div>`).join(""):`<div class="empty">No issue or return slips yet.</div>`;
   $("#stkProj").innerHTML=projCostHTML();
   renderSlipForm();renderLedger();
@@ -2131,9 +2234,36 @@ let sdCur=null;// {t, rec, isNew}
 function sdOpen(t,rec,isNew){sdCur={t,rec:JSON.parse(JSON.stringify(rec)),isNew};show(t);renderSDForm();$(`#${t}-form`).scrollIntoView({block:"start"})}
 function sdNew(t,extra){const pl=(extra&&extra.plant)||defPlant();const c={so:{no:nextSO(),date:today(),cust:"",deal:"",custPO:"",custPODate:"",job:"",due:"",gst:18,terms:salesCfg().soTerms,lines:[]},
   dc:{no:nextDC(),date:today(),cust:"",so:"",job:"",vehicle:"",transporter:"",lr:"",remark:"",lines:[]},
-  inv:{fy:fyOf(today()),no:nextInvNo(fyOf(today()),pl),date:today(),cust:"",so:"",dc:[],custPO:"",custPODate:"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:salesCfg().invTerms,lines:[],rcpts:[],irn:"",ackNo:"",ackDt:"",qr:""}}[t];
+  inv:{fy:fyOf(today()),no:nextInvNo(fyOf(today()),pl),date:today(),cust:"",so:"",job:"",dc:[],custPO:"",custPODate:"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:salesCfg().invTerms,lines:[],rcpts:[],irn:"",ackNo:"",ackDt:"",qr:""}}[t];
   return Object.assign(c,{by:me.name,plant:pl},extra||{})}
-document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has(b.dataset.sdnew+".create")){toast("You can view but not create sales documents");return}const t=b.dataset.sdnew;sdOpen(t,sdNew(t,{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true)});
+document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has(b.dataset.sdnew+".create")){toast("You can view but not create sales documents");return}const t=b.dataset.sdnew;if(t==="inv"){invStart();return}sdOpen(t,sdNew(t,{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true)});
+function invStart(){const blank=()=>sdOpen("inv",sdNew("inv",{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true);
+  const SO=sorders.filter(s=>inPlant(s)&&!["Billed","Closed"].includes(soStatus(s))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const PO=[...SO.filter(s=>s.custPO).map(s=>({k:"s"+s.no,po:s.custPO,pd:s.custPODate,cust:s.cust,via:sdNo("so",s),go:()=>sdFromSO("inv",s)})),
+    ...deals.filter(d=>d.stage==="Won"&&d.custPO&&inPlant(d)&&!sorders.some(s=>String(s.deal)===String(d.no))).map(d=>({k:"d"+d.no,po:d.custPO,pd:d.custPODate,cust:d.cust,via:"QT "+d.no,go:()=>invViaSO(d)}))];
+  const JW=jwins.filter(c=>inPlant(c)&&jwStatus(c)!=="Billed");
+  const d=document.createElement("div");d.className="modal";
+  const opt=(v,lab,sub,n)=>`<label class="row" style="gap:10px;flex-wrap:nowrap;align-items:flex-start;cursor:pointer;padding:10px;border:1px solid var(--line,#ddd);border-radius:8px"><input type="radio" name="inv-src" value="${v}"${n===0?" disabled":""} style="width:auto;margin-top:3px"><span><b>${lab}</b><br><span class="note" style="margin:0">${sub}</span></span></label>`;
+  d.innerHTML=`<form class="panel stack" style="max-width:520px;width:100%;max-height:92vh;overflow:auto"><h2 class="sec">New invoice</h2><div class="note">How do you want to make this invoice?</div>
+    ${opt("so","From sales order",SO.length?`Bills what is still pending on an order (${SO.length} open)`:"No open sales orders to bill",SO.length)}
+    <select id="inv-so" hidden>${SO.map(s=>`<option value="${esc(s.no)}">${esc(sdNo("so",s))} · ${esc(s.cust)}${s.custPO?" · PO "+esc(s.custPO):""} · ${dmy(s.date)}</option>`).join("")}</select>
+    ${opt("po","From customer PO",PO.length?`Picks up the customer, PO No. and date, and the items on that PO. A sales order is made for it if there is none yet, so quantities billed are tracked (${PO.length} available)`:"No customer POs recorded on open orders or won quotations",PO.length)}
+    <select id="inv-po" hidden>${PO.map(x=>`<option value="${esc(x.k)}">PO ${esc(x.po)}${x.pd?" dt "+dmy(x.pd):""} · ${esc(x.cust)} · ${esc(x.via)}</option>`).join("")}</select>
+    ${opt("jw","Job work (customer material inward)",JW.length?`Bills job work on material received on the customer's challan (${JW.length} to bill)`:"No customer material inward waiting to be billed (record it in Store)",JW.length)}
+    <select id="inv-jw" hidden>${JW.map(c=>`<option value="${esc(c.no)}">JW-${esc(c.no)} · ${esc(c.cust)} · challan ${esc(c.custDC)}${c.custDCDate?" dt "+dmy(c.custDCDate):""}</option>`).join("")}</select>
+    ${opt("direct","Direct","Start a blank invoice and type in the customer and items",1)}
+    <div class="row"><span style="flex:1"></span><button type="button" class="btn" id="inv-src-x">Cancel</button><button class="btn primary" id="inv-src-ok" disabled>Continue</button></div></form>`;
+  document.body.appendChild(d);const q=x=>d.querySelector(x);
+  d.querySelectorAll('[name="inv-src"]').forEach(r=>r.onchange=()=>{q("#inv-so").hidden=r.value!=="so";q("#inv-po").hidden=r.value!=="po";q("#inv-jw").hidden=r.value!=="jw";q("#inv-src-ok").disabled=false});
+  q("#inv-src-x").onclick=()=>d.remove();d.onclick=e=>{if(e.target===d)d.remove()};
+  q("form").onsubmit=e=>{e.preventDefault();const v=(q('[name="inv-src"]:checked')||{}).value;if(!v)return;d.remove();
+    if(v==="so"){const s=SO.find(x=>String(x.no)===q("#inv-so").value);if(s)sdFromSO("inv",s)}
+    else if(v==="po"){const x=PO.find(x=>x.k===q("#inv-po").value);if(x)x.go()}
+    else if(v==="jw"){const c=JW.find(x=>String(x.no)===q("#inv-jw").value);if(c)invFromJW(c)}else blank()}}
+function invViaSO(d){if(!has("so.create")){invFromDeal(d);return}const x=sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:d.no,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))});
+  x.updatedAt=x.createdAt=new Date().toISOString();x.by=me.name;sorders.unshift(x);store.set("sorders",sorders);d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made for customer PO "+(d.custPO||"")});saveDeals();
+  toast(`Sales order ${sdNo("so",x)} made for PO ${d.custPO}, so billed quantities are tracked`);sdFromSO("inv",x)}
+function invFromDeal(d){sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
 function sdFromDeal(d){const o=sorders.find(s=>String(s.deal)===String(d.no));if(o){sdOpen("so",o,false);toast(`${sdNo("so",o)} already made for this quotation`);return}
   sdOpen("so",sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:d.no,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
 function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.no,i):billQ(s.no,i);const q=+((+l.qty||0)-done).toFixed(3);return{i,desc:l.desc,hsn:l.hsn,qty:q>0?q:0,unit:l.unit,rate:l.rate,ord:+l.qty||0,done}}).filter(l=>l.qty>0);
@@ -2141,7 +2271,7 @@ function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.n
   sdOpen(t,sdNew(t,{plant:s.plant||defPlant(),cust:s.cust,so:s.no,job:s.job,custPO:s.custPO,custPODate:s.custPODate,gst:s.gst,lines:L}),true)}
 function sdFromDC(d){if(d.inv){const v=invoices.find(x=>sdId("inv",x)===d.inv);if(v){sdOpen("inv",v,false);toast(`Already billed on ${invNo(v)}`);return}}
   const s=sorders.find(x=>String(x.no)===String(d.so));
-  sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,so:d.so||"",dc:[d.no],custPO:s?s.custPO:"",custPODate:s?s.custPODate:"",vehicle:d.vehicle,gst:s?s.gst:18,lines:d.lines.map(l=>({i:l.i,desc:l.desc,hsn:l.hsn,qty:+l.qty,unit:l.unit,rate:s&&l.i!=null&&s.lines[l.i]?s.lines[l.i].rate:l.rate}))}),true)}
+  sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,so:d.so||"",dc:[d.no],job:s?s.job||"":"",custPO:s?s.custPO:"",custPODate:s?s.custPODate:"",vehicle:d.vehicle,gst:s?s.gst:18,lines:d.lines.map(l=>({i:l.i,desc:l.desc,hsn:l.hsn,qty:+l.qty,unit:l.unit,rate:s&&l.i!=null&&s.lines[l.i]?s.lines[l.i].rate:l.rate}))}),true)}
 function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>!q||key(sdNo(t,x)+" "+x.cust+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
   if(t==="inv"){const due=invoices.reduce((a,x)=>a+invDue(x),0),mo=today().slice(0,7),thisM=invoices.filter(x=>x.date.slice(0,7)===mo).reduce((a,x)=>a+invTot(x),0),od=invoices.filter(x=>invDue(x)>0.5&&x.date<addDays(today(),-60)).reduce((a,x)=>a+invDue(x),0);
     $("#inv-tiles").innerHTML=[{n:fmtL(thisM),t:"Billed this month",d:"Including GST"},{n:fmtL(due),t:"To collect",d:"Invoices not fully paid",zero:!due},{n:fmtL(od),t:"Over 60 days",d:"Follow up for payment",warn:od>0,zero:!od}].map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("")}
@@ -2159,7 +2289,7 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   const plS=`<label class="f">Plant<select id="sd-plant" data-sf="plant"${t==="inv"&&!isNew?" disabled title=\"Invoice number already given for this plant\"":""}>${plantOpts(x.plant)}</select></label>`;
   const head0={so:fld("cust","Customer","",` list="custnames"`)+fld("date","Order date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("job","Job No.","",` list="projects"`)+fld("due","Delivery date","date"),
     dc:fld("cust","Customer","",` list="custnames"`)+fld("date","Challan date","date")+`<label class="f">Sales order<input value="${x.so?"SO-"+esc(x.so):"Direct, no order"}" disabled></label>`+fld("job","Job No.","",` list="projects"`)+fld("vehicle","Vehicle No.")+fld("transporter","Transporter")+fld("lr","LR / docket No.")+fld("remark","Remark"),
-    inv:fld("cust","Customer","",` list="custnames"`)+fld("date","Invoice date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("custDC","Your challan No.")+fld("custDCDate","Your challan date","date")+fld("consignee","Consignee (if different)","",` list="custnames" placeholder="Same as buyer"`)+fld("attn","Kind Attn.","",` placeholder="From customer contact"`)+fld("delivery","Delivery")+fld("payDays","Pay terms (days)","number")+fld("vehicle","Vehicle No.")+fld("eway","E-way bill No.")+`<label class="f">Challan / order<input value="${esc([x.dc&&x.dc.length?"DC-"+x.dc.join(", DC-"):"",x.so?"SO-"+x.so:""].filter(Boolean).join(" · ")||"Direct")}" disabled></label>`}[t];const head=plS+head0;
+    inv:fld("cust","Customer","",` list="custnames"`)+fld("date","Invoice date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("custDC","Your challan No.")+fld("custDCDate","Your challan date","date")+fld("job","Job No.","",` list="projects"`)+fld("attn","Kind Attn.","",` placeholder="From customer contact"`)+fld("delivery","Delivery")+fld("payDays","Pay terms (days)","number")+fld("vehicle","Vehicle No.")+fld("eway","E-way bill No.")+`<label class="f">Challan / order<input value="${esc([x.dc&&x.dc.length?"DC-"+x.dc.join(", DC-"):"",x.so?"SO-"+x.so:"",x.jw?"Job work JW-"+x.jw:""].filter(Boolean).join(" · ")||"Direct")}" disabled></label>`}[t];const head=plS+head0;
   const showDone=link&&x.lines.some(l=>l.ord!=null);
   const lines=`<div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th>${showDone?`<th class="num">Ordered</th><th class="num">${t==="dc"?"Sent before":"Billed before"}</th>`:""}<th class="num">Qty</th><th>Unit</th><th class="num">Rate ₹</th>${t==="inv"?`<th class="num">Dis%</th><th class="num">Tax%</th>`:""}<th class="num">Amount ₹</th><th></th></tr></thead><tbody>${x.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td>${t==="inv"?`<textarea id="sl${i}d" data-sl="desc" rows="2" style="min-width:240px">${esc(l.desc)}</textarea>`:`<input id="sl${i}d" data-sl="desc" value="${esc(l.desc)}" list="itemnames" style="min-width:220px"${link&&l.i!=null?" readonly":""}>`}</td><td><input id="sl${i}h" data-sl="hsn" value="${esc(l.hsn)}" style="width:90px"></td>${showDone?`<td class="num">${l.ord!=null?fmt0(l.ord):""}</td><td class="num">${l.done!=null?fmt0(l.done):""}</td>`:""}<td class="num"><input id="sl${i}q" class="qty" data-sl="qty" type="number" step="any" value="${l.qty??""}"></td><td><input id="sl${i}u" data-sl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="sl${i}r" class="rate" data-sl="rate" type="number" step="any" value="${l.rate??""}"></td>${t==="inv"?`<td class="num"><input id="sl${i}x" class="qty" data-sl="dis" type="number" step="any" value="${l.dis??""}" style="width:56px"></td><td class="num"><input id="sl${i}t" class="qty" data-sl="tax" type="number" step="any" value="${l.tax??""}" placeholder="${+x.gst}" style="width:56px"></td>`:""}<td class="num" data-amt>${fmt(lnAmt(l))}</td><td>${ro?"":`<button class="x" type="button" data-sldel="${i}" aria-label="Remove line ${i+1}">×</button>`}</td></tr>`).join("")||`<tr><td colspan="10" class="empty">No lines.</td></tr>`}</tbody></table></div>`;
   const sdT=t==="dc"?sdSub(x):invCalc(x).grand;
@@ -2395,12 +2525,14 @@ function custAgeing(){const m={},t=today();invoices.concat(obills.filter(o=>o.ki
 function renderAgeing(){const P=$("#agePanel");if(!P)return;const A=custAgeing(),T=A.reduce((a,r)=>{r.b.forEach((v,i)=>a[i]+=v);return a},[0,0,0,0]);
   P.innerHTML=`<h2 class="sec">Customer outstanding and ageing</h2><div class="note">Days counted from the invoice date. Payments and credit notes are already taken off.</div>${A.length?`<div class="tablebox"><table class="mt" style="min-width:680px"><thead><tr><th>Customer</th><th class="num">Invoices</th><th class="num">0-30 days</th><th class="num">31-60</th><th class="num">61-90</th><th class="num">Over 90</th><th class="num">Total due</th></tr></thead><tbody>${A.map(r=>`<tr><td><b>${esc(r.cust)}</b></td><td class="num">${r.n}</td>${r.b.map((v,i)=>`<td class="num"${i>=2&&v>0?' style="color:var(--danger);font-weight:600"':""}>${v?fmt0(Math.round(v)):""}</td>`).join("")}<td class="num"><b>${fmt0(Math.round(r.tot))}</b></td></tr>`).join("")}<tr><td><b>Total</b></td><td></td>${T.map(v=>`<td class="num"><b>${fmt0(Math.round(v))}</b></td>`).join("")}<td class="num"><b>${fmt0(Math.round(A.reduce((a,r)=>a+r.tot,0)))}</b></td></tr></tbody></table></div>`:`<div class="empty">Nothing outstanding.</div>`}`}
 /* job costing */
-function jobCosting(){const PC={};projCost().forEach(r=>PC[key(r.job)]=r);const nos=new Set([...jobs.map(j=>key(j.no)),...sorders.filter(s=>s.job).map(s=>key(s.job))]);
+const invJob=v=>{if(v.job)return v.job;const s=v.so&&sorders.find(x=>String(x.no)===String(v.so));return s?s.job||"":""};
+function jobCosting(){const PC={};projCost().forEach(r=>PC[key(r.job)]=r);const nos=new Set([...jobs.map(j=>key(j.no)),...sorders.filter(s=>s.job).map(s=>key(s.job)),...invoices.map(invJob).filter(Boolean).map(key)]);
   return[...nos].map(k=>{const j=jobs.find(x=>key(x.no)===k),S=sorders.filter(s=>key(s.job)===k),pc=PC[k]||{po:0,iss:0,ret:0};const order=S.reduce((a,s)=>a+sdSub(s),0);
-    const billed=invoices.filter(v=>S.some(s=>String(s.no)===String(v.so))).reduce((a,v)=>a+invCalc(v).ass,0);const mat=Math.max(pc.po,pc.iss-pc.ret),lab=j?jobLabour(j):0,cost=mat+lab;
-    return{no:j?j.no:(S[0]||{}).job,cust:(j&&j.cust)||(S[0]||{}).cust||"",status:j?j.status:"No job card",order,billed,po:pc.po,iss:pc.iss-pc.ret,lab,cost,profit:order-cost,mg:order?Math.round((order-cost)*100/order):null}}).sort((a,b)=>String(a.no).localeCompare(String(b.no)))}
+    const billed=invoices.filter(v=>key(invJob(v))===k).reduce((a,v)=>a+invCalc(v).ass,0)-cnotes.filter(n=>{const v=invoices.find(x=>sdId("inv",x)===n.inv);return v&&key(invJob(v))===k}).reduce((a,n)=>a+(n.lines||[]).reduce((b,l)=>b+(+l.qty||0)*(+l.rate||0),0),0);const mat=Math.max(pc.po,pc.iss-pc.ret),lab=j?jobLabour(j):0,cost=mat+lab;
+    const iv=invoices.find(v=>key(invJob(v))===k),rev=Math.max(order,billed);
+    return{no:j?j.no:(S[0]||{}).job||(iv&&invJob(iv)),cust:(j&&j.cust)||(S[0]||{}).cust||(iv&&iv.cust)||"",status:j?j.status:"No job card",order,billed,po:pc.po,iss:pc.iss-pc.ret,lab,cost,profit:rev-cost,mg:rev?Math.round((rev-cost)*100/rev):null}}).sort((a,b)=>String(a.no).localeCompare(String(b.no)))}
 function renderJobCost(){const P=$("#jobCostPanel");if(!P)return;const L=jobCosting();
-  P.innerHTML=`<h2 class="sec">Job costing</h2><div class="note">Order value from sales orders (before GST). Material is the larger of approved PO value and net store issues for the Job No. Labour is actual job-card hours × machine-hour rate.</div>${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th class="num">Order</th><th class="num">Billed</th><th class="num">Material POs</th><th class="num">Store issued</th><th class="num">Labour</th><th class="num">Total cost</th><th class="num">Profit</th><th class="num">Margin</th></tr></thead><tbody>${L.map(r=>`<tr><td><b>${esc(r.no)}</b></td><td>${esc(r.cust)}</td><td>${esc(r.status)}</td><td class="num">${fmt0(Math.round(r.order))}</td><td class="num">${fmt0(Math.round(r.billed))}</td><td class="num">${fmt0(Math.round(r.po))}</td><td class="num">${fmt0(Math.round(r.iss))}</td><td class="num">${fmt0(Math.round(r.lab))}</td><td class="num">${fmt0(Math.round(r.cost))}</td><td class="num"${r.profit<0?' style="color:var(--danger);font-weight:600"':""}>${fmt0(Math.round(r.profit))}</td><td class="num">${r.mg==null?"-":`<span class="chip ${r.mg>=30?"calc":r.mg>=10?"sugg":"st-Back"}">${r.mg}%</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No jobs yet. Costing appears once a sales order or job card has a Job No.</div>`}`}
+  P.innerHTML=`<h2 class="sec">Job costing</h2><div class="note">Order value from sales orders (before GST). Billed counts every invoice with this Job No. (from an order, a customer PO, job work or direct), less credit notes. Profit uses the larger of order and billed. Material is the larger of approved PO value and net store issues for the Job No. Labour is actual job-card hours × machine-hour rate.</div>${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th class="num">Order</th><th class="num">Billed</th><th class="num">Material POs</th><th class="num">Store issued</th><th class="num">Labour</th><th class="num">Total cost</th><th class="num">Profit</th><th class="num">Margin</th></tr></thead><tbody>${L.map(r=>`<tr><td><b>${esc(r.no)}</b></td><td>${esc(r.cust)}</td><td>${esc(r.status)}</td><td class="num">${fmt0(Math.round(r.order))}</td><td class="num">${fmt0(Math.round(r.billed))}</td><td class="num">${fmt0(Math.round(r.po))}</td><td class="num">${fmt0(Math.round(r.iss))}</td><td class="num">${fmt0(Math.round(r.lab))}</td><td class="num">${fmt0(Math.round(r.cost))}</td><td class="num"${r.profit<0?' style="color:var(--danger);font-weight:600"':""}>${fmt0(Math.round(r.profit))}</td><td class="num">${r.mg==null?"-":`<span class="chip ${r.mg>=30?"calc":r.mg>=10?"sugg":"st-Back"}">${r.mg}%</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No jobs yet. Costing appears once a sales order or job card has a Job No.</div>`}`}
 /* GST registers for the CA */
 function renderGstReg(){const P=$("#gstPanel");if(!P)return;const mo=P.dataset.mo||today().slice(0,7);
   P.innerHTML=`<h2 class="sec">GST registers for your CA</h2><div class="note">Sales register (invoices and credit notes, GSTR-1 style) and purchase register (booked GRNs and debit notes) for one month, as Excel.</div>
@@ -2822,6 +2954,212 @@ function words(n){
 window.__words=words;
 
 if(CLOUD)cloudWire();
+/* ---------- dashboards: each user's own performance, and the company overview for admin/owner ---------- */
+const DASH_PER=[["3","Last 3 months"],["6","Last 6 months"],["12","Last 12 months"],["fy","This financial year"]];
+let dashPer=(()=>{try{return localStorage.getItem("zpo:dashPer")||"6"}catch(e){return"6"}})(),dashUser="",dashTab="";
+const isBoss=()=>isRole("Admin")||isRole("Approver")||has("users.edit");
+const hasU=(u,r)=>{const s=rightsOf(u);return s.includes(r)||(ALIAS[r]||[]).some(x=>s.includes(x))};
+const d10=s=>String(s||"").slice(0,10),m7=s=>String(s||"").slice(0,7);
+const sameName=(a,b)=>!!a&&!!b&&key(String(a).replace(/\s*\(.*\)$/,""))===key(b);
+function dashMonths(){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7);let n=+dashPer||6;if(dashPer==="fy"){const fs=m>=4?y:y-1;n=(y-fs)*12+m-3}
+  const out=[];for(let i=n-1;i>=0;i--)out.push(new Date(Date.UTC(y,m-1-i,1)).toISOString().slice(0,7));return out}
+const monLbl=k=>new Date(k+"-01T00:00:00Z").toLocaleString("en-IN",{month:"short",timeZone:"UTC"})+(k.slice(5)==="01"||k.slice(5)==="04"?" "+k.slice(2,4):"");
+const byMonth=(MS,arr,dateOf,valOf)=>MS.map(k=>arr.filter(x=>m7(dateOf(x))===k).reduce((a,x)=>a+(valOf?(+valOf(x)||0):1),0));
+const sum=a=>a.reduce((x,y)=>x+(+y||0),0);
+const pct=(a,b)=>b?Math.round(a/b*100)+"%":"-";
+const daysTxt=v=>{if(v==null)return"-";const x=Math.round(v*10)/10;return x+(x===1?" day":" days")};
+const shortL=v=>{v=+v||0;const a=Math.abs(v);return a>=1e7?(v/1e7).toFixed(a>=1e8?0:1)+" Cr":a>=1e5?(v/1e5).toFixed(a>=1e6?0:1)+" L":a>=1e3?(v/1e3).toFixed(a>=1e4?0:1)+" k":String(Math.round(v))};
+const moneyTxt=v=>"₹ "+shortL(v);
+const niceMax=v=>{if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p};
+
+/* charts: plain HTML/CSS so labels stay readable on phones */
+function vBars(MS,series,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=niceMax(Math.max(o.money?1000:2,...series.flatMap(s=>s.vals)));const n=series.length;
+  const cols=MS.map((k,i)=>{const tip=`<b>${esc(monLbl(k))} ${k.slice(0,4)}</b>`+series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.name)}: ${f(s.vals[i])}</span>`).join("");
+    return`<div class="vb-col" tabindex="0" data-tip="${esc(tip)}"><div class="vb-bars">${series.map(s=>`<i style="height:${s.vals[i]>0?Math.max(1.5,s.vals[i]/mx*100):0}%;background:${s.c}"></i>`).join("")}</div></div>`}).join("");
+  const step=Math.ceil(MS.length/8);
+  return`${n>1?`<div class="dlegend">${series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.name)}</span>`).join("")}</div>`:""}
+  <div class="vb"><div class="vb-y"><span>${f(mx)}</span><span>${f(mx/2)}</span><span>0</span></div><div class="vb-plot"><div class="vb-grid"><b></b><b></b><b></b></div>${cols}</div></div>
+  <div class="vb-x">${MS.map((k,i)=>`<span>${i%step===0?esc(monLbl(k)):""}</span>`).join("")}</div>`}
+function hBars(rows,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=Math.max(0,...rows.map(r=>r.val))||1;
+  if(!rows.length||!rows.some(r=>r.val>0))return`<div class="dempty">${esc(o.empty||"Nothing in this period yet.")}</div>`;
+  return`<div class="hb">${rows.map(r=>`<div class="hb-row" tabindex="0" data-tip="${esc(`<b>${esc(r.label)}</b><span>${r.tip||f(r.val)}</span>`)}"${r.go?` data-dgo="${esc(r.go)}"`:""}><span class="hb-l">${esc(r.label)}</span><span class="hb-t"><i style="width:${r.val>0?Math.max(1,r.val/mx*100):0}%;background:${r.c||"var(--s1)"}"></i></span><span class="hb-v">${r.txt!=null?esc(r.txt):f(r.val)}</span></div>`).join("")}</div>`}
+function stackBar(parts,o){o=o||{};const T=sum(parts.map(p=>p.val));if(!T)return`<div class="dempty">${esc(o.empty||"Nothing in this period yet.")}</div>`;
+  const P=parts.filter(p=>p.val>0);
+  return`<div class="sb">${P.map(p=>`<i tabindex="0" style="flex:${p.val} 1 0;background:${p.c}" data-tip="${esc(`<b>${esc(p.label)}</b><span>${fmt0(p.val)} of ${fmt0(T)} (${pct(p.val,T)})</span>`)}"></i>`).join("")}</div>
+  <div class="dlegend">${P.map(p=>`<span><i style="background:${p.c}"></i>${esc(p.label)} <b>${fmt0(p.val)}</b></span>`).join("")}</div>`}
+const SC=["var(--s1)","var(--s2)","var(--s3)","var(--s4)","var(--s5)","var(--s6)","var(--s7)","var(--s8)"];
+const tile=(n,t,d,w,go)=>`<${go?`button type="button" data-dgo="${esc(go)}"`:"div"} class="card dtile${w?" warn":""}"><span class="n">${n}</span><span class="t">${esc(t)}</span><span class="d">${esc(d||"")}</span></${go?"button":"div"}>`;
+const chartBox=(title,sub,body,wide)=>`<div class="panel dchart${wide?" wide":""}"><h3>${esc(title)}</h3>${sub?`<div class="note">${esc(sub)}</div>`:""}${body}</div>`;
+
+/* everything one person did, as dated events */
+function userEvents(U){const E=[];const add=(t,d,v)=>{if(d)E.push({t,d:d10(d),v:+v||0})};const pl=x=>inPlant(x);
+  reqs.filter(r=>pl(r)&&r.by===U&&r.status!=="Draft").forEach(r=>add("Purchase requests raised",r.subAt||r.date));
+  reqs.filter(r=>pl(r)&&sameName(r.apprBy,U)&&r.apprAt).forEach(r=>add("Requests approved",r.apprAt));
+  saved.filter(pl).forEach(p=>{const h=(p.history||[]).find(x=>x.action==="Sent for approval");if(h&&h.by===U)add("POs prepared",h.at,p.total);if(p.approvedBy===U&&p.status==="Approved")add("POs approved",p.approvedAt,p.total)});
+  grns.filter(pl).forEach(g=>{if(g.by===U)add("GRNs (material received)",g.createdAt||g.date,grnCalc(g).total);if(g.bookedBy===U)add("GRNs booked",g.bookedAt,grnCalc(g).total)});
+  pays.filter(p=>p.by===U).forEach(p=>add("Vendor payments",p.date,p.amount));
+  rgps.filter(c=>pl(c)&&c.by===U).forEach(c=>add("Returnable challans",c.date));
+  jwins.filter(c=>pl(c)&&c.by===U).forEach(c=>add("Job work inward",c.date));
+  slips.filter(s=>s.by===U&&s.type!=="Opening").forEach(s=>add("Issue / return slips",s.date));
+  deals.filter(d=>pl(d)&&(d.owner||d.by)===U).forEach(d=>add("Enquiries",d.createdAt||d.date,dealVal(d)));
+  fups.filter(f=>f.by===U&&f.done).forEach(f=>add("Follow-ups done",f.doneAt||f.date));
+  sorders.filter(s=>pl(s)&&s.by===U).forEach(s=>add("Sales orders",s.date,sdSub(s)));
+  dchallans.filter(s=>pl(s)&&s.by===U).forEach(s=>add("Delivery challans",s.date));
+  invoices.filter(x=>pl(x)&&x.by===U&&!x.cancelled).forEach(x=>add("Tax invoices",x.date,invTot(x)));
+  cnotes.concat(dnotes).filter(n=>n.by===U).forEach(n=>add("Credit / debit notes",n.date));
+  jobs.forEach(j=>{(j.ops||[]).filter(o=>o.status==="Done"&&o.who===U).forEach(o=>add("Operations done",o.end||j.updatedAt,o.act));(j.qc||[]).filter(q=>q.by===U).forEach(q=>add("Inspection reports",q.date))});
+  return E}
+
+/* ---------- my performance ---------- */
+function dashMine(U){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today(),cm=t.slice(0,7),pm=new Date(Date.UTC(+t.slice(0,4),+t.slice(5,7)-2,1)).toISOString().slice(0,7);
+  const u=M.users.find(x=>x.name===U)||{name:U,role:""},self=me&&U===me.name;const hasR=r=>u.role!=="Admin"&&hasU(u,r);const go=v=>self&&can(v)?v:"";
+  const E=userEvents(U),EP=E.filter(e=>inP(e.d));
+  const types={};EP.forEach(e=>types[e.t]=(types[e.t]||0)+1);
+  const thisM=E.filter(e=>m7(e.d)===cm).length,lastM=E.filter(e=>m7(e.d)===pm).length;
+  let h=`<div class="cards dtiles">${tile(fmt0(EP.length),"Entries made","In the selected period")}${tile(fmt0(thisM),"This month",lastM?`${thisM>=lastM?"Up":"Down"} from ${lastM} last month`:"Nothing last month")}${tile(fmt0(Object.keys(types).length),"Kinds of work","Documents and tasks handled")}${tile(EP.length?fmt0(Math.round(EP.length/MS.length*10)/10):"0","Per month","Average entries")}</div>`;
+  const charts=[chartBox("My entries by month","Every document or task you recorded",vBars(MS,[{name:"Entries",c:"var(--s1)",vals:byMonth(MS,E,e=>e.d)}])),
+    chartBox("What I worked on","Count in the selected period",hBars(Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:k,val:v,c:SC[i%8]})),{empty:"No entries in this period yet."}))];
+  const sec=[];const S=(title,tiles,ch)=>sec.push(`<h2 class="sec dsec">${esc(title)}</h2><div class="cards dtiles">${tiles.join("")}</div>${ch&&ch.length?`<div class="dgrid">${ch.join("")}</div>`:""}`);
+
+  /* purchase requests raised */
+  const R=reqs.filter(r=>inPlant(r)&&r.by===U&&r.status!=="Draft");
+  if(R.length||["Requester","Maker"].includes(u.role)){const RP=R.filter(r=>inP(r.subAt||r.date));
+    const toPO=RP.map(r=>{const p=r.poNo&&saved.find(x=>String(x.no)===String(r.poNo));return p&&p.approvedAt?dd(r.subAt||r.date,p.approvedAt):null});
+    S("My purchase requests",[tile(fmt0(RP.length),"Raised","In the period"),tile(fmt0(RP.filter(r=>["PO raised","PO approved"].includes(r.status)||r.poNo).length),"Turned into POs","Of those raised"),
+      tile(fmt0(R.filter(r=>r.status==="Sent back").length),"Sent back now","Correct and resubmit",R.some(r=>r.status==="Sent back"),go("req")),tile(daysTxt(avg(toPO)),"Request to approved PO","Average wait")],
+      [chartBox("Requests raised by month","",vBars(MS,[{name:"Requests",c:"var(--s1)",vals:byMonth(MS,R,r=>r.subAt||r.date)}])),
+       chartBox("Where my requests are now","All requests not in draft",stackBar([["Waiting","Submitted"],["Approved","Approved"],["Pre-estimate","Estimated"],["PO raised","PO raised"],["PO approved","PO approved"],["Sent back","Sent back"]].map(([l,s],i)=>({label:l,val:R.filter(r=>r.status===s).length,c:SC[i]})).concat([{label:"Other",val:R.filter(r=>!["Submitted","Approved","Estimated","PO raised","PO approved","Sent back"].includes(r.status)).length,c:SC[6]}])))])}
+
+  /* requests approved (checker / HOD) */
+  const RA=reqs.filter(r=>inPlant(r)&&sameName(r.apprBy,U)&&r.apprAt);
+  if(RA.length||hasR("req.approve")||hasR("req.check")){const RAP=RA.filter(r=>inP(r.apprAt));
+    S("Requests I approved",[tile(fmt0(RAP.length),"Approved","In the period"),tile(daysTxt(avg(RAP.map(r=>r.subAt?dd(r.subAt,r.apprAt):null))),"Time to approve","Submitted to approved"),
+      tile(fmt0(reqs.filter(r=>r.status==="Submitted"&&(hasU(u,"req.all")||r.dept===u.dept)).length),"Waiting for me now","Submitted requests",false,go("req"))],
+      [chartBox("Requests approved by month","",vBars(MS,[{name:"Approved",c:"var(--s1)",vals:byMonth(MS,RA,r=>r.apprAt)}]))])}
+
+  /* purchase orders prepared */
+  const T=trackRows().filter(x=>x.buyer===U&&inPlant(x.p));const PO=saved.filter(p=>inPlant(p)&&((p.history||[]).find(h=>h.action==="Sent for approval")||{}).by===U);
+  if(PO.length||hasR("po.create")){const sentAt=p=>((p.history||[]).find(h=>h.action==="Sent for approval")||{}).at||p.date;const PP=PO.filter(p=>inP(sentAt(p)));
+    const TP=T.filter(x=>inP(x.sent||x.p.date)),closed=TP.filter(x=>!x.open&&x.need),late=T.filter(x=>x.open&&x.delay>0);
+    S("My purchase orders",[tile(fmt0(PP.length),"POs sent","For approval in the period"),tile(moneyTxt(sum(PP.map(p=>p.total))),"PO value","Incl. GST"),tile(daysTxt(avg(TP.map(x=>x.proc))),"Processing time","Request approved to PO sent"),
+      tile(pct(closed.filter(x=>x.delay<=0).length,closed.length),"On-time delivery",`${closed.length} closed POs with a required date`),tile(fmt0(late.length),"Running late now","Open POs past required date",late.length>0,go("saved"))],
+      [chartBox("PO value by month","Sent for approval, incl. GST",vBars(MS,[{name:"PO value",c:"var(--s1)",vals:byMonth(MS,PO,sentAt,p=>p.total)}],{money:true})),
+       chartBox("Status of my POs","Sent in the period",stackBar(["Draft","Pending approval","Sent back","Approved"].map((s,i)=>({label:s==="Approved"?"Approved, open":s,val:PP.filter(p=>p.status===s&&!p.closed).length,c:SC[i]})).concat([{label:"Closed",val:PP.filter(p=>p.closed).length,c:SC[4]}])))])}
+
+  /* PO approvals */
+  const PA=saved.filter(p=>inPlant(p)&&p.approvedBy===U&&p.status==="Approved");
+  if(PA.length||hasR("po.approve")){const PAP=PA.filter(p=>inP(p.approvedAt));
+    S("POs I approved",[tile(fmt0(PAP.length),"Approved","In the period"),tile(moneyTxt(sum(PAP.map(p=>p.total))),"Value approved","Incl. GST"),
+      tile(daysTxt(avg(PAP.map(p=>{const s=hAt(p,"Sent for approval");return s?dd(s,p.approvedAt):null}))),"Approval time","Sent to approved"),
+      tile(fmt0(saved.filter(p=>inPlant(p)&&p.status==="Pending approval").length),"Waiting now","POs pending approval",saved.some(p=>inPlant(p)&&p.status==="Pending approval"),go("appr"))],
+      [chartBox("Value approved by month","Incl. GST",vBars(MS,[{name:"Approved",c:"var(--s1)",vals:byMonth(MS,PA,p=>p.approvedAt,p=>p.total)}],{money:true}))])}
+
+  /* store */
+  const G=grns.filter(g=>inPlant(g)&&g.by===U),SL=slips.filter(s=>s.by===U&&s.type!=="Opening"),RG=rgps.filter(c=>inPlant(c)&&c.by===U);
+  if(G.length||SL.length||RG.length||hasR("grn.create")||hasR("stock.issue")){const GP=G.filter(g=>inP(g.createdAt||g.date));
+    S("Store work",[tile(fmt0(GP.length),"GRNs made","Material received"),tile(moneyTxt(sum(GP.map(g=>grnCalc(g).total))),"Value received","Accepted qty, incl. GST"),tile(fmt0(SL.filter(s=>inP(s.date)).length),"Issue / return slips","In the period"),
+      tile(fmt0(RG.filter(c=>c.status!=="Closed").length),"My challans open",RG.filter(c=>c.status!=="Closed"&&c.expected&&c.expected<t).length+" overdue for return",RG.some(c=>c.status!=="Closed"&&c.expected&&c.expected<t),go("grn")),
+      tile(fmt0(saved.filter(p=>inPlant(p)&&p.status==="Approved"&&!p.closed&&pendingLines(p).length).length),"POs waiting for material","All approved open POs",false,go("grn"))],
+      [chartBox("Store entries by month","",vBars(MS,[{name:"GRNs",c:"var(--s1)",vals:byMonth(MS,G,g=>g.createdAt||g.date)},{name:"Issue / return slips",c:"var(--s2)",vals:byMonth(MS,SL,s=>s.date)},{name:"Returnable challans",c:"var(--s3)",vals:byMonth(MS,RG,c=>c.date)}]))])}
+
+  /* accounts */
+  const GB=grns.filter(g=>inPlant(g)&&g.bookedBy===U),PY=pays.filter(p=>p.by===U);
+  if(GB.length||PY.length||hasR("acct.book")){const GBP=GB.filter(g=>inP(g.bookedAt)),PYP=PY.filter(p=>inP(p.date));const vs=vendSummary();
+    S("Accounts work",[tile(fmt0(GBP.length),"GRNs booked","In the period"),tile(daysTxt(avg(GBP.map(g=>g.createdAt?dd(d10(g.createdAt),g.bookedAt):null))),"Time to book","GRN made to booked"),
+      tile(moneyTxt(sum(PYP.map(p=>p.amount))),"Paid to vendors",PYP.length+" payments"),tile(fmt0(grns.filter(g=>inPlant(g)&&g.status==="With accounts").length),"GRNs waiting to book","All users",grns.some(g=>g.status==="With accounts"),go("acct")),
+      tile(moneyTxt(sum(vs.map(v=>v.overdue))),"Overdue to vendors","Past payment terms",sum(vs.map(v=>v.overdue))>0,go("acct"))],
+      [chartBox("Vendor payments by month","Amount paid",vBars(MS,[{name:"Paid",c:"var(--s1)",vals:byMonth(MS,PY,p=>p.date,p=>p.amount)}],{money:true})),
+       chartBox("GRNs booked by month","",vBars(MS,[{name:"Booked",c:"var(--s2)",vals:byMonth(MS,GB,g=>g.bookedAt)}]))])}
+
+  /* sales */
+  const D=deals.filter(d=>inPlant(d)&&(d.owner||d.by)===U),IV=invoices.filter(x=>inPlant(x)&&x.by===U&&!x.cancelled),FU=fups.filter(f=>f.by===U);
+  if(D.length||IV.length||hasR("sales.edit")){const DP=D.filter(d=>inP(d.createdAt||d.date)),CL=D.filter(d=>["Won","Lost"].includes(d.stage)&&inP(d.closedAt||d.updatedAt)),won=CL.filter(d=>d.stage==="Won");
+    const open=D.filter(d=>!["Won","Lost"].includes(d.stage)),od=FU.filter(f=>!f.done&&f.date<t).length;
+    S("My sales",[tile(fmt0(DP.length),"New enquiries","In the period"),tile(pct(won.length,CL.length),"Win rate",`${won.length} won of ${CL.length} closed`),tile(moneyTxt(sum(won.map(dealVal))),"Value won","Quotation value"),
+      tile(moneyTxt(sum(open.map(dealVal))),"Open pipeline",open.length+" open enquiries",false,go("sales")),tile(moneyTxt(sum(IV.filter(x=>inP(x.date)).map(invTot))),"Invoiced","My tax invoices, incl. GST"),
+      tile(fmt0(od),"Follow-ups overdue",FU.filter(f=>f.done&&inP(f.doneAt||f.date)).length+" done in the period",od>0,go("sales"))],
+      [chartBox("Invoiced by month","My tax invoices, incl. GST",vBars(MS,[{name:"Invoiced",c:"var(--s1)",vals:byMonth(MS,IV,x=>x.date,invTot)}],{money:true})),
+       chartBox("My enquiries by stage","Open now, plus won and lost in the period",hBars(STAGES.map((s,i)=>{const L=(s==="Won"||s==="Lost")?CL.filter(d=>d.stage===s):open.filter(d=>d.stage===s);return{label:s,val:L.length,tip:`${L.length} enquiries · ${moneyTxt(sum(L.map(dealVal)))}`,c:s==="Lost"?"var(--s8)":s==="Won"?"var(--s3)":"var(--s1)"}}))),
+       chartBox("Enquiries and follow-ups by month","",vBars(MS,[{name:"New enquiries",c:"var(--s1)",vals:byMonth(MS,D,d=>d.createdAt||d.date)},{name:"Follow-ups done",c:"var(--s2)",vals:byMonth(MS,FU.filter(f=>f.done),f=>f.doneAt||f.date)}]))])}
+
+  /* production */
+  const OPS=[];jobs.forEach(j=>(j.ops||[]).forEach(o=>{if(o.who===U)OPS.push({j,o})}));
+  if(OPS.length||hasR("prod.edit")){const done=OPS.filter(x=>x.o.status==="Done"),DP=done.filter(x=>inP(x.o.end||x.j.updatedAt));const pl=sum(DP.map(x=>x.o.plan)),ac=sum(DP.map(x=>x.o.act));
+    const J=jobs.filter(j=>j.status==="Completed"&&inP(j.doneAt)),Jt=J.filter(j=>j.due),late=jobs.filter(j=>j.status!=="Completed"&&j.due&&j.due<t);
+    S("Production",[tile(fmt0(DP.length),"My operations done","In the period"),tile(fmt0(Math.round(ac*10)/10),"Actual hours","Plan "+fmt0(Math.round(pl*10)/10)+" hrs"),tile(pl&&ac?Math.round(pl/ac*100)+"%":"-","Efficiency","Plan hours ÷ actual hours"),
+      tile(fmt0(OPS.filter(x=>x.o.status==="Running").length),"Running now","My operations"),tile(fmt0(J.length),"Jobs completed",`${pct(Jt.filter(j=>j.doneAt<=j.due).length,Jt.length)} on time (all jobs)`),tile(fmt0(late.length),"Jobs past due","All jobs on the floor",late.length>0,go("prod"))],
+      [chartBox("Operations done by month","",vBars(MS,[{name:"Operations",c:"var(--s1)",vals:byMonth(MS,done,x=>x.o.end||x.j.updatedAt)}])),
+       chartBox("Plan vs actual hours by month","My finished operations",vBars(MS,[{name:"Plan hrs",c:"var(--s1)",vals:byMonth(MS,done,x=>x.o.end||x.j.updatedAt,x=>x.o.plan)},{name:"Actual hrs",c:"var(--s2)",vals:byMonth(MS,done,x=>x.o.end||x.j.updatedAt,x=>x.o.act)}]))])}
+
+  return`<h2 class="sec dsec">${self?"My work":esc(U)+"'s work"}<span class="note"> · ${esc(u.role||"")}${u.dept?" · "+esc(u.dept):""}</span></h2>${h}<div class="dgrid">${charts.join("")}</div>${sec.join("")}`}
+
+/* ---------- company overview ---------- */
+function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
+  const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
+  const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]);
+  const purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
+  const R=[];invoices.concat(obills.filter(o=>o.kind==="cust")).filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
+  const coll=byMonth(MS,R,r=>r.date,r=>r.amt),paid=byMonth(MS,pays,p=>p.date,p=>p.amount);
+  const recv=invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
+  const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),lateJ=J.filter(j=>j.due&&j.due<t);
+  const go=v=>can(v)?v:"";
+  let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales","Invoices less credit notes",false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases","Booked GRNs",false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
+    ${tile(moneyTxt(recv),"To collect now","All open invoices",recv>0,go("inv"))}${tile(moneyTxt(payb),"To pay now","Booked, not yet paid",false,go("acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
+  const ch=[];
+  ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
+  ch.push(chartBox("Money in and out by month","Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true})));
+  const A=custAgeing(),B=[0,1,2,3].map(i=>sum(A.map(r=>r.b[i])));
+  ch.push(chartBox("Money to collect, by age","Open customer invoices and opening bills",hBars(["0–30 days","31–60 days","61–90 days","Over 90 days"].map((l,i)=>({label:l,val:B[i],c:i===3?"var(--danger)":"var(--s1)"})),{money:true,empty:"Nothing to collect."})));
+  /* purchase flow now */
+  const st=s=>reqs.filter(r=>inPlant(r)&&r.status===s).length;
+  ch.push(chartBox("Purchase flow right now","How many documents are waiting at each step",hBars([["Requests waiting approval",st("Submitted"),"req"],["Approved requests, no PO yet",st("Approved")+st("Estimated"),"req"],["POs with approver",saved.filter(p=>inPlant(p)&&p.status==="Pending approval").length,"appr"],["Approved POs, material due",saved.filter(p=>inPlant(p)&&p.status==="Approved"&&!p.closed).length,"grn"],["GRNs to book",grns.filter(g=>inPlant(g)&&g.status==="With accounts").length,"acct"],["GRNs unpaid",grns.filter(g=>inPlant(g)&&["Booked","Part paid"].includes(g.status)).length,"acct"]].map(([l,v,g])=>({label:l,val:v,go:go(g)})),{empty:"Nothing waiting."})));
+  const T=trackRows().filter(x=>inPlant(x.p)&&inP(x.sent||x.p.date)),closed=T.filter(x=>!x.open&&x.need);
+  const rq=reqs.filter(r=>inPlant(r)&&r.subAt&&r.apprAt&&inP(r.apprAt)).map(r=>dd(r.subAt,r.apprAt));
+  const cyc=[["Request approval",avg(rq)],["Purchase processing",avg(T.map(x=>x.proc))],["PO approval",avg(T.map(x=>x.apprDays))],["Supplier delivery",avg(T.map(x=>x.supDays))]];
+  ch.push(chartBox("Purchase cycle time","Average days per step, POs sent in the period · on-time delivery "+pct(closed.filter(x=>x.delay<=0).length,closed.length),hBars(cyc.map(([l,v])=>({label:l,val:v||0,txt:v==null?"-":daysTxt(v)})),{empty:"No POs in this period yet."})));
+  /* sales pipeline */
+  const D=deals.filter(inPlant),open=D.filter(d=>!["Won","Lost"].includes(d.stage)),CL=D.filter(d=>["Won","Lost"].includes(d.stage)&&inP(d.closedAt||d.updatedAt));
+  ch.push(chartBox("Sales pipeline","Open enquiries now, plus won and lost in the period · win rate "+pct(CL.filter(d=>d.stage==="Won").length,CL.length),hBars(STAGES.map(s=>{const L=(s==="Won"||s==="Lost")?CL.filter(d=>d.stage===s):open.filter(d=>d.stage===s);const v=sum(L.map(dealVal));return{label:s,val:v,tip:`${L.length} enquiries · ${moneyTxt(v)}`,txt:L.length+" · "+moneyTxt(v),c:s==="Lost"?"var(--s8)":s==="Won"?"var(--s3)":"var(--s1)"}}),{money:true,empty:"No enquiries yet."})));
+  /* top customers and suppliers */
+  const topC={};INV.filter(x=>inP(x.date)).forEach(x=>topC[x.cust]=(topC[x.cust]||0)+invTot(x));
+  const topS={};GR.filter(g=>inP(g.bookedAt||g.date)).forEach(g=>topS[g.sup]=(topS[g.sup]||0)+grnCalc(g).total);
+  const top=(o)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>({label:k,val:v}));
+  ch.push(chartBox("Top customers","Invoiced in the period, incl. GST",hBars(top(topC),{money:true,empty:"No invoices in this period yet."})));
+  ch.push(chartBox("Top suppliers","Booked GRNs in the period, incl. GST",hBars(top(topS).map(r=>({...r,c:"var(--s2)"})),{money:true,empty:"No booked GRNs in this period yet."})));
+  /* production */
+  const JD=jobs.filter(j=>j.status==="Completed"&&inP(j.doneAt)),JDt=JD.filter(j=>j.due);
+  ch.push(chartBox("Jobs on the floor","By status now · completed in the period: "+JD.length+", on time "+pct(JDt.filter(j=>j.doneAt<=j.due).length,JDt.length),stackBar(JOB_ST.filter(s=>s!=="Completed").map((s,i)=>({label:s,val:J.filter(j=>j.status===s).length,c:SC[i]})),{empty:"No open jobs."})+(lateJ.length?`<div class="note" style="color:var(--danger)">${lateJ.length} past due date: ${lateJ.slice(0,6).map(j=>esc(j.no)).join(", ")}${lateJ.length>6?"…":""}</div>`:"")));
+  /* team */
+  const U=M.users.map(u=>{const E=userEvents(u.name),EP=E.filter(e=>inP(e.d));const k={};EP.forEach(e=>k[e.t]=(k[e.t]||0)+1);const topK=Object.entries(k).sort((a,b)=>b[1]-a[1]);
+    return{u,n:EP.length,cm:E.filter(e=>m7(e.d)===t.slice(0,7)).length,top:topK.slice(0,2).map(([a,b])=>a+": "+b).join(" · "),vals:byMonth(MS,E,e=>e.d)}}).sort((a,b)=>b.n-a.n);
+  const mx=Math.max(1,...U.map(x=>x.n));
+  const team=`<div class="panel dchart wide"><h3>Team performance</h3><div class="note">Entries each person made in the period. Click a name to open their dashboard.</div>
+    <div class="tablebox"><table class="est dteam"><thead><tr><th>Name</th><th>Role</th><th>Entries in period</th><th class="num">This month</th><th>Trend</th><th>Main work</th></tr></thead><tbody>${U.map(x=>{const sm=Math.max(1,...x.vals);
+      return`<tr><td><button type="button" class="linkbtn" data-duser="${esc(x.u.name)}">${esc(x.u.name)}</button></td><td>${esc(x.u.role)}${x.u.dept?`<span class="note"> · ${esc(x.u.dept)}</span>`:""}</td><td><span class="dmini"><i style="width:${x.n/mx*100}%"></i></span> <b>${fmt0(x.n)}</b></td><td class="num">${fmt0(x.cm)}</td>
+      <td><span class="spark" data-tip="${esc(`<b>${esc(x.u.name)}</b>`+MS.map((k,i)=>`<span>${esc(monLbl(k))}: ${x.vals[i]}</span>`).join(""))}">${x.vals.map(v=>`<i style="height:${v?Math.max(8,v/sm*100):0}%"></i>`).join("")}</span></td><td class="note">${esc(x.top||"No entries")}</td></tr>`}).join("")}</tbody></table></div></div>`;
+  return h+`<div class="dgrid">${ch.join("")}${team}</div>`}
+
+function renderDash(){const P=$("#dashBody");if(!P||!me)return;const boss=isBoss();if(!boss){dashTab="me";dashUser=""}else if(!dashTab)dashTab="co";
+  if(dashUser&&!M.users.some(u=>u.name===dashUser))dashUser="";
+  $("#dashTabs").hidden=!boss;$("#dashTabs").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.dtab===dashTab?"true":"false"));
+  const us=$("#dashUserSel");us.hidden=!boss||dashTab!=="me";if(boss)us.innerHTML=M.users.map(u=>`<option value="${esc(u.name)}"${u.name===(dashUser||me.name)?" selected":""}>${esc(u.name)}${u.name===me.name?" (me)":""}</option>`).join("");
+  $("#dashPer").innerHTML=DASH_PER.map(([v,l])=>`<option value="${v}"${v===dashPer?" selected":""}>${l}</option>`).join("");
+  $("#dashTitle").textContent=dashTab==="co"?"Company performance":"My dashboard";
+  const MS=dashMonths();$("#dashRange").textContent=`${monLbl(MS[0])} ${MS[0].slice(0,4)} to ${monLbl(MS[MS.length-1])} ${MS[MS.length-1].slice(0,4)}${curPlant?" · "+plantName(curPlant)+" only":""}`;
+  P.innerHTML=dashTab==="co"?dashCompany():dashMine(dashUser||me.name)}
+(function(){const tip=document.createElement("div");tip.id="dashTip";tip.hidden=true;tip.setAttribute("role","tooltip");document.body.appendChild(tip);
+  const V=$("#view-dash");const showTip=(el,x,y)=>{tip.innerHTML=el.dataset.tip;tip.hidden=false;const r=tip.getBoundingClientRect();let L=x+14,T=y+14;if(L+r.width>innerWidth-8)L=x-r.width-14;if(T+r.height>innerHeight-8)T=y-r.height-14;tip.style.left=Math.max(8,L)+"px";tip.style.top=Math.max(8,T)+"px"};
+  V.addEventListener("mousemove",e=>{const el=e.target.closest("[data-tip]");if(el)showTip(el,e.clientX,e.clientY);else tip.hidden=true});
+  V.addEventListener("mouseleave",()=>tip.hidden=true);
+  V.addEventListener("focusin",e=>{const el=e.target.closest("[data-tip]");if(el){const r=el.getBoundingClientRect();showTip(el,r.left+r.width/2,r.top)}});V.addEventListener("focusout",()=>tip.hidden=true);
+  window.addEventListener("scroll",()=>tip.hidden=true,{passive:true});
+  V.addEventListener("click",e=>{const u=e.target.closest("[data-duser]");if(u){dashTab="me";dashUser=u.dataset.duser;renderDash();window.scrollTo(0,0);return}
+    const g=e.target.closest("[data-dgo]");if(g&&g.dataset.dgo&&can(g.dataset.dgo)){show(g.dataset.dgo);return}
+    const tb=e.target.closest("[data-dtab]");if(tb){dashTab=tb.dataset.dtab;if(dashTab==="me")dashUser="";renderDash();return}
+    const el=e.target.closest("[data-tip]");if(el&&e.pointerType!=="mouse")showTip(el,e.clientX,e.clientY)});
+  $("#dashPer").onchange=e=>{dashPer=e.target.value;try{localStorage.setItem("zpo:dashPer",dashPer)}catch(err){}renderDash()};
+  $("#dashUserSel").onchange=e=>{dashUser=e.target.value===me.name?"":e.target.value;renderDash()}})();
+
 bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
 }
 </script>
