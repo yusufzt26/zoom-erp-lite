@@ -2,8 +2,9 @@
 import { getDatabase } from "@netlify/database";
 import { scryptSync, randomBytes, randomInt, timingSafeEqual, createHash } from "node:crypto";
 import nodemailer from "nodemailer";
+import Anthropic from "@anthropic-ai/sdk";
 
-const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank"]);
+const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins"]);
 const SESSION_DAYS = 30;
 let db;
 const q = async (text, params = []) => {
@@ -21,6 +22,8 @@ async function profile(name) { const m = await mastersDoc(); const u = m && (m.u
 const ADMIN_RIGHT = "page.users";
 async function isAdmin(name) { const u = await profile(name); if (!u) return false; return u.role === "Admin" || (Array.isArray(u.rights) && u.rights.includes(ADMIN_RIGHT)); }
 
+const MOULD_ROLES = ["Sales", "Approver", "Purchaser", "Admin"];
+function canMould(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["sales.view", "sales.create", "sales.edit"].some((k) => r.includes(k)); return MOULD_ROLES.includes(u.role) || (!!r && r.includes("page.sales")); }
 const PROJ_ROLES = ["Sales", "Admin"];
 function canProjects(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["proj.create", "proj.edit", "proj.delete", "mast.edit"].some((k) => r.includes(k)); return PROJ_ROLES.includes(u.role) || (!!r && (r.includes("page.mast") || r.includes("sales.edit"))); }
 
@@ -31,6 +34,68 @@ async function auth(req) {
   return r[0] ? r[0].name : null;
 }
 async function newSession(name) { const t = randomBytes(32).toString("base64url"); await q("INSERT INTO sessions(token_hash,name,expires_at) VALUES($1,$2,NOW()+($3||' days')::interval)", [sha(t), name, String(SESSION_DAYS)]); return t; }
+
+// Document reader: fills a GRN from a supplier invoice, or a sales order from a customer PO. Needs the Netlify env var ANTHROPIC_API_KEY.
+const S = { type: "string" }, N = { type: "number" };
+const obj = (props) => ({ type: "object", additionalProperties: false, required: Object.keys(props), properties: props });
+const SCAN = {
+  grn: {
+    schema: obj({ supplier_name: S, supplier_gstin: S, invoice_no: S, invoice_date: S, challan_no: S, challan_date: S, po_no: S, vehicle_no: S, transporter: S, eway_bill_no: S, grand_total: N,
+      lines: { type: "array", items: obj({ description: S, hsn: S, qty: N, unit: S, rate: N, po_line: { type: "integer" } }) } }),
+    prompt: (b, list) => `This is a supplier's tax invoice or delivery challan for material we (the buyer) are receiving against our purchase order ${b.ref} from ${b.party}.
+Read it and fill every field you can find. Use an empty string for text you cannot find and 0 for numbers you cannot find; never guess.
+- Dates as YYYY-MM-DD (Indian documents are day/month/year).
+- supplier_gstin is the seller's GSTIN, not ours (ours: ${b.own}).
+- challan_no is the seller's delivery challan / DC number if printed; po_no is our PO number as printed on the invoice.
+- vehicle_no is the vehicle registration (e.g. MH14AB1234); transporter is the transport name or mode.
+- lines: one per item row with the quantity shipped (not the amount), unit as printed, and rate per unit before tax.
+- po_line: the number of the matching line from our PO below, or -1 if none matches. Match on what the item is, even if worded differently. Use each PO line at most once.
+Our PO lines (number: description | ordered qty unit):
+${list}` },
+  so: {
+    schema: obj({ customer_name: S, customer_gstin: S, po_no: S, po_date: S, delivery_date: S, gst_percent: N, payment_terms: S, contact_person: S, grand_total: N,
+      lines: { type: "array", items: obj({ description: S, hsn: S, qty: N, unit: S, rate: N }) } }),
+    prompt: (b) => `This is a purchase order that a customer sent to us (${b.us}, the supplier). We will make a sales order from it.
+Read it and fill every field you can find. Use an empty string for text you cannot find and 0 for numbers you cannot find; never guess.
+- customer_name / customer_gstin are the BUYER who issued the PO, not us (our GSTINs: ${b.own}).
+- Dates as YYYY-MM-DD (Indian documents are day/month/year). delivery_date is the required delivery / schedule date if one is given.
+- gst_percent is the total GST rate on the items (CGST+SGST, or IGST), e.g. 18.
+- lines: one per item row with the full item description (include drawing / part numbers and sizes printed with it), HSN/SAC, ordered quantity, unit, and rate per unit before tax.` },
+};
+// Old-data import: any printed report (party list, item list, outstanding, bank statement) read as a table with the columns the app asks for.
+function tableKind(b) {
+  const cols = (Array.isArray(b.cols) ? b.cols : []).slice(0, 12).map((c) => String(c ?? "").replace(/[^\w %./()&-]/g, "").slice(0, 40)).filter(Boolean);
+  if (!cols.length) return null;
+  const row = {}; cols.forEach((_, i) => { row["c" + i] = S; });
+  return {
+    schema: obj({ rows: { type: "array", items: obj(row) } }),
+    prompt: () => `This is a report printed from an old accounting / ERP system. Read the table in it and return every data row (all pages), with these columns:
+${cols.map((c, i) => `c${i} = ${c}`).join("\n")}
+Rules: copy values exactly as printed (numbers without currency symbols, dates as printed). Use an empty string when a column is not in the report. Skip headings, page headers, subtotals and grand totals. Never invent rows.`,
+  };
+}
+async function scanDoc(b) {
+  if (!process.env.ANTHROPIC_API_KEY) return { status: 501, body: { error: "Document reading is not set up yet (ANTHROPIC_API_KEY missing on Netlify)", noKey: true } };
+  const K = b.kind === "table" ? tableKind(b) : SCAN[b.kind]; if (!K) return { status: 400, body: { error: "Bad request" } };
+  const media = String(b.media || ""), data = b.data, isPdf = media === "application/pdf";
+  if (!isPdf && !/^image\/(jpeg|png|webp|gif)$/.test(media)) return { status: 400, body: { error: "Use a PDF or a photo (JPG/PNG)" } };
+  if (typeof data !== "string" || !data || data.length > 5_500_000) return { status: 400, body: { error: "File is too large. Use a PDF under 4 MB or a photo." } };
+  const clip = (v, n) => String(v ?? "").slice(0, n);
+  const list = (Array.isArray(b.poLines) ? b.poLines : []).slice(0, 200).map((l, i) => `${i}: ${clip(l.desc, 200)} | ${clip(l.qty, 20)} ${clip(l.unit, 20)}`).join("\n") || "(none)";
+  const ctx = { ref: clip(b.ref, 40), party: clip(b.party, 120), us: clip(b.us, 120), own: (Array.isArray(b.ownGstins) ? b.ownGstins : []).map((g) => clip(g, 15)).join(", ") || "unknown" };
+  const client = new Anthropic();
+  const res = await client.beta.messages.create({
+    model: "claude-opus-5-5", max_tokens: 16000,
+    betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+    output_config: { effort: "low", format: { type: "json_schema", schema: K.schema } },
+    messages: [{ role: "user", content: [
+      isPdf ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } } : { type: "image", source: { type: "base64", media_type: media, data } },
+      { type: "text", text: K.prompt(ctx, list) }] }],
+  });
+  const t = res.stop_reason !== "refusal" && res.content.find((x) => x.type === "text");
+  try { return { status: 200, body: { ok: true, via: "ai", fields: JSON.parse(t ? t.text : "") } }; }
+  catch { return { status: 422, body: { error: "Could not read this document. Fill the form by hand." } }; }
+}
 
 async function body(req) { try { return await req.json(); } catch { return {}; } }
 
@@ -140,6 +205,21 @@ export default async (req) => {
       return json({ results });
     }
 
+    // Mould Estimator (separate Netlify site): read-only list of estimates, selected fields only; the shared key never reaches the browser
+    if (path === "mould/estimates" && m === "GET") {
+      const u = await profile(me);
+      if (!u || !((await isAdmin(me)) || canMould(u))) return json({ error: "You do not have rights to fetch mould estimates" }, 403);
+      const key = process.env.MOULD_LINK_KEY || "";
+      if (!key) return json({ error: "The Mould Estimator link is not set up yet. Add MOULD_LINK_KEY on Netlify (same value as ERP_LINK_KEY on the estimator site)." }, 503);
+      const base = (process.env.MOULD_URL || "https://mould-estimator.netlify.app").replace(/\/$/, "");
+      let r; try { r = await fetch(base + "/api/erp-feed", { headers: { "x-link-key": key }, signal: AbortSignal.timeout(15000) }); } catch { return json({ error: "Could not reach the Mould Estimator. Try again in a minute." }, 502); }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return json({ error: "Mould Estimator: " + (j.error || "error " + r.status) }, 502);
+      const S = (v) => String(v ?? "").slice(0, 200), N = (v) => (v === null || v === undefined || v === "" || !isFinite(+v) ? null : +v);
+      const estimates = (Array.isArray(j.estimates) ? j.estimates : []).map((e) => ({ id: S(e.id), no: S(e.no), customer: S(e.customer), part: S(e.part), mouldNo: S(e.mouldNo), status: S(e.status), date: S(e.date), updatedAt: N(e.updatedAt) || 0, price: N(e.price), gstPct: N(e.gstPct) }));
+      return json({ estimates, at: j.at || Date.now() });
+    }
+
     if (path === "logins" && m === "POST") {
       if (!(await isAdmin(me))) return json({ error: "Only the admin can manage logins" }, 403);
       const { action, name, password, newName } = await body(req); const n = normName(name);
@@ -154,6 +234,11 @@ export default async (req) => {
       if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); return json({ ok: true }); }
       return json({ error: "Unknown action" }, 400);
     }
+    if (path === "scan-doc" && m === "POST") {
+      try { const r = await scanDoc(await body(req)); return json(r.body, r.status); }
+      catch (e) { console.error("scan-doc", e && e.status, e && e.message); return json({ error: e && e.status === 429 ? "Document reader is busy. Try again in a minute." : "Could not read the document right now. Fill the form by hand or try again." }, 502); }
+    }
+
     if (path === "password" && m === "POST") {
       const { current, password } = await body(req); const r = await q("SELECT pass_hash FROM logins WHERE name=$1", [me]);
       if (!r[0] || !checkPass(String(current || ""), r[0].pass_hash)) return json({ error: "Current password is wrong" }, 400);
