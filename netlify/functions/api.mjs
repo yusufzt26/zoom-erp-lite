@@ -60,9 +60,21 @@ Read it and fill every field you can find. Use an empty string for text you cann
 - gst_percent is the total GST rate on the items (CGST+SGST, or IGST), e.g. 18.
 - lines: one per item row with the full item description (include drawing / part numbers and sizes printed with it), HSN/SAC, ordered quantity, unit, and rate per unit before tax.` },
 };
+// Old-data import: any printed report (party list, item list, outstanding, bank statement) read as a table with the columns the app asks for.
+function tableKind(b) {
+  const cols = (Array.isArray(b.cols) ? b.cols : []).slice(0, 12).map((c) => String(c ?? "").replace(/[^\w %./()&-]/g, "").slice(0, 40)).filter(Boolean);
+  if (!cols.length) return null;
+  const row = {}; cols.forEach((_, i) => { row["c" + i] = S; });
+  return {
+    schema: obj({ rows: { type: "array", items: obj(row) } }),
+    prompt: () => `This is a report printed from an old accounting / ERP system. Read the table in it and return every data row (all pages), with these columns:
+${cols.map((c, i) => `c${i} = ${c}`).join("\n")}
+Rules: copy values exactly as printed (numbers without currency symbols, dates as printed). Use an empty string when a column is not in the report. Skip headings, page headers, subtotals and grand totals. Never invent rows.`,
+  };
+}
 async function scanDoc(b) {
   if (!process.env.ANTHROPIC_API_KEY) return { status: 501, body: { error: "Document reading is not set up yet (ANTHROPIC_API_KEY missing on Netlify)", noKey: true } };
-  const K = SCAN[b.kind]; if (!K) return { status: 400, body: { error: "Bad request" } };
+  const K = b.kind === "table" ? tableKind(b) : SCAN[b.kind]; if (!K) return { status: 400, body: { error: "Bad request" } };
   const media = String(b.media || ""), data = b.data, isPdf = media === "application/pdf";
   if (!isPdf && !/^image\/(jpeg|png|webp|gif)$/.test(media)) return { status: 400, body: { error: "Use a PDF or a photo (JPG/PNG)" } };
   if (typeof data !== "string" || !data || data.length > 5_500_000) return { status: 400, body: { error: "File is too large. Use a PDF under 4 MB or a photo." } };

@@ -465,7 +465,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack"><h2 class="sec">Quotation value by customer</h2><div class="note">Quotes and orders dated in the last 90 days, not counting lost ones.</div><div id="sb-bars"></div>
       <h2 class="sec">Won orders, cost so far</h2><div class="tablebox" id="sb-won"></div><div class="note">Material cost comes from approved POs and store issues for the same Job No.</div></div>
   </div>
-  <div class="panel stack"><div class="row"><h2 class="sec">Customers</h2><input id="cu-q" placeholder="Search customer" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-cu-import" type="button">Import from Excel</button><input type="file" id="cu-file" accept=".xlsx,.xls,.csv" hidden></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Customers</h2><input id="cu-q" placeholder="Search customer" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-cu-import" type="button">Import from Excel</button><input type="file" id="cu-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
     <form class="addrow" id="cu-form"><input id="cu-name" placeholder="Customer name"><input id="cu-contact" placeholder="Contact person"><input id="cu-phone" placeholder="Mobile"><input id="cu-city" placeholder="City" style="max-width:140px"><button class="btn primary" type="submit">Add</button></form>
     <div class="tablebox"><table class="mt" style="min-width:1300px"><thead><tr><th>Customer</th><th>Contact person</th><th>Mobile</th><th>Email</th><th>City</th><th>PIN</th><th>GSTIN</th><th>Address</th><th class="num">Open quotes</th><th class="num">Won this year</th><th>Last contact</th><th></th></tr></thead><tbody id="cu-body"></tbody></table></div></div>
 </section>
@@ -493,12 +493,12 @@ body.gated header.bar,body.gated main{display:none}
 <!-- MASTERS -->
 <section id="view-mast" class="stack" hidden>
   <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:10px;font-size:15px"><b>Show list</b><select id="mast-pick" style="width:auto;min-width:240px;font-size:15px">
-    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments and HODs</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="opening">Opening bills (old ERP)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
+    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments and HODs</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="opening">Opening bills (old ERP)</option><option value="import">Import old data (Admin)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
   <div class="masters">
     <div class="panel stack" data-mp="depts"><h2 class="sec">Departments</h2>
       <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt"><thead><tr><th>Department</th><th>HOD</th><th></th></tr></thead><tbody id="m-depts"></tbody></table></div></div>
-    <div class="panel stack" data-mp="sups" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv" hidden></div>
+    <div class="panel stack" data-mp="sups" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
       <form class="addrow" id="m-sup-form"><input id="ms-name" placeholder="Supplier name"><input id="ms-gst" placeholder="GSTIN"><input id="ms-terms" placeholder="Pay terms e.g. 60 Days"><button class="btn primary" type="submit">Add</button></form>
       <div class="note">The state is read from the first two digits of the GSTIN (27 is Maharashtra, so CGST + SGST; any other state gets IGST).</div>
       <div class="tablebox"><table class="mt" style="min-width:860px"><thead><tr><th>Name</th><th>Address</th><th>GSTIN</th><th>State</th><th>Pay terms</th><th>Contact</th><th></th></tr></thead><tbody id="m-sups"></tbody></table></div></div>
@@ -508,7 +508,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack" data-mp="projs" style="grid-column:1/-1"><h2 class="sec">Projects</h2>
       <form class="addrow" id="m-proj-form"><input id="mp-no" placeholder="Job No. e.g. ZT2350"><input id="mp-desc" placeholder="Description"><input id="mp-cust" placeholder="Customer"><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt" style="min-width:560px"><thead><tr><th>Job No.</th><th>Description</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody id="m-projs"></tbody></table></div></div>
-    <div class="panel stack" data-mp="items" style="grid-column:1/-1" id="itemsPanel"><div class="row"><h2 class="sec">Items</h2><span class="note" id="itCount"></span><span style="flex:1"></span><button class="btn" id="btn-it-import" type="button">Import from Excel</button><input type="file" id="it-file" accept=".xlsx,.xls,.csv" hidden><button class="btn" id="btn-it-export" type="button">Download list</button></div>
+    <div class="panel stack" data-mp="items" style="grid-column:1/-1" id="itemsPanel"><div class="row"><h2 class="sec">Items</h2><span class="note" id="itCount"></span><span style="flex:1"></span><button class="btn" id="btn-it-import" type="button">Import from Excel</button><input type="file" id="it-file" accept=".xlsx,.xls,.csv,.pdf" hidden><button class="btn" id="btn-it-export" type="button">Download list</button></div>
       <div class="note">Import your Item &amp; Service Master workbook (ITEM MASTER and SERVICE MASTER sheets are both read), or a product list exported from your old ERP. Columns are matched by their headings and you see a preview, with missing codes, HSN/SAC and GST flagged, before anything is saved. "Download list" gives the same two-sheet layout back. Item names then show up as suggestions on requests, estimates, POs and sales documents.</div>
       <form class="addrow" id="m-item-form"><select id="mi-kind" style="max-width:110px"><option>Item</option><option>Service</option></select><input id="mi-code" placeholder="Code" style="max-width:110px"><input id="mi-name" placeholder="Item name"><input id="mi-cat" placeholder="Category" list="itemcats" style="max-width:160px"><input id="mi-unit" placeholder="Unit" style="max-width:70px"><input id="mi-hsn" placeholder="HSN" style="max-width:90px"><input id="mi-gst" placeholder="GST %" type="number" step="any" style="max-width:70px"><button class="btn primary" type="submit">Add</button></form>
       <div class="row"><input id="it-q" placeholder="Search name or code" style="max-width:260px"><select id="it-kind" style="width:auto"><option value="">Items and services</option><option value="Item">Items only</option><option value="Service">Services only</option></select><select id="it-cat" style="width:auto"></select></div><datalist id="itemtypes"><option value="Raw Material"><option value="Bought-out"><option value="Finished Good"><option value="Semi-finished"><option value="Consumable"><option value="Tooling"><option value="Spare"><option value="Packing Material"><option value="Job Work"><option value="Machining"><option value="Heat Treatment"><option value="Surface Treatment"><option value="Design"><option value="CAM Programming"><option value="Inspection"><option value="Transport"></datalist>
@@ -518,6 +518,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack" data-mp="salescfg" id="salesCfgPanel" style="grid-column:1/-1"></div>
     <div class="panel stack" data-mp="mach" id="machPanel"></div>
     <div class="panel stack" data-mp="opening" id="openPanel" style="grid-column:1/-1"></div>
+    <div class="panel stack" data-mp="import" id="importPanel" style="grid-column:1/-1"></div>
   </div>
 </section>
 
@@ -1849,7 +1850,7 @@ $("#m-sup-form").onsubmit=e=>{e.preventDefault();const n=$("#ms-name").value.tri
   const g=$("#ms-gst").value.trim().toUpperCase();suppliers.push({name:n,addr:"",gstin:g,state:/^\d\d/.test(g)?g.slice(0,2):"27",terms:$("#ms-terms").value.trim()||"60 Days",contact:""});saveSups();renderSups();
   $("#ms-name").value="";$("#ms-gst").value="";$("#ms-terms").value="";toast(`Added ${n}. Fill in the address in the table.`)};
 function renderMasters(){
-  renderSups();renderItems();renderSalesCfg();renderMachines();renderMastCusts();renderOpening();mastPick();
+  renderSups();renderItems();renderSalesCfg();renderMachines();renderMastCusts();renderOpening();renderImportHub();mastPick();
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   $("#md-hod").innerHTML=opts(hods,"","HOD (optional)");
@@ -2005,12 +2006,12 @@ $("#btn-it-export").onclick=async()=>{if(!window.XLSX){toast("Excel tools did no
 $("#btn-it-import").onclick=()=>$("#it-file").click();
 $("#it-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
   if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
-  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const blocks=[];
+  try{const wb=await readBook(f,IT_FIELDS);const blocks=[];
     wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});let best=null;
       for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r]);const sc=Object.keys(m).length;if(m.name!=null&&sc>=2&&(!best||sc>best.sc))best={sc,sn,rows,hr:r,map:m}}
       if(best){const H=(rows[best.hr]||[]).map(itNorm).join(" ");best.kind=/servic/i.test(sn)||/servicecode|servicename|saccode/.test(H)?"Service":"Item";blocks.push(best)}});
     if(!blocks.length){toast("Could not find an item name column. Make sure the sheet has a heading like Item Name or Description.");return}
-    const top=Math.max(...blocks.map(b=>b.sc));itPreview(f.name,blocks.filter(b=>b.sc>=Math.min(4,top)))}catch(err){toast("Could not read that file. Save it as .xlsx or .csv and try again.")}};
+    const top=Math.max(...blocks.map(b=>b.sc));itPreview(f.name,blocks.filter(b=>b.sc>=Math.min(4,top)))}catch(err){toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}};
 function itGuess(hrow,F=IT_FIELDS){const H=(hrow||[]).map(itNorm),m={},used=new Set();
   const take=(f,j)=>{m[f]=j;used.add(j)};
   F.forEach(([f,,syn])=>{for(const s0 of syn){const s=s0.replace(/^=/,"");const j=H.findIndex((h,j)=>h===s&&!used.has(j));if(j>=0){take(f,j);break}}});
@@ -2228,7 +2229,7 @@ const PARTY_FIELDS=[["name","Name",["accountname","partyname","ledgername","cust
 const GSTIN_RE=/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 async function partyImport(f,dflt){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   const canC=has("sales.edit"),canS=can("mast");
-  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});let best=null;
+  try{const wb=await readBook(f,PARTY_FIELDS);let best=null;
     wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:false});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],PARTY_FIELDS);const sc=Object.keys(m).length;if(m.name!=null&&sc>=2&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
     if(!best){toast("Could not find a name column with a heading like Account Name, Party Name or Customer Name");return}
     const P=[];let skip=0,dupN=0;const skipG={},seen=new Map(),twin=[];
@@ -2262,7 +2263,7 @@ async function partyImport(f,dflt){if(!window.XLSX){toast("Excel tools did not l
         const s=suppliers.find(s=>key(s.name)===key(x.name));if(s){fill(s,v);us++}else{suppliers.push({contact:"",...v,state:v.state||"27"});ns++}});saveSups()}
       d.remove();if(typeof renderSups==="function")renderSups();if(typeof renderMastCusts==="function")renderMastCusts();if(can("sales"))renderSales();
       toast(`Imported ${nc} new customers${uc?` (${uc} updated)`:""}, ${ns} new suppliers${us?` (${us} updated)`:""}`)}}
-  catch(err){console.error(err);toast("Could not read that file. Save it as .xlsx or .csv and try again.")}}
+  catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
 function docQuote(d){const c=custByName(d.cust)||{name:d.cust};const L=(d.lines||[]).filter(l=>String(l.desc||"").trim()||+l.rate);
   const sub=L.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0)||(+d.value||0),g=+d.gst||0,gst=sub*g/100,tot=sub+gst;const intra=!c.gstin||c.gstin.startsWith("27");
   const tax=g?(intra?`<tr><td>C-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr><tr><td>S-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr>`:`<tr><td>I-GST ${g}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst)}</td></tr>`):"";
@@ -2656,7 +2657,7 @@ const OB_FIELDS=[["party","Party",["partyname","customername","suppliername","ve
   ["amt","Bill amount",["billamount","invoiceamount","invoicevalue","billvalue","grandtotal","totalamount","amount","total","value","openingamount"]],
   ["paid","Already received or paid",["alreadyreceivedorpaid","alreadyreceived","alreadypaid","amountreceived","amountpaid","received","paid","receipt","payment"]],
   ["bal","Balance",["balance","balanceamount","pendingamount","pending","outstanding","outstandingamount","closingbalance","dueamount","due"]],
-  ["days","Credit days",["creditdays","paydays","paymentdays","duedays","creditperiod","days","terms","paymentterms"]],
+  ["days","Credit days",["creditdays","crdays","creditday","paydays","paymentdays","duedays","creditperiod","days","terms","paymentterms"]],
   ["due","Due date",["duedate","dueon"]],
   ["plant","Plant",["plant","branch","unit"]]];
 const obNum=v=>{if(typeof v==="number")return v;const s=String(v??"").replace(/[₹,\s]|rs\.?|inr/gi,"");const n=parseFloat(s.replace(/(dr|cr)$/i,""));return isNaN(n)?0:(/cr$/i.test(s)?-n:n)};
@@ -2679,7 +2680,7 @@ async function obTemplate(){if(!window.XLSX){toast("Excel tools did not load. Ch
 let obPrev=null,obRc=null;
 const obCan=()=>isRole("Admin")||has("acct.book");
 async function obImport(f,kind){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
-  try{const csv=/\.csv$/i.test(f.name);const wb=XLSX.read(csv?await f.text():await f.arrayBuffer(),{type:csv?"string":"array",raw:csv,cellDates:true});let best=null;
+  try{const wb=await readBook(f,OB_FIELDS,"csv");let best=null;
     wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:true,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],OB_FIELDS);const sc=Object.keys(m).length;const pref=kind==="cust"?/cust|debtor|receiv|sale/i.test(sn):/supp|vendor|creditor|payab|purch/i.test(sn);
       if(m.party!=null&&(m.amt!=null||m.bal!=null)&&sc>=3&&(!best||sc+(pref?5:0)>best.sc))best={sc:sc+(pref?5:0),rows,hr:r,map:m,sn}}});
     if(!best){toast("Could not find the columns. The sheet needs a party name column and a Bill amount or Balance column. Download the template to see the layout.");return}
@@ -2698,7 +2699,7 @@ async function obImport(f,kind){if(!window.XLSX){toast("Excel tools did not load
       const dRaw=String(g("days")??"").match(/\d+/),plRaw=String(g("plant")??"").trim().toUpperCase();
       out.push({id:itId(),kind,party:mk.get(key(party))||party,known:mk.has(key(party)),bill,date,amt:r2(amt),prior:r2(paid),days:dRaw?+dRaw[0]:"",due:obDate(g("due")),plant:plants().some(p=>p.id===plRaw)?plRaw:"P1",rcpts:[],by:me.name,at:today(),file:f.name})});
     obPrev={kind,fname:f.name,sn:best.sn,rows:out,bad,dup,map:best.map};renderOpening();$("#openPanel").scrollIntoView({block:"start"})}
-  catch(err){console.error(err);toast("Could not read that file. Save it as .xlsx or .csv and try again.")}}
+  catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
 const obLabel=k=>k==="cust"?"Customer":"Supplier";
 function renderOpening(){const P=$("#openPanel");if(!P)return;const ed=obCan();
   const q=key(($("#ob-q")||{}).value||""),tf=($("#ob-t")||{}).value||"";
@@ -2713,7 +2714,7 @@ function renderOpening(){const P=$("#openPanel");if(!P)return;const ed=obCan();
     ${R.length?`<div class="tablebox"><table class="mt" style="min-width:720px"><thead><tr><th>Party</th><th>Bill No</th><th>Bill date</th><th class="num">Amount</th><th class="num">Paid before</th><th class="num">Balance</th><th>Due</th><th>Plant</th></tr></thead><tbody>${R.slice(0,100).map(o=>`<tr><td>${esc(o.party)}</td><td>${esc(o.bill)}</td><td>${dmy(o.date)}</td><td class="num">${fmt(o.amt)}</td><td class="num">${o.prior?fmt(o.prior):""}</td><td class="num"><b>${fmt(o.amt-o.prior)}</b></td><td>${obDue(o)?dmy(obDue(o)):""}</td><td>${esc(o.plant)}</td></tr>`).join("")}</tbody></table></div>${R.length>100?`<div class="note">Showing the first 100.</div>`:""}`:""}
     <div class="row"><span style="flex:1"></span><button class="btn" id="ob-cancel" type="button">Cancel</button>${R.length?`<button class="btn primary" id="ob-go" type="button">Import ${R.length} bills</button>`:""}</div></div>`}
   P.innerHTML=`<div class="row"><h2 class="sec">Opening bills (old ERP)</h2><span style="flex:1"></span>${ed?`<button class="btn" id="ob-tpl" type="button">Download template</button><button class="btn" id="ob-imp-c" type="button">Import customer bills</button><button class="btn" id="ob-imp-s" type="button">Import supplier bills</button>`:""}</div>
-  <div class="note">Bills from your old ERP that are still unpaid on the day you start. Customer bills show in Customer outstanding and ageing on the Tax invoices page and on the owner summary, and you record their receipts here; supplier bills show in Accounts &gt; Vendor payments, where you pay them like a GRN. They are not counted in GST registers or stock. Import from Excel (.xlsx, .xls) or CSV; the template shows the columns. PDF cannot be read reliably, so export the outstanding report from the old ERP to Excel instead.</div>
+  <div class="note">Bills from your old ERP that are still unpaid on the day you start. Customer bills show in Customer outstanding and ageing on the Tax invoices page and on the owner summary, and you record their receipts here; supplier bills show in Accounts &gt; Vendor payments, where you pay them like a GRN. They are not counted in GST registers or stock. Import from Excel (.xlsx, .xls) or CSV; the template shows the columns. A PDF of the outstanding report also works if it has column headings; Excel or CSV is the most reliable.</div>
   <div class="row" style="gap:16px;flex-wrap:wrap"><span>Customers owe <b>₹ ${fmt(tot("cust"))}</b></span><span>You owe suppliers <b>₹ ${fmt(tot("sup"))}</b></span></div>
   ${pv}
   <div class="row"><select id="ob-t" style="width:auto"><option value="">Customers and suppliers</option><option value="cust"${tf==="cust"?" selected":""}>Customer bills</option><option value="sup"${tf==="sup"?" selected":""}>Supplier bills</option></select><input id="ob-q" placeholder="Search party or bill" style="max-width:240px" value="${esc(($("#ob-q")||{}).value||"")}"><span class="note">${L.length} bills</span></div>
@@ -2721,7 +2722,7 @@ function renderOpening(){const P=$("#openPanel");if(!P)return;const ed=obCan();
     return`<tr><td>${obLabel(o.kind)}</td><td><b>${esc(o.party)}</b></td><td>${esc(o.bill)}</td><td>${dmy(o.date)}</td><td style="${b>0.004&&d&&d<today()?"color:var(--danger);font-weight:600":""}">${d?dmy(d):""}</td><td class="num">${fmt(o.amt)}</td><td class="num">${o.prior?fmt(o.prior):""}</td><td class="num">${since?fmt(since):""}</td><td class="num"><b>${b>0.004?fmt(b):"Paid"}</b></td><td style="white-space:nowrap">${ed&&o.kind==="cust"&&b>0.004?`<button class="btn" data-obrc="${o.id}" type="button">Receipt</button> `:""}${ed&&!since?`<button class="btn" data-obdel="${o.id}" type="button" title="Remove this bill">✕</button>`:""}</td></tr>
     ${o.kind==="cust"&&rcptsOf(o).length?`<tr><td></td><td colspan="9" class="note">${rcptsOf(o).map((r,i)=>`Received ₹ ${fmt(r.amt)} on ${dmy(r.date)}${r.ref?" ("+esc(r.ref)+")":""}${ed?` <a href="#" data-obrcdel="${o.id}:${i}">remove</a>`:""}`).join(" · ")}</td></tr>`:""}
     ${obRc===o.id?`<tr><td></td><td colspan="9"><div class="row" style="gap:8px;flex-wrap:wrap"><label class="f">Date<input id="obr-date" type="date" value="${today()}"></label><label class="f">Amount ₹<input id="obr-amt" type="number" step="0.01" value="${b.toFixed(2)}"></label><label class="f">Cheque / UTR ref.<input id="obr-ref"></label><button class="btn primary" id="obr-save" type="button" style="align-self:flex-end">Save receipt</button><button class="btn" id="obr-x" type="button" style="align-self:flex-end">Cancel</button></div></td></tr>`:""}`}).join("")}</tbody></table></div>`:`<div class="empty">${obills.length?"No bill matches.":"No opening bills yet. Download the template, fill it from your old ERP's outstanding report, and import it."}</div>`}
-  <input type="file" id="ob-file" accept=".xlsx,.xls,.csv" hidden>`}
+  <input type="file" id="ob-file" accept=".xlsx,.xls,.csv,.pdf" hidden>`}
 $("#openPanel").addEventListener("click",e=>{const t=e.target;
   if(t.id==="ob-tpl"){obTemplate();return}
   if(t.id==="ob-imp-c"||t.id==="ob-imp-s"){const inp=$("#ob-file");inp.dataset.kind=t.id==="ob-imp-c"?"cust":"sup";inp.click();return}
@@ -2781,7 +2782,7 @@ function bkUndo(l){if(l.link&&l.link.ex){if(l.link.ex.startsWith("pay:")){const 
   else{sorders.forEach(s=>{if(Array.isArray(s.adv)&&s.adv.some(r=>r.bank===l.id)){s.adv=s.adv.filter(r=>r.bank!==l.id);store.set("sorders",sorders)}});invoices.forEach(x=>{if(Array.isArray(x.rcpts))x.rcpts=x.rcpts.filter(r=>r.bank!==l.id)});obills.forEach(o=>{if(Array.isArray(o.rcpts))o.rcpts=o.rcpts.filter(r=>r.bank!==l.id)});store.set("invoices",invoices);saveOB()}
   l.status="";l.link=null;saveBank()}
 async function bkImport(f){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
-  try{const csv=/\.csv$/i.test(f.name);const wb=XLSX.read(csv?await f.text():await f.arrayBuffer(),{type:csv?"string":"array",raw:csv,cellDates:true});let best=null;
+  try{const wb=await readBook(f,BK_FIELDS,"csv");let best=null;
     wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:true,defval:"",raw:true});for(let r=0;r<Math.min(40,rows.length);r++){const m=itGuess(rows[r],BK_FIELDS);const sc=Object.keys(m).length;
       if(m.date!=null&&((m.dr!=null&&m.cr!=null)||m.amt!=null)&&sc>=3&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
     if(!best){toast("Could not find the columns. The statement needs Date, Narration and Withdrawal/Deposit (or Amount with Dr/Cr) headings.");return}
@@ -2793,7 +2794,7 @@ async function bkImport(f){if(!window.XLSX){toast("Excel tools did not load. Che
       if(have.has(id)){dup++;return}have.add(id);out.push({id,date,narr,ref,dr:dr?Math.round(dr*100)/100:0,cr:cr?Math.round(cr*100)/100:0,bal:obNum(g("bal"))||"",status:"",link:null,file:f.name,at:today(),by:me.name})});
     bank.push(...out);bank.sort((a,b)=>b.date.localeCompare(a.date));saveBank();bkF="open";renderBank();
     toast(`${out.length} new lines from ${f.name}${dup?`, ${dup} already uploaded`:""}`)}
-  catch(err){console.error(err);toast("Could not read that file. Save the statement as .xlsx or .csv and try again.")}}
+  catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save the statement as .xlsx, .csv or a text PDF and try again.")}}
 function renderBank(){const P=$("#bankPanel");if(!P)return;const ed=has("acct.book");
   const q=key(($("#bk-q")||{}).value||"");const taken=bkTaken(),BD=bkBills("dr"),BC=bkBills("cr");
   const L=bank.filter(l=>(bkF==="all"||(bkF==="open"?!l.status:l.status===bkF))&&(!q||key(l.narr+" "+l.ref+" "+bkAmt(l)+" "+((l.link||{}).party||"")).includes(q)));
@@ -2807,7 +2808,7 @@ function renderBank(){const P=$("#bankPanel");if(!P)return;const ed=has("acct.bo
     else if(l.status==="linked"){const k=l.link||{};act=`<span class="chip calc">Linked</span> <b>${esc(k.party||"")}</b> <span class="note">${k.adv?esc(k.adv):k.pay?`payment ${k.pay}`:k.bills?esc(k.bills.join(", ")):esc(k.note||"")}</span>${ed?` <a href="#" data-bku="${esc(l.id)}">undo</a>`:""}`}
     else if(l.status==="ignored")act=`<span class="chip">Ignored</span>${l.note?` <span class="note">${esc(l.note)}</span>`:""}${ed?` <a href="#" data-bku="${esc(l.id)}">undo</a>`:""}`;
     return`<tr><td style="white-space:nowrap">${dmy(l.date)}</td><td style="max-width:320px">${esc(l.narr)}${l.ref?`<div class="note">Ref ${esc(l.ref)}</div>`:""}</td><td class="num">${l.dr?fmt(l.dr):""}</td><td class="num">${l.cr?fmt(l.cr):""}</td><td>${act}</td></tr>`};
-  P.innerHTML=`<div class="row"><h2 class="sec">Bank statement</h2><span style="flex:1"></span>${ed?`<button class="btn" id="bk-up" type="button">Upload statement (.xlsx / .csv)</button>`:""}<input type="file" id="bks-file" accept=".xlsx,.xls,.csv" hidden></div>
+  P.innerHTML=`<div class="row"><h2 class="sec">Bank statement</h2><span style="flex:1"></span>${ed?`<button class="btn" id="bk-up" type="button">Upload statement (.xlsx / .csv)</button>`:""}<input type="file" id="bks-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
   <div class="note">Download the statement from net banking as Excel or CSV and upload it here. Lines already uploaded are skipped. For each withdrawal the app suggests the supplier bills it pays, and for each deposit the customer invoices it settles, by matching the amount (one bill, several bills together, or a short payment for TDS) and the party name in the narration. Linking a withdrawal records the vendor payment; linking a deposit records the receipt on the invoices. Payments you already entered by hand are offered as "already entered" so nothing is counted twice.</div>
   <div class="row" style="gap:8px;flex-wrap:wrap">${[["open","To link"],["linked","Linked"],["ignored","Ignored"],["all","All"]].map(([k,t])=>`<button class="btn${bkF===k?" primary":""}" type="button" data-bkf="${k}">${t}${k!=="all"?` (${cnt(k)})`:""}</button>`).join("")}<input id="bk-q" placeholder="Search narration, amount, party" style="max-width:240px" value="${esc(($("#bk-q")||{}).value||"")}">${ed&&bkF==="open"&&exact.length?`<span style="flex:1"></span><button class="btn primary" type="button" id="bk-all">Link ${exact.length} exact match${exact.length>1?"es":""}</button>`:""}</div>
   ${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Date</th><th>Narration</th><th class="num">Withdrawal</th><th class="num">Deposit</th><th>Bill</th></tr></thead><tbody>${L.slice(0,bkMore).map(row).join("")}</tbody></table></div>${L.length>bkMore?`<button class="btn" type="button" id="bk-more">Show more (${L.length-bkMore} left)</button>`:""}`:`<div class="empty">${bank.length?"Nothing here.":"No statement uploaded yet."}</div>`}`}
@@ -2865,10 +2866,58 @@ $("#advPanel").addEventListener("click",e=>{const t=e.target;
   if(t.id==="adv-save"&&advForm){const doc=$("#adv-doc").value,amt=+$("#adv-amt").value||0,ref=$("#adv-ref").value.trim();if(!doc){toast("Pick the order");return}if(amt<=0){toast("Enter the amount");return}
     const r=advSave(advForm.side,doc,amt,$("#adv-date").value||today(),ref,($("#adv-mode")||{}).value);if(r)toast(`Saved: ${r.adv}`);advForm=null;renderAcct();return}
   if(t.dataset.advdel){if(!confirm("Remove this advance?"))return;const k=t.dataset.advdel;if(k[0]==="p"){const i=pays.findIndex(p=>"p"+p.no===k);if(i>=0){pays.splice(i,1);savePays()}}else{const [sno,id]=k.slice(1).split(":");const s=sorders.find(x=>String(x.no)===sno);if(s){s.adv=(s.adv||[]).filter(r=>r.id!==id);store.set("sorders",sorders)}}renderAcct()}});
+/* ---------- PDF reports as import tables (text PDFs in the browser, scanned PDFs via the document reader) ---------- */
+async function pdfGrid(buf,F){const L=await pdfjs();const doc=await L.getDocument({data:new Uint8Array(buf.slice(0))}).promise;const lines=[];
+  for(let p=1;p<=Math.min(doc.numPages,80);p++){const tc=await(await doc.getPage(p)).getTextContent();const R=[];
+    tc.items.forEach(it=>{const s=String(it.str||"");if(!s.trim())return;const x=it.transform[4],y=it.transform[5],w=it.width||s.length*4;let r=R.find(r=>Math.abs(r.y-y)<3);if(!r)R.push(r={y,c:[]});r.c.push({x,x2:x+w,s})});
+    R.sort((a,b)=>b.y-a.y).forEach(r=>{r.c.sort((a,b)=>a.x-b.x);const m=[];r.c.forEach(c=>{const l=m[m.length-1];if(l&&c.x-l.x2<2.5){l.s+=(c.x-l.x2>0.8?" ":"")+c.s;l.x2=Math.max(l.x2,c.x2)}else m.push({...c})});lines.push(m.map(c=>({...c,s:c.s.replace(/\s+/g," ").trim()})).filter(c=>c.s))})}
+  if(lines.reduce((a,l)=>a+l.length,0)<15)return null;
+  let best=null;lines.slice(0,400).forEach((l,i)=>{const sc=Object.keys(itGuess(l.map(c=>c.s),F)).length;if(sc>=2&&(!best||sc>best.sc))best={sc,i}});
+  if(!best)return null;
+  const H=lines[best.i],cen=c=>(c.x+c.x2)/2,out=[H.map(c=>c.s)];
+  lines.slice(best.i+1).forEach(l=>{if(Object.keys(itGuess(l.map(c=>c.s),F)).length>=best.sc)return;const row=H.map(()=>"");
+    l.forEach(c=>{let j=H.findIndex(h=>c.x<h.x2+2&&c.x2>h.x-2);if(j<0){let d=1e9;H.forEach((h,k)=>{const e=Math.abs(cen(h)-cen(c));if(e<d){d=e;j=k}})}row[j]=row[j]?row[j]+" "+c.s:c.s});
+    if(row.filter(Boolean).length>=2)out.push(row)});
+  return out.length>1?out:null}
+async function pdfAI(f,F){if(!CLOUD)throw userErr("This PDF is a scanned image. Reading scanned PDFs needs the online app; export the report to Excel instead.");
+  const buf=await f.arrayBuffer();if(buf.byteLength>4e6)throw userErr("This PDF is over 4 MB. Split it or export the report to Excel.");
+  const cols=F.slice(0,12).map(([,l])=>l);
+  const r=await api("scan-doc",{method:"POST",body:{kind:"table",media:"application/pdf",data:b64(buf),cols,ownGstins:ownGstins(),us:COMPANY.name}});
+  const rows=((r.fields||{}).rows||[]).map(o=>cols.map((c,i)=>o["c"+i]??""));return[cols].concat(rows)}
+/* any import: Excel/CSV as before, PDF turned into a one-sheet workbook */
+async function readBook(f,F,xlOpts){const pdf=/\.pdf$/i.test(f.name||"")||/pdf/i.test(f.type||"");
+  if(!pdf){const csv=/\.csv$/i.test(f.name||"");return xlOpts==="csv"&&csv?XLSX.read(await f.text(),{type:"string",raw:true,cellDates:true}):XLSX.read(await f.arrayBuffer(),Object.assign({type:"array"},xlOpts==="csv"?{cellDates:true}:{}))}
+  toast("Reading the PDF…");let rows=null;
+  try{rows=await pdfGrid(await f.arrayBuffer(),F)}catch(e){if(e&&e.user)throw e}
+  if(!rows){try{rows=await pdfAI(f,F)}catch(e){throw e&&e.user?e:userErr(e&&e.status===501?"This PDF has no readable table and the document reader is not set up (ANTHROPIC_API_KEY). Export the report to Excel instead.":"Could not read a table from this PDF. Export the report to Excel or CSV instead.")}}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"PDF");return wb}
+/* admin: one place to bring in old data */
+function renderImportHub(){const P=$("#importPanel");if(!P)return;if(!isRole("Admin")){P.innerHTML=`<div class="empty">Only the Admin can import old data.</div>`;return}
+  const card=(t,d,btns)=>`<div class="panel stack" style="padding:12px"><b>${t}</b><div class="note">${d}</div><div class="row" style="gap:8px;flex-wrap:wrap">${btns}</div></div>`;
+  const b=(id,t,pri)=>`<button class="btn${pri?" primary":""}" type="button" data-imp="${id}">${t}</button>`;
+  P.innerHTML=`<h2 class="sec">Import old data</h2>
+  <div class="note">Bring in data from the old ERP or from your own sheets. Every import accepts <b>Excel (.xlsx, .xls), CSV or PDF</b>, shows a preview before anything is saved, and skips records that are already in. For PDF, use the report as printed by the old ERP (with column headings); scanned PDFs are read by the online document reader. Excel or CSV is still the most reliable, so prefer it when the old ERP can export.</div>
+  <div class="grid-fields" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+  ${card("1. Customers and suppliers","Party list or ledger list with GSTIN, address, city, PIN, contact. A Group column (Sundry Debtors / Creditors) splits customers from suppliers.",b("party","Choose file",1))}
+  ${card("2. Items and services","Item and Service Master with HSN, GST %, units and rates. An opening stock column sets opening stock.",b("items","Choose file",1))}
+  ${card("3. Customers' unpaid bills","Outstanding receivables on the start date: party, bill no., date, amount, received, credit days.",b("obc","Choose file",1)+b("tpl","Template"))}
+  ${card("4. Suppliers' unpaid bills","Outstanding payables on the start date, same columns as above.",b("obs","Choose file",1)+b("tpl","Template"))}
+  ${card("5. Bank statement","Statement from net banking; lines are matched to the bills above.",b("bank","Choose file",1))}
+  ${card("6. Full backup","Restore a ZT-ERP LITE backup file (Home > Backup). Replaces everything.",b("restore","Go to backup"))}
+  </div><input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden>`}
+$("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!k)return;
+  if(k==="tpl"){obTemplate();return}
+  if(k==="restore"){show("home");return}
+  if(k==="bank"){show("acct");setTimeout(()=>{const i=$("#bks-file");if(i)i.click()},50);return}
+  if(k==="party"){$("#sup-file").click();return}
+  if(k==="items"){$("#it-file").click();return}
+  const i=$("#imp-file");i.dataset.kind=k;i.click()});
+$("#importPanel").addEventListener("change",e=>{if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
+  mastSel="opening";mastPick();renderOpening();obImport(f,k==="obc"?"cust":"sup")});
 /* masters: one list at a time, customer master */
 const projCan=a=>has("proj."+a)||has("mast.edit");const projOnly=()=>!has("mast.view");
 let mastSel="items";try{mastSel=localStorage.getItem("zpo:mastPick")||"items"}catch(e){}
-function mastPick(){const sel=$("#mast-pick");if(!sel)return;const po=projOnly();[...sel.options].forEach(o=>o.hidden=po&&o.value!=="projs");if(po)mastSel="projs";sel.value=mastSel;document.querySelectorAll("#view-mast [data-mp]").forEach(p=>{p.hidden=mastSel!=="all"&&p.dataset.mp!==mastSel;if(!p.hidden&&mastSel!=="all")p.style.gridColumn="1/-1"})}
+function mastPick(){const sel=$("#mast-pick");if(!sel)return;const po=projOnly();[...sel.options].forEach(o=>o.hidden=po&&o.value!=="projs");{const io=sel.querySelector('option[value="import"]');if(io&&!isRole("Admin")){io.hidden=true;if(mastSel==="import")mastSel="items"}}if(po)mastSel="projs";sel.value=mastSel;document.querySelectorAll("#view-mast [data-mp]").forEach(p=>{p.hidden=mastSel!=="all"&&p.dataset.mp!==mastSel;if(!p.hidden&&mastSel!=="all")p.style.gridColumn="1/-1"})}
 $("#mast-pick").onchange=e=>{mastSel=e.target.value;try{localStorage.setItem("zpo:mastPick",mastSel)}catch(err){}mastPick();window.scrollTo(0,0)};
 const MC_F=[["name",200],["addr",260],["city",100],["pin",80],["gstin",150],["state",50],["contact",130],["phone",120],["email",180]];
 function renderMastCusts(){const B=$("#m-custs");if(!B)return;const q=key($("#mc-q").value),ed=has("mast.edit")||has("sales.edit");
