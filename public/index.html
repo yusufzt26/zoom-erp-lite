@@ -14,6 +14,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
+/* number boxes: type the number, no up/down arrows */
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 /* Layout: workshop desk. Sticky tool bar, one working sheet per tab, the PO rendered as an A4 sheet. */
 :root{
   --bg:#eef1f3; --panel:#ffffff; --ink:#1b2328; --muted:#5d6b74; --line:#cfd7dc;
