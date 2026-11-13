@@ -6,6 +6,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
+/* number boxes: type the number, no up/down arrows */
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 /* Layout: workshop desk. Sticky tool bar, one working sheet per tab, the PO rendered as an A4 sheet. */
 :root{
   --bg:#eef1f3; --panel:#ffffff; --ink:#1b2328; --muted:#5d6b74; --line:#cfd7dc;
@@ -264,12 +267,12 @@ body.gated header.bar,body.gated main{display:none}
     </div>
     <div class="tablebox">
       <table class="est" style="min-width:760px">
-        <thead><tr><th style="width:34px">Sr</th><th>Description of material</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
+        <thead id="reqHead"><tr><th style="width:34px">Sr</th><th>Description of material</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
         <tbody id="reqBody"></tbody>
       </table>
     </div>
     <div class="note xlhint">Works like Excel: paste rows or columns copied from Excel into any cell. Arrows, Tab and Enter move between cells (Enter on the last row adds a line). Shift+arrows, drag, or click a column heading to select; Ctrl+C copies, Ctrl+V pastes, Delete clears. Double-click or F2 to edit inside a cell.</div>
-    <div class="row"><button class="btn" id="btn-q-line">Add line</button><span style="flex:1"></span>
+    <div class="row"><button class="btn" id="btn-q-line">Add line</button><button class="btn" id="btn-q-clear" title="Remove every line and spec column from this request">Clear all</button><span style="flex:1"></span>
       <button class="btn primary" id="btn-q-submit">Submit request</button>
       <input id="q-comment" placeholder="Comment (needed to send back)" style="flex:1 1 220px;max-width:340px" hidden>
       <button class="btn" id="btn-q-back" hidden>Send back to requester</button>
@@ -311,7 +314,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="note">Type item, cost parts and qty. "EGP 60+130+20 x2" gives rate 210, amount 420. Leave out the parts ("Mold Leg x10") to use the suggested rate from the last PO or the rate list.</div>
     <div class="tablebox">
       <table class="est">
-        <thead><tr><th style="width:34px">Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr></thead>
+        <thead id="estHead"><tr><th style="width:34px">Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr></thead>
         <tbody id="estBody"></tbody>
       </table>
     </div>
@@ -721,13 +724,18 @@ function bindHeader(){fillPlantSels();
   fillItemList();
 }
 function lineAmt(l){return (+l.rate||0)*(+l.qty||0)}
+/* BOM specs in their own columns (Size, Block Vol...); l.spec stays the joined text used for rates and the PO */
+const estCols=()=>est&&Array.isArray(est.xcols)?est.xcols:[];
+const estJoin=l=>rqSpec({x:l.x,spec:l.xo},{xcols:estCols()});
 function renderEst(){
-  const tb=$("#estBody");
-  if(!est.lines.length){tb.innerHTML=`<tr><td colspan="10" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
+  const tb=$("#estBody"),xc=estCols();
+  $("#estHead").innerHTML=`<tr><th style="width:34px">Sn</th><th>Item</th>${xc.map(c=>`<th style="white-space:nowrap">${esc(c)}</th>`).join("")}<th>${xc.length?(xc.some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec"):"Specification"}</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr>`;
+  if(!est.lines.length){tb.innerHTML=`<tr><td colspan="${10+xc.length}" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
   else tb.innerHTML=est.lines.map((l,i)=>`<tr data-i="${i}">
     <td>${i+1}</td>
-    <td><input id="l${i}-item" data-k="item" value="${esc(l.item)}" list="itemnames"></td>
-    <td><input id="l${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
+    <td><input id="l${i}-item" data-k="item" value="${esc(l.item)}" list="itemnames"${xc.length?' style="min-width:180px"':""}></td>
+    ${xc.map((c,k)=>`<td><input id="l${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?120:70}px"></td>`).join("")}
+    <td><input id="l${i}-spec" data-k="${xc.length?"xo":"spec"}" value="${esc(xc.length?(l.xo??""):l.spec)}"></td>
     <td><input id="l${i}-expr" class="expr" data-k="expr" value="${esc(l.expr)}" aria-label="Cost parts, e.g. 60+130+20"></td>
     <td class="num"><input id="l${i}-rate" class="rate" data-k="rate" type="number" step="0.01" value="${l.rate??""}"></td>
     <td class="num"><input id="l${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
@@ -745,8 +753,9 @@ function srcChip(l){
 }
 function updateTotal(){$("#estTotal").textContent=fmt0(est.lines.reduce((a,l)=>a+lineAmt(l),0))}
 $("#estBody").addEventListener("input",e=>{
-  const tr=e.target.closest("tr");if(!tr)return;const i=+tr.dataset.i,l=est.lines[i],k=e.target.dataset.k;
-  l[k]=(k==="rate"||k==="qty")?(e.target.value===""?null:+e.target.value):e.target.value;
+  const tr=e.target.closest("tr");if(!tr)return;const i=+tr.dataset.i,l=est.lines[i];let k=e.target.dataset.k;
+  if(e.target.dataset.x!=null||k==="xo"){if(k==="xo")l.xo=e.target.value;else{l.x=l.x||{};l.x[e.target.dataset.x]=e.target.value}l.spec=estJoin(l);k="spec"}
+  else l[k]=(k==="rate"||k==="qty")?(e.target.value===""?null:+e.target.value):e.target.value;
   if(k==="expr"){const s=sumExpr(l.expr);if(s!=null){l.rate=s;l.src="calc";tr.querySelector(".rate").value=s}}
   if(k==="rate"){l.src="man";l.expr=""; tr.querySelector(".expr").value=""}
   if((k==="item"||k==="spec")&&!l.expr&&l.src!=="man"){const s=suggest(l.item,l.spec);if(s!=null){l.rate=s;l.src="sugg";tr.querySelector(".rate").value=s}}
@@ -782,49 +791,100 @@ $("#file-bom").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
     const {job,lines:raw}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
-    const lines=raw.map(r=>{const g=suggest(r.item,r.spec);return{item:r.item,spec:r.spec,expr:"",qty:r.qty,unit:est.unit||"NOS",rate:g,src:g!=null?"sugg":""}});
+    const cols=[];raw.forEach(r=>(r.x||[]).forEach(([c,v])=>{if(v&&!cols.includes(c))cols.push(c)}));
+    const lines=raw.map(r=>{const x={};(r.x||[]).forEach(([c,v])=>{if(v)x[c]=v});const xo=[r.note,r.remark].filter(Boolean).join(" · ");
+      const spec=cols.length?rqSpec({x,spec:xo},{xcols:cols}):r.spec;const g=suggest(r.item,spec);
+      return{item:r.item,spec,x,xo,expr:"",qty:r.qty,unit:est.unit||"NOS",rate:g,src:g!=null?"sugg":""}});
     if(!lines.length){toast("No item rows found in that sheet");return}
-    est={job:job||est.job,plant:est.plant||defPlant(),sup:est.sup,date:today(),unit:est.unit||"NOS",lines};isExample=false;saveEst();bindHeader();renderEst();
+    est={job:job||est.job,plant:est.plant||defPlant(),sup:est.sup,date:today(),unit:est.unit||"NOS",xcols:cols,lines};isExample=false;saveEst();bindHeader();renderEst();
     toast(`Imported ${lines.length} lines from ${f.name}`);
   }catch(err){toast("Could not read that file. Save it as .xlsx and try again.")}
   e.target.value="";
 };
 function parseBOM(wb){
-  /* reads BOM sheets by their column headings (description, qty, sizes, material, make, remarks...);
-     falls back to the old fixed ZT layout when no heading row is found */
+  /* reads BOM sheets by their column headings (part name / description, size, qty, material, remarks...),
+     then checks the data itself: a column of serial numbers is never taken as the description,
+     a column of sizes like 180x99 is found even without a "size" heading, and a size typed inside
+     the part name ("ANGLE PIN BLOCK D 180x99") is split out. Falls back to the old fixed ZT layout. */
   const H=v=>String(v??"").toLowerCase().replace(/\s+/g," ").trim();
-  const isDesc=h=>/desc|descr|part ?name|particular|component|item ?name|^item$|^name$/.test(h);
-  const isQty=h=>/^(qty|qnty|quantity|req\.? ?qty|nos|no\.? ?of)/.test(h);
-  const isDim=h=>/^(l|b|h|w|t|d|od|id|length|width|breadth|height|thk|thickness|dia|diameter|size|dimension|dimensions)$/.test(h.replace(/[().]/g,"").trim());
-  const isSr=h=>/^(sr|s\.? ?no|sl|sn|no\.?|#|[a-z])\.?$/.test(h);
+  const clean=h=>h.replace(/[().:\[\]]/g," ").replace(/\s+/g," ").trim();
+  const descRank=h=>/part ?name|descr|particular|component|item ?name|material ?name|^name$|^desc/.test(h)?2:/^(item|part|material)$/.test(clean(h))?1:0;
+  const isQty=h=>/^(qty|qnty|quantity|req\.? ?qty|nos\b|no\.? ?of)/.test(h);
+  const isSize=h=>/\bsize\b|dimension|^dims?$|finish(ed)? ?size|l ?x ?w|l ?x ?b/.test(clean(h));
+  /* one dimension heading: L, W, H, THK, DIA... also combined ones like "B / Ø" or "H/T", which join the size (180x99x110) */
+  const isDim=h=>{const p=clean(h).split(/\s*\/\s*/).filter(Boolean);return p.length>0&&p.every(x=>/^(l|b|h|w|t|d|ø|ф|φ|od|id|length|width|breadth|height|thk|thick|thickness|dia|diameter|dia ?ø|ø ?dia)$/.test(x))};
+  const isSr=h=>/^(sr|s ?no|sl|sl ?no|sr ?no|sn|no|#|item ?no|[a-z])$/.test(clean(h));
   const isRem=h=>/remark|note/.test(h),isUnit=h=>/^(unit|uom|units)$/.test(h),isCode=h=>/code|part ?no|drg|drawing/.test(h);
-  const headOf=r=>{const hs=r.map(H);const di=hs.findIndex(isDesc),qi=hs.findIndex(isQty);if(di<0||qi<0)return null;
-    const m={d:di,q:qi,dims:[],pre:[],post:[],rem:[],u:-1,c:-1};
-    hs.forEach((h,i)=>{if(!h||i===di||i===qi)return;if(isRem(h))m.rem.push(i);else if(isUnit(h))m.u=i;else if(isCode(h)&&m.c<0)m.c=i;else if(isDim(h))m.dims.push(i);else if(isSr(h)&&i<di)return;else if(i>di)(m.dims.length?m.post:m.pre).push(i)});return m};
+  const SIZE=/(?:^|[\s(])((?:Ø|ø|dia\.? ?)?\d+(?:\.\d+)?\s*[x×X*]\s*\d+(?:\.\d+)?(?:\s*[x×X*]\s*\d+(?:\.\d+)?)?)(?=$|[\s),;])/;
+  const isSizeVal=v=>SIZE.test(" "+v)&&!/[a-wyz]{3,}/i.test(v.replace(SIZE,""));
+  const isNum=v=>/^-?\d+(\.\d+)?$/.test(v);
+  const hasWord=v=>/[a-z]{2,}/i.test(v)&&!isSizeVal(v);
+  const label=h=>{const t=clean(h).replace(/\b\w/g,c=>c.toUpperCase());return t.length>14?t.slice(0,14):t};
   const val=v=>v==null?"":v instanceof Date?v.toLocaleDateString("en-IN"):String(v).trim();
+  const headOf=r=>{const hs=r.map(H);let di=-1,best=0;hs.forEach((h,i)=>{const k=descRank(h);if(k>best){best=k;di=i}});
+    const qi=hs.findIndex(isQty);if(di<0)return null;
+    /* a heading row needs a description column plus qty, or a strong description heading next to a size/qty-like heading */
+    if(qi<0&&!(best===2&&hs.some(h=>h&&(isSize(h)||isDim(h)))))return null;
+    return{hs,d:di,q:qi}};
+  /* decide what every column holds, using the heading and the rows under it */
+  const mapCols=(hs,d,q,data,hd0)=>{
+    const col=i=>data.map(r=>val(r[i])).filter(Boolean),frac=(a,f)=>a.length?a.filter(f).length/a.length:0;
+    /* the chosen description column holds only numbers (1,2,3...): it is a serial column, look for the part names */
+    if(frac(col(d),isNum)>=0.6){let alt=-1,score=0;hs.forEach((h,i)=>{if(i===d||i===q||isRem(h)||isUnit(h))return;const s=frac(col(i),hasWord)+(descRank(h)?0.5:0);if(s>score){score=s;alt=i}});if(alt>=0&&score>=0.5)d=alt}
+    const m={d,q,size:[],dims:[],pre:[],post:[],rem:[],u:-1,c:-1,raw:hd0};
+    hs.forEach((h,i)=>{if(i===d||i===q)return;const v=col(i);if(!h&&!v.length)return;
+      if(isRem(h))m.rem.push(i);else if(isUnit(h))m.u=i;else if(isCode(h)&&m.c<0&&i!==d)m.c=i;
+      else if(isSize(h)||(v.length&&frac(v,isSizeVal)>=0.6))m.size.push(i);
+      else if(isDim(h))m.dims.push(i);
+      else if(isSr(h)||(i<d&&frac(v,isNum)>=0.8&&v.every((x,k)=>k===0||+x>=+v[k-1])))return;
+      else (i<d?m.pre:m.post).push({i,num:frac(v,isNum)>=0.6,h});});
+    return m};
   let job="",lines=[],found=false;
   const sheets=wb.SheetNames.map(sn=>XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:null}));
   sheets.forEach(rows=>rows.forEach(r=>{if(!job){const j=r.find(c=>typeof c==="string"&&/ZT[-\s]?\d{3,5}/i.test(c));if(j)job=j.match(/ZT[-\s]?\d{3,5}/i)[0].replace(/[\s-]/g,"").toUpperCase()}}));
-  sheets.forEach(rows=>{let m=null;rows.forEach(r=>{
-    const hm=headOf(r);if(hm){m=hm;found=true;return}
-    if(!m)return;const d=val(r[m.d]);if(!d||/^(prepared|checked|approved|total|sub ?total|signature)\b/i.test(d))return;
-    const qv=r[m.q],qn=typeof qv==="number"?qv:parseFloat(String(qv??"").replace(/[^\d.]/g,""));
-    const dims=m.dims.map(i=>val(r[i])).filter(Boolean),pre=m.pre.map(i=>val(r[i])).filter(Boolean),post=m.post.map(i=>val(r[i])).filter(Boolean),rem=m.rem.map(i=>val(r[i])).filter(Boolean);
-    if(!(qn>0)&&!dims.length&&!pre.length&&!post.length)return;
-    let spec=[...pre,dims.join("x"),...post].filter(Boolean).join(" ");if(rem.length)spec+=(spec?" · ":"")+rem.join(", ");
-    lines.push({item:d,spec,qty:qn>0?qn:1,unit:m.u>=0?val(r[m.u]):"",code:m.c>=0?val(r[m.c]):""});
-  })});
+  const stop=d=>/^(prepared|checked|approved|total|sub ?total|signature)\b/i.test(d);
+  sheets.forEach(rows=>{
+    for(let ri=0;ri<rows.length;ri++){const hd=headOf(rows[ri]);if(!hd)continue;found=true;
+      let end=ri+1;while(end<rows.length&&!headOf(rows[end]))end++;
+      const data=rows.slice(ri+1,end),m=mapCols(hd.hs,hd.d,hd.q,data,rows[ri].map(v=>String(v??"").replace(/\s+/g," ").trim()));
+      data.forEach(r=>{let d=val(r[m.d]);if(!d||stop(d)||isNum(d))return;
+        const qv=m.q>=0?r[m.q]:null,qn=typeof qv==="number"?qv:parseFloat(String(qv??"").replace(/[^\d.]/g,""));
+        let size=[...m.size.map(i=>val(r[i])),...m.dims.map(i=>val(r[i]))].filter(Boolean).join("x").replace(/\s*[×X*]\s*/g,"x").replace(/\s*x\s*/g,"x");
+        if(!size){const s=d.match(SIZE);if(s&&/[a-z]{2,}/i.test(d.replace(s[1],""))){size=s[1].replace(/\s*[x×X*]\s*/g,"x");d=d.replace(s[1],"").replace(/\s+/g," ").replace(/[\s,\-–]+$/,"").trim()}}
+        /* text columns (material, make...) follow the size as before; numeric extras keep their heading, e.g. "Wt 1960.2" */
+        const all=[...m.pre,...m.post],plain=all.filter(c=>!(c.num&&c.h)).map(c=>val(r[c.i])).filter(Boolean),tagged=all.filter(c=>c.num&&c.h).map(c=>{const v=val(r[c.i]);return v?`${label(c.h)} ${v}`:""}).filter(Boolean);
+        const rem=m.rem.map(i=>val(r[i])).filter(Boolean);
+        const spec=[[size,...plain].filter(Boolean).join(" "),...tagged,rem.join(", ")].filter(Boolean).join(" · ");
+        /* the same specs, one named column each (Size, B / ø, Block Vol cm³, Material...) for the purchase request grid */
+        const x=[["Size",size],...all.map((c,k)=>[m.raw[c.i]||label(c.h)||`Spec ${k+1}`,val(r[c.i])])];
+        lines.push({item:d,size,spec,x,remark:rem.join(", "),qty:qn>0?qn:1,unit:m.u>=0?val(r[m.u]):"",code:m.c>=0?val(r[m.c]):""});
+      });ri=end-1}
+  });
   if(found)return{job,lines};
+  const sizeCells=sheets.some(rows=>rows.some(r=>r.some(c=>typeof c==="string"&&isSizeVal(c.trim()))));
   let section="";
   sheets.forEach(rows=>rows.forEach(r=>{
         const a=r[0],b=r[1];
         if(typeof a==="string"&&/^[A-Z]$/.test(a.trim())&&b){section=String(b).toLowerCase();return}
-        if(typeof a!=="number"||!b||!String(b).trim())return;
+        if(sizeCells||typeof a!=="number"||!b||!String(b).trim())return;
         const qty=+r[5]||1;let spec="";
         if(section.includes("bop")){spec=[r[2],r[3]&&r[4]?`${r[3]}x${r[4]}`:(r[3]||""),r[6]].filter(Boolean).join(" ")}
         else{spec=[r[2]&&r[3]&&r[4]?`${r[2]}x${r[3]}x${r[4]}`:"",r[6]].filter(Boolean).join(" ")}
         if(r[8])spec+=(spec?" · ":"")+r[8];
         lines.push({item:String(b).trim(),spec,qty});
+  }));
+  if(lines.length&&lines.filter(l=>isNum(l.item)).length<lines.length/2)return{job,lines};
+  /* no heading row and not the ZT layout: take each row's first wording as the part name, a WxH(xT) cell as the size, other cells as the specification */
+  lines=[];
+  sheets.forEach(rows=>rows.forEach(r=>{
+    const cells=r.map(val).filter(Boolean);const ni=cells.findIndex(hasWord);if(ni<0)return;
+    let d=cells[ni].replace(/^\d+[.)]?\s+(?=[a-z])/i,""),size="";if(stop(d))return;
+    const si=cells.findIndex((c,k)=>k!==ni&&isSizeVal(c));
+    if(si>=0)size=cells[si].replace(/\s*[x×X*]\s*/g,"x");
+    else{const s=d.match(SIZE);if(s&&/[a-z]{2,}/i.test(d.replace(s[1],""))){size=s[1].replace(/\s*[x×X*]\s*/g,"x");d=d.replace(s[1],"").replace(/\s+/g," ").trim()}}
+    if(!size&&cells.length<2)return;
+    const rest=cells.filter((c,k)=>k>ni&&k!==si);
+    lines.push({item:d,size,spec:[size,...rest].filter(Boolean).join(" "),x:[["Size",size]],note:rest.join(" "),qty:1});
   }));
   return{job,lines};
 }
@@ -1029,19 +1089,22 @@ function renderReq(){
   $("#reqExample").hidden=!r.example;
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
+  const xc=rqCols(r);
+  $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description of material</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description of material, any text"></td>
+    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description of material, any text"${xc.length?' style="min-width:200px"':""}></td>
+    ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?130:80}px"></td>`).join("")}
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
     <td><input id="q${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
     <td><input id="q${i}-remark" data-k="remark" value="${esc(l.remark)}"></td>
-    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
+    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="${7+xc.length}" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
   $("#reqBody").querySelectorAll("input").forEach(el=>el.disabled=locked);$("#reqBody").querySelectorAll("button").forEach(el=>el.hidden=locked);
   renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
   $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
   $("#btn-q-estimate").hidden=!((r.status==="Approved"||r.status==="Estimated")&&has("po.create")&&can("est"));
-  $("#btn-q-line").hidden=locked;$("#btn-q-file").hidden=locked;$("#btn-q-bom").hidden=locked;
+  $("#btn-q-line").hidden=locked;$("#btn-q-clear").hidden=locked;$("#btn-q-file").hidden=locked;$("#btn-q-bom").hidden=locked;
   renderReqList();
 }
 function opts(list,val,ph){const vals=[...list];if(val&&!vals.includes(val))vals.push(val);return`<option value="">${ph}</option>`+vals.map(v=>`<option${v===val?" selected":""}>${esc(v)}</option>`).join("")}
@@ -1067,8 +1130,19 @@ $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.tar
 ["no","date","by","dept","job","need","plant"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
 $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
-$("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqFlat(cur.lines[+tr.dataset.i]),k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value;if(cur.status!=="Draft")saveReqs()});
+$("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqFlat(cur.lines[+tr.dataset.i]),xk=e.target.dataset.x;
+  if(xk!=null){l.x=l.x||{};l.x[xk]=e.target.value}else{const k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value}if(cur.status!=="Draft")saveReqs()});
+$("#reqHead").addEventListener("click",e=>{const d=e.target.dataset.xdel;if(d==null||!cur)return;const c=rqCols(cur)[+d];
+  const b=e.target;if(cur.lines.some(l=>l.x&&l.x[c])&&!b.dataset.sure){b.dataset.sure="1";b.textContent="remove?";b.title=`Click again to remove the ${c} column`;setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="×"}},4000);return}
+  cur.xcols=rqCols(cur).filter(x=>x!==c);cur.lines.forEach(l=>{if(l.x)delete l.x[c]});if(cur.status!=="Draft")saveReqs();renderReq()});
 $("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
+$("#btn-q-clear").onclick=()=>{if(!cur)return;const n=cur.lines.filter(l=>rqText(l).trim()||l.spec||(l.x&&Object.values(l.x).some(Boolean))).length;
+  /* ask by a second click, not a browser dialog (dialogs can be blocked, e.g. in the preview) */
+  const b=$("#btn-q-clear");if(n&&!b.dataset.sure){b.dataset.sure="1";b.textContent=`Click again to clear ${n} line${n>1?"s":""}`;b.style.color="#b42318";b.style.borderColor="#b42318";
+    clearTimeout(b._t);b._t=setTimeout(()=>{delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor=""},5000);return}
+  clearTimeout(b._t);delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor="";
+  cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=attList(cur.attach).filter(a=>a.type!=="xlsx");
+  if(cur.status!=="Draft")saveReqs();renderReq();toast("All lines cleared")};
 $("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
 $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
 $("#btn-q-submit").onclick=()=>{
@@ -1087,7 +1161,7 @@ $("#btn-q-approve").onclick=()=>{cur.status="Approved";cur.apprBy=me.name;cur.ap
 $("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
 $("#btn-q-estimate").onclick=()=>{
   const r=cur;r.status="Estimated";saveReqs();
-  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",lines:r.lines.filter(l=>rqText(l)).map(l=>{const nm=rqText(l),sp=l.spec||"";const g=suggest(nm,sp);return{item:nm,spec:sp,expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
+  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",xcols:rqCols(r).slice(),lines:r.lines.filter(l=>rqText(l)).map(l=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,x:Object.assign({},l.x||{}),xo:l.spec||"",expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 };
 $("#btn-q-file").onclick=()=>$("#q-file").click();
@@ -1097,7 +1171,12 @@ $("#q-file").onchange=async e=>{
     if(/\.xlsx?$/i.test(f.name)){
       const {job,lines}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
       if(!lines.length){toast(`No item rows found in ${f.name}`);continue}
-      cur.lines=cur.lines.filter(l=>rqText(l).trim()).concat(lines.map(l=>{return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:""}}));if(job&&!cur.job)cur.job=job;
+      const cols=rqCols(cur);
+      cur.lines=cur.lines.filter(l=>rqText(l).trim()).concat(lines.map(l=>{
+        if(!l.x)return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:""};
+        const x={};l.x.forEach(([c,v])=>{if(!cols.includes(c))cols.push(c);if(v)x[c]=v});
+        return{desc:l.item,spec:l.note||"",x,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:l.remark||""}}));
+      cur.xcols=cols.filter(c=>cur.lines.some(l=>l.x&&l.x[c]));if(job&&!cur.job)cur.job=job;
       L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`});filled+=lines.length;
     }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f)});added++}
     else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB"});added++}
@@ -1175,7 +1254,7 @@ const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${wind
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
   return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["HOD approval",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"],["PO No.",esc(r.poNo||"-")]]])+
-  `<table><thead><tr><th>Sr</th><th>Description of material</th><th>Specification</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td><td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  `<table><thead><tr><th>Sr</th><th>Description of material</th>${rqCols(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqCols(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
   ${r.comment?`<p class="small"><b>HOD comment:</b> ${esc(r.comment)}</p>`:""}
   <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:right">HOD: <b>${r.apprBy?esc(r.apprBy)+" (approved "+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
 }
@@ -1455,7 +1534,7 @@ function backupBook(){
   const wb=XLSX.utils.book_new();const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{"(none)":""}]),n);
   add("Summary",[{Company:COMPANY.name,"Backup date":dmy(today()),Time:new Date().toLocaleTimeString("en-IN"),"Taken by":me?me.name:"",Requests:reqs.length,POs:saved.length,GRNs:grns.length,Payments:pays.length,"Stock items":stockItems().length,"Issue/return slips":slips.length,"Returnable challans":rgps.length}]);
   add("Requests",reqs.map(r=>({No:r.no,Date:dmy(r.date),By:r.by,Dept:r.dept,"Job No":r.job,"Need by":dmy(r.need),Status:r.status,Lines:r.lines.length})));
-  add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Description:rqText(l),Spec:l.spec,Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
+  add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Description:rqText(l),Spec:rqSpec(l,r),Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
   add("POs",saved.map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
   add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
@@ -1782,6 +1861,10 @@ function poSetDesc(l){l.desc=[l.item,l.spec].map(x=>String(x||"").trim()).filter
 const isRawItem=it=>!!it&&/raw/i.test([it.type,it.cat,it.subcat,it.name].join(" "));
 const poRawOn=l=>!!(l.rawOn||String(l.raw||"").trim()||isRawItem(itemByName(l.item||"")));
 const poBad=l=>{if(!masterHasItems())return false;const it=itemByName(l.item||"");return!(it&&it.active!=="No"&&it.name===l.item)};
+/* extra spec columns of a request (from a BOM: Size, B / ø, Block Vol cm³...) and one line's specs as text */
+const rqCols=r=>r&&Array.isArray(r.xcols)?r.xcols:[];
+const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim();return !v?"":c==="Size"?v:`${c} ${v}`}),l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
+const rqSpecHead=r=>!rqCols(r).length?"Specification":rqCols(r).some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec";
 const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
 function rqFlat(l){if(l&&l.item!==undefined){l.desc=rqText(l);delete l.item}return l}
 function itemByName(n){const k=key(n);if(!k)return null;return items.find(i=>key(i.name)===k)||items.find(i=>i.code&&key(i.code)===k)||null}
