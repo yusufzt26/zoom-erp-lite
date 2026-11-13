@@ -59,6 +59,8 @@ table.est input:hover{border-color:var(--line)}
 table.est input.expr{font-family:var(--mono);font-size:13px}
 table.est input.rate{text-align:right;font-family:var(--mono)}
 table.est input.qty{text-align:right;width:70px}
+input.auto,select.auto,textarea.auto,table.est input.auto,table.est textarea.auto{background:var(--sugg-bg);border-color:var(--sugg)}input.miss,select.miss,textarea.miss,table.est input.miss{border:1.5px dashed var(--danger)}
+.scanbar{gap:8px;align-items:center}.banner.scanres{border-color:var(--sugg);display:flex;flex-direction:column;gap:4px}.banner.scanres ul{margin:0;padding-left:18px}.banner.scanres ul.warn{color:var(--danger)}
 .chip{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;white-space:nowrap}
 .chip.sugg{background:var(--sugg-bg);color:var(--sugg)}
 .chip.calc{background:var(--bg);color:var(--muted)}
@@ -1143,6 +1145,7 @@ function renderGRNForm(){
   const F=$("#grnForm");if(!grn){F.hidden=true;return}F.hidden=false;
   const f=(k,lab,type="text")=>`<label class="f">${lab}<input id="g-${k}" data-gk="${k}" type="${type}" value="${esc(grn[k])}"></label>`;
   F.innerHTML=`<div class="row"><h2 class="sec">GRN ${grn.no} · PO ${esc(grn.poNo)}</h2><span class="note">${esc(grn.sup)}</span><span style="flex:1"></span><button class="btn" id="btn-g-cancel">Cancel</button></div>
+  ${scanBar("grn","Read supplier invoice")}
   <div class="grid-fields">${f("date","GRN date","date")}${f("dc","Delivery challan no.")}${f("dcDate","Challan date","date")}${f("inv","Supplier invoice no.")}${f("invDate","Invoice date","date")}${f("vehicle","Vehicle / transport")}</div>
   <div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sn</th><th>Description</th><th>Unit</th><th class="num">Ordered</th><th class="num">Already accepted</th><th class="num">Received now</th><th class="num">Rejected</th><th class="num">Accepted</th><th>Remark</th></tr></thead>
   <tbody id="grnBody">${grn.lines.map((l,j)=>`<tr data-j="${j}"><td>${l.i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.unit)}</td><td class="num">${fmt0(l.ordered)}</td><td class="num">${fmt0(l.prev)}</td>
@@ -1151,11 +1154,12 @@ function renderGRNForm(){
     <td class="num" data-acc>${fmt0((+l.recv||0)-(+l.rej||0))}</td>
     <td><input id="g${j}-remark" data-lk="remark" value="${esc(l.remark)}" placeholder="e.g. dent on 2 pcs"></td></tr>`).join("")}</tbody></table></div>
   <div class="totalbar"><div class="total"><span>Accepted value incl. GST</span><b id="grnTotal">${fmt(grnCalc(grn).total)}</b></div><button class="btn primary" id="btn-g-save">Create GRN and send to Accounts</button></div>`;
+  scanMark(grn,"grn");
 }
 $("#grnPOs").addEventListener("click",e=>{const n=e.target.dataset.grnpo;if(n==null)return;const p=saved.find(x=>String(x.no)===n);
   grn={no:nextGRN(),date:today(),poNo:p.no,plant:p.plant||"",sup:p.sup,job:p.ref||"",reqNo:p.reqNo||"",terms:p.terms||"",gstmode:p.gstmode,dc:"",dcDate:today(),inv:"",invDate:"",vehicle:"",by:me.name,
     lines:pendingLines(p).map(({l,i,acc})=>({i,desc:l.desc,unit:l.unit,rate:l.rate,dis:l.dis||0,tax:l.tax,hsn:l.hsn,ordered:+l.qty,prev:acc,recv:+((+l.qty)-acc).toFixed(3),rej:0,remark:""}))};
-  renderGRNForm();$("#grnForm").scrollIntoView({block:"start"})});
+  scanState.rec=null;renderGRNForm();$("#grnForm").scrollIntoView({block:"start"})});
 $("#grnForm").addEventListener("input",e=>{const t=e.target;if(t.dataset.gk)grn[t.dataset.gk]=t.value;
   else if(t.dataset.lk){const tr=t.closest("tr"),l=grn.lines[+tr.dataset.j];l[t.dataset.lk]=t.dataset.lk==="remark"?t.value:+t.value;tr.querySelector("[data-acc]").textContent=fmt0((+l.recv||0)-(+l.rej||0));$("#grnTotal").textContent=fmt(grnCalc(grn).total)}});
 $("#grnForm").addEventListener("click",e=>{
@@ -1172,6 +1176,113 @@ $("#grnForm").addEventListener("click",e=>{
     if(!p.firstGrnAt||grn.date<p.firstGrnAt)p.firstGrnAt=grn.date;store.set("saved",saved)}
   toast(p&&p.closed?`GRN ${grn.no} created. PO ${p.no} is fully received and closed.`:`GRN ${grn.no} created (partial). PO stays open for the balance.`);grn=null;renderGRN()});
 
+
+/* ---------- read a document (supplier invoice / customer PO) to fill a form ---------- */
+const scanState={rec:null,auto:new Set(),miss:new Set(),res:null};
+const scanBar=(id,label)=>`<div class="scanbar row"><button class="btn" type="button" data-scan="${id}">${label}</button><button class="btn" type="button" data-scancam="${id}">Take photo</button><input type="file" id="scanf-${id}" data-scanin="${id}" accept="application/pdf,.pdf,image/*" hidden><input type="file" id="scanc-${id}" data-scanin="${id}" accept="image/*" capture="environment" hidden><span class="note" id="scanm-${id}">PDF or photo. Fields it can read are filled in and highlighted; type the rest.</span></div><div id="scanres-${id}"></div>`;
+function scanMark(rec,id){if(scanState.rec!==rec)return;scanState.auto.forEach(k=>{const el=document.getElementById(k);if(el)el.classList.add("auto")});scanState.miss.forEach(k=>{const el=document.getElementById(k);if(el)el.classList.add("miss")});
+  const R=scanState.res,box=document.getElementById("scanres-"+id);if(!R||!box)return;
+  const li=a=>a.map(t=>`<li>${esc(t)}</li>`).join("");
+  box.innerHTML=`<div class="banner scanres"><b>${esc(R.title)}</b>${R.filled.length?`<div>Filled: ${esc(R.filled.join(", "))}. Check the highlighted values.</div>`:""}${R.missing.length?`<div>Not found, please type: ${esc(R.missing.join(", "))}.</div>`:""}${(R.info||[]).map(t=>`<div>${esc(t)}</div>`).join("")}${R.warn.length?`<ul class="warn">${li(R.warn)}</ul>`:""}${R.extra.length?`<div>On the document but not matched:</div><ul>${li(R.extra)}</ul>`:""}${R.via==="text"?`<div class="note">Read from the PDF text only. Photos and scanned PDFs need the document reader switched on for the live site.</div>`:""}</div>`}
+document.addEventListener("input",e=>{const el=e.target;if(el.id&&(scanState.auto.delete(el.id)|scanState.miss.delete(el.id)))el.classList.remove("auto","miss")},true);
+document.addEventListener("click",e=>{const b=e.target.closest("[data-scan],[data-scancam]");if(!b)return;const id=b.dataset.scan||b.dataset.scancam;const inp=document.getElementById((b.dataset.scan?"scanf-":"scanc-")+id);if(inp)inp.click()});
+document.addEventListener("change",async e=>{const el=e.target,id=el.dataset&&el.dataset.scanin;if(!id||!el.files||!el.files[0])return;const f=el.files[0];el.value="";const H=SCAN_H[id];if(!H)return;
+  const bs=()=>document.querySelectorAll(`[data-scan="${id}"],[data-scancam="${id}"]`);const msg=t=>{const m=document.getElementById("scanm-"+id);if(m)m.textContent=t};
+  bs().forEach(x=>x.disabled=true);msg(`Reading ${f.name}…`);
+  try{const r=await H(f);msg(r||`Read ${f.name}.`)}catch(err){msg(err.user||`Could not read ${f.name}. Fill the form by hand.`);if(!err.user)console.error(err)}finally{bs().forEach(x=>x.disabled=false)}});
+const SCAN_H={};
+const userErr=t=>Object.assign(new Error(t),{user:t});
+function scanImg(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const s=Math.min(1,2200/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",0.85).split(",")[1])};img.onerror=()=>{URL.revokeObjectURL(u);rej(userErr("This photo could not be opened. Use a JPG or PNG."))};img.src=u})}
+const b64=buf=>{const a=new Uint8Array(buf);let s="";for(let i=0;i<a.length;i+=0x8000)s+=String.fromCharCode.apply(null,a.subarray(i,i+0x8000));return btoa(s)};
+const ownGstins=()=>[COMPANY.gstin,...plants().map(p=>p.gstin)].filter(Boolean).map(g=>String(g).toUpperCase());
+/* kind: "grn" | "so"; ctx goes to the server (ref, party, poLines) */
+async function scanDoc(kind,file,ctx){
+  const isPdf=/pdf/i.test(file.type)||/\.pdf$/i.test(file.name),isImg=!isPdf&&(/^image\//.test(file.type)||/\.(jpe?g|png|webp)$/i.test(file.name));
+  if(!isPdf&&!isImg)throw userErr("Use a PDF or a photo (JPG/PNG).");
+  const buf=isPdf?await file.arrayBuffer():null;
+  if(isPdf&&buf.byteLength>4e6)throw userErr("This PDF is over 4 MB. Take a photo of the page instead.");
+  if(CLOUD){try{const r=await api("scan-doc",{method:"POST",body:Object.assign({kind,media:isPdf?"application/pdf":"image/jpeg",data:isPdf?b64(buf):await scanImg(file),ownGstins:ownGstins(),us:COMPANY.name},ctx||{})});return{via:"ai",f:r.fields}}
+    catch(err){if(err.auth)throw err;if(err.user)throw err;if(err.status&&![501,404].includes(err.status))throw userErr(err.message||"Could not read the document right now. Fill the form by hand.")}}
+  if(!isPdf)throw userErr("Reading photos is not switched on yet. Upload the PDF, or fill the form by hand.");
+  const rows=await pdfRows(buf);
+  if(rows.join("").replace(/\s/g,"").length<40)throw userErr("This PDF is a scanned image, so its text cannot be read here yet. Fill the form by hand.");
+  return{via:"text",f:textParse(kind,rows)}}
+/* text PDFs without the server: pdf.js text, grouped into rows */
+let pdfjsP=null;
+function pdfjs(){return pdfjsP||(pdfjsP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=()=>{const L=window.pdfjsLib;L.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";res(L)};s.onerror=()=>{pdfjsP=null;rej(userErr("No internet connection to read the PDF. Fill the form by hand."))};document.head.appendChild(s)}))}
+async function pdfRows(buf){const L=await pdfjs();const doc=await L.getDocument({data:new Uint8Array(buf)}).promise;const out=[];
+  for(let p=1;p<=Math.min(doc.numPages,5);p++){const tc=await(await doc.getPage(p)).getTextContent();const R=[];
+    tc.items.forEach(it=>{if(!it.str||!it.str.trim())return;const y=it.transform[5],x=it.transform[4];let r=R.find(r=>Math.abs(r.y-y)<3);if(!r)R.push(r={y,c:[]});r.c.push({x,s:it.str})});
+    R.sort((a,b)=>b.y-a.y).forEach(r=>out.push(r.c.sort((a,b)=>a.x-b.x).map(c=>c.s).join(" ").replace(/\s+/g," ").trim()))}
+  return out}
+const SCAN_MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const DATE_RE=/(\d{1,2})\s*[\/\-.]\s*(\d{1,2}|[A-Za-z]{3,9})\s*[\/\-.]\s*(\d{4}|\d{2})\b/;
+function isoDate(s){s=String(s||"").trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const m=s.match(DATE_RE);if(!m)return"";const d=+m[1],mo=/\d/.test(m[2])?+m[2]:SCAN_MON[m[2].slice(0,3).toLowerCase()],y=m[3].length===2?2000+ +m[3]:+m[3];
+  if(!mo||mo>12||d<1||d>31||y<2000||y>2100)return"";return`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`}
+const UNIT_RE="(NOS|NO|NUMBERS|PCS|PC|KGS?|SETS?|MTRS?|LTRS?|EA|EACH|UNITS?|PAIRS?|BOX|ROLLS?|SQM|FT|LOT|JOB)";
+function textParse(kind,rows){const T=rows.join("\n");const find=(re,src=T)=>{const m=src.match(re);return m?m[1].trim():""};
+  const g=(T.toUpperCase().match(/\b\d{2}[A-Z]{5}\d{4}[A-Z][0-9A-Z]Z[0-9A-Z]\b/g)||[]);const own=ownGstins();const other=g.find(x=>!own.includes(x))||"";
+  const dateNear=re=>{for(const r of rows.filter(x=>re.test(x))){const after=r.slice(r.search(re));const m=after.match(/dated?\s*[:\-]?\s*([0-9]{1,2}\s*[\/\-.]\s*(?:\d{1,2}|[A-Za-z]{3,9})\s*[\/\-.]\s*\d{2,4})/i)||after.match(DATE_RE);const d=m?isoDate(m[1]&&/date/i.test(m[0])?m[1]:m[0]):"";if(d)return d}return""};
+  const no=re=>find(new RegExp("(?:"+re.source+")\\s*(?:no|number|#)\\.?\\s*[:\\-]?\\s*([A-Z0-9][A-Z0-9\\/\\-.]{0,24})","i"));
+  const lines=[];rows.forEach(r=>{const m=r.match(new RegExp("(\\d[\\d,]*(?:\\.\\d+)?)\\s*"+UNIT_RE+"\\b","i"));if(!m)return;const qty=+m[1].replace(/,/g,"");if(!(qty>0)||qty>1e6)return;
+    let desc=r.slice(0,m.index).replace(/^\s*\d{1,3}[.)]?\s+/,"").replace(/(\s+[\d.,%]+)+\s*$/,"").trim();if(!/[A-Za-z]{2}/.test(desc)||/total|amount|qty|quantity/i.test(desc))return;
+    const after=r.slice(m.index+m[0].length).match(/[\d,]+\.\d+|\d[\d,]*/g)||[];const hsn=(r.slice(0,m.index).match(/\b(\d{6}|\d{8}|\d{4})\b(?!.*\b\d{6,8}\b)/)||[])[1]||"";
+    lines.push({description:desc,hsn,qty,unit:m[2].toUpperCase(),rate:after.length?+after[0].replace(/,/g,""):0,po_line:-1})});
+  if(kind==="grn")return{supplier_gstin:other,invoice_no:no(/(?:tax\s+)?invoice/)||no(/bill/),invoice_date:dateNear(/invoice\s*(?:no|date)|bill\s*no/i),challan_no:no(/(?:delivery\s+)?challan|\bD\.?C\.?/),challan_date:dateNear(/challan\s*(?:no|date)/i),
+    po_no:no(/\bP\.?\s?O\.?|purchase\s+order|order/),vehicle_no:(find(/\b([A-Z]{2}[\s\-]?\d{1,2}[\s\-]?[A-Z]{1,3}[\s\-]?\d{4})\b/)||"").replace(/[\s\-]/g,""),transporter:find(/transport(?:er)?\s*(?:name)?\s*[:\-]\s*([A-Za-z][^\n]{2,40})/i),eway_bill_no:find(/e-?way\s*bill\s*(?:no)?\.?\s*[:\-]?\s*(\d{12})/i),grand_total:0,lines};
+  return{customer_gstin:other,customer_name:"",po_no:no(/\bP\.?\s?O\.?|purchase\s+order|order/),po_date:dateNear(/\bP\.?\s?O\.?\s*(?:no|date)|purchase\s+order|order\s*(?:no|date)/i),delivery_date:dateNear(/delivery\s*(?:date|schedule|by)|required\s*(?:by|on)/i),
+    gst_percent:+(find(/(?<![CSU])(?:IGST|GST)\s*@?\s*(\d{1,2})\s*%/i)||0)||(+(find(/CGST\s*@?\s*(\d{1,2}(?:\.\d)?)\s*%/i)||0)*2),payment_terms:find(/payment\s*terms?\s*[:\-]\s*([^\n]{3,60})/i),contact_person:"",grand_total:0,lines}}
+/* match a document line to one of our lines by description words */
+const scanWords=s=>key(s).split(" ").filter(w=>w.length>1&&!["THE","AND","FOR","OF","WITH","NOS","PCS"].includes(w));
+function bestMatch(desc,cands,used){const A=new Set(scanWords(desc));let best=-1,score=0;cands.forEach((c,j)=>{if(used.has(j))return;const B=scanWords(c);if(!B.length||!A.size)return;const hit=B.filter(w=>A.has(w)).length;const s=hit/Math.min(A.size,B.length);if(s>score){score=s;best=j}});return score>=0.5?best:-1}
+const nearly=(a,b)=>Math.abs(a-b)<=Math.max(0.01,Math.abs(b)*0.005);
+
+/* GRN from a supplier invoice */
+SCAN_H.grn=async file=>{if(!grn)return;const g=grn;
+  const {via,f}=await scanDoc("grn",file,{ref:String(g.poNo),party:g.sup,poLines:g.lines.map(l=>({desc:l.desc,qty:l.ordered-l.prev,unit:l.unit}))});
+  if(grn!==g)return"The GRN was closed before the document was read.";
+  const A=new Set(),M=new Set(),R={title:`Read from ${file.name}`,via,filled:[],missing:[],warn:[],extra:[]};
+  const head=[["inv","Invoice no.",f.invoice_no],["invDate","Invoice date",isoDate(f.invoice_date)],["dc","Challan no.",f.challan_no],["dcDate","Challan date",isoDate(f.challan_date)],["vehicle","Vehicle / transport",[String(f.vehicle_no||"").toUpperCase().replace(/[\s\-]/g,""),f.transporter].filter(Boolean).join(" · ")]];
+  head.forEach(([k,lab,v])=>{v=String(v||"").trim();if(v){g[k]=v;A.add("g-"+k);R.filled.push(lab)}else{M.add("g-"+k);R.missing.push(lab)}});
+  const used=new Set(),qty={},inv=f.lines||[];
+  inv.forEach(L=>{let j=Number.isInteger(L.po_line)&&L.po_line>=0&&L.po_line<g.lines.length&&!used.has(L.po_line)?L.po_line:bestMatch(L.description,g.lines.map(l=>l.desc),used);
+    if(j<0){R.extra.push(`${L.description||"Item"}: ${fmt0(+L.qty||0)} ${L.unit||""}`);return}used.add(j);qty[j]=(qty[j]||0)+(+L.qty||0);
+    const l=g.lines[j];if(+L.rate>0&&+l.rate>0&&!nearly(+L.rate,lineNet(l)))R.warn.push(`Line ${l.i+1} ${l.desc}: invoice rate ₹ ${fmt(+L.rate)}, PO rate ₹ ${fmt(lineNet(l))}`)});
+  if(used.size){g.lines.forEach((l,j)=>{if(j in qty){l.recv=+qty[j].toFixed(3);A.add(`g${j}-recv`);const bal=l.ordered-l.prev;if(l.recv>bal+1e-4)R.warn.push(`Line ${l.i+1} ${l.desc}: invoice qty ${fmt0(l.recv)} is more than the PO balance ${fmt0(bal)}`)}else{l.recv=0;M.add(`g${j}-recv`)}});
+    R.filled.push(`received qty on ${used.size} of ${g.lines.length} lines`);if(used.size<g.lines.length)R.missing.push(`${g.lines.length-used.size} line${g.lines.length-used.size>1?"s":""} not on the invoice (set to 0)`)}
+  else if(inv.length)R.missing.push("received qty (no invoice line matched the PO, so quantities were left as they were)");else R.missing.push("item lines");
+  const sg=(suppliers.find(s=>key(s.name)===key(g.sup))||{}).gstin;if(f.supplier_gstin&&sg&&String(sg).toUpperCase()!==String(f.supplier_gstin).toUpperCase())R.warn.push(`Supplier GSTIN on the invoice (${f.supplier_gstin}) is not the one in Masters for ${g.sup} (${sg})`);
+  if(f.supplier_name&&!sg&&bestMatch(f.supplier_name,[g.sup],new Set())<0)R.warn.push(`Invoice is from "${f.supplier_name}", the PO is for ${g.sup}`);
+  if(f.po_no&&!key(f.po_no).split(" ").includes(key(g.poNo)))R.warn.push(`Invoice quotes PO "${f.po_no}", this GRN is for PO ${g.poNo}`);
+  if(+f.grand_total>0&&used.size){const t=grnCalc(g).total;if(Math.abs(t-f.grand_total)>Math.max(2,f.grand_total*0.01))R.warn.push(`Invoice total ₹ ${fmt(+f.grand_total)}, GRN value at PO rates ₹ ${fmt(t)}`)}
+  scanState.rec=g;scanState.auto=A;scanState.miss=M;scanState.res=R;g.scan={file:file.name,via,at:new Date().toISOString()};renderGRNForm();
+  return`Filled ${A.size} field${A.size===1?"":"s"} from ${file.name}.`};
+
+/* Sales order from a customer PO */
+SCAN_H.so=async file=>{if(!sdCur||sdCur.t!=="so")return;const cur=sdCur,x=cur.rec;
+  const {via,f}=await scanDoc("so",file,{});
+  if(sdCur!==cur)return"The sales order was closed before the document was read.";
+  const A=new Set(),M=new Set(),R={title:`Read from ${file.name}`,via,filled:[],missing:[],warn:[],extra:[]};
+  const gin=String(f.customer_gstin||"").toUpperCase();let c=gin&&customers.find(c=>String(c.gstin||"").toUpperCase()===gin);
+  if(!c&&f.customer_name){c=custByName(f.customer_name);if(!c){const j=bestMatch(f.customer_name,customers.map(c=>c.name),new Set());if(j>=0)c=customers[j]}}
+  if(c){x.cust=c.name;A.add("sd-cust");R.filled.push("Customer")}else{M.add("sd-cust");R.missing.push("Customer");if(f.customer_name||gin)R.warn.push(`Customer ${f.customer_name?`"${f.customer_name}"`:""}${gin?` (GSTIN ${gin})`:""} is not in Masters. Add it, or pick the right one.`)}
+  [["custPO","Customer PO no.",f.po_no],["custPODate","Customer PO date",isoDate(f.po_date)],["due","Delivery date",isoDate(f.delivery_date)]].forEach(([k,lab,v])=>{v=String(v||"").trim();if(v){x[k]=v;A.add("sd-"+k);R.filled.push(lab)}else{M.add("sd-"+k);R.missing.push(lab)}});
+  const gp=+f.gst_percent||0;if([18,12,5,28].includes(gp)){x.gst=gp;A.add("sd-gst");R.filled.push("GST %")}else{M.add("sd-gst");R.missing.push("GST %");if(gp)R.warn.push(`GST on the PO is ${gp}%. Pick the right rate.`)}
+  if(!c&&f.customer_name&&!x.cust)x.cust=String(f.customer_name).trim();
+  const L=(f.lines||[]).filter(l=>String(l.description||"").trim()&&+l.qty>0);
+  if(L.length){const keep=x.lines.filter(l=>String(l.desc||"").trim()),used=new Set();let upd=0,add=0;
+    const mark=(i,l)=>{["q","u"].forEach(s=>A.add(`sl${i}${s}`));(l.hsn?A:M).add(`sl${i}h`);(+l.rate>0?A:M).add(`sl${i}r`)};
+    const newL=[];L.forEach(l=>{const j=keep.length?bestMatch(l.description,keep.map(k=>k.desc),used):-1;
+      if(j>=0){used.add(j);const k=keep[j];k.qty=+l.qty;if(l.unit)k.unit=String(l.unit).toUpperCase();if(+l.rate>0)k.rate=+l.rate;if(l.hsn&&!k.hsn)k.hsn=String(l.hsn);mark(j,l);upd++}
+      else{const it=itemByName(l.description);newL.push({src:l,line:{desc:it?it.name:String(l.description).trim(),hsn:String(l.hsn||"")||(it&&it.hsn)||"",qty:+l.qty,unit:String(l.unit||"").toUpperCase()||(it&&it.unit)||"NOS",rate:+l.rate||""}})}});
+    x.lines=keep.concat(newL.map(n=>n.line));newL.forEach((n,k)=>{const i=keep.length+k;A.add(`sl${i}d`);mark(i,n.src);add++});
+    R.filled.push([add?`${add} item line${add>1?"s":""} added`:"",upd?`${upd} existing line${upd>1?"s":""} updated`:""].filter(Boolean).join(", "));
+    if(L.some(l=>!(+l.rate>0)))R.missing.push("rate on some lines");if(L.some(l=>!l.hsn))R.missing.push("HSN on some lines")}
+  else R.missing.push("item lines");
+  if(f.payment_terms)R.info=[`Payment terms on the PO: ${f.payment_terms}`];
+  if(+f.grand_total>0&&L.length){const t=invCalc(x).grand;if(Math.abs(t-f.grand_total)>Math.max(2,f.grand_total*0.01))R.warn.push(`PO total ₹ ${fmt(+f.grand_total)}, this order ₹ ${fmt(t)}. Check rates and GST.`)}
+  scanState.rec=x;scanState.auto=A;scanState.miss=M;scanState.res=R;renderSDForm();
+  return`Filled ${A.size} field${A.size===1?"":"s"} from ${file.name}.`};
 
 /* ---------- PDF documents ---------- */
 const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${window.ZT_LOGO}" alt="${COMPANY.name}"><p class="coname">${COMPANY.name}</p><p class="ln">${esc(hdA()[0])}</p><p class="ln">${esc(hdA()[1])}</p><p class="ln">${COMPANY.mob}</p><p class="ln">${COMPANY.email}</p></div>
@@ -2256,6 +2367,7 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   F.innerHTML=`<div class="row"><h2 class="sec">${SD[t].name} · ${esc(sdNo(t,x))}</h2>${st?`<span class="chip sugg">${st}</span>`:""}<span style="flex:1"></span>
     ${!isNew&&t==="so"&&x.job&&can("prod")?`<button class="btn" type="button" id="sd-job">Job card</button>`:""}${!isNew&&t==="so"&&!ro?`${has("dc.create")?`<button class="btn" type="button" id="sd-mkdc">Make challan</button>`:""}${has("inv.create")?`<button class="btn" type="button" id="sd-mkinv">Make invoice</button>`:""}`:""}${!isNew&&t==="dc"&&!ro?`<button class="btn" type="button" id="sd-mkinv">${x.inv?"Open invoice":"Make invoice"}</button>`:""}
     ${!isNew&&t==="inv"?`<button class="btn" type="button" id="sd-json">E-invoice JSON</button>`:""}${!isNew&&t==="inv"&&has("cn.create")?`<button class="btn" type="button" id="sd-mkcn">Credit note</button>`:""}${isNew?"":`<button class="btn" type="button" id="sd-pdf">PDF</button>`}${!isNew&&has(t+".delete")?`<button class="btn" type="button" id="sd-del">Delete</button>`:""}<button class="btn" type="button" id="sd-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="sd-save">${isNew?"Save":"Save changes"}</button>`}</div>
+  ${t==="so"&&!ro?scanBar("so","Read customer PO"):""}
   <div class="grid-fields">${head}</div>${lines}
   <div class="row">${ro||link?"":`<button class="btn" type="button" id="sd-addline">+ Add line</button>`}${t!=="dc"?`<label class="f" style="flex-direction:row;align-items:center;gap:6px">GST %<select id="sd-gst" data-sf="gst" style="width:auto">${[18,12,5,28,0].map(g=>`<option${+x.gst===g?" selected":""}>${g}</option>`).join("")}</select></label>`:""}<span style="flex:1"></span>
     <span class="total"><span>${t==="dc"?"Value":"Total with GST"}</span><b id="sd-tot">${fmt(sdT)}</b></span></div>
@@ -2266,7 +2378,8 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   <div class="grid-fields"><label class="f">IRN<input id="sd-irn" data-sf="irn" value="${esc(x.irn)}" style="font-family:var(--mono)"></label><label class="f">Ack No.<input id="sd-ackNo" data-sf="ackNo" value="${esc(x.ackNo)}"></label><label class="f">Ack date<input id="sd-ackDt" data-sf="ackDt" value="${esc(x.ackDt)}"></label></div><label class="f">Signed QR code<textarea id="sd-qr" data-sf="qr" rows="2" style="font-family:var(--mono);font-size:11px">${esc(x.qr)}</textarea></label>`:""}`;
   if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>el.disabled=true);
   else if(t==="inv"&&!isNew&&x.irn){F.querySelectorAll("input,select,textarea").forEach(el=>{if(el.dataset.rc==null&&!["sd-irn","sd-ackNo","sd-ackDt","sd-qr"].includes(el.id))el.disabled=true});F.querySelectorAll("table.est button,#sd-addline").forEach(el=>el.hidden=true);
-    F.querySelector(".row").insertAdjacentHTML("afterend",`<div class="banner ok">IRN generated, so this invoice is locked. Use "Credit note" for a return or rate change. Payments can still be recorded. If you cancelled the IRN on the portal, clear the IRN field and save to edit again.</div>`)}}
+    F.querySelector(".row").insertAdjacentHTML("afterend",`<div class="banner ok">IRN generated, so this invoice is locked. Use "Credit note" for a return or rate change. Payments can still be recorded. If you cancelled the IRN on the portal, clear the IRN field and save to edit again.</div>`)}
+  if(t==="so")scanMark(x,"so")}
 function sdTotUpd(){const x=sdCur.rec,t=sdCur.t;$("#sd-tot").textContent=fmt(t==="dc"?sdSub(x):invCalc(x).grand)}
 ["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);
   F.addEventListener("input",e=>{if(!sdCur)return;const el=e.target,x=sdCur.rec;
