@@ -433,9 +433,9 @@ body.gated header.bar,body.gated main{display:none}
 <!-- USERS & RIGHTS -->
 <section id="view-users" class="stack" hidden>
   <div class="masters">
-    <div class="panel stack"><h2 class="sec">Users</h2><div class="note">Choosing a role gives the standard rights for that role. Fine-tune them on the right.</div>
+    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Users</h2><div class="note">Choosing a role gives the standard rights for that role. Fine-tune them on the right. Checker: the person who checks and approves this user's purchase requests before they go to Purchase.</div>
       <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-role"><option>Maker</option><option>Checker</option><option>Approver</option><option>Purchase</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
-      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Role</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Role</th><th title="Checks and approves this user's purchase requests before they go to Purchase">Checker</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
@@ -652,7 +652,7 @@ if(!reqs)reqs=[];
 if(reqs.some(r=>r&&r.example)){reqs=reqs.filter(r=>!(r&&r.example));store.set("reqs",reqs)}
 let cur=null;
 let M=store.get("masters",null);
-if(!M){M={users:[{name:"Niksal",dept:"Design",role:"Maker"},{name:"M.K. Singh",dept:"Design",role:"Checker"},{name:"Purchase Desk",dept:"Purchase",role:"Purchase"}],
+if(!M){M={users:[{name:"Niksal",dept:"Design",role:"Maker",checker:"M.K. Singh"},{name:"M.K. Singh",dept:"Design",role:"Checker"},{name:"Purchase Desk",dept:"Purchase",role:"Purchase"}],
   depts:[{name:"Design",hod:"M.K. Singh"},{name:"Tool Room",hod:""},{name:"Purchase",hod:""}],
   projects:[{no:"ZT2329",desc:"Mould & tool child parts",cust:"",status:"Active"},{no:"ZT2335",desc:"Mould (BOM released 17/10/2026)",cust:"",status:"Active"},{no:"ZT2347",desc:"",cust:"",status:"Active"},{no:"ZT2348",desc:"",cust:"",status:"Active"},{no:"ZT2349",desc:"",cust:"",status:"Active"}]};store.set("masters",M)}
 if(!CLOUD&&!M.users.some(u=>u.role==="Store"))M.users.push({name:"Store Keeper",dept:"Store",role:"Store"});
@@ -1016,12 +1016,18 @@ const hodOf=d=>((M.depts.find(x=>x.name===d)||{}).hod||"");
 const uHas=(u,k)=>rightsOf(u).includes(k);
 const checkersOf=d=>{const c=hodOf(d);if(c)return[c];return M.users.filter(u=>u.role!=="Admin"&&u.dept&&u.dept===d&&uHas(u,"req.check")).map(u=>u.name)};
 const approversAll=()=>M.users.filter(u=>u.role!=="Admin"&&uHas(u,"req.approve")).map(u=>u.name);
-const canCheckReq=r=>!!me&&r.status==="Submitted"&&has("req.check")&&(has("req.all")||me.dept===r.dept||hodOf(r.dept)===me.name);
+/* every maker has an allotted checker (Users & rights); the checker's approval sends the request to Purchase */
+const checkerOfMaker=n=>{const u=M.users.find(x=>x.name===n);return u&&u.checker&&u.checker!==n&&M.users.some(x=>x.name===u.checker)?u.checker:""};
+const canCheckReq=r=>!!me&&r.status==="Submitted"&&((r.checker?r.checker===me.name:(has("req.check")&&(me.dept===r.dept||hodOf(r.dept)===me.name)))||(has("req.all")&&has("req.check")));
 const canApproveReq=r=>!!me&&r.status==="Checked"&&has("req.approve");
 const POST_APPR=["Approved","Estimated","PO raised","PO approved"];
-const REQ_DIRECT=true; /* a submitted request goes straight to Purchase (no checker / approver step on requests) */
+const REQ_DIRECT=false;
+const PUR_READY=["Approved","Checked"]; /* "Checked" = older requests checked under the approver flow */
 function reqAdvance(r){
-  if(REQ_DIRECT&&(r.status==="Submitted"||r.status==="Checked")){r.status="Approved";r.apprBy="Sent straight to Purchase";r.apprAt=today();return}
+  if(r.status==="Submitted"){const h=hodOf(r.dept),c=checkerOfMaker(r.by)||(h&&h!==r.by?h:"");
+    if(c){r.checker=c;return}
+    r.checker="";r.status="Approved";r.apprBy="No checker allotted to "+(r.by||"the maker");r.apprAt=today();return}
+  if(r.status==="Checked"&&r.chkBy&&!/^Auto/.test(r.chkBy)){r.status="Approved";r.apprBy=r.chkBy+" (checker)";r.apprAt=r.chkAt||today();return}
   if(r.status==="Submitted"){const c=checkersOf(r.dept);
     if(!c.length){r.status="Checked";r.chkBy="Auto: no checker set for "+(r.dept||"this department");r.chkAt=today()}
     else if(c.includes(r.by)){r.status="Checked";r.chkBy=r.by+" (checker, own request)";r.chkAt=today()}}
@@ -1031,11 +1037,11 @@ function reqAdvance(r){
     if(!a.length){r.status="Approved";r.apprBy="Auto: no approver set";r.apprAt=today()}
     else if(a.includes(r.by)){r.status="Approved";r.apprBy=r.by+" (approver, own request)";r.apprAt=today()}}
 }
-function reqWith(r){if(r.status==="Submitted"){const c=checkersOf(r.dept);return"checker"+(c.length?" ("+c.join(", ")+")":"")}if(r.status==="Checked"){const a=approversAll();return"approver"+(a.length?" ("+a.join(", ")+")":"")}return"Purchase"}
+function reqWith(r){if(r.status==="Submitted"&&r.checker)return"checker ("+r.checker+")";if(r.status==="Submitted"){const c=checkersOf(r.dept);return"checker"+(c.length?" ("+c.join(", ")+")":"")}if(r.status==="Checked"){const a=approversAll();return"approver"+(a.length?" ("+a.join(", ")+")":"")}return"Purchase"}
 function visibleReqs(){
   if(!me)return[];
   if(has("req.all"))return reqs;
-  return reqs.filter(r=>r.by===me.name||(has("req.check")&&(r.dept===me.dept||hodOf(r.dept)===me.name))||(has("req.approve")&&(r.status==="Checked"||POST_APPR.includes(r.status)))||(has("po.create")&&(POST_APPR.includes(r.status)||(REQ_DIRECT&&["Submitted","Checked"].includes(r.status)))));
+  return reqs.filter(r=>r.by===me.name||r.checker===me.name||(has("req.check")&&(r.dept===me.dept||hodOf(r.dept)===me.name))||(has("req.approve")&&(r.status==="Checked"||POST_APPR.includes(r.status)))||(has("po.create")&&(POST_APPR.includes(r.status)||r.status==="Checked")));
 }
 function renderReq(){
   const vis=visibleReqs();
@@ -1043,10 +1049,10 @@ function renderReq(){
   if(!cur){const rv=has("req.check")||has("req.approve")||has("req.all")||has("po.create");if(rv&&vis[0])cur=vis[0];else if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
   $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
   $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
-  if(!cur){$("#reqNone").innerHTML=`No purchase requests yet. Submitted requests appear here for Purchase. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
+  if(!cur){$("#reqNone").innerHTML=`No purchase requests ready for Purchase yet. Requests appear here once the maker's checker has approved them. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
   const r=cur;const mine=r.status==="Draft"||r.by===me.name||has("req.all");
   const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&(reqs.includes(r)?has("req.edit"):has("req.create")));
-  const canApprove=!REQ_DIRECT&&(canCheckReq(r)||canApproveReq(r));
+  const canApprove=canCheckReq(r)||canApproveReq(r);
   $("#reqBanner").hidden=!(r.status==="Sent back"&&r.comment);$("#reqBanner").className="banner back";$("#reqBanner").textContent=`Sent back by ${r.backBy||"checker"}: ${r.comment||""}`;
   $("#reqTitle").textContent=r.status==="Draft"?"New purchase request":`Purchase request ${r.no}`;
   $("#reqStatus").innerHTML=r.status==="Draft"?"":stChip(r.status);
@@ -1064,7 +1070,7 @@ function renderReq(){
   renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
   $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
-  $("#btn-q-estimate").hidden=!((r.status==="Approved"||r.status==="Estimated"||(REQ_DIRECT&&["Submitted","Checked"].includes(r.status)))&&has("po.create")&&can("est"));
+  $("#btn-q-estimate").hidden=!((PUR_READY.includes(r.status)||r.status==="Estimated")&&has("po.create")&&can("est"));
   $("#btn-q-line").hidden=locked;$("#btn-q-file").hidden=locked;$("#btn-q-bom").hidden=locked;
   renderReqList();
 }
@@ -1073,7 +1079,7 @@ function fillReqSelects(){
   $("#q-by").innerHTML=opts(M.users.map(u=>u.name),cur.by,"Choose user");
   $("#q-dept").innerHTML=opts(M.depts.map(d=>d.name),cur.dept,"Choose department");
   $("#q-job").innerHTML=opts(M.projects.filter(p=>p.status==="Active").map(p=>p.no),cur.job,"Choose project");
-  $("#btn-q-approve").textContent=cur.status==="Checked"?"Approve (approver)":"Mark checked (checker)";
+  $("#btn-q-approve").textContent=cur.status==="Checked"?"Approve (approver)":"Check and approve (checker)";
 }
 const attList=a=>Array.isArray(a)?a:(a?[a]:[]);
 function renderAttach(box,a,rm){const L=attList(a);
@@ -1104,7 +1110,7 @@ $("#btn-q-submit").onclick=()=>{
   if(cur.need<cur.date){toast("Required date cannot be before the request date");$("#q-need").focus();return}
   cur.status="Submitted";cur.comment="";cur.subAt=today();if(!reqs.includes(cur))reqs.unshift(cur);
   delete cur.chkBy;delete cur.chkAt;delete cur.apprBy;delete cur.apprAt;reqAdvance(cur);
-  saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} sent straight to Purchase`:`Request ${cur.no} submitted to the ${reqWith(cur)}`);
+  saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} sent straight to Purchase (no checker allotted to ${cur.by})`:`Request ${cur.no} submitted to the ${reqWith(cur)}`);
 };
 $("#btn-q-approve").onclick=()=>{const c=$("#q-comment").value.trim();
   if(cur.status==="Submitted"){if(!canCheckReq(cur))return;cur.status="Checked";cur.chkBy=me.name;cur.chkAt=today();cur.chkNote=c;cur.comment=c;reqAdvance(cur);saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} checked and sent to Purchase`:`Request ${cur.no} checked. It now goes to the ${reqWith(cur)}.`);return}
@@ -1638,10 +1644,10 @@ function renderRep(){
 function workItems(){
   const W=[];const add=(n,t,d,v,warn)=>W.push({n,t,d,v,warn});
   if(has("req.create")){add(reqs.filter(r=>r.by===me.name&&r.status==="Sent back").length,"My requests sent back","Correct and resubmit","req",true);
-    add(reqs.filter(r=>r.by===me.name&&["Submitted","Checked","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with checker, approver or Purchase","req")}
-  if(!REQ_DIRECT&&has("req.check"))add(reqs.filter(r=>canCheckReq(r)).length,"Requests to check","Waiting for you as checker","req",true);
+    add(reqs.filter(r=>r.by===me.name&&["Submitted","Checked","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with your checker or Purchase","req")}
+  if(has("req.check")||reqs.some(r=>canCheckReq(r)))add(reqs.filter(r=>canCheckReq(r)).length,"Requests to check","Check and approve, then they go to Purchase","req",true);
   if(!REQ_DIRECT&&has("req.approve"))add(reqs.filter(r=>canApproveReq(r)).length,"Requests to approve","Checked, waiting for you as approver","req",true);
-  if(has("po.create")){add(reqs.filter(r=>r.status==="Approved"||(REQ_DIRECT&&["Submitted","Checked"].includes(r.status))).length,"Requests to process","Start a pre-estimate","req",true);
+  if(has("po.create")){add(reqs.filter(r=>PUR_READY.includes(r.status)).length,"Requests to process","Start a pre-estimate","req",true);
     add(saved.filter(p=>p.status==="Sent back").length,"POs sent back","Correct and resend","saved",true);
     add(saved.filter(p=>p.status==="Draft").length,"Draft POs","Not yet sent for approval","saved");
     add(saved.filter(p=>p.status==="Pending approval").length,"POs with approver","Waiting for approval","saved");
@@ -1698,7 +1704,7 @@ function renderMasters(){
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   $("#md-hod").innerHTML=opts(hods,"","Checker (optional)");
-  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Maker","Checker","Approver","Purchase","Store","Accounts","Sales","Production","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="Checker")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="4" class="empty">No users yet.</td></tr>`;
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Maker","Checker","Approver","Purchase","Store","Accounts","Sales","Production","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td><select id="mu${i}-c" data-f="checker" aria-label="Checker for ${esc(u.name)}">${opts(M.users.map(x=>x.name).filter(n=>n!==u.name),u.checker||"","None")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="Checker")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No users yet.</td></tr>`;
   $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
   const pjE=projCan("edit"),pjD=projCan("delete"),pjRO=pjE?"":" disabled";$("#m-proj-form").hidden=!projCan("create");
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input${pjRO} id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input${pjRO} id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input${pjRO} id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select${pjRO} id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td>${pjD?`<button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
@@ -1709,7 +1715,8 @@ function renderMasters(){
   $(id).addEventListener("change",e=>{const tr=e.target.closest("tr");const f=e.target.dataset.f;if(!tr||!f)return;const rec=M[tr.dataset.t][+tr.dataset.i];
     const old=rec[f];rec[f]=e.target.value.trim();
     if(tr.dataset.t==="depts"&&f==="name")M.users.forEach(u=>{if(u.dept===old)u.dept=rec.name});
-    if(tr.dataset.t==="users"&&f==="name")M.depts.forEach(d=>{if(d.hod===old)d.hod=rec.name});
+    if(tr.dataset.t==="users"&&f==="name"){M.depts.forEach(d=>{if(d.hod===old)d.hod=rec.name});M.users.forEach(u=>{if(u.checker===old)u.checker=rec.name})}
+    if(tr.dataset.t==="users"&&f==="checker"&&rec.checker)toast(`${rec.checker} now checks and approves ${rec.name}'s purchase requests`);
     if(tr.dataset.t==="users"&&f==="role"&&rec.rights){delete rec.rights;toast(`${rec.name} now has the standard ${rec.role} rights`)}
     saveM();renderMasters()});
   $(id).addEventListener("click",e=>{if(e.target.dataset.mdel===undefined)return;const tr=e.target.closest("tr");M[tr.dataset.t].splice(+tr.dataset.i,1);saveM();renderMasters()});
