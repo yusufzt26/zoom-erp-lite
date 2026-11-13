@@ -322,7 +322,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="note">Type item, cost parts and qty. "EGP 60+130+20 x2" gives rate 210, amount 420. Leave out the parts ("Mold Leg x10") to use the suggested rate from the last PO or the rate list.</div>
     <div class="tablebox">
       <table class="est">
-        <thead><tr><th style="width:34px">Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr></thead>
+        <thead id="estHead"><tr><th style="width:34px">Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr></thead>
         <tbody id="estBody"></tbody>
       </table>
     </div>
@@ -732,13 +732,18 @@ function bindHeader(){fillPlantSels();
   fillItemList();
 }
 function lineAmt(l){return (+l.rate||0)*(+l.qty||0)}
+/* BOM specs in their own columns (Size, Block Vol...); l.spec stays the joined text used for rates and the PO */
+const estCols=()=>est&&Array.isArray(est.xcols)?est.xcols:[];
+const estJoin=l=>rqSpec({x:l.x,spec:l.xo},{xcols:estCols()});
 function renderEst(){
-  const tb=$("#estBody");
-  if(!est.lines.length){tb.innerHTML=`<tr><td colspan="10" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
+  const tb=$("#estBody"),xc=estCols();
+  $("#estHead").innerHTML=`<tr><th style="width:34px">Sn</th><th>Item</th>${xc.map(c=>`<th style="white-space:nowrap">${esc(c)}</th>`).join("")}<th>${xc.length?(xc.some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec"):"Specification"}</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr>`;
+  if(!est.lines.length){tb.innerHTML=`<tr><td colspan="${10+xc.length}" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
   else tb.innerHTML=est.lines.map((l,i)=>`<tr data-i="${i}">
     <td>${i+1}</td>
-    <td><input id="l${i}-item" data-k="item" value="${esc(l.item)}" list="itemnames"></td>
-    <td><input id="l${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
+    <td><input id="l${i}-item" data-k="item" value="${esc(l.item)}" list="itemnames"${xc.length?' style="min-width:180px"':""}></td>
+    ${xc.map((c,k)=>`<td><input id="l${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?120:70}px"></td>`).join("")}
+    <td><input id="l${i}-spec" data-k="${xc.length?"xo":"spec"}" value="${esc(xc.length?(l.xo??""):l.spec)}"></td>
     <td><input id="l${i}-expr" class="expr" data-k="expr" value="${esc(l.expr)}" aria-label="Cost parts, e.g. 60+130+20"></td>
     <td class="num"><input id="l${i}-rate" class="rate" data-k="rate" type="number" step="0.01" value="${l.rate??""}"></td>
     <td class="num"><input id="l${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
@@ -756,8 +761,9 @@ function srcChip(l){
 }
 function updateTotal(){$("#estTotal").textContent=fmt0(est.lines.reduce((a,l)=>a+lineAmt(l),0))}
 $("#estBody").addEventListener("input",e=>{
-  const tr=e.target.closest("tr");if(!tr)return;const i=+tr.dataset.i,l=est.lines[i],k=e.target.dataset.k;
-  l[k]=(k==="rate"||k==="qty")?(e.target.value===""?null:+e.target.value):e.target.value;
+  const tr=e.target.closest("tr");if(!tr)return;const i=+tr.dataset.i,l=est.lines[i];let k=e.target.dataset.k;
+  if(e.target.dataset.x!=null||k==="xo"){if(k==="xo")l.xo=e.target.value;else{l.x=l.x||{};l.x[e.target.dataset.x]=e.target.value}l.spec=estJoin(l);k="spec"}
+  else l[k]=(k==="rate"||k==="qty")?(e.target.value===""?null:+e.target.value):e.target.value;
   if(k==="expr"){const s=sumExpr(l.expr);if(s!=null){l.rate=s;l.src="calc";tr.querySelector(".rate").value=s}}
   if(k==="rate"){l.src="man";l.expr=""; tr.querySelector(".expr").value=""}
   if((k==="item"||k==="spec")&&!l.expr&&l.src!=="man"){const s=suggest(l.item,l.spec);if(s!=null){l.rate=s;l.src="sugg";tr.querySelector(".rate").value=s}}
@@ -793,9 +799,12 @@ $("#file-bom").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
     const {job,lines:raw}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
-    const lines=raw.map(r=>{const g=suggest(r.item,r.spec);return{item:r.item,spec:r.spec,expr:"",qty:r.qty,unit:est.unit||"NOS",rate:g,src:g!=null?"sugg":""}});
+    const cols=[];raw.forEach(r=>(r.x||[]).forEach(([c,v])=>{if(v&&!cols.includes(c))cols.push(c)}));
+    const lines=raw.map(r=>{const x={};(r.x||[]).forEach(([c,v])=>{if(v)x[c]=v});const xo=[r.note,r.remark].filter(Boolean).join(" · ");
+      const spec=cols.length?rqSpec({x,spec:xo},{xcols:cols}):r.spec;const g=suggest(r.item,spec);
+      return{item:r.item,spec,x,xo,expr:"",qty:r.qty,unit:est.unit||"NOS",rate:g,src:g!=null?"sugg":""}});
     if(!lines.length){toast("No item rows found in that sheet");return}
-    est={job:job||est.job,plant:est.plant||defPlant(),sup:est.sup,date:today(),unit:est.unit||"NOS",lines};isExample=false;saveEst();bindHeader();renderEst();
+    est={job:job||est.job,plant:est.plant||defPlant(),sup:est.sup,date:today(),unit:est.unit||"NOS",xcols:cols,lines};isExample=false;saveEst();bindHeader();renderEst();
     toast(`Imported ${lines.length} lines from ${f.name}`);
   }catch(err){toast("Could not read that file. Save it as .xlsx and try again.")}
   e.target.value="";
@@ -1160,7 +1169,7 @@ $("#btn-q-approve").onclick=()=>{cur.status="Approved";cur.apprBy=me.name;cur.ap
 $("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
 $("#btn-q-estimate").onclick=()=>{
   const r=cur;r.status="Estimated";saveReqs();
-  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",lines:r.lines.filter(l=>rqText(l)).map(l=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
+  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",xcols:rqCols(r).slice(),lines:r.lines.filter(l=>rqText(l)).map(l=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,x:Object.assign({},l.x||{}),xo:l.spec||"",expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 };
 $("#btn-q-file").onclick=()=>$("#q-file").click();
