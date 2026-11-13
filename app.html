@@ -1124,11 +1124,14 @@ $("#q-dept").addEventListener("change",()=>fillReqSelects());
 $("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqFlat(cur.lines[+tr.dataset.i]),xk=e.target.dataset.x;
   if(xk!=null){l.x=l.x||{};l.x[xk]=e.target.value}else{const k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value}if(cur.status!=="Draft")saveReqs()});
 $("#reqHead").addEventListener("click",e=>{const d=e.target.dataset.xdel;if(d==null||!cur)return;const c=rqCols(cur)[+d];
-  if(cur.lines.some(l=>l.x&&l.x[c])&&!confirm(`Remove the "${c}" column and its values from every line?`))return;
+  const b=e.target;if(cur.lines.some(l=>l.x&&l.x[c])&&!b.dataset.sure){b.dataset.sure="1";b.textContent="remove?";b.title=`Click again to remove the ${c} column`;setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="×"}},4000);return}
   cur.xcols=rqCols(cur).filter(x=>x!==c);cur.lines.forEach(l=>{if(l.x)delete l.x[c]});if(cur.status!=="Draft")saveReqs();renderReq()});
 $("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
 $("#btn-q-clear").onclick=()=>{if(!cur)return;const n=cur.lines.filter(l=>rqText(l).trim()||l.spec||(l.x&&Object.values(l.x).some(Boolean))).length;
-  if(n&&!confirm(`Clear all ${n} line${n>1?"s":""} from this request? The BOM Excel note is removed too; photos and PDFs stay.`))return;
+  /* ask by a second click, not a browser dialog (dialogs can be blocked, e.g. in the preview) */
+  const b=$("#btn-q-clear");if(n&&!b.dataset.sure){b.dataset.sure="1";b.textContent=`Click again to clear ${n} line${n>1?"s":""}`;b.style.color="#b42318";b.style.borderColor="#b42318";
+    clearTimeout(b._t);b._t=setTimeout(()=>{delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor=""},5000);return}
+  clearTimeout(b._t);delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor="";
   cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=attList(cur.attach).filter(a=>a.type!=="xlsx");
   if(cur.status!=="Draft")saveReqs();renderReq();toast("All lines cleared")};
 $("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
