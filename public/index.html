@@ -44,6 +44,8 @@ nav button[aria-current="true"]{color:var(--ink);border-color:var(--line);backgr
 nav button.grp-on{color:var(--ink);border-color:var(--line);background:var(--bg)}
 nav .step{font-family:var(--mono);font-size:11px;margin-right:6px;color:var(--accent)}
 button.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+a.btn{font:inherit;font-weight:600;border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink);text-decoration:none;display:inline-block;line-height:normal}
+a.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 button.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button.btn:focus-visible,nav button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
@@ -457,7 +459,7 @@ body.gated header.bar,body.gated main{display:none}
 <!-- SALES -->
 <section id="view-sales" class="stack" hidden>
   <div class="cards" id="salesTiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div>
-  <div class="panel stack"><div class="row"><h2 class="sec">RFQs and quotations</h2><select id="sb-owner" style="width:auto"></select><input id="sb-q" placeholder="Search customer, enquiry or QT No." style="max-width:260px"><span style="flex:1"></span><button class="btn" id="btn-deal-mould" type="button" title="Start an RFQ from an estimate made in Mould Estimator">Fetch estimate</button><button class="btn primary" id="btn-deal-new" type="button">+ New RFQ</button></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">RFQs and quotations</h2><select id="sb-owner" style="width:auto"></select><input id="sb-q" placeholder="Search customer, enquiry or QT No." style="max-width:260px"><span style="flex:1"></span><a class="btn" id="lnk-mould" href="https://mould-estimator.netlify.app/" target="_blank" rel="noopener" title="Opens Mould Estimator in a new tab">Open Mould Estimator ↗</a><button class="btn" id="btn-deal-mould" type="button" title="Start an RFQ from an estimate made in Mould Estimator">Fetch estimate</button><button class="btn primary" id="btn-deal-new" type="button">+ New RFQ</button></div>
     <div class="sb-board" id="sb-board"></div>
     <div class="note">Won and Lost show the last 90 days. Click a card to open it, change the stage, add notes and follow-ups, or make the quotation PDF.</div></div>
   <div class="panel stack" id="mouldPick" hidden></div>
