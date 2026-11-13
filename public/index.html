@@ -810,7 +810,8 @@ function parseBOM(wb){
   const descRank=h=>/part ?name|descr|particular|component|item ?name|material ?name|^name$|^desc/.test(h)?2:/^(item|part|material)$/.test(clean(h))?1:0;
   const isQty=h=>/^(qty|qnty|quantity|req\.? ?qty|nos\b|no\.? ?of)/.test(h);
   const isSize=h=>/\bsize\b|dimension|^dims?$|finish(ed)? ?size|l ?x ?w|l ?x ?b/.test(clean(h));
-  const isDim=h=>/^(l|b|h|w|t|d|od|id|length|width|breadth|height|thk|thick|thickness|dia|diameter)$/.test(clean(h));
+  /* one dimension heading: L, W, H, THK, DIA... also combined ones like "B / Ø" or "H/T", which join the size (180x99x110) */
+  const isDim=h=>{const p=clean(h).split(/\s*\/\s*/).filter(Boolean);return p.length>0&&p.every(x=>/^(l|b|h|w|t|d|ø|ф|φ|od|id|length|width|breadth|height|thk|thick|thickness|dia|diameter|dia ?ø|ø ?dia)$/.test(x))};
   const isSr=h=>/^(sr|s ?no|sl|sl ?no|sr ?no|sn|no|#|item ?no|[a-z])$/.test(clean(h));
   const isRem=h=>/remark|note/.test(h),isUnit=h=>/^(unit|uom|units)$/.test(h),isCode=h=>/code|part ?no|drg|drawing/.test(h);
   const SIZE=/(?:^|[\s(])((?:Ø|ø|dia\.? ?)?\d+(?:\.\d+)?\s*[x×X*]\s*\d+(?:\.\d+)?(?:\s*[x×X*]\s*\d+(?:\.\d+)?)?)(?=$|[\s),;])/;
@@ -1091,7 +1092,7 @@ function renderReq(){
   $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description of material</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
     <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description of material, any text"${xc.length?' style="min-width:200px"':""}></td>
-    ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:80px"></td>`).join("")}
+    ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?130:80}px"></td>`).join("")}
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
     <td><input id="q${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
