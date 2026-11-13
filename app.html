@@ -131,6 +131,31 @@ table.est input.qty{text-align:right;width:70px}
 .filechip{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);font-size:13px}
 h2.sec{font-size:15px;margin:0}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}}
+:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}
+.dhead{gap:10px;flex-wrap:wrap;align-items:center}.dhead select{width:auto}
+.dseg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}.dseg button{font:inherit;font-weight:600;border:0;background:var(--panel);color:var(--muted);padding:6px 12px;cursor:pointer}.dseg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+h2.dsec{margin-top:10px}
+.dtiles{grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr))}.dtile{cursor:default}button.dtile{cursor:pointer}.dtile .n{font-variant-numeric:tabular-nums}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px}
+.dchart{display:flex;flex-direction:column;gap:8px;min-width:0}.dchart.wide{grid-column:1/-1}.dchart h3{font-size:14px;margin:0}
+.dempty{color:var(--muted);padding:18px 0;text-align:center}
+.dlegend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}.dlegend span{display:inline-flex;align-items:center;gap:6px}.dlegend i{width:10px;height:10px;border-radius:2px;display:inline-block}.dlegend b{color:var(--ink);font-weight:600}
+.vb{display:flex;gap:6px;height:180px}.vb-y{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--muted);text-align:right;min-width:42px;margin:-6px 0}
+.vb-plot{position:relative;flex:1;display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--line);min-width:0}
+.vb-grid{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}.vb-grid b{border-top:1px dashed var(--line);opacity:.7}.vb-grid b:last-child{border:0}
+.vb-col{position:relative;flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;border-radius:4px;outline:none;min-width:0}.vb-col:hover,.vb-col:focus{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.vb-bars{display:flex;align-items:flex-end;gap:2px;height:100%;width:78%;max-width:56px}.vb-bars i{flex:1;border-radius:4px 4px 0 0;min-width:3px}
+.vb-x{display:flex;gap:2px;margin-left:48px;font-size:11px;color:var(--muted)}.vb-x span{flex:1;text-align:center;white-space:nowrap;overflow:visible;min-width:0}
+.hb{display:flex;flex-direction:column;gap:6px}.hb-row{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;gap:8px;align-items:center;font-size:13px;border-radius:4px;outline:none}.hb-row:hover,.hb-row:focus{background:color-mix(in srgb,var(--ink) 6%,transparent)}.hb-row[data-dgo]:not([data-dgo=""]){cursor:pointer}
+.hb-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hb-t{height:14px;background:color-mix(in srgb,var(--line) 45%,transparent);border-radius:4px;overflow:hidden}.hb-t i{display:block;height:100%;border-radius:0 4px 4px 0}.hb-v{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.sb{display:flex;gap:2px;height:22px;border-radius:4px;overflow:hidden}.sb i{min-width:4px;outline:none}.sb i:hover,.sb i:focus{filter:brightness(1.1)}
+#dashTip{position:fixed;z-index:50;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none;display:flex;flex-direction:column;gap:2px;max-width:260px}
+#dashTip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}#dashTip[hidden]{display:none}
+.dteam td{vertical-align:middle}.dmini{display:inline-block;width:90px;height:8px;background:color-mix(in srgb,var(--line) 45%,transparent);border-radius:4px;overflow:hidden;vertical-align:middle}.dmini i{display:block;height:100%;background:var(--s1);border-radius:4px}
+.spark{display:inline-flex;align-items:flex-end;gap:2px;height:22px;width:max-content}.spark i{width:5px;background:var(--s1);border-radius:2px 2px 0 0}
+.linkbtn{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-align:left}.linkbtn:hover{text-decoration:underline}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:6px;text-align:left;font:inherit;color:inherit;cursor:pointer}
 .card:hover{border-color:var(--accent)}
 .card .n{font-family:var(--mono);font-size:28px;font-weight:500;line-height:1}
@@ -199,6 +224,7 @@ body.gated header.bar,body.gated main{display:none}
   <div class="brand"><img class="brandlogo" alt="Zoom Technologies" id="brandLogo"><span>ZT-ERP LITE<small>Zoom Technologies</small></span></div>
   <nav aria-label="Sections">
     <button id="tab-home" data-view="home" aria-current="true">Home</button>
+    <button id="tab-dash" data-view="dash">Dashboard</button>
     <button id="tab-req" data-view="req"><span class="step">1</span>Purchase request</button>
     <button id="tab-pur" data-group="pur">Purchase</button>
     <button id="tab-appr" data-view="appr">PO approvals</button>
@@ -240,6 +266,13 @@ body.gated header.bar,body.gated main{display:none}
   <div class="panel stack" id="ownerPanel" hidden></div>
   <div class="panel stack" id="homeBackup" hidden></div>
   <div class="panel stack" id="homeFlow"><h2 class="sec">Purchase cycle at a glance</h2><div class="flow" id="flowBox"></div></div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="view-dash" class="stack" hidden>
+  <div class="row dhead"><h2 class="sec" id="dashTitle">My dashboard</h2><span class="dseg" id="dashTabs" role="group" aria-label="Dashboard" hidden><button type="button" data-dtab="me" aria-pressed="true">People</button><button type="button" data-dtab="co" aria-pressed="false">Company</button></span>
+    <select id="dashUserSel" aria-label="Show dashboard for" hidden></select><span style="flex:1"></span><span class="note" id="dashRange"></span><select id="dashPer" aria-label="Period"></select></div>
+  <div class="stack" id="dashBody"></div>
 </section>
 
 <section id="view-req" class="stack" hidden>
@@ -674,7 +707,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
+const views=["home","dash","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.approve","Approve or send back requests","For their own department"],["Actions","req.all","See all departments' requests","Approve any department if also allowed to approve"],
@@ -705,11 +738,11 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Requester","HOD","Purchaser","Admin"],est:["Purchaser","Admin"],po:["Purchaser","Approver","Admin"],saved:["Purchaser","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchaser","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
 const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 function syncGroups(v){Object.keys(GROUPS).forEach(g=>{const M=GROUPS[g],any=M.some(x=>can(x)),on=M.includes(v);const b=$("#tab-"+g);b.hidden=!any;b.classList.toggle("grp-on",on);b.setAttribute("aria-expanded",on?"true":"false");$("#subnav-"+g).hidden=!on||!any;
@@ -2913,6 +2946,212 @@ function words(n){
 window.__words=words;
 
 if(CLOUD)cloudWire();
+/* ---------- dashboards: each user's own performance, and the company overview for admin/owner ---------- */
+const DASH_PER=[["3","Last 3 months"],["6","Last 6 months"],["12","Last 12 months"],["fy","This financial year"]];
+let dashPer=(()=>{try{return localStorage.getItem("zpo:dashPer")||"6"}catch(e){return"6"}})(),dashUser="",dashTab="";
+const isBoss=()=>isRole("Admin")||isRole("Approver")||has("users.edit");
+const hasU=(u,r)=>{const s=rightsOf(u);return s.includes(r)||(ALIAS[r]||[]).some(x=>s.includes(x))};
+const d10=s=>String(s||"").slice(0,10),m7=s=>String(s||"").slice(0,7);
+const sameName=(a,b)=>!!a&&!!b&&key(String(a).replace(/\s*\(.*\)$/,""))===key(b);
+function dashMonths(){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7);let n=+dashPer||6;if(dashPer==="fy"){const fs=m>=4?y:y-1;n=(y-fs)*12+m-3}
+  const out=[];for(let i=n-1;i>=0;i--)out.push(new Date(Date.UTC(y,m-1-i,1)).toISOString().slice(0,7));return out}
+const monLbl=k=>new Date(k+"-01T00:00:00Z").toLocaleString("en-IN",{month:"short",timeZone:"UTC"})+(k.slice(5)==="01"||k.slice(5)==="04"?" "+k.slice(2,4):"");
+const byMonth=(MS,arr,dateOf,valOf)=>MS.map(k=>arr.filter(x=>m7(dateOf(x))===k).reduce((a,x)=>a+(valOf?(+valOf(x)||0):1),0));
+const sum=a=>a.reduce((x,y)=>x+(+y||0),0);
+const pct=(a,b)=>b?Math.round(a/b*100)+"%":"-";
+const daysTxt=v=>{if(v==null)return"-";const x=Math.round(v*10)/10;return x+(x===1?" day":" days")};
+const shortL=v=>{v=+v||0;const a=Math.abs(v);return a>=1e7?(v/1e7).toFixed(a>=1e8?0:1)+" Cr":a>=1e5?(v/1e5).toFixed(a>=1e6?0:1)+" L":a>=1e3?(v/1e3).toFixed(a>=1e4?0:1)+" k":String(Math.round(v))};
+const moneyTxt=v=>"₹ "+shortL(v);
+const niceMax=v=>{if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p};
+
+/* charts: plain HTML/CSS so labels stay readable on phones */
+function vBars(MS,series,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=niceMax(Math.max(o.money?1000:2,...series.flatMap(s=>s.vals)));const n=series.length;
+  const cols=MS.map((k,i)=>{const tip=`<b>${esc(monLbl(k))} ${k.slice(0,4)}</b>`+series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.name)}: ${f(s.vals[i])}</span>`).join("");
+    return`<div class="vb-col" tabindex="0" data-tip="${esc(tip)}"><div class="vb-bars">${series.map(s=>`<i style="height:${s.vals[i]>0?Math.max(1.5,s.vals[i]/mx*100):0}%;background:${s.c}"></i>`).join("")}</div></div>`}).join("");
+  const step=Math.ceil(MS.length/8);
+  return`${n>1?`<div class="dlegend">${series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.name)}</span>`).join("")}</div>`:""}
+  <div class="vb"><div class="vb-y"><span>${f(mx)}</span><span>${f(mx/2)}</span><span>0</span></div><div class="vb-plot"><div class="vb-grid"><b></b><b></b><b></b></div>${cols}</div></div>
+  <div class="vb-x">${MS.map((k,i)=>`<span>${i%step===0?esc(monLbl(k)):""}</span>`).join("")}</div>`}
+function hBars(rows,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=Math.max(0,...rows.map(r=>r.val))||1;
+  if(!rows.length||!rows.some(r=>r.val>0))return`<div class="dempty">${esc(o.empty||"Nothing in this period yet.")}</div>`;
+  return`<div class="hb">${rows.map(r=>`<div class="hb-row" tabindex="0" data-tip="${esc(`<b>${esc(r.label)}</b><span>${r.tip||f(r.val)}</span>`)}"${r.go?` data-dgo="${esc(r.go)}"`:""}><span class="hb-l">${esc(r.label)}</span><span class="hb-t"><i style="width:${r.val>0?Math.max(1,r.val/mx*100):0}%;background:${r.c||"var(--s1)"}"></i></span><span class="hb-v">${r.txt!=null?esc(r.txt):f(r.val)}</span></div>`).join("")}</div>`}
+function stackBar(parts,o){o=o||{};const T=sum(parts.map(p=>p.val));if(!T)return`<div class="dempty">${esc(o.empty||"Nothing in this period yet.")}</div>`;
+  const P=parts.filter(p=>p.val>0);
+  return`<div class="sb">${P.map(p=>`<i tabindex="0" style="flex:${p.val} 1 0;background:${p.c}" data-tip="${esc(`<b>${esc(p.label)}</b><span>${fmt0(p.val)} of ${fmt0(T)} (${pct(p.val,T)})</span>`)}"></i>`).join("")}</div>
+  <div class="dlegend">${P.map(p=>`<span><i style="background:${p.c}"></i>${esc(p.label)} <b>${fmt0(p.val)}</b></span>`).join("")}</div>`}
+const SC=["var(--s1)","var(--s2)","var(--s3)","var(--s4)","var(--s5)","var(--s6)","var(--s7)","var(--s8)"];
+const tile=(n,t,d,w,go)=>`<${go?`button type="button" data-dgo="${esc(go)}"`:"div"} class="card dtile${w?" warn":""}"><span class="n">${n}</span><span class="t">${esc(t)}</span><span class="d">${esc(d||"")}</span></${go?"button":"div"}>`;
+const chartBox=(title,sub,body,wide)=>`<div class="panel dchart${wide?" wide":""}"><h3>${esc(title)}</h3>${sub?`<div class="note">${esc(sub)}</div>`:""}${body}</div>`;
+
+/* everything one person did, as dated events */
+function userEvents(U){const E=[];const add=(t,d,v)=>{if(d)E.push({t,d:d10(d),v:+v||0})};const pl=x=>inPlant(x);
+  reqs.filter(r=>pl(r)&&r.by===U&&r.status!=="Draft").forEach(r=>add("Purchase requests raised",r.subAt||r.date));
+  reqs.filter(r=>pl(r)&&sameName(r.apprBy,U)&&r.apprAt).forEach(r=>add("Requests approved",r.apprAt));
+  saved.filter(pl).forEach(p=>{const h=(p.history||[]).find(x=>x.action==="Sent for approval");if(h&&h.by===U)add("POs prepared",h.at,p.total);if(p.approvedBy===U&&p.status==="Approved")add("POs approved",p.approvedAt,p.total)});
+  grns.filter(pl).forEach(g=>{if(g.by===U)add("GRNs (material received)",g.createdAt||g.date,grnCalc(g).total);if(g.bookedBy===U)add("GRNs booked",g.bookedAt,grnCalc(g).total)});
+  pays.filter(p=>p.by===U).forEach(p=>add("Vendor payments",p.date,p.amount));
+  rgps.filter(c=>pl(c)&&c.by===U).forEach(c=>add("Returnable challans",c.date));
+  jwins.filter(c=>pl(c)&&c.by===U).forEach(c=>add("Job work inward",c.date));
+  slips.filter(s=>s.by===U&&s.type!=="Opening").forEach(s=>add("Issue / return slips",s.date));
+  deals.filter(d=>pl(d)&&(d.owner||d.by)===U).forEach(d=>add("Enquiries",d.createdAt||d.date,dealVal(d)));
+  fups.filter(f=>f.by===U&&f.done).forEach(f=>add("Follow-ups done",f.doneAt||f.date));
+  sorders.filter(s=>pl(s)&&s.by===U).forEach(s=>add("Sales orders",s.date,sdSub(s)));
+  dchallans.filter(s=>pl(s)&&s.by===U).forEach(s=>add("Delivery challans",s.date));
+  invoices.filter(x=>pl(x)&&x.by===U&&!x.cancelled).forEach(x=>add("Tax invoices",x.date,invTot(x)));
+  cnotes.concat(dnotes).filter(n=>n.by===U).forEach(n=>add("Credit / debit notes",n.date));
+  jobs.forEach(j=>{(j.ops||[]).filter(o=>o.status==="Done"&&o.who===U).forEach(o=>add("Operations done",o.end||j.updatedAt,o.act));(j.qc||[]).filter(q=>q.by===U).forEach(q=>add("Inspection reports",q.date))});
+  return E}
+
+/* ---------- my performance ---------- */
+function dashMine(U){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today(),cm=t.slice(0,7),pm=new Date(Date.UTC(+t.slice(0,4),+t.slice(5,7)-2,1)).toISOString().slice(0,7);
+  const u=M.users.find(x=>x.name===U)||{name:U,role:""},self=me&&U===me.name;const hasR=r=>u.role!=="Admin"&&hasU(u,r);const go=v=>self&&can(v)?v:"";
+  const E=userEvents(U),EP=E.filter(e=>inP(e.d));
+  const types={};EP.forEach(e=>types[e.t]=(types[e.t]||0)+1);
+  const thisM=E.filter(e=>m7(e.d)===cm).length,lastM=E.filter(e=>m7(e.d)===pm).length;
+  let h=`<div class="cards dtiles">${tile(fmt0(EP.length),"Entries made","In the selected period")}${tile(fmt0(thisM),"This month",lastM?`${thisM>=lastM?"Up":"Down"} from ${lastM} last month`:"Nothing last month")}${tile(fmt0(Object.keys(types).length),"Kinds of work","Documents and tasks handled")}${tile(EP.length?fmt0(Math.round(EP.length/MS.length*10)/10):"0","Per month","Average entries")}</div>`;
+  const charts=[chartBox("My entries by month","Every document or task you recorded",vBars(MS,[{name:"Entries",c:"var(--s1)",vals:byMonth(MS,E,e=>e.d)}])),
+    chartBox("What I worked on","Count in the selected period",hBars(Object.entries(types).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:k,val:v,c:SC[i%8]})),{empty:"No entries in this period yet."}))];
+  const sec=[];const S=(title,tiles,ch)=>sec.push(`<h2 class="sec dsec">${esc(title)}</h2><div class="cards dtiles">${tiles.join("")}</div>${ch&&ch.length?`<div class="dgrid">${ch.join("")}</div>`:""}`);
+
+  /* purchase requests raised */
+  const R=reqs.filter(r=>inPlant(r)&&r.by===U&&r.status!=="Draft");
+  if(R.length||["Requester","Maker"].includes(u.role)){const RP=R.filter(r=>inP(r.subAt||r.date));
+    const toPO=RP.map(r=>{const p=r.poNo&&saved.find(x=>String(x.no)===String(r.poNo));return p&&p.approvedAt?dd(r.subAt||r.date,p.approvedAt):null});
+    S("My purchase requests",[tile(fmt0(RP.length),"Raised","In the period"),tile(fmt0(RP.filter(r=>["PO raised","PO approved"].includes(r.status)||r.poNo).length),"Turned into POs","Of those raised"),
+      tile(fmt0(R.filter(r=>r.status==="Sent back").length),"Sent back now","Correct and resubmit",R.some(r=>r.status==="Sent back"),go("req")),tile(daysTxt(avg(toPO)),"Request to approved PO","Average wait")],
+      [chartBox("Requests raised by month","",vBars(MS,[{name:"Requests",c:"var(--s1)",vals:byMonth(MS,R,r=>r.subAt||r.date)}])),
+       chartBox("Where my requests are now","All requests not in draft",stackBar([["Waiting","Submitted"],["Approved","Approved"],["Pre-estimate","Estimated"],["PO raised","PO raised"],["PO approved","PO approved"],["Sent back","Sent back"]].map(([l,s],i)=>({label:l,val:R.filter(r=>r.status===s).length,c:SC[i]})).concat([{label:"Other",val:R.filter(r=>!["Submitted","Approved","Estimated","PO raised","PO approved","Sent back"].includes(r.status)).length,c:SC[6]}])))])}
+
+  /* requests approved (checker / HOD) */
+  const RA=reqs.filter(r=>inPlant(r)&&sameName(r.apprBy,U)&&r.apprAt);
+  if(RA.length||hasR("req.approve")||hasR("req.check")){const RAP=RA.filter(r=>inP(r.apprAt));
+    S("Requests I approved",[tile(fmt0(RAP.length),"Approved","In the period"),tile(daysTxt(avg(RAP.map(r=>r.subAt?dd(r.subAt,r.apprAt):null))),"Time to approve","Submitted to approved"),
+      tile(fmt0(reqs.filter(r=>r.status==="Submitted"&&(hasU(u,"req.all")||r.dept===u.dept)).length),"Waiting for me now","Submitted requests",false,go("req"))],
+      [chartBox("Requests approved by month","",vBars(MS,[{name:"Approved",c:"var(--s1)",vals:byMonth(MS,RA,r=>r.apprAt)}]))])}
+
+  /* purchase orders prepared */
+  const T=trackRows().filter(x=>x.buyer===U&&inPlant(x.p));const PO=saved.filter(p=>inPlant(p)&&((p.history||[]).find(h=>h.action==="Sent for approval")||{}).by===U);
+  if(PO.length||hasR("po.create")){const sentAt=p=>((p.history||[]).find(h=>h.action==="Sent for approval")||{}).at||p.date;const PP=PO.filter(p=>inP(sentAt(p)));
+    const TP=T.filter(x=>inP(x.sent||x.p.date)),closed=TP.filter(x=>!x.open&&x.need),late=T.filter(x=>x.open&&x.delay>0);
+    S("My purchase orders",[tile(fmt0(PP.length),"POs sent","For approval in the period"),tile(moneyTxt(sum(PP.map(p=>p.total))),"PO value","Incl. GST"),tile(daysTxt(avg(TP.map(x=>x.proc))),"Processing time","Request approved to PO sent"),
+      tile(pct(closed.filter(x=>x.delay<=0).length,closed.length),"On-time delivery",`${closed.length} closed POs with a required date`),tile(fmt0(late.length),"Running late now","Open POs past required date",late.length>0,go("saved"))],
+      [chartBox("PO value by month","Sent for approval, incl. GST",vBars(MS,[{name:"PO value",c:"var(--s1)",vals:byMonth(MS,PO,sentAt,p=>p.total)}],{money:true})),
+       chartBox("Status of my POs","Sent in the period",stackBar(["Draft","Pending approval","Sent back","Approved"].map((s,i)=>({label:s==="Approved"?"Approved, open":s,val:PP.filter(p=>p.status===s&&!p.closed).length,c:SC[i]})).concat([{label:"Closed",val:PP.filter(p=>p.closed).length,c:SC[4]}])))])}
+
+  /* PO approvals */
+  const PA=saved.filter(p=>inPlant(p)&&p.approvedBy===U&&p.status==="Approved");
+  if(PA.length||hasR("po.approve")){const PAP=PA.filter(p=>inP(p.approvedAt));
+    S("POs I approved",[tile(fmt0(PAP.length),"Approved","In the period"),tile(moneyTxt(sum(PAP.map(p=>p.total))),"Value approved","Incl. GST"),
+      tile(daysTxt(avg(PAP.map(p=>{const s=hAt(p,"Sent for approval");return s?dd(s,p.approvedAt):null}))),"Approval time","Sent to approved"),
+      tile(fmt0(saved.filter(p=>inPlant(p)&&p.status==="Pending approval").length),"Waiting now","POs pending approval",saved.some(p=>inPlant(p)&&p.status==="Pending approval"),go("appr"))],
+      [chartBox("Value approved by month","Incl. GST",vBars(MS,[{name:"Approved",c:"var(--s1)",vals:byMonth(MS,PA,p=>p.approvedAt,p=>p.total)}],{money:true}))])}
+
+  /* store */
+  const G=grns.filter(g=>inPlant(g)&&g.by===U),SL=slips.filter(s=>s.by===U&&s.type!=="Opening"),RG=rgps.filter(c=>inPlant(c)&&c.by===U);
+  if(G.length||SL.length||RG.length||hasR("grn.create")||hasR("stock.issue")){const GP=G.filter(g=>inP(g.createdAt||g.date));
+    S("Store work",[tile(fmt0(GP.length),"GRNs made","Material received"),tile(moneyTxt(sum(GP.map(g=>grnCalc(g).total))),"Value received","Accepted qty, incl. GST"),tile(fmt0(SL.filter(s=>inP(s.date)).length),"Issue / return slips","In the period"),
+      tile(fmt0(RG.filter(c=>c.status!=="Closed").length),"My challans open",RG.filter(c=>c.status!=="Closed"&&c.expected&&c.expected<t).length+" overdue for return",RG.some(c=>c.status!=="Closed"&&c.expected&&c.expected<t),go("grn")),
+      tile(fmt0(saved.filter(p=>inPlant(p)&&p.status==="Approved"&&!p.closed&&pendingLines(p).length).length),"POs waiting for material","All approved open POs",false,go("grn"))],
+      [chartBox("Store entries by month","",vBars(MS,[{name:"GRNs",c:"var(--s1)",vals:byMonth(MS,G,g=>g.createdAt||g.date)},{name:"Issue / return slips",c:"var(--s2)",vals:byMonth(MS,SL,s=>s.date)},{name:"Returnable challans",c:"var(--s3)",vals:byMonth(MS,RG,c=>c.date)}]))])}
+
+  /* accounts */
+  const GB=grns.filter(g=>inPlant(g)&&g.bookedBy===U),PY=pays.filter(p=>p.by===U);
+  if(GB.length||PY.length||hasR("acct.book")){const GBP=GB.filter(g=>inP(g.bookedAt)),PYP=PY.filter(p=>inP(p.date));const vs=vendSummary();
+    S("Accounts work",[tile(fmt0(GBP.length),"GRNs booked","In the period"),tile(daysTxt(avg(GBP.map(g=>g.createdAt?dd(d10(g.createdAt),g.bookedAt):null))),"Time to book","GRN made to booked"),
+      tile(moneyTxt(sum(PYP.map(p=>p.amount))),"Paid to vendors",PYP.length+" payments"),tile(fmt0(grns.filter(g=>inPlant(g)&&g.status==="With accounts").length),"GRNs waiting to book","All users",grns.some(g=>g.status==="With accounts"),go("acct")),
+      tile(moneyTxt(sum(vs.map(v=>v.overdue))),"Overdue to vendors","Past payment terms",sum(vs.map(v=>v.overdue))>0,go("acct"))],
+      [chartBox("Vendor payments by month","Amount paid",vBars(MS,[{name:"Paid",c:"var(--s1)",vals:byMonth(MS,PY,p=>p.date,p=>p.amount)}],{money:true})),
+       chartBox("GRNs booked by month","",vBars(MS,[{name:"Booked",c:"var(--s2)",vals:byMonth(MS,GB,g=>g.bookedAt)}]))])}
+
+  /* sales */
+  const D=deals.filter(d=>inPlant(d)&&(d.owner||d.by)===U),IV=invoices.filter(x=>inPlant(x)&&x.by===U&&!x.cancelled),FU=fups.filter(f=>f.by===U);
+  if(D.length||IV.length||hasR("sales.edit")){const DP=D.filter(d=>inP(d.createdAt||d.date)),CL=D.filter(d=>["Won","Lost"].includes(d.stage)&&inP(d.closedAt||d.updatedAt)),won=CL.filter(d=>d.stage==="Won");
+    const open=D.filter(d=>!["Won","Lost"].includes(d.stage)),od=FU.filter(f=>!f.done&&f.date<t).length;
+    S("My sales",[tile(fmt0(DP.length),"New enquiries","In the period"),tile(pct(won.length,CL.length),"Win rate",`${won.length} won of ${CL.length} closed`),tile(moneyTxt(sum(won.map(dealVal))),"Value won","Quotation value"),
+      tile(moneyTxt(sum(open.map(dealVal))),"Open pipeline",open.length+" open enquiries",false,go("sales")),tile(moneyTxt(sum(IV.filter(x=>inP(x.date)).map(invTot))),"Invoiced","My tax invoices, incl. GST"),
+      tile(fmt0(od),"Follow-ups overdue",FU.filter(f=>f.done&&inP(f.doneAt||f.date)).length+" done in the period",od>0,go("sales"))],
+      [chartBox("Invoiced by month","My tax invoices, incl. GST",vBars(MS,[{name:"Invoiced",c:"var(--s1)",vals:byMonth(MS,IV,x=>x.date,invTot)}],{money:true})),
+       chartBox("My enquiries by stage","Open now, plus won and lost in the period",hBars(STAGES.map((s,i)=>{const L=(s==="Won"||s==="Lost")?CL.filter(d=>d.stage===s):open.filter(d=>d.stage===s);return{label:s,val:L.length,tip:`${L.length} enquiries · ${moneyTxt(sum(L.map(dealVal)))}`,c:s==="Lost"?"var(--s8)":s==="Won"?"var(--s3)":"var(--s1)"}}))),
+       chartBox("Enquiries and follow-ups by month","",vBars(MS,[{name:"New enquiries",c:"var(--s1)",vals:byMonth(MS,D,d=>d.createdAt||d.date)},{name:"Follow-ups done",c:"var(--s2)",vals:byMonth(MS,FU.filter(f=>f.done),f=>f.doneAt||f.date)}]))])}
+
+  /* production */
+  const OPS=[];jobs.forEach(j=>(j.ops||[]).forEach(o=>{if(o.who===U)OPS.push({j,o})}));
+  if(OPS.length||hasR("prod.edit")){const done=OPS.filter(x=>x.o.status==="Done"),DP=done.filter(x=>inP(x.o.end||x.j.updatedAt));const pl=sum(DP.map(x=>x.o.plan)),ac=sum(DP.map(x=>x.o.act));
+    const J=jobs.filter(j=>j.status==="Completed"&&inP(j.doneAt)),Jt=J.filter(j=>j.due),late=jobs.filter(j=>j.status!=="Completed"&&j.due&&j.due<t);
+    S("Production",[tile(fmt0(DP.length),"My operations done","In the period"),tile(fmt0(Math.round(ac*10)/10),"Actual hours","Plan "+fmt0(Math.round(pl*10)/10)+" hrs"),tile(pl&&ac?Math.round(pl/ac*100)+"%":"-","Efficiency","Plan hours ÷ actual hours"),
+      tile(fmt0(OPS.filter(x=>x.o.status==="Running").length),"Running now","My operations"),tile(fmt0(J.length),"Jobs completed",`${pct(Jt.filter(j=>j.doneAt<=j.due).length,Jt.length)} on time (all jobs)`),tile(fmt0(late.length),"Jobs past due","All jobs on the floor",late.length>0,go("prod"))],
+      [chartBox("Operations done by month","",vBars(MS,[{name:"Operations",c:"var(--s1)",vals:byMonth(MS,done,x=>x.o.end||x.j.updatedAt)}])),
+       chartBox("Plan vs actual hours by month","My finished operations",vBars(MS,[{name:"Plan hrs",c:"var(--s1)",vals:byMonth(MS,done,x=>x.o.end||x.j.updatedAt,x=>x.o.plan)},{name:"Actual hrs",c:"var(--s2)",vals:byMonth(MS,done,x=>x.o.end||x.j.updatedAt,x=>x.o.act)}]))])}
+
+  return`<h2 class="sec dsec">${self?"My work":esc(U)+"'s work"}<span class="note"> · ${esc(u.role||"")}${u.dept?" · "+esc(u.dept):""}</span></h2>${h}<div class="dgrid">${charts.join("")}</div>${sec.join("")}`}
+
+/* ---------- company overview ---------- */
+function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
+  const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
+  const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]);
+  const purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
+  const R=[];invoices.concat(obills.filter(o=>o.kind==="cust")).filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
+  const coll=byMonth(MS,R,r=>r.date,r=>r.amt),paid=byMonth(MS,pays,p=>p.date,p=>p.amount);
+  const recv=invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
+  const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),lateJ=J.filter(j=>j.due&&j.due<t);
+  const go=v=>can(v)?v:"";
+  let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales","Invoices less credit notes",false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases","Booked GRNs",false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
+    ${tile(moneyTxt(recv),"To collect now","All open invoices",recv>0,go("inv"))}${tile(moneyTxt(payb),"To pay now","Booked, not yet paid",false,go("acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
+  const ch=[];
+  ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
+  ch.push(chartBox("Money in and out by month","Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true})));
+  const A=custAgeing(),B=[0,1,2,3].map(i=>sum(A.map(r=>r.b[i])));
+  ch.push(chartBox("Money to collect, by age","Open customer invoices and opening bills",hBars(["0–30 days","31–60 days","61–90 days","Over 90 days"].map((l,i)=>({label:l,val:B[i],c:i===3?"var(--danger)":"var(--s1)"})),{money:true,empty:"Nothing to collect."})));
+  /* purchase flow now */
+  const st=s=>reqs.filter(r=>inPlant(r)&&r.status===s).length;
+  ch.push(chartBox("Purchase flow right now","How many documents are waiting at each step",hBars([["Requests waiting approval",st("Submitted"),"req"],["Approved requests, no PO yet",st("Approved")+st("Estimated"),"req"],["POs with approver",saved.filter(p=>inPlant(p)&&p.status==="Pending approval").length,"appr"],["Approved POs, material due",saved.filter(p=>inPlant(p)&&p.status==="Approved"&&!p.closed).length,"grn"],["GRNs to book",grns.filter(g=>inPlant(g)&&g.status==="With accounts").length,"acct"],["GRNs unpaid",grns.filter(g=>inPlant(g)&&["Booked","Part paid"].includes(g.status)).length,"acct"]].map(([l,v,g])=>({label:l,val:v,go:go(g)})),{empty:"Nothing waiting."})));
+  const T=trackRows().filter(x=>inPlant(x.p)&&inP(x.sent||x.p.date)),closed=T.filter(x=>!x.open&&x.need);
+  const rq=reqs.filter(r=>inPlant(r)&&r.subAt&&r.apprAt&&inP(r.apprAt)).map(r=>dd(r.subAt,r.apprAt));
+  const cyc=[["Request approval",avg(rq)],["Purchase processing",avg(T.map(x=>x.proc))],["PO approval",avg(T.map(x=>x.apprDays))],["Supplier delivery",avg(T.map(x=>x.supDays))]];
+  ch.push(chartBox("Purchase cycle time","Average days per step, POs sent in the period · on-time delivery "+pct(closed.filter(x=>x.delay<=0).length,closed.length),hBars(cyc.map(([l,v])=>({label:l,val:v||0,txt:v==null?"-":daysTxt(v)})),{empty:"No POs in this period yet."})));
+  /* sales pipeline */
+  const D=deals.filter(inPlant),open=D.filter(d=>!["Won","Lost"].includes(d.stage)),CL=D.filter(d=>["Won","Lost"].includes(d.stage)&&inP(d.closedAt||d.updatedAt));
+  ch.push(chartBox("Sales pipeline","Open enquiries now, plus won and lost in the period · win rate "+pct(CL.filter(d=>d.stage==="Won").length,CL.length),hBars(STAGES.map(s=>{const L=(s==="Won"||s==="Lost")?CL.filter(d=>d.stage===s):open.filter(d=>d.stage===s);const v=sum(L.map(dealVal));return{label:s,val:v,tip:`${L.length} enquiries · ${moneyTxt(v)}`,txt:L.length+" · "+moneyTxt(v),c:s==="Lost"?"var(--s8)":s==="Won"?"var(--s3)":"var(--s1)"}}),{money:true,empty:"No enquiries yet."})));
+  /* top customers and suppliers */
+  const topC={};INV.filter(x=>inP(x.date)).forEach(x=>topC[x.cust]=(topC[x.cust]||0)+invTot(x));
+  const topS={};GR.filter(g=>inP(g.bookedAt||g.date)).forEach(g=>topS[g.sup]=(topS[g.sup]||0)+grnCalc(g).total);
+  const top=(o)=>Object.entries(o).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>({label:k,val:v}));
+  ch.push(chartBox("Top customers","Invoiced in the period, incl. GST",hBars(top(topC),{money:true,empty:"No invoices in this period yet."})));
+  ch.push(chartBox("Top suppliers","Booked GRNs in the period, incl. GST",hBars(top(topS).map(r=>({...r,c:"var(--s2)"})),{money:true,empty:"No booked GRNs in this period yet."})));
+  /* production */
+  const JD=jobs.filter(j=>j.status==="Completed"&&inP(j.doneAt)),JDt=JD.filter(j=>j.due);
+  ch.push(chartBox("Jobs on the floor","By status now · completed in the period: "+JD.length+", on time "+pct(JDt.filter(j=>j.doneAt<=j.due).length,JDt.length),stackBar(JOB_ST.filter(s=>s!=="Completed").map((s,i)=>({label:s,val:J.filter(j=>j.status===s).length,c:SC[i]})),{empty:"No open jobs."})+(lateJ.length?`<div class="note" style="color:var(--danger)">${lateJ.length} past due date: ${lateJ.slice(0,6).map(j=>esc(j.no)).join(", ")}${lateJ.length>6?"…":""}</div>`:"")));
+  /* team */
+  const U=M.users.map(u=>{const E=userEvents(u.name),EP=E.filter(e=>inP(e.d));const k={};EP.forEach(e=>k[e.t]=(k[e.t]||0)+1);const topK=Object.entries(k).sort((a,b)=>b[1]-a[1]);
+    return{u,n:EP.length,cm:E.filter(e=>m7(e.d)===t.slice(0,7)).length,top:topK.slice(0,2).map(([a,b])=>a+": "+b).join(" · "),vals:byMonth(MS,E,e=>e.d)}}).sort((a,b)=>b.n-a.n);
+  const mx=Math.max(1,...U.map(x=>x.n));
+  const team=`<div class="panel dchart wide"><h3>Team performance</h3><div class="note">Entries each person made in the period. Click a name to open their dashboard.</div>
+    <div class="tablebox"><table class="est dteam"><thead><tr><th>Name</th><th>Role</th><th>Entries in period</th><th class="num">This month</th><th>Trend</th><th>Main work</th></tr></thead><tbody>${U.map(x=>{const sm=Math.max(1,...x.vals);
+      return`<tr><td><button type="button" class="linkbtn" data-duser="${esc(x.u.name)}">${esc(x.u.name)}</button></td><td>${esc(x.u.role)}${x.u.dept?`<span class="note"> · ${esc(x.u.dept)}</span>`:""}</td><td><span class="dmini"><i style="width:${x.n/mx*100}%"></i></span> <b>${fmt0(x.n)}</b></td><td class="num">${fmt0(x.cm)}</td>
+      <td><span class="spark" data-tip="${esc(`<b>${esc(x.u.name)}</b>`+MS.map((k,i)=>`<span>${esc(monLbl(k))}: ${x.vals[i]}</span>`).join(""))}">${x.vals.map(v=>`<i style="height:${v?Math.max(8,v/sm*100):0}%"></i>`).join("")}</span></td><td class="note">${esc(x.top||"No entries")}</td></tr>`}).join("")}</tbody></table></div></div>`;
+  return h+`<div class="dgrid">${ch.join("")}${team}</div>`}
+
+function renderDash(){const P=$("#dashBody");if(!P||!me)return;const boss=isBoss();if(!boss){dashTab="me";dashUser=""}else if(!dashTab)dashTab="co";
+  if(dashUser&&!M.users.some(u=>u.name===dashUser))dashUser="";
+  $("#dashTabs").hidden=!boss;$("#dashTabs").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.dtab===dashTab?"true":"false"));
+  const us=$("#dashUserSel");us.hidden=!boss||dashTab!=="me";if(boss)us.innerHTML=M.users.map(u=>`<option value="${esc(u.name)}"${u.name===(dashUser||me.name)?" selected":""}>${esc(u.name)}${u.name===me.name?" (me)":""}</option>`).join("");
+  $("#dashPer").innerHTML=DASH_PER.map(([v,l])=>`<option value="${v}"${v===dashPer?" selected":""}>${l}</option>`).join("");
+  $("#dashTitle").textContent=dashTab==="co"?"Company performance":"My dashboard";
+  const MS=dashMonths();$("#dashRange").textContent=`${monLbl(MS[0])} ${MS[0].slice(0,4)} to ${monLbl(MS[MS.length-1])} ${MS[MS.length-1].slice(0,4)}${curPlant?" · "+plantName(curPlant)+" only":""}`;
+  P.innerHTML=dashTab==="co"?dashCompany():dashMine(dashUser||me.name)}
+(function(){const tip=document.createElement("div");tip.id="dashTip";tip.hidden=true;tip.setAttribute("role","tooltip");document.body.appendChild(tip);
+  const V=$("#view-dash");const showTip=(el,x,y)=>{tip.innerHTML=el.dataset.tip;tip.hidden=false;const r=tip.getBoundingClientRect();let L=x+14,T=y+14;if(L+r.width>innerWidth-8)L=x-r.width-14;if(T+r.height>innerHeight-8)T=y-r.height-14;tip.style.left=Math.max(8,L)+"px";tip.style.top=Math.max(8,T)+"px"};
+  V.addEventListener("mousemove",e=>{const el=e.target.closest("[data-tip]");if(el)showTip(el,e.clientX,e.clientY);else tip.hidden=true});
+  V.addEventListener("mouseleave",()=>tip.hidden=true);
+  V.addEventListener("focusin",e=>{const el=e.target.closest("[data-tip]");if(el){const r=el.getBoundingClientRect();showTip(el,r.left+r.width/2,r.top)}});V.addEventListener("focusout",()=>tip.hidden=true);
+  window.addEventListener("scroll",()=>tip.hidden=true,{passive:true});
+  V.addEventListener("click",e=>{const u=e.target.closest("[data-duser]");if(u){dashTab="me";dashUser=u.dataset.duser;renderDash();window.scrollTo(0,0);return}
+    const g=e.target.closest("[data-dgo]");if(g&&g.dataset.dgo&&can(g.dataset.dgo)){show(g.dataset.dgo);return}
+    const tb=e.target.closest("[data-dtab]");if(tb){dashTab=tb.dataset.dtab;if(dashTab==="me")dashUser="";renderDash();return}
+    const el=e.target.closest("[data-tip]");if(el&&e.pointerType!=="mouse")showTip(el,e.clientX,e.clientY)});
+  $("#dashPer").onchange=e=>{dashPer=e.target.value;try{localStorage.setItem("zpo:dashPer",dashPer)}catch(err){}renderDash()};
+  $("#dashUserSel").onchange=e=>{dashUser=e.target.value===me.name?"":e.target.value;renderDash()}})();
+
 bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
 }
 </script>
