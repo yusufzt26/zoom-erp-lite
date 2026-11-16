@@ -758,8 +758,12 @@ let saved=store.get("saved",[]);
 let grns=store.get("grns",[]);
 let est=store.get("est",null);
 let isExample=false;
-if(!est){est=exampleEstimate();isExample=true}
+/* real use starts with an empty pre-estimate; the old built-in notebook example (job ZT2349) is cleared,
+   so a purchaser can't turn it into a PO by mistake */
+const isDemoEst=e=>!!e&&e.job==="ZT2349"&&!e.reqNo&&Array.isArray(e.lines)&&e.lines.length>0&&e.lines.every(l=>EXAMPLE.some(x=>x[0]===l.item&&!l.spec));
+if(!est||isDemoEst(est)){est={job:"",plant:"",sup:"",date:today(),unit:"NOS",lines:[]};store.set("est",est)}
 let po=store.get("po",null);
+if(po&&po.ref==="ZT2349"&&!po.reqNo&&!saved.some(x=>String(x.no)===String(po.no))&&(po.lines||[]).every(l=>EXAMPLE.some(x=>x[0]===(l.item||l.desc)))){po=null;store.set("po",null)}
 let reqs=store.get("reqs",null);
 if(!reqs)reqs=[];
 /* the old demo request (no. 066, ZT2349) is removed from real data */
