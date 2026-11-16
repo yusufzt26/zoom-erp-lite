@@ -20,7 +20,15 @@ const normName = (n) => String(n || "").trim().replace(/\s+/g, " ");
 async function mastersDoc() { const r = await q("SELECT data FROM records WHERE coll='masters' AND id='_' AND NOT deleted"); return r[0] ? r[0].data : null; }
 async function profile(name) { const m = await mastersDoc(); const u = m && (m.users || []).find((x) => x.name === name); return u || null; }
 const ADMIN_RIGHT = "page.users";
-async function isAdmin(name) { const u = await profile(name); if (!u) return false; return u.role === "Admin" || (Array.isArray(u.rights) && u.rights.includes(ADMIN_RIGHT)); }
+async function isAdmin(name) { const u = await profile(name); if (u && (u.role === "Admin" || (Array.isArray(u.rights) && u.rights.includes(ADMIN_RIGHT)))) return true; return (await ownerName()) === name && !(await hasAdmin()); }
+// The person who did first-time setup (the oldest login) is the owner. If the users list ever has no Admin left, the owner gets Admin back.
+async function ownerName() { const r = await q("SELECT name FROM logins WHERE active ORDER BY created_at, name LIMIT 1"); return r[0] ? r[0].name : null; }
+const anyAdmin = (m) => !!m && Array.isArray(m.users) && m.users.some((x) => x && (x.role === "Admin" || (Array.isArray(x.rights) && x.rights.includes(ADMIN_RIGHT))));
+async function hasAdmin() { return anyAdmin(await mastersDoc()); }
+function withAdmin(m, name) { const md = m && typeof m === "object" ? { ...m } : { users: [], depts: [], projects: [] }; const users = Array.isArray(md.users) ? md.users.filter(Boolean) : []; const i = users.findIndex((x) => x.name === name);
+  if (i >= 0) users[i] = { ...users[i], role: "Admin" }; else users.unshift({ name, dept: "", role: "Admin" }); md.users = users; return md; }
+async function repairAdmin(me) { const cur = await mastersDoc(); if (anyAdmin(cur) || (await ownerName()) !== me) return;
+  await q("INSERT INTO records(coll,id,data,rev,created_rev,updated_by) VALUES('masters','_',$1,nextval('rev_seq'),currval('rev_seq'),$2) ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by", [JSON.stringify(withAdmin(cur, me)), me]); }
 
 const MOULD_ROLES = ["Sales", "Approver", "Purchaser", "Admin"];
 function canMould(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["sales.view", "sales.create", "sales.edit"].some((k) => r.includes(k)); return MOULD_ROLES.includes(u.role) || (!!r && r.includes("page.sales")); }
@@ -160,6 +168,7 @@ export default async (req) => {
     if (path === "logout" && m === "POST") { const t = (req.headers.get("authorization") || "").slice(7); await q("DELETE FROM sessions WHERE token_hash=$1", [sha(t)]); return json({ ok: true }); }
 
     if (path === "sync" && m === "GET") {
+      await repairAdmin(me);
       const since = Math.max(0, parseInt(url.searchParams.get("since") || "0", 10) || 0);
       const rows = await q("SELECT coll,id,data,deleted,rev,created_rev FROM records WHERE rev>$1 ORDER BY rev", [since]);
       const top = await q("SELECT COALESCE(MAX(rev),0)::bigint AS r FROM records");
@@ -193,6 +202,8 @@ export default async (req) => {
           if (!u || !cur || c.deleted || id !== "_" || !canProjects(u) || !Array.isArray(c.data?.projects)) { results.push({ coll, id, error: "Only the admin can change masters and users" }); continue; }
           c.data = { ...cur, projects: c.data.projects.slice(0, 5000) }; c.isNew = false;
         }
+        // a users list with no Admin would lock everyone out of Users & rights: keep the person saving it as Admin
+        if (coll === "masters" && admin && !c.deleted && c.data && typeof c.data === "object" && !anyAdmin(c.data)) c.data = withAdmin(c.data, me);
         if (c.isNew) {
           const ex = await q("SELECT rev FROM records WHERE coll=$1 AND id=$2 AND NOT deleted", [coll, id]);
           if (ex[0]) { results.push({ coll, id, conflict: true }); continue; }

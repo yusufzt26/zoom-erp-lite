@@ -758,9 +758,10 @@ if(!reqs)reqs=[];
 if(reqs.some(r=>r&&r.example)){reqs=reqs.filter(r=>!(r&&r.example));store.set("reqs",reqs)}
 let cur=null;
 let M=store.get("masters",null);
-if(!M){M={users:[{name:"Niksal",dept:"Design",role:"Maker",checker:"M.K. Singh"},{name:"M.K. Singh",dept:"Design",role:"Checker"},{name:"Purchase Desk",dept:"Purchase",role:"Purchase"}],
+/* cloud: never replace the shared users list with sample users (that removed the Admin); wait for the real list instead */
+if(!M){M=CLOUD?{users:[],depts:[],projects:[]}:{users:[{name:"Niksal",dept:"Design",role:"Maker",checker:"M.K. Singh"},{name:"M.K. Singh",dept:"Design",role:"Checker"},{name:"Purchase Desk",dept:"Purchase",role:"Purchase"}],
   depts:[{name:"Design",hod:"M.K. Singh"},{name:"Tool Room",hod:""},{name:"Purchase",hod:""}],
-  projects:[{no:"ZT2329",desc:"Mould & tool child parts",cust:"",status:"Active"},{no:"ZT2335",desc:"Mould (BOM released 17/10/2026)",cust:"",status:"Active"},{no:"ZT2347",desc:"",cust:"",status:"Active"},{no:"ZT2348",desc:"",cust:"",status:"Active"},{no:"ZT2349",desc:"",cust:"",status:"Active"}]};store.set("masters",M)}
+  projects:[{no:"ZT2329",desc:"Mould & tool child parts",cust:"",status:"Active"},{no:"ZT2335",desc:"Mould (BOM released 17/10/2026)",cust:"",status:"Active"},{no:"ZT2347",desc:"",cust:"",status:"Active"},{no:"ZT2348",desc:"",cust:"",status:"Active"},{no:"ZT2349",desc:"",cust:"",status:"Active"}]};if(!CLOUD)store.set("masters",M)}
 if(!CLOUD&&!M.users.some(u=>u.role==="Store"))M.users.push({name:"Store Keeper",dept:"Store",role:"Store"});
 if(!CLOUD&&!M.users.some(u=>u.role==="Accounts"))M.users.push({name:"Accounts Desk",dept:"Accounts",role:"Accounts"});
 if(!CLOUD&&!M.users.some(u=>u.role==="Sales"))M.users.push({name:"Sales Desk",dept:"Sales",role:"Sales"});
