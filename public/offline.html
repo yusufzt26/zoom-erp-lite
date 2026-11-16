@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0e6e8c">
+<title>ZT-ERP LITE: no internet</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef1f4;color:#1d2733;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{background:#fff;border-radius:10px;padding:28px 24px;max-width:360px;margin:16px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+img{width:72px;height:72px}
+h1{font-size:20px;margin:10px 0 6px}
+p{margin:0 0 18px;color:#5b6775}
+button{font:inherit;background:#0e6e8c;color:#fff;border:0;border-radius:6px;padding:10px 22px;cursor:pointer}
+@media (prefers-color-scheme:dark){body{background:#12171d;color:#e6ebf0}main{background:#1c232b}p{color:#9aa7b4}}
+</style>
+<main>
+<img src="/icon-192.png" alt="">
+<h1>No internet connection</h1>
+<p>ZT-ERP LITE keeps all data on the company server, so it needs the internet to open. Check the Wi-Fi or mobile data, then try again.</p>
+<button onclick="location.reload()">Try again</button>
+</main>
+<script>addEventListener("online",()=>location.reload())</script>

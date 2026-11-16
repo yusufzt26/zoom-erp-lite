@@ -203,7 +203,10 @@ table.mt input:hover,table.mt select:hover{border-color:var(--line)}
 }
 thead th{cursor:default}.tablebox thead th{user-select:none}.cellsel{outline:2px solid var(--accent)!important;outline-offset:-2px;background:var(--sugg-bg)!important}
 #gate{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
-.gatebox{max-width:380px;width:100%}.gatebox .brand{margin-bottom:6px}
+.gatebox{max-width:380px;width:100%}
+.installbtn{display:none;align-items:center;gap:6px;white-space:nowrap}.installbtn svg{width:16px;height:16px}
+body.can-install .installbtn{display:inline-flex}body.can-install .gatebox .installbtn{display:flex;justify-content:center}
+body.is-app .install-help{display:none}.gatebox .brand{margin-bottom:6px}
 body.gated header.bar,body.gated main{display:none}
 .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
 @media (max-width:640px){table.est input:not(.qty):not(.rate):not([type=number]){min-width:150px}table.est input,table.est select{border:1px solid var(--line)!important;border-radius:4px;background:var(--panel)}}
@@ -306,6 +309,7 @@ body.simple nav .step{display:none}
   </nav>
   <label class="who">Signed in as<select id="who"></select></label><label class="who">Plant<select id="plantSel"></select></label>
   <span class="who" id="cloudUser" hidden><b id="cuName"></b><span id="syncState" class="chip calc">Saved</span><button class="btn" type="button" id="btn-cu-pw">Password</button><button class="btn" type="button" id="btn-cu-out">Log out</button></span>
+  <button type="button" class="btn installbtn" data-install title="Install ZT-ERP LITE as an app on this device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Install app</button>
   <div class="theme" role="group" aria-label="Colour mode"><button type="button" data-theme-set="light" id="th-light">Light</button><button type="button" data-theme-set="dark" id="th-dark">Dark</button><button type="button" data-theme-set="system" id="th-system">Auto</button></div>
 </div>
 <nav class="subnav" id="subnav-pur" aria-label="Purchase department" hidden><span class="subnav-t">Purchase department</span>
@@ -3727,7 +3731,8 @@ document.querySelectorAll("header nav button").forEach(b=>{const t=[...b.childNo
     <div class="seg" role="group" aria-label="View"><button type="button" data-simple-set="1">Simple</button><button type="button" data-simple-set="0">Full</button></div>
     <p class="note">Simple shows the main things with help on each screen. Full shows every field and number.</p>
     <div id="gearPlant"></div><div id="gearTheme"><h4 style="margin-bottom:6px">Colours</h4></div>
-    <button type="button" class="linkbtn" id="btn-gloss">What do the words mean? (GRN, PO, HSN…)</button></div>`;
+    <button type="button" class="linkbtn" id="btn-gloss">What do the words mean? (GRN, PO, HSN…)</button>
+    <button type="button" class="linkbtn install-help" data-install>Install as an app on this device</button></div>`;
   const th=inner.querySelector(".theme");inner.insertBefore(w,th||null);
   const pl=$("#plantSel")&&$("#plantSel").closest("label");if(pl)$("#gearPlant").appendChild(pl);if(th)$("#gearTheme").appendChild(th);
   const pop=$("#gearPop"),btn=$("#gearBtn");const close=()=>{pop.hidden=true;btn.setAttribute("aria-expanded","false")};
@@ -3825,7 +3830,8 @@ bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
     <label class="f">Name<input id="g-name" autocomplete="username" required></label>
     <label class="f">Password<input id="g-pass" type="password" autocomplete="${setup?"new-password":"current-password"}" required minlength="${setup?6:1}"></label>
     ${setup?`<label class="f">Password again<input id="g-pass2" type="password" autocomplete="new-password" required></label><div class="note">This person becomes the Admin. The Admin adds the other users and sets their passwords on the Users &amp; rights page.</div>`:`<div class="note"><a href="#" id="g-forgot">Forgot password?</a> We email you a code. No email on file? Ask the Admin to reset it.</div>`}
-    <button class="btn primary" id="g-go">${setup?"Create Admin and start":"Log in"}</button></form>`;
+    <button class="btn primary" id="g-go">${setup?"Create Admin and start":"Log in"}</button>
+    <button type="button" class="btn installbtn" data-install>Install ZT-ERP LITE on this device</button></form>`;
     $("#g-name").focus();
     const fg=$("#g-forgot");if(fg)fg.onclick=e=>{e.preventDefault();forgot($("#g-name").value.trim())};
     G.querySelector("form").onsubmit=async e=>{e.preventDefault();const name=$("#g-name").value.trim(),password=$("#g-pass").value;
@@ -3861,5 +3867,23 @@ bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
     let t=null;try{t=localStorage.getItem("zpo:token")}catch(e){}
     if(t){try{const d=await getSync(t);if(d){start(t,d);return}}catch(e){gate(false,"No connection to the server. Check the internet and try again.");return}}
     gate(st.needsSetup)})();
+})();
+</script>
+<script>
+/* Install as an app (Chrome on computers and Android phones) */
+(()=>{let ask=null;const B=document.body;
+  const isApp=()=>matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: window-controls-overlay)").matches||navigator.standalone===true;
+  if(isApp())B.classList.add("is-app");
+  if("serviceWorker" in navigator&&isSecureContext)addEventListener("load",()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
+  addEventListener("beforeinstallprompt",e=>{e.preventDefault();ask=e;B.classList.add("can-install")});
+  addEventListener("appinstalled",()=>{ask=null;B.classList.remove("can-install")});
+  const steps=()=>{const ua=navigator.userAgent;
+    if(/iPhone|iPad|iPod/.test(ua))return"On iPhone or iPad: open this page in Safari, tap the Share button, then tap \"Add to Home Screen\".";
+    if(/Android/.test(ua))return"In Chrome, tap the ⋮ menu at the top right, then tap \"Add to Home screen\" or \"Install app\", then tap Install.";
+    return"In Chrome or Edge, click the install icon at the right end of the address bar.\nOr open the ⋮ menu, then \"Cast, save and share\", then \"Install page as app…\", then Install."};
+  document.addEventListener("click",async e=>{const b=e.target.closest("[data-install]");if(!b)return;e.preventDefault();
+    if(isApp()){alert("ZT-ERP LITE is already open as an app.");return}
+    if(!ask){alert("To install ZT-ERP LITE:\n\n"+steps());return}
+    ask.prompt();await ask.userChoice.catch(()=>null);ask=null;B.classList.remove("can-install")});
 })();
 </script>
