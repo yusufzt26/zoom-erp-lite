@@ -1484,8 +1484,18 @@ document.addEventListener("input",e=>{if(e.isTrusted&&gPos(e.target))gEdit=true}
 document.addEventListener("dblclick",e=>{if(gPos(e.target))gEdit=true});
 document.addEventListener("click",e=>{const el=e.target;if(!gEdit&&el.tagName==="INPUT"&&gPos(el)&&!e.shiftKey&&!gMulti())try{el.select()}catch(_){}});
 document.addEventListener("mousedown",e=>{const p=gPos(e.target);if(p&&e.shiftKey&&gSel&&gSel.g===p.g){e.preventDefault();gSel.r=p.r;gSel.c=p.c;gPaint()}else if(p){gSel={g:p.g,ar:p.r,ac:p.c,r:p.r,c:p.c,drag:true}}});
-document.addEventListener("mousemove",e=>{if(!gSel||!gSel.drag||!(e.buttons&1))return;const p=gPos(document.elementFromPoint(e.clientX,e.clientY));if(!p||p.g!==gSel.g)return;if(p.r!==gSel.r||p.c!==gSel.c){gSel.r=p.r;gSel.c=p.c;const a=document.activeElement;try{a.setSelectionRange&&a.setSelectionRange(0,0)}catch(_){}gPaint()}});
-document.addEventListener("mouseup",()=>{if(gSel)gSel.drag=false});
+function gDragTo(x,y){const p=gPos(document.elementFromPoint(x,y));if(!p||p.g!==gSel.g)return;if(p.r!==gSel.r||p.c!==gSel.c){gSel.r=p.r;gSel.c=p.c;const a=document.activeElement;try{a.setSelectionRange&&a.setSelectionRange(0,0)}catch(_){}gPaint()}}
+/* dragging a selection to the edge of the window (or of a wide table) keeps scrolling, like Excel */
+let gAuto=null,gMouse=null;
+function gAutoStep(){gAuto=null;if(!gSel||!gSel.drag||!gMouse)return;const{x,y}=gMouse,E=48,H=innerHeight,W=innerWidth;
+  let dy=y<E?-(E-y):y>H-E?y-(H-E):0,dx=0;dy=Math.sign(dy)*Math.min(30,Math.ceil(Math.abs(dy)/2));
+  const box=gSel.g.q()&&gSel.g.q().closest(".tablebox");if(box&&box.scrollWidth>box.clientWidth){const b=box.getBoundingClientRect();dx=x<b.left+E?-(b.left+E-x):x>b.right-E?x-(b.right-E):0;dx=Math.sign(dx)*Math.min(30,Math.ceil(Math.abs(dx)/2))}
+  if(!dy&&!dx)return;if(dy)scrollBy(0,dy);if(dx&&box)box.scrollLeft+=dx;
+  gDragTo(Math.min(Math.max(x,1),W-1),Math.min(Math.max(y,E/2),H-E/2));gAuto=requestAnimationFrame(gAutoStep)}
+document.addEventListener("mousemove",e=>{if(!gSel||!gSel.drag||!(e.buttons&1))return;gMouse={x:e.clientX,y:e.clientY};gDragTo(e.clientX,e.clientY);if(!gAuto)gAuto=requestAnimationFrame(gAutoStep)});
+document.addEventListener("mouseup",()=>{if(gSel)gSel.drag=false;gMouse=null;if(gAuto){cancelAnimationFrame(gAuto);gAuto=null}});
+/* keep the moving end of a keyboard selection on screen */
+const gShow=el=>{try{el&&el.scrollIntoView({block:"nearest",inline:"nearest"})}catch(_){}};
 /* click a column heading to select that column (Shift+click for more columns) */
 document.addEventListener("click",e=>{const th=e.target.closest("thead th");if(!th)return;const tb=th.closest("table").querySelector("tbody");if(!tb)return;const g=GRIDS.find(x=>x.is(tb));if(!g)return;
   const rows=gRows(tb);if(!rows.length)return;const td=rows[0].children[th.cellIndex];const el=td&&td.querySelector("input,select");if(!el)return;const c=gCells(rows[0]).indexOf(el);
@@ -1497,7 +1507,7 @@ document.addEventListener("keydown",e=>{const p=gPos(e.target);if(!p)return;cons
   if(e.key==="Escape"){gSel=null;gPaint();return}
   const sel=e.target.tagName==="SELECT";
   if(e.shiftKey&&AR.includes(e.key)&&(!gEdit||e.key==="ArrowUp"||e.key==="ArrowDown")){e.preventDefault();
-    if(!gSel||gSel.g!==g)gSel={g,ar:r,ac:c,r,c};const nr=gSel.r+(e.key==="ArrowDown")-(e.key==="ArrowUp"),nc=gSel.c+(e.key==="ArrowRight")-(e.key==="ArrowLeft");if(gCell(g,nr,nc)){gSel.r=nr;gSel.c=nc;gPaint()}return}
+    if(!gSel||gSel.g!==g)gSel={g,ar:r,ac:c,r,c};const nr=gSel.r+(e.key==="ArrowDown")-(e.key==="ArrowUp"),nc=gSel.c+(e.key==="ArrowRight")-(e.key==="ArrowLeft");if(gCell(g,nr,nc)){gSel.r=nr;gSel.c=nc;gPaint();gShow(gCell(g,nr,nc))}return}
   if(gMulti()&&(e.key==="Delete"||e.key==="Backspace")){e.preventDefault();const[r0,r1,c0,c1]=gRect();for(let i=r0;i<=r1;i++)for(let j=c0;j<=c1;j++)gSet(gCell(g,i,j),"");gPaint();return}
   if(e.key==="Enter"&&!e.altKey){e.preventDefault();const nr=r+(e.shiftKey?-1:1);if(nr<0)return;if(!gCell(g,nr,c)&&!e.shiftKey){if(!gGrow(g,nr))return}mv(nr,c);return}
   if(e.key==="Tab"&&gCell(g,r,c+(e.shiftKey?-1:1))){e.preventDefault();mv(r,c+(e.shiftKey?-1:1));return}
@@ -1517,7 +1527,7 @@ document.addEventListener("paste",e=>{const p=gPos(e.target);if(!p)return;if(e.t
   const g=p.g;let n=0;
   if(one&&r1!=null){for(let i=r0;i<=r1;i++)for(let j=c0;j<=c1;j++){gSet(gCell(g,i,j),data[0][0]);n++}}
   else{for(let i=0;i<data.length;i++){if(data[i].every(v=>!String(v).trim())&&i===data.length-1)continue;if(!gGrow(g,r0+i))break;for(let j=0;j<data[i].length;j++){const el=gCell(g,r0+i,c0+j);if(!el)break;if(!String(data[i][j]).trim())continue;gSet(el,data[i][j]);n++}}}
-  const back=gCell(g,r0,c0);if(back)back.focus();gSel=null;gPaint();toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table`:"Nothing pasted: these cells are locked")});
+  const back=gCell(g,r0,c0);if(back)back.focus({preventScroll:true});gSel=null;gPaint();gShow(gCell(g,Math.min(r0+data.length-1,gRows(g.q()).length-1),c0)||back);toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table`:"Nothing pasted: these cells are locked")});
 
 /* ---------- daily backup ---------- */
 const BK_SKIP=["lastBackup","me","theme","po","est"];
