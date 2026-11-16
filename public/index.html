@@ -130,6 +130,12 @@ input.auto,select.auto,textarea.auto,table.est input.auto,table.est textarea.aut
 .theme button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .who{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .who select{width:auto;padding:5px 8px;font-size:13px}
+.flowbar{display:flex;flex-wrap:wrap;gap:4px;font-size:12px}
+.flowbar .fs{flex:1 1 120px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--panel);color:var(--muted);min-width:0}
+.flowbar .fs b{display:block;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+.flowbar .fs span{display:block;margin-top:2px;overflow-wrap:anywhere}
+.flowbar .fs.done{color:var(--ink);border-color:var(--accent)}
+.flowbar .fs.now{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 .banner{border-radius:6px;padding:10px 12px;font-size:13.5px;border:1px solid var(--line);background:var(--panel)}
 .banner.back{border-color:var(--danger);color:var(--danger)}
 .banner.ok{border-color:var(--accent);color:var(--accent)}
@@ -356,6 +362,7 @@ body.simple nav .step{display:none}
     <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-q-bom">Import BOM (.xlsx)</button><input type="file" id="q-bom" accept=".xlsx,.xls" hidden><button class="btn" id="btn-req-new">New request</button></div>
     <div id="reqExample" class="example" hidden>Example request. Click "New request" to fill in your own.</div>
     <div id="reqBanner" class="banner" hidden></div>
+    <div id="reqFlow" class="flowbar" aria-label="Where this request is"></div>
     <div class="grid-fields">
       <label class="f">Request No.<input id="q-no"></label>
       <label class="f">Date<input id="q-date" type="date"></label>
@@ -443,6 +450,7 @@ body.simple nav .step{display:none}
     <button class="btn" id="btn-po-pdf">Download PDF</button>
     <button class="btn" id="btn-save">Save draft</button>
     <button class="btn primary" id="btn-send">Send for approval</button>
+    <button class="btn primary" id="btn-vendor" hidden>Send to vendor</button>
     <button class="btn" id="btn-po-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete PO</button>
   </div>
   <div id="poDelete" class="panel stack noprint" hidden>
@@ -452,6 +460,13 @@ body.simple nav .step{display:none}
     <div class="row"><span style="flex:1"></span><button class="btn" id="btn-del-cancel">Keep PO</button><button class="btn primary" id="btn-del-ok" style="background:var(--danger);border-color:var(--danger)">Delete permanently</button></div>
   </div>
   <div id="poBanner" class="banner noprint" hidden></div>
+  <div id="poFlow" class="flowbar noprint" aria-label="Where this PO is" hidden></div>
+  <div id="poVendor" class="panel stack noprint" hidden>
+    <b>Send PO to vendor</b>
+    <div class="note">The PO PDF downloads first. Attach it to the email or WhatsApp message that opens, then send. The PO is marked "Sent to vendor" with today's date.</div>
+    <div class="row"><label class="f" style="flex:1 1 220px">Supplier email<input id="pv-email" type="email" placeholder="supplier@company.com"></label><label class="f" style="flex:1 1 180px">WhatsApp number<input id="pv-phone" inputmode="tel" placeholder="10-digit mobile"></label></div>
+    <div class="row"><span style="flex:1"></span><button class="btn" id="btn-pv-cancel">Cancel</button><button class="btn" id="btn-pv-mark">Already sent, just mark it</button><button class="btn" id="btn-pv-wa">WhatsApp</button><button class="btn primary" id="btn-pv-mail">Email</button></div>
+  </div>
   <div id="poReview" class="panel stack noprint" hidden>
     <label class="f">Review comment<textarea id="po-comment" rows="2" placeholder="Notes for the purchaser. Needed when sending back."></textarea></label>
     <div class="row"><span class="note" id="sigNote"></span><span style="flex:1"></span><button class="btn" id="btn-po-back">Send back for correction</button><button class="btn primary" id="btn-approve">Approve and sign</button></div>
@@ -1084,8 +1099,10 @@ function poControls(){
   if(!po){B.hidden=true}
   else if(st==="Sent back"){B.hidden=false;B.className="banner back noprint";B.textContent=`Sent back by ${last?last.by:"approver"}: ${po.backNote||""}`}
   else if(st==="Pending approval"){B.hidden=false;B.className="banner noprint";B.textContent=review?`PO ${po.no} is waiting for your decision. Check it below, then approve or send back.`:editable?`Waiting for approval. You can still correct it: "Save changes" updates the copy the approver sees. Once approved it is locked.`:`Sent for approval on ${dmy((last&&last.at||"").slice(0,10))}. It is locked until the approver decides.`}
-  else if(st==="Approved"){B.hidden=false;B.className="banner ok noprint";B.textContent=`Approved by ${po.approvedBy} on ${dmy(po.approvedAt)}. This PO is final.`}
+  else if(st==="Approved"){B.hidden=false;B.className="banner ok noprint";B.textContent=`Approved by ${po.approvedBy} on ${dmy(po.approvedAt)}. This PO is final.`+(po.sentAt?` Sent to vendor by ${po.sentBy||"-"} on ${dmy(po.sentAt)}${po.sentVia?" by "+po.sentVia:""}.`:" Next step: send it to the vendor.")}
   else B.hidden=true;
+  {const F=$("#poFlow");if(!po)F.hidden=true;else{const[fs,fw]=poStage(po);F.hidden=false;F.innerHTML=flowHTML(fs,fw,po.reqNo?0:2)}}
+  {const V=$("#btn-vendor");V.hidden=!(po&&st==="Approved"&&has("po.create"));V.textContent=po&&po.sentAt?"Send to vendor again":"Send to vendor";V.className=po&&po.sentAt?"btn":"btn primary";if(V.hidden)$("#poVendor").hidden=true}
   if(po&&!editable){$("#paper").querySelectorAll("input,textarea").forEach(el=>el.disabled=true);$("#paper").querySelectorAll("button").forEach(el=>el.hidden=true)}
 }
 function renderTotals(){
@@ -1113,6 +1130,35 @@ function applySupplier(name){const sp=suppliers.find(x=>key(x.name)===key(name))
 $("#p-sup").onchange=e=>{if(po)applySupplier(e.target.value)};
 $("#p-gstmode").onchange=e=>{if(!po)return;po.gstmode=e.target.value;store.set("po",po);renderTotals()};
 $("#btn-back").onclick=()=>show("est");
+/* ---------- document flow: which step a request / PO is at and who has it ---------- */
+const FLOW=["Request","Check","Pre-estimate & PO","PO approval","Send to vendor","Material received"];
+const poApprovers=()=>M.users.filter(u=>u.role!=="Admin"&&rightsOf(u).includes("po.approve")).map(u=>u.name);
+function poStage(p){const st=p.status||"Draft";
+  if(p.closed||p.recv==="Closed")return[6,"Completed"];
+  if(st==="Pending approval"){const a=poApprovers();return[3,"With approver"+(a.length?": "+a.join(", "):"")]}
+  if(st==="Approved"){if(p.sentAt||p.recv)return[5,"With Store, waiting for material"+(p.recv?" ("+String(p.recv).toLowerCase()+")":"")];return[4,"With Purchase, to send to "+(p.sup||"the vendor")]}
+  return[2,st==="Sent back"?"Back with Purchase for correction":"With Purchase"]}
+function reqStage(r){const st=r.status;
+  if(st==="Draft")return[0,"With "+(r.by||"the maker")];
+  if(st==="Sent back")return[0,"Back with "+(r.by||"the maker")+" for correction"];
+  if(st==="Submitted"){const c=r.checker||checkersOf(r.dept).join(", ");return[1,"With checker"+(c?": "+c:"")]}
+  if(r.poNo){const p=saved.find(x=>String(x.no)===String(r.poNo));if(p)return poStage(p)}
+  return[2,"With Purchase"]}
+function flowHTML(stage,who,from){return FLOW.map((t,i)=>i<from?"":`<div class="fs${i<stage?" done":i===stage?" now":""}"><b>${i<stage?"✓ ":""}${esc(t)}</b>${i===stage?`<span>${esc(who)}</span>`:""}</div>`).join("")}
+const supOf=n=>suppliers.find(x=>key(x.name)===key(n||""));
+$("#btn-vendor").onclick=()=>{if(!po)return;const sp=supOf(po.sup)||{},c=String(sp.contact||"");
+  $("#pv-email").value=sp.email||(c.match(/[^\s,;:]+@[^\s,;]+/)||[""])[0];$("#pv-phone").value=sp.phone||(c.replace(/[^\d+]/g," ").match(/\+?\d{10,13}/)||[""])[0];$("#poVendor").hidden=false;$("#pv-email").focus()};
+$("#btn-pv-cancel").onclick=()=>{$("#poVendor").hidden=true};
+const poMsg=()=>`Dear Sir/Madam,\n\nPlease find attached our Purchase Order No. ${po.no} dated ${dmy(po.date)}${po.needBy?", delivery required by "+dmy(po.needBy):""}.\nKindly acknowledge the order and confirm the delivery date.\n\nRegards,\n${me.name}\n${COMPANY.name}`;
+function poSent(via){if(!po||po.status!=="Approved")return;const sp=supOf(po.sup),em=$("#pv-email").value.trim(),ph=$("#pv-phone").value.trim();
+  if(sp&&((em&&sp.email!==em)||(ph&&sp.phone!==ph))){if(em)sp.email=em;if(ph)sp.phone=ph;store.set("suppliers",suppliers)}
+  po.sentAt=today();po.sentBy=me.name;po.sentVia=via;recordPO("Approved","Sent to vendor"+(via?" by "+via:""));
+  $("#poVendor").hidden=true;toast(`PO ${po.no} marked as sent to ${po.sup||"the vendor"}`);renderPO()}
+$("#btn-pv-mail").onclick=()=>{const em=$("#pv-email").value.trim();if(!/@/.test(em)){toast("Enter the supplier's email");$("#pv-email").focus();return}
+  $("#btn-po-pdf").click();window.open(`mailto:${em}?subject=${encodeURIComponent("Purchase Order "+po.no+" - "+COMPANY.name)}&body=${encodeURIComponent(poMsg())}`,"_blank");poSent("email")};
+$("#btn-pv-wa").onclick=()=>{let ph=$("#pv-phone").value.replace(/\D/g,"");if(ph.length===10)ph="91"+ph;if(ph.length<11){toast("Enter the supplier's WhatsApp number");$("#pv-phone").focus();return}
+  $("#btn-po-pdf").click();window.open(`https://wa.me/${ph}?text=${encodeURIComponent(poMsg())}`,"_blank");poSent("WhatsApp")};
+$("#btn-pv-mark").onclick=()=>poSent("");
 function recordPO(status,action,comment){
   po.status=status;po.history=(po.history||[]).concat([{by:me.name,action,at:new Date().toISOString(),comment:comment||""}]);
   const c=poCalc();const rec=JSON.parse(JSON.stringify(po));rec.total=c.total;rec.savedAt=new Date().toISOString();
@@ -1158,7 +1204,7 @@ function renderSaved(){
   const L=$("#savedList");
   if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
   const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&(!q||key([s.no,s.sup,s.ref,s.reqNo,s.status].join(" ")).includes(q))).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
-  L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}<br><span class="note">${esc(plantName(s.plant))}</span></b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
+  L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}<br><span class="note">${esc(plantName(s.plant))}</span></b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
 }
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
@@ -1225,6 +1271,7 @@ function renderReq(){
   const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&(reqs.includes(r)?has("req.edit"):has("req.create")));
   const canApprove=canCheckReq(r)||canApproveReq(r);
   $("#reqBanner").hidden=!(r.status==="Sent back"&&r.comment);$("#reqBanner").className="banner back";$("#reqBanner").textContent=`Sent back by ${r.backBy||"checker"}: ${r.comment||""}`;
+  {const[fs,fw]=reqStage(r);$("#reqFlow").innerHTML=flowHTML(fs,fw,0)}
   $("#reqTitle").textContent=r.status==="Draft"?"New purchase request":`Purchase request ${r.no}`;
   $("#reqStatus").innerHTML=r.status==="Draft"?"":stChip(r.status);
   $("#reqExample").hidden=!r.example;
@@ -2025,6 +2072,7 @@ function workItems(){
   if(has("po.create")){add(reqs.filter(r=>PUR_READY.includes(r.status)).length,"Requests to process","Start a pre-estimate","req",true);
     add(saved.filter(p=>p.status==="Sent back").length,"POs sent back","Correct and resend","saved",true);
     add(saved.filter(p=>p.status==="Draft").length,"Draft POs","Not yet sent for approval","saved");
+    add(saved.filter(p=>p.status==="Approved"&&!p.sentAt&&!p.closed&&!p.recv).length,"Approved POs to send","Send to the vendor by email or WhatsApp","saved",true);
     add(saved.filter(p=>p.status==="Pending approval").length,"POs with approver","Waiting for approval","saved");
     add(saved.filter(p=>!p.closed&&p.needBy&&p.needBy<today()&&p.status!=="Draft").length,"POs past required date","Material is late, follow up with the supplier","saved",true)}
   if(has("po.approve"))add(saved.filter(p=>p.status==="Pending approval").length,"POs to approve","Review, approve and sign","appr",true);
