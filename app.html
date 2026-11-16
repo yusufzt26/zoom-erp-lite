@@ -425,7 +425,7 @@ body.simple nav .step{display:none}
     <div class="note xlhint">Paste rows or columns straight from Excel (Item, Specification, Cost parts, Rate, Qty, Unit). Shift+arrows or a column heading selects cells, Ctrl+C copies, Ctrl+V pastes. Double-click or F2 to edit inside a cell.</div>
     <div class="totalbar">
       <div class="total"><span>Estimate total</span><b id="estTotal">0</b></div>
-      <span class="row"><button class="btn" id="btn-e-pdf">Download PDF</button><button class="btn primary" id="btn-convert">Convert to PO</button></span>
+      <span class="row"><button class="btn" id="btn-e-delpick" hidden>Remove ticked lines</button><button class="btn" id="btn-e-pdf">Download PDF</button><button class="btn primary" id="btn-convert">Convert to PO</button></span>
     </div>
   </div>
 </section>
@@ -857,10 +857,10 @@ const estCols=()=>est&&Array.isArray(est.xcols)?est.xcols:[];
 const estJoin=l=>rqSpec({x:l.x,spec:l.xo},{xcols:estCols()});
 function renderEst(){
   const tb=$("#estBody"),xc=estCols();
-  $("#estHead").innerHTML=`<tr><th style="width:34px">Sn</th><th>Item</th>${xc.map(c=>`<th style="white-space:nowrap">${esc(c)}</th>`).join("")}<th>${xc.length?(xc.some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec"):"Specification"}</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr>`;
-  if(!est.lines.length){tb.innerHTML=`<tr><td colspan="${10+xc.length}" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
+  $("#estHead").innerHTML=`<tr><th style="width:26px"><input type="checkbox" class="pickall" aria-label="Tick all lines" title="Tick all lines"></th><th style="width:34px">Sn</th><th>Item</th>${xc.map((c,k)=>`<th style="white-space:nowrap">${esc(c)} <button class="x noprint" data-exdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button></th>`).join("")}<th>${xc.length?(xc.some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec"):"Specification"}</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr>`;
+  if(!est.lines.length){tb.innerHTML=`<tr><td colspan="${11+xc.length}" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
   else tb.innerHTML=est.lines.map((l,i)=>`<tr data-i="${i}">
-    <td>${i+1}</td>
+    <td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}</td>
     <td><input id="l${i}-item" data-k="item" value="${esc(l.item)}" list="itemnames"${xc.length?' style="min-width:180px"':""}></td>
     ${xc.map((c,k)=>`<td><input id="l${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?120:70}px"></td>`).join("")}
     <td><input id="l${i}-spec" data-k="${xc.length?"xo":"spec"}" value="${esc(xc.length?(l.xo??""):l.spec)}"></td>
@@ -871,7 +871,7 @@ function renderEst(){
     <td class="num" data-amt>${fmt0(lineAmt(l))}</td>
     <td data-src>${srcChip(l)}</td>
     <td><button class="x" data-del="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("");
-  updateTotal();
+  updateTotal();pickBar("est");
 }
 function srcChip(l){
   if(l.src==="calc")return`<span class="chip calc">Cost parts</span>`;
@@ -1025,7 +1025,9 @@ $("#btn-convert").onclick=()=>{
   const sup=suppliers.find(s=>key(s.name)===key(est.sup))||{name:est.sup||"",addr:"",state:"27"};
   po={no:nextPONo(),date:today(),sup:sup.name,supAddr:sup.addr,ref:est.job,refDate:est.date,attn:"",venCode:sup.gstin||"",terms:sup.terms||"60 Days",transport:"",validity:"",
       reqNo:est.reqNo||"",needBy:est.need||"",plant:est.plant||defPlant(),deliv:plantAddr(est.plant||defPlant()),gstmode:sup.state&&sup.state!=="27"?"inter":"intra",remark:"",
-      lines:lines.map(l=>{const it=itemByName(l.item);return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:it?it.name:"",spec:it?(l.spec||""):[l.item,l.spec].filter(Boolean).join(" - "),hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
+      xcols:estCols().filter(c=>lines.some(l=>l.x&&l.x[c])),
+      lines:lines.map(l=>{const it=itemByName(l.item);if(estCols().length&&l.x){const pl={x:Object.assign({},l.x),xo:l.xo||"",pn:it?"":l.item,item:it?it.name:"",spec:"",desc:"",hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0};return pl}return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:it?it.name:"",spec:it?(l.spec||""):[l.item,l.spec].filter(Boolean).join(" - "),hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
+  if(poCols(po).length)po.lines.forEach(l=>{if(l.x)poJoin(l)});
   store.set("po",po);show("po");
 };
 /* GST lines on the PO, one per tax rate */
@@ -1058,9 +1060,10 @@ function renderPO(){
     <div class="kv"><b>Ref. No.</b><div>${inp("ref","90px")} <b>Dt.</b> ${inp("refDate","120px",'type="date"')}</div><b>Ven. Code</b>${inp("venCode","100%")}</div>
     <div class="kv"><b>Kind Attn.</b>${inp("attn","100%")}<b>Transport</b>${inp("transport","100%")}<b>Delivery by</b>${inp("needBy","130px",'type="date"')}</div>
   </div>
-  <table><thead><tr><th>Sn</th><th>Item / service (from master)</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
-  <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
+  <table><thead><tr><th class="noprint" style="width:22px"><input type="checkbox" class="pickall" aria-label="Tick all PO lines" title="Tick all lines"></th><th>Sn</th><th>Item / service (from master)</th>${poCols(po).map((c,k)=>`<th style="white-space:nowrap">${esc(c)} <button class="x noprint" data-pxdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button></th>`).join("")}<th>${poCols(po).length?"Description / other spec":"Description"}</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
+  <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}</td>
     <td><input id="pl${i}-item" data-lk="item" list="masteritems" value="${esc(l.item||"")}" placeholder="Pick from item master" class="${poBad(l)?"badcell":""}" title="${poBad(l)?BADITEM:""}" style="width:100%;min-width:170px"></td>
+    ${poCols(po).map((c,k)=>`<td><input id="pl${i}-x${k}" data-px="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?110:64}px"></td>`).join("")}
     <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description / finished size" style="width:100%;min-width:170px">${poRawOn(l)?poRawBox(l,i):`<button class="noprint" type="button" data-praw="${i}" style="font-size:11px;border:none;background:none;color:var(--accent,#0b6e8a);cursor:pointer;padding:2px 0">+ raw size</button>`}</td>
     <td><input id="pl${i}-hsn" data-lk="hsn" value="${esc(l.hsn)}" style="width:72px"></td>
     <td class="r"><input id="pl${i}-tax" data-lk="tax" type="number" value="${l.tax}" style="width:44px"></td>
@@ -1070,7 +1073,7 @@ function renderPO(){
     <td class="r"><input id="pl${i}-dis" data-lk="dis" type="number" step="0.01" value="${l.dis||""}" style="width:40px"></td>
     <td class="r" data-amt>${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td>
     <td class="noprint"><button class="x" data-pdel="${i}" aria-label="Remove PO line ${i+1}">×</button></td></tr>`).join("")}</tbody></table>
-  <div class="noprint" style="margin-top:4px"><button class="btn" id="btn-po-line" style="font-size:12px;padding:4px 10px">Add line</button></div>
+  <div class="noprint row" style="margin-top:4px"><button class="btn" id="btn-po-line" style="font-size:12px;padding:4px 10px">Add line</button><button class="btn" id="btn-po-delpick" style="font-size:12px;padding:4px 10px" hidden>Remove ticked lines</button></div>
   <table class="tot" style="margin-top:0"><tbody id="poTot"></tbody></table>
   <p id="poWords" style="margin:4px 0"></p>
   <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
@@ -1081,7 +1084,7 @@ function renderPO(){
   </div>
   <div class="row small" style="justify-content:space-between;margin-top:6px"><span>" Subject to Pune jurisdiction only "</span><b>For ZOOM TECHNOLOGIES</b></div>
   <div class="sign small">${po.status==="Approved"?(po.sig?`<img class="sigimg" src="${po.sig}" alt="Signature of ${esc(po.approvedBy)}">`:`<div style="height:40px;color:#999">(no signature on file)</div>`)+`<div>${esc(po.approvedBy)} · ${dmy(po.approvedAt)}</div>`:`<div style="height:40px"></div>`}Authorised Signatory</div>`;
-  renderTotals();poControls();
+  renderTotals();poControls();pickBar("po");
 }
 function poControls(){
   const st=po?po.status||"Draft":"";const editable=!!po&&["Draft","Sent back","Pending approval"].includes(st)&&(saved.some(x=>String(x.no)===String(po.no))?has("po.edit"):has("po.create"));
@@ -1118,6 +1121,7 @@ $("#paper").addEventListener("input",e=>{
   if(t.dataset.pk==="plant"){const old=po.deliv;if(!old||old===COMPANY.addr||plants().some(p=>plantAddr(p.id)===old))po.deliv=plantAddr(t.value);po.plant=t.value;store.set("po",po);renderPO();return}
   if(t.dataset.pk){po[t.dataset.pk]=t.value;
     if(t.dataset.pk==="sup"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp&&!po.supAddr){po.supAddr=sp.addr;$("#po-supAddr").value=sp.addr;if(sp.terms){po.terms=sp.terms;$("#po-terms").value=sp.terms}po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra";$("#p-gstmode").value=po.gstmode;renderTotals()}}}
+  else if(t.dataset.px!=null){const l=po.lines[+t.closest("tr").dataset.i];l.x=l.x||{};l.x[t.dataset.px]=t.value;poJoin(l)}
   else if(t.dataset.lk){const tr=t.closest("tr"),l=po.lines[+tr.dataset.i],k=t.dataset.lk;if(k==="pdesc"){poDesc(l,t.value)}else if(["fin","raw","grade","pcs"].includes(k)){poRawInput(l,k,t.value,tr)}else{l[k]=["tax","qty","rate","dis"].includes(k)?+t.value:t.value;if(k==="item")poSetDesc(l);if(k==="qty"&&poRawOn(l)){poRawCalc(l);poRawShow(l,tr)}}
     tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100));renderTotals()}
   store.set("po",po);
@@ -1558,8 +1562,8 @@ function docRequest(r){
 function docEstimate(e){
   const tot=e.lines.reduce((a,l)=>a+lineAmt(l),0);
   return docHead("PRE-ESTIMATE SHEET")+kvT([[["Job / Ref.",esc(e.job)],["Date",dmy(e.date)],["Required by",dmy(e.need)||"-"]],[["Source",e.reqNo?"Purchase request "+esc(e.reqNo):"Direct purchase"],["Prepared by",esc(me.name)],["Lines",e.lines.length]]])+
-  `<table><thead><tr><th>Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th>Rate</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead><tbody>${e.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.item)}</td><td>${esc(l.spec)}</td><td>${esc(l.expr)}</td><td class="r">${l.rate!=null?fmt(l.rate):""}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(lineAmt(l))}</td></tr>`).join("")}
-  <tr><td colspan="7" class="r"><b>Estimate total (before GST)</b></td><td class="r"><b>${fmt(tot)}</b></td></tr></tbody></table><p class="small" style="margin-top:30px">This is an internal estimate, not a purchase order.</p>`;
+  `<table><thead><tr><th>Sn</th><th>Item</th>${(e.xcols||[]).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${(e.xcols||[]).length?"Other spec":"Specification"}</th><th>Cost parts</th><th>Rate</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead><tbody>${e.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.item)}</td>${(e.xcols||[]).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc((e.xcols||[]).length?(l.xo??""):l.spec)}</td><td>${esc(l.expr)}</td><td class="r">${l.rate!=null?fmt(l.rate):""}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(lineAmt(l))}</td></tr>`).join("")}
+  <tr><td colspan="${7+(e.xcols||[]).length}" class="r"><b>Estimate total (before GST)</b></td><td class="r"><b>${fmt(tot)}</b></td></tr></tbody></table><p class="small" style="margin-top:30px">This is an internal estimate, not a purchase order.</p>`;
 }
 function docPO(p){
   const c=(()=>{const o=po;po=p;const r=poCalc();po=o;return r})();
@@ -1567,7 +1571,7 @@ function docPO(p){
   return `${p.status!=="Approved"?`<div class="draftmark">${p.status==="Pending approval"?"PENDING APPROVAL":"DRAFT"} · NOT VALID UNTIL APPROVED</div>`:""}`+docHead("PURCHASE ORDER")+
   `<div class="two"><div><b>${esc(p.sup)}</b><br>${esc(p.supAddr||"").replace(/\n/g,"<br>")}</div><div class="kv"><b>P.O. No.</b><span>${esc(p.no)} &nbsp; <b>Date</b> ${dmy(p.date)}</span><b>Delivery</b><span>${esc(p.deliv)}</span><b>Pay. Terms</b><span>${esc(p.terms)}</span><b>Validity</b><span>${esc(p.validity)}</span></div></div>
   <div class="two" style="border-top:none"><div class="kv"><b>Ref. No.</b><span>${esc(p.ref)} &nbsp; <b>Dt.</b> ${dmy(p.refDate)}</span><b>Ven. Code</b><span>${esc(p.venCode)}</span></div><div class="kv"><b>Kind Attn.</b><span>${esc(p.attn)}</span><b>Transport</b><span>${esc(p.transport)}</span><b>Delivery by</b><span>${dmy(p.needBy)}</span></div></div>
-  <table><thead><tr><th>Sn</th><th>Description</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn)}</td><td class="r">${l.tax}</td><td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
+  <table><thead><tr><th>Sn</th><th>Description</th>${poCols(p).map(c=>`<th>${esc(c)}</th>`).join("")}<th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(poCols(p).length&&l.x?[l.item,l.pn,l.xo].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+((String(l.desc||"").match(/ · (Finished size|Raw size|Grade|Total wt): .*$/)||[""])[0]):l.desc)}</td>${poCols(p).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.hsn)}</td><td class="r">${l.tax}</td><td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
   <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(c.sub)}</td></tr>${tax}<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr></tbody></table>
   <p style="margin:4px 0"><b>Amount In Words :</b> Rupees ${words(c.total)} Only.</p>
   <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
@@ -1814,6 +1818,27 @@ function docSlip(s){const T=SLIP[s.type];const tot=s.lines.reduce((a,l)=>a+l.qty
   <tr><td colspan="6" class="r"><b>Total</b></td><td class="r"><b>${fmt(tot)}</b></td></tr></tbody></table>
   <div class="foot small" style="margin-top:46px"><div>${s.type==="Issue"?"Issued by (Store)":"Received by (Store)"}: <b>${esc(s.by)}</b></div><div style="text-align:right">${s.type==="Issue"?"Received by":"Returned by"}: <b>${esc(s.to||"")}</b><br><br><br>Signature</div></div>`}
 
+/* ---------- tick lines to remove, remove spec columns (pre-estimate and PO) ---------- */
+const PICK={est:{body:()=>$("#estBody"),btn:()=>$("#btn-e-delpick"),lines:()=>est.lines,save:()=>{saveEst();renderEst()}},
+  po:{body:()=>$("#poBody"),btn:()=>$("#btn-po-delpick"),lines:()=>po?po.lines:[],save:()=>{store.set("po",po);renderPO()}}};
+const picked=k=>{const b=PICK[k].body();return b?[...b.querySelectorAll("input.pick:checked")].map(x=>+x.dataset.pick):[]};
+function pickBar(k){const b=PICK[k].btn();if(!b)return;const n=picked(k).length;b.hidden=!n;b.textContent=`Remove ${n} ticked line${n>1?"s":""}`;delete b.dataset.sure;b.style.color=b.style.borderColor=""}
+/* ask by a second click, not a browser dialog (dialogs can be blocked, e.g. in the preview) */
+function twoClick(b,msg,ms){if(b.dataset.sure)return true;b.dataset.sure="1";const old=b.textContent;b.textContent=msg;b.style.color=b.style.borderColor="#b42318";
+  clearTimeout(b._t);b._t=setTimeout(()=>{if(b.isConnected&&b.dataset.sure){delete b.dataset.sure;b.textContent=old;b.style.color=b.style.borderColor=""}},ms||5000);return false}
+document.addEventListener("change",e=>{const t=e.target;if(!t.matches||!t.matches("input.pick,input.pickall"))return;const k=t.closest("#estBody,#estHead")?"est":t.closest("#paper")?"po":null;if(!k)return;
+  if(t.classList.contains("pickall"))PICK[k].body().querySelectorAll("input.pick").forEach(x=>x.checked=t.checked);pickBar(k)});
+document.addEventListener("click",e=>{const t=e.target;
+  if(t.id==="btn-e-delpick"||t.id==="btn-po-delpick"){const k=t.id==="btn-e-delpick"?"est":"po";const ids=picked(k);if(!ids.length)return;
+    if(k==="po"&&po&&po.status&&!["Draft","Sent back","Pending approval"].includes(po.status))return;
+    if(!twoClick(t,`Click again to remove ${ids.length} line${ids.length>1?"s":""}`))return;
+    const L=PICK[k].lines();ids.sort((a,b)=>b-a).forEach(i=>L.splice(i,1));PICK[k].save();toast(`Removed ${ids.length} line${ids.length>1?"s":""}`);return}
+  const ed=t.dataset.exdel,pd=t.dataset.pxdel;if(ed==null&&pd==null)return;e.stopPropagation();
+  if(ed!=null){const c=estCols()[+ed];if(!c)return;if(est.lines.some(l=>l.x&&l.x[c])&&!twoClick(t,"remove?",4000))return;
+    est.xcols=estCols().filter(x=>x!==c);est.lines.forEach(l=>{if(l.x){delete l.x[c];l.spec=estJoin(l)}});saveEst();renderEst();toast(`${c} column removed`);return}
+  const c=poCols(po)[+pd];if(!c)return;if(po.lines.some(l=>l.x&&l.x[c])&&!twoClick(t,"remove?",4000))return;
+  po.xcols=poCols(po).filter(x=>x!==c);po.lines.forEach(l=>{if(l.x){delete l.x[c];poJoin(l)}});store.set("po",po);renderPO();toast(`${c} column removed from the PO and its PDF`)},true);
+
 /* ---------- Excel-like grid: paste, copy, select, keys ---------- */
 const GRIDS=[
   {is:tb=>tb.id==="reqBody",q:()=>$("#reqBody"),add:()=>$("#btn-q-line").hidden?false:($("#btn-q-line").click(),true)},
@@ -1822,7 +1847,7 @@ const GRIDS=[
   {is:tb=>tb.id==="grnBody",q:()=>$("#grnBody"),add:()=>false},
   {is:tb=>!!tb.closest("#rgpForm"),q:()=>$("#rgpForm tbody"),add:()=>{const b=$("#btn-r-line");if(!b)return false;b.click();return true}},
   {is:tb=>!!tb.closest("#slipForm"),q:()=>$("#slipForm tbody"),add:()=>{const b=$("#btn-sl-line");if(!b)return false;b.click();return true}}];
-const gCells=tr=>[...tr.querySelectorAll("input:not([type=file]),select")];
+const gCells=tr=>[...tr.querySelectorAll("input:not([type=file]):not([type=checkbox]),select")];
 const gRows=tb=>tb?[...tb.children].filter(tr=>tr.querySelector("input,select")):[];
 function gPos(el){if(!el||!el.matches||!el.matches("input,select"))return null;const tb=el.closest("tbody");if(!tb)return null;const g=GRIDS.find(x=>x.is(tb));if(!g)return null;
   const tr=el.closest("tr"),r=gRows(tb).indexOf(tr),c=gCells(tr).indexOf(el);return r<0||c<0?null:{g,tb,r,c}}
@@ -1860,7 +1885,7 @@ document.addEventListener("mouseup",()=>{if(gSel)gSel.drag=false;gMouse=null;if(
 /* keep the moving end of a keyboard selection on screen */
 const gShow=el=>{try{el&&el.scrollIntoView({block:"nearest",inline:"nearest"})}catch(_){}};
 /* click a column heading to select that column (Shift+click for more columns) */
-document.addEventListener("click",e=>{const th=e.target.closest("thead th");if(!th)return;const tb=th.closest("table").querySelector("tbody");if(!tb)return;const g=GRIDS.find(x=>x.is(tb));if(!g)return;
+document.addEventListener("click",e=>{const th=e.target.closest("thead th");if(!th||e.target.closest("input,button"))return;const tb=th.closest("table").querySelector("tbody");if(!tb)return;const g=GRIDS.find(x=>x.is(tb));if(!g)return;
   const rows=gRows(tb);if(!rows.length)return;const td=rows[0].children[th.cellIndex];const el=td&&td.querySelector("input,select");if(!el)return;const c=gCells(rows[0]).indexOf(el);
   if(e.shiftKey&&gSel&&gSel.g===g){gSel.c=c;gSel.r=rows.length-1;gSel.ar=0}else{gSel={g,ar:0,ac:c,r:rows.length-1,c,keep:true}}
   gSel.keep=true;el.focus();gSel.keep=false;gPaint();toast("Column selected. Ctrl+C to copy, or paste to fill it")});
@@ -1892,7 +1917,7 @@ document.addEventListener("paste",e=>{const p=gPos(e.target);if(!p)return;if(e.t
   else{for(let i=0;i<data.length;i++){if(data[i].every(v=>!String(v).trim())&&i===data.length-1)continue;if(!gGrow(g,r0+i))break;for(let j=0;j<data[i].length;j++){const el=gCell(g,r0+i,c0+j);if(!el)break;if(!String(data[i][j]).trim())continue;gSet(el,data[i][j]);n++}}}
   const back=gCell(g,r0,c0);if(back)back.focus({preventScroll:true});gSel=null;gPaint();gShow(gCell(g,Math.min(r0+data.length-1,gRows(g.q()).length-1),c0)||back);toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table`:"Nothing pasted: these cells are locked")});
 
-/* ---------- daily backup ---------- */
+/* ---------- weekly backup ---------- */
 const BK_SKIP=["lastBackup","me","theme","po","est"];
 const isDesktop=()=>!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)&&!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);
 const lastBk=()=>store.get("lastBackup",null);
@@ -1929,13 +1954,17 @@ function backupBook(){
 }
 async function runBackup(auto){const blob=backupBook();if(!blob)return;const fn=`ZT-ERP-LITE-backup-${today()}-${String(me?me.name:"user").replace(/[^A-Za-z0-9]+/g,"-")}.xlsx`;
   if(await deliver(blob,fn)){store.set("lastBackup",{date:today(),at:new Date().toISOString(),auto:!!auto});toast(`Backup saved: ${fn}`)}renderBackup()}
-function backupDue(){if(!isDesktop())return false;const l=lastBk(),n=new Date();if(l&&l.date===today())return false;if(n.getHours()>=18)return true;
-  const y=new Date();y.setDate(y.getDate()-1);return!!l&&l.date<y.toISOString().slice(0,10)}
+/* weekly backup: Thursday 7 PM. bkSlot = the latest Thursday 7 PM that has already passed */
+const BK_DAY=4,BK_HOUR=19;
+function bkSlot(n){const d=new Date(n||Date.now());d.setHours(BK_HOUR,0,0,0);d.setDate(d.getDate()-((d.getDay()-BK_DAY+7)%7));if(d>(n||new Date()))d.setDate(d.getDate()-7);return d}
+function backupDue(){if(!isDesktop())return false;const l=lastBk(),n=new Date(),slot=bkSlot(n);
+  if(!l)return n.getDay()===BK_DAY&&n.getHours()>=BK_HOUR;return new Date(l.at||l.date)<slot}
+const bkToday=()=>{const n=new Date();return n.getDay()===BK_DAY&&n.getHours()>=BK_HOUR};
 function renderBackup(){const P=$("#homeBackup");if(!P)return;const l=lastBk(),due=backupDue();
   P.hidden=!isDesktop()&&!has("page.users");
-  P.innerHTML=`<div class="row"><h2 class="sec">Daily backup</h2><span class="note">${l?`Last backup ${dmy(l.date)} ${new Date(l.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}${l.auto?" (automatic)":""}`:"No backup taken on this PC yet"} · runs every day at 6 PM on desktop PCs</span><span style="flex:1"></span>
-  ${has("page.users")?`<button class="btn" id="btn-bk-restore">Restore from backup</button><input type="file" id="bk-file" accept=".xlsx" hidden>`:""}<button class="btn${due?" primary":""}" id="btn-bk-now">${due?"Save today's backup":"Backup now"}</button></div>
-  ${due?`<div class="banner back">${new Date().getHours()>=18?"Today's 6 PM backup is due.":`A backup was missed. The last one was on ${dmy(l.date)}.`} Click "Save today's backup" to save the Excel file to this PC.</div>`:""}<div id="bkConfirm"></div>`;
+  P.innerHTML=`<div class="row"><h2 class="sec">Weekly backup</h2><span class="note">${l?`Last backup ${dmy(l.date)} ${new Date(l.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}${l.auto?" (automatic)":""}`:"No backup taken on this PC yet"} · runs once a week, Thursday at 7 PM, on desktop PCs</span><span style="flex:1"></span>
+  ${has("page.users")?`<button class="btn" id="btn-bk-restore">Restore from backup</button><input type="file" id="bk-file" accept=".xlsx" hidden>`:""}<button class="btn${due?" primary":""}" id="btn-bk-now">${due?"Save this week's backup":"Backup now"}</button></div>
+  ${due?`<div class="banner back">${bkToday()?"Today's Thursday 7 PM backup is due.":`This week's Thursday backup was missed. The last one was on ${dmy(l.date)}.`} Click "Save this week's backup" to save the Excel file to this PC.</div>`:""}<div id="bkConfirm"></div>`;
   if($("#btn-bk-now"))$("#btn-bk-now").onclick=()=>runBackup(false);
   if($("#btn-bk-restore")){$("#btn-bk-restore").onclick=()=>$("#bk-file").click();$("#bk-file").onchange=readRestore}}
 async function readRestore(e){const f=e.target.files[0];e.target.value="";if(!f)return;
@@ -1949,7 +1978,7 @@ async function readRestore(e){const f=e.target.files[0];e.target.value="";if(!f)
       location.reload();return}const keep={};BK_SKIP.forEach(k=>keep[k]=localStorage.getItem("zpo:"+k));Object.keys(localStorage).filter(k=>k.startsWith("zpo:")).forEach(k=>localStorage.removeItem(k));
       Object.entries(B.data).forEach(([k,v])=>localStorage.setItem("zpo:"+k,v));Object.entries(keep).forEach(([k,v])=>{if(v!=null&&k!=="po"&&k!=="est")localStorage.setItem("zpo:"+k,v)});location.reload()}}
   catch(err){toast("This is not a ZT-ERP LITE backup file")}}
-setInterval(()=>{if(!me)return;if(backupDue()){if(!inFrame&&!backupDue.busy){backupDue.busy=true;runBackup(true).finally(()=>backupDue.busy=false)}else if(!$("#view-home").hidden)renderBackup();if(inFrame&&!backupDue.told){backupDue.told=true;toast("Today's 6 PM backup is due. Open Home to save it.")}}},60000);
+setInterval(()=>{if(!me)return;if(backupDue()){if(!inFrame&&!backupDue.busy){backupDue.busy=true;runBackup(true).finally(()=>backupDue.busy=false)}else if(!$("#view-home").hidden)renderBackup();if(inFrame&&!backupDue.told){backupDue.told=true;toast("This week's Thursday 7 PM backup is due. Open Home to save it.")}}},60000);
 
 /* ---------- accounts ---------- */
 let acctSel=null,vendSel=null;
@@ -2231,7 +2260,10 @@ const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const masterHasItems=()=>items.some(i=>i.active!=="No");
 /* PO lines: item from the item master, description free text; desc = both, used by GRN, stock and the printed PO */
 const BADITEM="Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.";
-const poDesc=(l,v)=>{if(v===undefined)return l.item?String(l.spec||""):String(l.desc||"").replace(/ · (Finished size|Raw size|Grade|Total wt): .*$/,"");l.spec=v;poSetDesc(l)};
+/* BOM spec columns on the PO (Size, Material, HRC...): kept per line in l.x, removable per column; l.spec/l.desc keep the full text for GRN and reports */
+const poCols=p=>p&&Array.isArray(p.xcols)?p.xcols:[];
+function poJoin(l){const rest=rqSpec({x:l.x,spec:l.xo},{xcols:poCols(po)});l.spec=[l.pn,rest].map(x=>String(x||"").trim()).filter(Boolean).join(" - ");poSetDesc(l)}
+const poDesc=(l,v)=>{if(poCols(po).length&&l.x){if(v===undefined)return[l.pn,l.xo].filter(Boolean).join(" - ");l.pn="";l.xo=v;poJoin(l);return}if(v===undefined)return l.item?String(l.spec||""):String(l.desc||"").replace(/ · (Finished size|Raw size|Grade|Total wt): .*$/,"");l.spec=v;poSetDesc(l)};
 function poSetDesc(l){const t=x=>String(x||"").trim(),raw=poRawOn(l);l.desc=[l.item,l.spec].map(t).filter(Boolean).join(" - ")+(raw&&t(l.fin)?" · Finished size: "+t(l.fin):"")+(t(l.raw)?" · Raw size: "+t(l.raw):"")+(raw&&t(poGrade(l))?" · Grade: "+t(poGrade(l)):"")+(raw&&l.wt?" · Total wt: "+fmtKg(l.wt)+" kg":"")}
 /* raw material sizes and weight. Sizes in mm: plate/block "L x W x T", round bar "Ø D x L".
    Raw size = finished size + RAW_ALLOW mm on every dimension (purchaser can overwrite it). */
