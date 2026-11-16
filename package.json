@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@netlify/database": "^2.0.1",
     "nodemailer": "^6.9.16"
   }
