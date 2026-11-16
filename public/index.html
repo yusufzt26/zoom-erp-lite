@@ -132,6 +132,12 @@ input.auto,select.auto,textarea.auto,table.est input.auto,table.est textarea.aut
 .theme button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .who{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .who select{width:auto;padding:5px 8px;font-size:13px}
+.flowbar{display:flex;flex-wrap:wrap;gap:4px;font-size:12px}
+.flowbar .fs{flex:1 1 120px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--panel);color:var(--muted);min-width:0}
+.flowbar .fs b{display:block;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+.flowbar .fs span{display:block;margin-top:2px;overflow-wrap:anywhere}
+.flowbar .fs.done{color:var(--ink);border-color:var(--accent)}
+.flowbar .fs.now{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 .banner{border-radius:6px;padding:10px 12px;font-size:13.5px;border:1px solid var(--line);background:var(--panel)}
 .banner.back{border-color:var(--danger);color:var(--danger)}
 .banner.ok{border-color:var(--accent);color:var(--accent)}
@@ -362,6 +368,7 @@ body.simple nav .step{display:none}
     <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-q-bom">Import BOM (.xlsx)</button><input type="file" id="q-bom" accept=".xlsx,.xls" hidden><button class="btn" id="btn-req-new">New request</button></div>
     <div id="reqExample" class="example" hidden>Example request. Click "New request" to fill in your own.</div>
     <div id="reqBanner" class="banner" hidden></div>
+    <div id="reqFlow" class="flowbar" aria-label="Where this request is"></div>
     <div class="grid-fields">
       <label class="f">Request No.<input id="q-no"></label>
       <label class="f">Date<input id="q-date" type="date"></label>
@@ -449,6 +456,7 @@ body.simple nav .step{display:none}
     <button class="btn" id="btn-po-pdf">Download PDF</button>
     <button class="btn" id="btn-save">Save draft</button>
     <button class="btn primary" id="btn-send">Send for approval</button>
+    <button class="btn primary" id="btn-vendor" hidden>Send to vendor</button>
     <button class="btn" id="btn-po-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete PO</button>
   </div>
   <div id="poDelete" class="panel stack noprint" hidden>
@@ -458,6 +466,13 @@ body.simple nav .step{display:none}
     <div class="row"><span style="flex:1"></span><button class="btn" id="btn-del-cancel">Keep PO</button><button class="btn primary" id="btn-del-ok" style="background:var(--danger);border-color:var(--danger)">Delete permanently</button></div>
   </div>
   <div id="poBanner" class="banner noprint" hidden></div>
+  <div id="poFlow" class="flowbar noprint" aria-label="Where this PO is" hidden></div>
+  <div id="poVendor" class="panel stack noprint" hidden>
+    <b>Send PO to vendor</b>
+    <div class="note">The PO PDF downloads first. Attach it to the email or WhatsApp message that opens, then send. The PO is marked "Sent to vendor" with today's date.</div>
+    <div class="row"><label class="f" style="flex:1 1 220px">Supplier email<input id="pv-email" type="email" placeholder="supplier@company.com"></label><label class="f" style="flex:1 1 180px">WhatsApp number<input id="pv-phone" inputmode="tel" placeholder="10-digit mobile"></label></div>
+    <div class="row"><span style="flex:1"></span><button class="btn" id="btn-pv-cancel">Cancel</button><button class="btn" id="btn-pv-mark">Already sent, just mark it</button><button class="btn" id="btn-pv-wa">WhatsApp</button><button class="btn primary" id="btn-pv-mail">Email</button></div>
+  </div>
   <div id="poReview" class="panel stack noprint" hidden>
     <label class="f">Review comment<textarea id="po-comment" rows="2" placeholder="Notes for the purchaser. Needed when sending back."></textarea></label>
     <div class="row"><span class="note" id="sigNote"></span><span style="flex:1"></span><button class="btn" id="btn-po-back">Send back for correction</button><button class="btn primary" id="btn-approve">Approve and sign</button></div>
@@ -550,9 +565,10 @@ body.simple nav .step{display:none}
 <!-- USERS & RIGHTS -->
 <section id="view-users" class="stack" hidden>
   <div class="masters">
-    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Users</h2><div class="note">Choosing a role gives the standard rights for that role. Fine-tune them on the right. Checker: the person who checks and approves this user's purchase requests before they go to Purchase.</div>
-      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-role"><option>Maker</option><option>Checker</option><option>Approver</option><option>Purchase</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
-      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Role</th><th title="Checks and approves this user's purchase requests before they go to Purchase">Checker</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
+    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Users</h2><div class="note">Add each person with their <b>department</b> and <b>job</b>. That is all: the job gives them the right screens.</div>
+      <div class="note" style="line-height:1.6"><b>Staff</b>: asks for material. Their request goes to their department head. · <b>Department head</b>: approves requests from their department. · <b>Purchase</b>: makes pre-estimates and POs, sends POs to vendors. · <b>Store</b>: receives material, issues stock. · <b>Accounts</b>: books bills and payments. · <b>Sales</b>: enquiries, quotations, orders, invoices. · <b>Production</b>: job cards. · <b>Director</b>: approves and signs POs, sees everything. · <b>Admin</b>: sets up the app.</div>
+      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-role" aria-label="Job"><option>Staff</option><option>Department head</option><option>Purchase</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Director</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Job</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
@@ -606,11 +622,11 @@ body.simple nav .step{display:none}
 <!-- MASTERS -->
 <section id="view-mast" class="stack" hidden>
   <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:10px;font-size:15px"><b>Show list</b><select id="mast-pick" style="width:auto;min-width:240px;font-size:15px">
-    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments and checkers</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="opening">Opening bills (old ERP)</option><option value="import">Import old data (Admin)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
+    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="opening">Opening bills (old ERP)</option><option value="import">Import old data (Admin)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
   <div class="masters">
     <div class="panel stack" data-mp="depts"><h2 class="sec">Departments</h2>
       <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
-      <div class="tablebox"><table class="mt"><thead><tr><th>Department</th><th>Checker</th><th></th></tr></thead><tbody id="m-depts"></tbody></table></div></div>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Department</th><th>Department head</th><th></th></tr></thead><tbody id="m-depts"></tbody></table></div></div>
     <div class="panel stack" data-mp="sups" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
       <form class="addrow" id="m-sup-form"><input id="ms-name" placeholder="Supplier name"><input id="ms-gst" placeholder="GSTIN"><input id="ms-terms" placeholder="Pay terms e.g. 60 Days"><button class="btn primary" type="submit">Add</button></form>
       <div class="note">The state is read from the first two digits of the GSTIN (27 is Maharashtra, so CGST + SGST; any other state gets IGST).</div>
@@ -764,8 +780,12 @@ let saved=store.get("saved",[]);
 let grns=store.get("grns",[]);
 let est=store.get("est",null);
 let isExample=false;
-if(!est){est=exampleEstimate();isExample=true}
+/* real use starts with an empty pre-estimate; the old built-in notebook example (job ZT2349) is cleared,
+   so a purchaser can't turn it into a PO by mistake */
+const isDemoEst=e=>!!e&&e.job==="ZT2349"&&!e.reqNo&&Array.isArray(e.lines)&&e.lines.length>0&&e.lines.every(l=>EXAMPLE.some(x=>x[0]===l.item&&!l.spec));
+if(!est||isDemoEst(est)){est={job:"",plant:"",sup:"",date:today(),unit:"NOS",lines:[]};store.set("est",est)}
 let po=store.get("po",null);
+if(po&&po.ref==="ZT2349"&&!po.reqNo&&!saved.some(x=>String(x.no)===String(po.no))&&(po.lines||[]).every(l=>EXAMPLE.some(x=>x[0]===(l.item||l.desc)))){po=null;store.set("po",null)}
 let reqs=store.get("reqs",null);
 if(!reqs)reqs=[];
 /* the old demo request (no. 066, ZT2349) is removed from real data */
@@ -773,17 +793,17 @@ if(reqs.some(r=>r&&r.example)){reqs=reqs.filter(r=>!(r&&r.example));store.set("r
 let cur=null;
 let M=store.get("masters",null);
 /* cloud: never replace the shared users list with sample users (that removed the Admin); wait for the real list instead */
-if(!M){M=CLOUD?{users:[],depts:[],projects:[]}:{users:[{name:"Niksal",dept:"Design",role:"Maker",checker:"M.K. Singh"},{name:"M.K. Singh",dept:"Design",role:"Checker"},{name:"Purchase Desk",dept:"Purchase",role:"Purchase"}],
+if(!M){M=CLOUD?{users:[],depts:[],projects:[]}:{users:[{name:"Niksal",dept:"Design",role:"Staff"},{name:"M.K. Singh",dept:"Design",role:"Department head"},{name:"Purchase Desk",dept:"Purchase",role:"Purchase"}],
   depts:[{name:"Design",hod:"M.K. Singh"},{name:"Tool Room",hod:""},{name:"Purchase",hod:""}],
   projects:[{no:"ZT2329",desc:"Mould & tool child parts",cust:"",status:"Active"},{no:"ZT2335",desc:"Mould (BOM released 17/10/2026)",cust:"",status:"Active"},{no:"ZT2347",desc:"",cust:"",status:"Active"},{no:"ZT2348",desc:"",cust:"",status:"Active"},{no:"ZT2349",desc:"",cust:"",status:"Active"}]};if(!CLOUD)store.set("masters",M)}
 if(!CLOUD&&!M.users.some(u=>u.role==="Store"))M.users.push({name:"Store Keeper",dept:"Store",role:"Store"});
 if(!CLOUD&&!M.users.some(u=>u.role==="Accounts"))M.users.push({name:"Accounts Desk",dept:"Accounts",role:"Accounts"});
 if(!CLOUD&&!M.users.some(u=>u.role==="Sales"))M.users.push({name:"Sales Desk",dept:"Sales",role:"Sales"});
 ["Store","Accounts","Sales"].forEach(d=>{if(!M.depts.some(x=>x.name===d))M.depts.push({name:d,hod:""})});
-if(!CLOUD&&!M.users.some(u=>u.role==="Approver"))M.users.push({name:"Director",dept:"",role:"Approver"});
+if(!CLOUD&&!M.users.some(u=>u.role==="Director"||u.role==="Approver"))M.users.push({name:"Director",dept:"",role:"Director"});
 if(!CLOUD&&!M.users.some(u=>u.role==="Admin"))M.users.push({name:"Admin",dept:"",role:"Admin"});
 /* roles: Requester -> Maker, HOD -> Checker, Purchaser -> Purchase. A former HOD's own "approve requests" right becomes "check requests". */
-function migRoles(m){if(!m||!Array.isArray(m.users))return m;const RN={Requester:"Maker",HOD:"Checker",Purchaser:"Purchase"};
+function migRoles(m){if(!m||!Array.isArray(m.users))return m;const RN={Requester:"Staff",Maker:"Staff",HOD:"Department head",Checker:"Department head",Approver:"Director",Purchaser:"Purchase"};
   m.users.forEach(u=>{if(!u||!RN[u.role])return;if(u.role==="HOD"&&Array.isArray(u.rights)&&u.rights.includes("req.approve"))u.rights=u.rights.map(k=>k==="req.approve"?"req.check":k);u.role=RN[u.role]});return m}
 migRoles(M);
 const saveM=()=>store.set("masters",M);
@@ -798,7 +818,7 @@ function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;co
 const views=["home","dash","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
- ["Actions","req.create","Raise purchase requests (maker)","Own requests only"],["Actions","req.check","Check or send back requests (checker)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
+ ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
  ["Actions","po.create","Create POs and send for approval","Includes pre-estimate and direct PO"],["Actions","po.approve","Approve and sign POs","Their signature goes on the PO"],["Actions","po.delete","Delete POs","Including approved POs, if no material received yet"],
  ["Actions","grn.create","Create GRN","Receive material against approved POs"],["Actions","acct.book","Book and mark GRNs paid","Voucher and payment reference"],["Actions","rgp.manage","Returnable challans","Send material out and receive it back"],["Actions","stock.issue","Issue and return material","Issue slips, returns to store, opening stock, bin locations"],["Actions","sales.edit","Manage enquiries, quotations and customers","Add and update the sales pipeline and follow-ups"],["Actions","prod.edit","Update job cards and inspection reports","Operations, hours, status, trial reports"],["Actions","sales.all","See all salespeople's enquiries","Otherwise only their own"]];
 /* rights v2: View / Create / Edit / Delete per module */
@@ -808,7 +828,7 @@ const MODS=[["Purchase","req","Purchase requests","vced"],["Purchase","est","Pre
   ["Sales","sales","RFQs, quotations and customers","vced"],["Sales","so","Sales orders","vced"],["Sales","dc","Delivery challans","vced"],["Sales","inv","Tax invoices","vced"],["Sales","cn","Credit notes","vced"],["Sales","proj","Projects (Job Nos.)","vced"],
   ["Production","prod","Production and job cards","vce"],["Admin","rep","Reports","v"],["Admin","mast","Masters (items, suppliers, plants)","ve"],["Admin","users","Users and rights","ve"]];
 const ACTS=[["v","view","View"],["c","create","Create"],["e","edit","Edit"],["d","delete","Delete"]];
-const APPROVALS=[["req.check","Check or send back purchase requests (checker)","For their own department, or departments where they are the checker"],["req.approve","Approve or send back checked purchase requests (approver)","Any department, after the checker"],["req.all","See all departments' requests","Check any department if also allowed to check"],["po.approve","Approve and sign POs","Their signature goes on the PO"],["sales.all","See all salespeople's enquiries","Otherwise only their own"]];
+const APPROVALS=[["req.check","Approve or send back purchase requests (department head)","For their own department"],["req.approve","Approve requests left from the older two-step flow (director)","Any department"],["req.all","See all departments' requests","Check any department if also allowed to check"],["po.approve","Approve and sign POs","Their signature goes on the PO"],["sales.all","See all salespeople's enquiries","Otherwise only their own"]];
 const ALL_KEYS=[...MODS.flatMap(([,m,,a])=>ACTS.filter(([c])=>a.includes(c)).map(([,x])=>m+"."+x)),...APPROVALS.map(a=>a[0])];
 const LEG2NEW={"page.req":["req.view"],"req.create":["req.create","req.edit"],"page.est":["est.view"],"page.po":["po.view"],"page.saved":["po.view"],"page.rates":["rates.view"],
   "po.create":["est.create","est.edit","po.create","po.edit","rates.edit"],"po.delete":["po.delete","est.delete"],"page.grn":["grn.view","rgp.view"],"grn.create":["grn.create","grn.edit"],"rgp.manage":["rgp.create","rgp.edit"],
@@ -816,19 +836,19 @@ const LEG2NEW={"page.req":["req.view"],"req.create":["req.create","req.edit"],"p
   "page.sales":["proj.view","sales.view","so.view","dc.view","inv.view","cn.view"],"sales.edit":["proj.create","proj.edit","sales.create","sales.edit","so.create","so.edit","dc.create","dc.edit","inv.create","inv.edit","cn.create","cn.edit"],
   "page.prod":["prod.view"],"prod.edit":["prod.create","prod.edit"],"page.rep":["rep.view"],"page.mast":["mast.view","mast.edit"],"page.users":["users.view","users.edit"],"page.appr":[]};
 const legToNew=arr=>[...new Set(arr.flatMap(k=>LEG2NEW[k]||[k]))].filter(k=>ALL_KEYS.includes(k));
-const ROLE_RIGHTS_OLD={Maker:["page.req","req.create"],Checker:["page.req","req.create","req.check"],Purchase:["page.req","req.create","page.est","page.po","page.saved","page.rates","po.create"],
- Approver:["page.req","req.create","req.approve","proj.view","page.po","page.saved","page.appr","page.rep","page.stock","page.sales","sales.all","page.prod","po.approve","po.delete"],Store:["page.req","req.create","page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.req","req.create","page.acct","acct.book"],Sales:["page.req","req.create","page.sales","sales.edit","proj.view","proj.create","proj.edit","proj.delete"],Production:["page.req","req.create","page.prod","prod.edit","page.stock","proj.view"]};
-const ROLE_RIGHTS=Object.fromEntries(Object.entries(ROLE_RIGHTS_OLD).map(([r,a])=>[r,legToNew(a)]));ROLE_RIGHTS.Admin=ALL_KEYS.slice();ROLE_RIGHTS.Requester=ROLE_RIGHTS.Maker;ROLE_RIGHTS.HOD=ROLE_RIGHTS.Checker;ROLE_RIGHTS.Purchaser=ROLE_RIGHTS.Purchase;
+const ROLE_RIGHTS_OLD={Staff:["page.req","req.create"],"Department head":["page.req","req.create","req.check"],Purchase:["page.req","req.create","page.est","page.po","page.saved","page.rates","po.create"],
+ Director:["page.req","req.create","req.approve","proj.view","page.po","page.saved","page.appr","page.rep","page.stock","page.sales","sales.all","page.prod","po.approve","po.delete"],Store:["page.req","req.create","page.grn","page.stock","grn.create","rgp.manage","stock.issue"],Accounts:["page.req","req.create","page.acct","acct.book"],Sales:["page.req","req.create","page.sales","sales.edit","proj.view","proj.create","proj.edit","proj.delete"],Production:["page.req","req.create","page.prod","prod.edit","page.stock","proj.view"]};
+const ROLE_RIGHTS=Object.fromEntries(Object.entries(ROLE_RIGHTS_OLD).map(([r,a])=>[r,legToNew(a)]));ROLE_RIGHTS.Admin=ALL_KEYS.slice();ROLE_RIGHTS.Maker=ROLE_RIGHTS.Requester=ROLE_RIGHTS.Staff;ROLE_RIGHTS.Checker=ROLE_RIGHTS.HOD=ROLE_RIGHTS["Department head"];ROLE_RIGHTS.Approver=ROLE_RIGHTS.Director;ROLE_RIGHTS.Purchaser=ROLE_RIGHTS.Purchase;
 const rightsOf=u=>{if(!u)return[];if(Array.isArray(u.rights))return u.rights.includes("v2")?u.rights.filter(k=>ALL_KEYS.includes(k)):legToNew(u.rights);return ROLE_RIGHTS[u.role]||[]};
 const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view"],"page.saved":["po.view"],"page.appr":["po.approve"],"page.rates":["rates.view"],"page.grn":["grn.view","rgp.view"],"page.stock":["stock.view"],"page.acct":["acct.view","dn.view"],
   "page.sales":["sales.view","so.view","dc.view","inv.view","cn.view"],"page.prod":["prod.view"],"page.rep":["rep.view"],"page.mast":["mast.view","proj.view"],"page.users":["users.view"],
   "req.create":["req.create"],"po.create":["po.create","po.edit","est.create"],"grn.create":["grn.create"],"rgp.manage":["rgp.create","rgp.edit"],"stock.issue":["stock.create","stock.edit"],"acct.book":["acct.create","acct.edit"],
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
-const TABS={req:["Maker","Checker","Approver","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Approver","Admin"],saved:["Purchase","Approver","Admin"],appr:["Approver","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
+const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
 const can=v=>v==="home"||v==="dash"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
-const LAND={Approver:"appr",Store:"grn",Accounts:"acct"};
+const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
 function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
 const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
@@ -1091,8 +1111,10 @@ function poControls(){
   if(!po){B.hidden=true}
   else if(st==="Sent back"){B.hidden=false;B.className="banner back noprint";B.textContent=`Sent back by ${last?last.by:"approver"}: ${po.backNote||""}`}
   else if(st==="Pending approval"){B.hidden=false;B.className="banner noprint";B.textContent=review?`PO ${po.no} is waiting for your decision. Check it below, then approve or send back.`:editable?`Waiting for approval. You can still correct it: "Save changes" updates the copy the approver sees. Once approved it is locked.`:`Sent for approval on ${dmy((last&&last.at||"").slice(0,10))}. It is locked until the approver decides.`}
-  else if(st==="Approved"){B.hidden=false;B.className="banner ok noprint";B.textContent=`Approved by ${po.approvedBy} on ${dmy(po.approvedAt)}. This PO is final.`}
+  else if(st==="Approved"){B.hidden=false;B.className="banner ok noprint";B.textContent=`Approved by ${po.approvedBy} on ${dmy(po.approvedAt)}. This PO is final.`+(po.sentAt?` Sent to vendor by ${po.sentBy||"-"} on ${dmy(po.sentAt)}${po.sentVia?" by "+po.sentVia:""}.`:" Next step: send it to the vendor.")}
   else B.hidden=true;
+  {const F=$("#poFlow");if(!po)F.hidden=true;else{const[fs,fw]=poStage(po);F.hidden=false;F.innerHTML=flowHTML(fs,fw,po.reqNo?0:2)}}
+  {const V=$("#btn-vendor");V.hidden=!(po&&st==="Approved"&&has("po.create"));V.textContent=po&&po.sentAt?"Send to vendor again":"Send to vendor";V.className=po&&po.sentAt?"btn":"btn primary";if(V.hidden)$("#poVendor").hidden=true}
   if(po&&!editable){$("#paper").querySelectorAll("input,textarea").forEach(el=>el.disabled=true);$("#paper").querySelectorAll("button").forEach(el=>el.hidden=true)}
 }
 function renderTotals(){
@@ -1120,6 +1142,35 @@ function applySupplier(name){const sp=suppliers.find(x=>key(x.name)===key(name))
 $("#p-sup").onchange=e=>{if(po)applySupplier(e.target.value)};
 $("#p-gstmode").onchange=e=>{if(!po)return;po.gstmode=e.target.value;store.set("po",po);renderTotals()};
 $("#btn-back").onclick=()=>show("est");
+/* ---------- document flow: which step a request / PO is at and who has it ---------- */
+const FLOW=["Request","Department head","Pre-estimate & PO","PO approval","Send to vendor","Material received"];
+const poApprovers=()=>M.users.filter(u=>u.role!=="Admin"&&rightsOf(u).includes("po.approve")).map(u=>u.name);
+function poStage(p){const st=p.status||"Draft";
+  if(p.closed||p.recv==="Closed")return[6,"Completed"];
+  if(st==="Pending approval"){const a=poApprovers();return[3,"With director"+(a.length?": "+a.join(", "):"")]}
+  if(st==="Approved"){if(p.sentAt||p.recv)return[5,"With Store, waiting for material"+(p.recv?" ("+String(p.recv).toLowerCase()+")":"")];return[4,"With Purchase, to send to "+(p.sup||"the vendor")]}
+  return[2,st==="Sent back"?"Back with Purchase for correction":"With Purchase"]}
+function reqStage(r){const st=r.status;
+  if(st==="Draft")return[0,"With "+(r.by||"the maker")];
+  if(st==="Sent back")return[0,"Back with "+(r.by||"the maker")+" for correction"];
+  if(st==="Submitted"){const c=r.checker||checkersOf(r.dept).join(", ");return[1,"With department head"+(c?": "+c:"")]}
+  if(r.poNo){const p=saved.find(x=>String(x.no)===String(r.poNo));if(p)return poStage(p)}
+  return[2,"With Purchase"]}
+function flowHTML(stage,who,from){return FLOW.map((t,i)=>i<from?"":`<div class="fs${i<stage?" done":i===stage?" now":""}"><b>${i<stage?"✓ ":""}${esc(t)}</b>${i===stage?`<span>${esc(who)}</span>`:""}</div>`).join("")}
+const supOf=n=>suppliers.find(x=>key(x.name)===key(n||""));
+$("#btn-vendor").onclick=()=>{if(!po)return;const sp=supOf(po.sup)||{},c=String(sp.contact||"");
+  $("#pv-email").value=sp.email||(c.match(/[^\s,;:]+@[^\s,;]+/)||[""])[0];$("#pv-phone").value=sp.phone||(c.replace(/[^\d+]/g," ").match(/\+?\d{10,13}/)||[""])[0];$("#poVendor").hidden=false;$("#pv-email").focus()};
+$("#btn-pv-cancel").onclick=()=>{$("#poVendor").hidden=true};
+const poMsg=()=>`Dear Sir/Madam,\n\nPlease find attached our Purchase Order No. ${po.no} dated ${dmy(po.date)}${po.needBy?", delivery required by "+dmy(po.needBy):""}.\nKindly acknowledge the order and confirm the delivery date.\n\nRegards,\n${me.name}\n${COMPANY.name}`;
+function poSent(via){if(!po||po.status!=="Approved")return;const sp=supOf(po.sup),em=$("#pv-email").value.trim(),ph=$("#pv-phone").value.trim();
+  if(sp&&((em&&sp.email!==em)||(ph&&sp.phone!==ph))){if(em)sp.email=em;if(ph)sp.phone=ph;store.set("suppliers",suppliers)}
+  po.sentAt=today();po.sentBy=me.name;po.sentVia=via;recordPO("Approved","Sent to vendor"+(via?" by "+via:""));
+  $("#poVendor").hidden=true;toast(`PO ${po.no} marked as sent to ${po.sup||"the vendor"}`);renderPO()}
+$("#btn-pv-mail").onclick=()=>{const em=$("#pv-email").value.trim();if(!/@/.test(em)){toast("Enter the supplier's email");$("#pv-email").focus();return}
+  $("#btn-po-pdf").click();window.open(`mailto:${em}?subject=${encodeURIComponent("Purchase Order "+po.no+" - "+COMPANY.name)}&body=${encodeURIComponent(poMsg())}`,"_blank");poSent("email")};
+$("#btn-pv-wa").onclick=()=>{let ph=$("#pv-phone").value.replace(/\D/g,"");if(ph.length===10)ph="91"+ph;if(ph.length<11){toast("Enter the supplier's WhatsApp number");$("#pv-phone").focus();return}
+  $("#btn-po-pdf").click();window.open(`https://wa.me/${ph}?text=${encodeURIComponent(poMsg())}`,"_blank");poSent("WhatsApp")};
+$("#btn-pv-mark").onclick=()=>poSent("");
 function recordPO(status,action,comment){
   po.status=status;po.history=(po.history||[]).concat([{by:me.name,action,at:new Date().toISOString(),comment:comment||""}]);
   const c=poCalc();const rec=JSON.parse(JSON.stringify(po));rec.total=c.total;rec.savedAt=new Date().toISOString();
@@ -1165,7 +1216,7 @@ function renderSaved(){
   const L=$("#savedList");
   if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
   const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&(!q||key([s.no,s.sup,s.ref,s.reqNo,s.status].join(" ")).includes(q))).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
-  L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}<br><span class="note">${esc(plantName(s.plant))}</span></b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
+  L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}<br><span class="note">${esc(plantName(s.plant))}</span></b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
 }
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
@@ -1195,17 +1246,18 @@ const uHas=(u,k)=>rightsOf(u).includes(k);
 const checkersOf=d=>{const c=hodOf(d);if(c)return[c];return M.users.filter(u=>u.role!=="Admin"&&u.dept&&u.dept===d&&uHas(u,"req.check")).map(u=>u.name)};
 const approversAll=()=>M.users.filter(u=>u.role!=="Admin"&&uHas(u,"req.approve")).map(u=>u.name);
 /* every maker has an allotted checker (Users & rights); the checker's approval sends the request to Purchase */
-const checkerOfMaker=n=>{const u=M.users.find(x=>x.name===n);return u&&u.checker&&u.checker!==n&&M.users.some(x=>x.name===u.checker)?u.checker:""};
+/* the checker is simply the department head: set on the department in Masters, or the user whose job is "Department head" in that department */
+const deptHead=d=>{if(!d)return"";const h=hodOf(d);if(h&&M.users.some(x=>x.name===h))return h;const u=M.users.find(x=>(x.role==="Department head"||x.role==="Checker"||x.role==="HOD")&&x.dept===d);return u?u.name:""};
 const canCheckReq=r=>!!me&&r.status==="Submitted"&&((r.checker?r.checker===me.name:(has("req.check")&&(me.dept===r.dept||hodOf(r.dept)===me.name)))||(has("req.all")&&has("req.check")));
 const canApproveReq=r=>!!me&&r.status==="Checked"&&has("req.approve");
 const POST_APPR=["Approved","Estimated","PO raised","PO approved"];
 const REQ_DIRECT=false;
 const PUR_READY=["Approved","Checked"]; /* "Checked" = older requests checked under the approver flow */
 function reqAdvance(r){
-  if(r.status==="Submitted"){const h=hodOf(r.dept),c=checkerOfMaker(r.by)||(h&&h!==r.by?h:"");
-    if(c){r.checker=c;return}
-    r.checker="";r.status="Approved";r.apprBy="No checker allotted to "+(r.by||"the maker");r.apprAt=today();return}
-  if(r.status==="Checked"&&r.chkBy&&!/^Auto/.test(r.chkBy)){r.status="Approved";r.apprBy=r.chkBy+" (checker)";r.apprAt=r.chkAt||today();return}
+  if(r.status==="Submitted"){const c=deptHead(r.dept);
+    if(c&&c!==r.by){r.checker=c;return}
+    r.checker="";r.status="Approved";r.apprBy=c?r.by+" (department head, own request)":"No department head set for "+(r.dept||"this department");r.apprAt=today();return}
+  if(r.status==="Checked"&&r.chkBy&&!/^Auto/.test(r.chkBy)){r.status="Approved";r.apprBy=r.chkBy+" (department head)";r.apprAt=r.chkAt||today();return}
   if(r.status==="Submitted"){const c=checkersOf(r.dept);
     if(!c.length){r.status="Checked";r.chkBy="Auto: no checker set for "+(r.dept||"this department");r.chkAt=today()}
     else if(c.includes(r.by)){r.status="Checked";r.chkBy=r.by+" (checker, own request)";r.chkAt=today()}}
@@ -1215,7 +1267,7 @@ function reqAdvance(r){
     if(!a.length){r.status="Approved";r.apprBy="Auto: no approver set";r.apprAt=today()}
     else if(a.includes(r.by)){r.status="Approved";r.apprBy=r.by+" (approver, own request)";r.apprAt=today()}}
 }
-function reqWith(r){if(r.status==="Submitted"&&r.checker)return"checker ("+r.checker+")";if(r.status==="Submitted"){const c=checkersOf(r.dept);return"checker"+(c.length?" ("+c.join(", ")+")":"")}if(r.status==="Checked"){const a=approversAll();return"approver"+(a.length?" ("+a.join(", ")+")":"")}return"Purchase"}
+function reqWith(r){if(r.status==="Submitted"&&r.checker)return"department head ("+r.checker+")";if(r.status==="Submitted"){const c=checkersOf(r.dept);return"department head"+(c.length?" ("+c.join(", ")+")":"")}if(r.status==="Checked"){const a=approversAll();return"approver"+(a.length?" ("+a.join(", ")+")":"")}return"Purchase"}
 function visibleReqs(){
   if(!me)return[];
   if(has("req.all"))return reqs;
@@ -1227,11 +1279,12 @@ function renderReq(){
   if(!cur){const rv=has("req.check")||has("req.approve")||has("req.all")||has("po.create");if(rv&&vis[0])cur=vis[0];else if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
   $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
   $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
-  if(!cur){$("#reqNone").innerHTML=`No purchase requests ready for Purchase yet. Requests appear here once the maker's checker has approved them. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
+  if(!cur){$("#reqNone").innerHTML=`No purchase requests ready for Purchase yet. Requests appear here once the department head has approved them. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
   const r=cur;const mine=r.status==="Draft"||r.by===me.name||has("req.all");
   const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&(reqs.includes(r)?has("req.edit"):has("req.create")));
   const canApprove=canCheckReq(r)||canApproveReq(r);
-  $("#reqBanner").hidden=!(r.status==="Sent back"&&r.comment);$("#reqBanner").className="banner back";$("#reqBanner").textContent=`Sent back by ${r.backBy||"checker"}: ${r.comment||""}`;
+  $("#reqBanner").hidden=!(r.status==="Sent back"&&r.comment);$("#reqBanner").className="banner back";$("#reqBanner").textContent=`Sent back by ${r.backBy||"department head"}: ${r.comment||""}`;
+  {const[fs,fw]=reqStage(r);$("#reqFlow").innerHTML=flowHTML(fs,fw,0)}
   $("#reqTitle").textContent=r.status==="Draft"?"New purchase request":`Purchase request ${r.no}`;
   $("#reqStatus").innerHTML=r.status==="Draft"?"":stChip(r.status);
   $("#reqExample").hidden=!r.example;
@@ -1260,7 +1313,7 @@ function fillReqSelects(){
   $("#q-by").innerHTML=opts(M.users.map(u=>u.name),cur.by,"Choose user");
   $("#q-dept").innerHTML=opts(M.depts.map(d=>d.name),cur.dept,"Choose department");
   $("#q-job").innerHTML=opts(M.projects.filter(p=>p.status==="Active").map(p=>p.no),cur.job,"Choose project");
-  $("#btn-q-approve").textContent=cur.status==="Checked"?"Approve (approver)":"Check and approve (checker)";
+  $("#btn-q-approve").textContent=cur.status==="Checked"?"Approve (director)":"Approve (department head)";
 }
 const attList=a=>Array.isArray(a)?a:(a?[a]:[]);
 function renderAttach(box,a,rm){const L=attList(a);
@@ -1302,10 +1355,10 @@ $("#btn-q-submit").onclick=()=>{
   if(cur.need<cur.date){toast("Required date cannot be before the request date");$("#q-need").focus();return}
   cur.status="Submitted";cur.comment="";cur.subAt=today();if(!reqs.includes(cur))reqs.unshift(cur);
   delete cur.chkBy;delete cur.chkAt;delete cur.apprBy;delete cur.apprAt;reqAdvance(cur);
-  saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} sent straight to Purchase (no checker allotted to ${cur.by})`:`Request ${cur.no} submitted to the ${reqWith(cur)}`);
+  saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} sent straight to Purchase (${cur.apprBy})`:`Request ${cur.no} submitted to the ${reqWith(cur)}`);
 };
 $("#btn-q-approve").onclick=()=>{const c=$("#q-comment").value.trim();
-  if(cur.status==="Submitted"){if(!canCheckReq(cur))return;cur.status="Checked";cur.chkBy=me.name;cur.chkAt=today();cur.chkNote=c;cur.comment=c;reqAdvance(cur);saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} checked and sent to Purchase`:`Request ${cur.no} checked. It now goes to the ${reqWith(cur)}.`);return}
+  if(cur.status==="Submitted"){if(!canCheckReq(cur))return;cur.status="Checked";cur.chkBy=me.name;cur.chkAt=today();cur.chkNote=c;cur.comment=c;reqAdvance(cur);saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} approved and sent to Purchase`:`Request ${cur.no} checked. It now goes to the ${reqWith(cur)}.`);return}
   if(!canApproveReq(cur))return;cur.status="Approved";cur.apprBy=me.name;cur.apprAt=today();cur.comment=c||cur.comment||"";saveReqs();renderReq();toast(`Request ${cur.no} approved. It now shows for Purchase.`)};
 $("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
 $("#btn-q-estimate").onclick=()=>{
@@ -2026,12 +2079,13 @@ function renderRep(){
 function workItems(){
   const W=[];const add=(n,t,d,v,warn)=>W.push({n,t,d,v,warn});
   if(has("req.create")){add(reqs.filter(r=>r.by===me.name&&r.status==="Sent back").length,"My requests sent back","Correct and resubmit","req",true);
-    add(reqs.filter(r=>r.by===me.name&&["Submitted","Checked","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with your checker or Purchase","req")}
-  if(has("req.check")||reqs.some(r=>canCheckReq(r)))add(reqs.filter(r=>canCheckReq(r)).length,"Requests to check","Check and approve, then they go to Purchase","req",true);
+    add(reqs.filter(r=>r.by===me.name&&["Submitted","Checked","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with your department head or Purchase","req")}
+  if(has("req.check")||reqs.some(r=>canCheckReq(r)))add(reqs.filter(r=>canCheckReq(r)).length,"Requests to approve","From your department, then they go to Purchase","req",true);
   if(!REQ_DIRECT&&has("req.approve"))add(reqs.filter(r=>canApproveReq(r)).length,"Requests to approve","Checked, waiting for you as approver","req",true);
   if(has("po.create")){add(reqs.filter(r=>PUR_READY.includes(r.status)).length,"Requests to process","Start a pre-estimate","req",true);
     add(saved.filter(p=>p.status==="Sent back").length,"POs sent back","Correct and resend","saved",true);
     add(saved.filter(p=>p.status==="Draft").length,"Draft POs","Not yet sent for approval","saved");
+    add(saved.filter(p=>p.status==="Approved"&&!p.sentAt&&!p.closed&&!p.recv).length,"Approved POs to send","Send to the vendor by email or WhatsApp","saved",true);
     add(saved.filter(p=>p.status==="Pending approval").length,"POs with approver","Waiting for approval","saved");
     add(saved.filter(p=>!p.closed&&p.needBy&&p.needBy<today()&&p.status!=="Draft").length,"POs past required date","Material is late, follow up with the supplier","saved",true)}
   if(has("po.approve"))add(saved.filter(p=>p.status==="Pending approval").length,"POs to approve","Review, approve and sign","appr",true);
@@ -2085,8 +2139,8 @@ function renderMasters(){
   renderSups();renderItems();renderSalesCfg();renderMachines();renderMastCusts();renderOpening();renderImportHub();mastPick();
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
-  $("#md-hod").innerHTML=opts(hods,"","Checker (optional)");
-  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Maker","Checker","Approver","Purchase","Store","Accounts","Sales","Production","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td><select id="mu${i}-c" data-f="checker" aria-label="Checker for ${esc(u.name)}">${opts(M.users.map(x=>x.name).filter(n=>n!==u.name),u.checker||"","None")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="Checker")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No users yet.</td></tr>`;
+  $("#md-hod").innerHTML=opts(hods,"","Department head (optional)");
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-r" data-f="role">${["Staff","Department head","Purchase","Store","Accounts","Sales","Production","Director","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select></td><td>${(rightsOf(u).includes("po.approve")||u.role==="Department head")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="6" class="empty">No users yet.</td></tr>`;
   $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
   const pjE=projCan("edit"),pjD=projCan("delete"),pjRO=pjE?"":" disabled";$("#m-proj-form").hidden=!projCan("create");
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input${pjRO} id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input${pjRO} id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input${pjRO} id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select${pjRO} id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td>${pjD?`<button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
@@ -2129,7 +2183,7 @@ function refreshWho(){
   $("#who").innerHTML=M.users.map(u=>`<option value="${esc(u.name)}"${me&&u.name===me.name?" selected":""}>${esc(u.name)} (${esc(u.role)})</option>`).join("");
 }
 function setMe(name){
-  me=CLOUD?(M.users.find(u=>u.name===BOOT.me)||{name:BOOT.me,dept:"",role:"Maker",rights:[]}):(M.users.find(u=>u.name===name)||M.users.find(u=>u.role==="Admin")||M.users[0]);store.set("me",me&&me.name);if(CLOUD&&$("#cuName"))$("#cuName").textContent=`${me.name} · ${me.role}`;
+  me=CLOUD?(M.users.find(u=>u.name===BOOT.me)||{name:BOOT.me,dept:"",role:"Staff",rights:[]}):(M.users.find(u=>u.name===name)||M.users.find(u=>u.role==="Admin")||M.users[0]);store.set("me",me&&me.name);if(CLOUD&&$("#cuName"))$("#cuName").textContent=`${me.name} · ${me.role}`;
   views.forEach(v=>$("#tab-"+v).hidden=!can(v));refreshWho();
   cur=null;const open=views.find(v=>!$("#view-"+v).hidden);show("home");
 }
@@ -2978,7 +3032,7 @@ async function gstExport(kind,mo){if(!window.XLSX){toast("Excel tools did not lo
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   const fn=`${kind==="sales"?"Sales":"Purchase"}-register-${mo}.xlsx`;if(await deliver(blob,fn))toast(`Saved ${fn}`)}
 /* owner summary on Home */
-function renderOwner(){const P=$("#ownerPanel");if(!P)return;if(!(isRole("Admin")||isRole("Approver"))){P.hidden=true;return}P.hidden=false;const mo=today().slice(0,7);
+function renderOwner(){const P=$("#ownerPanel");if(!P)return;if(!(isRole("Admin")||isRole("Director"))){P.hidden=true;return}P.hidden=false;const mo=today().slice(0,7);
   const sales=invoices.filter(v=>v.date.slice(0,7)===mo).reduce((a,v)=>a+invTot(v),0)-cnotes.filter(n=>n.date.slice(0,7)===mo).reduce((a,n)=>a+ntCalc("cn",n).grand,0);
   const coll=invoices.concat(obills.filter(o=>o.kind==="cust")).reduce((a,v)=>a+rcptsOf(v).filter(r=>(r.date||"").slice(0,7)===mo).reduce((b,r)=>b+(+r.amt||0),0),0);
   const pur=grns.filter(g=>g.status!=="With accounts"&&(g.bookedAt||g.date).slice(0,7)===mo).reduce((a,g)=>a+grnCalc(g).total,0);
@@ -3429,7 +3483,7 @@ if(CLOUD)cloudWire();
 /* ---------- dashboards: each user's own performance, and the company overview for admin/owner ---------- */
 const DASH_PER=[["3","Last 3 months"],["6","Last 6 months"],["12","Last 12 months"],["fy","This financial year"]];
 let dashPer=(()=>{try{return localStorage.getItem("zpo:dashPer")||"6"}catch(e){return"6"}})(),dashUser="",dashTab="";
-const isBoss=()=>isRole("Admin")||isRole("Approver")||has("users.edit");
+const isBoss=()=>isRole("Admin")||isRole("Director")||has("users.edit");
 const hasU=(u,r)=>{const s=rightsOf(u);return s.includes(r)||(ALIAS[r]||[]).some(x=>s.includes(x))};
 const d10=s=>String(s||"").slice(0,10),m7=s=>String(s||"").slice(0,7);
 const sameName=(a,b)=>!!a&&!!b&&key(String(a).replace(/\s*\(.*\)$/,""))===key(b);
@@ -3495,7 +3549,7 @@ function dashMine(U){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today(),c
 
   /* purchase requests raised */
   const R=reqs.filter(r=>inPlant(r)&&r.by===U&&r.status!=="Draft");
-  if(R.length||["Requester","Maker"].includes(u.role)){const RP=R.filter(r=>inP(r.subAt||r.date));
+  if(R.length||["Requester","Maker","Staff"].includes(u.role)){const RP=R.filter(r=>inP(r.subAt||r.date));
     const toPO=RP.map(r=>{const p=r.poNo&&saved.find(x=>String(x.no)===String(r.poNo));return p&&p.approvedAt?dd(r.subAt||r.date,p.approvedAt):null});
     S("My purchase requests",[tile(fmt0(RP.length),"Raised","In the period"),tile(fmt0(RP.filter(r=>["PO raised","PO approved"].includes(r.status)||r.poNo).length),"Turned into POs","Of those raised"),
       tile(fmt0(R.filter(r=>r.status==="Sent back").length),"Sent back now","Correct and resubmit",R.some(r=>r.status==="Sent back"),go("req")),tile(daysTxt(avg(toPO)),"Request to approved PO","Average wait")],
@@ -3687,9 +3741,9 @@ const GLOSS={
   "Opening stock":"Stock that was already in the store before this app was used.",
   "Rate list":"Last rates paid for items. The app suggests them when you make a pre-estimate.",
   "BOM":"Bill of materials. A list of all items needed for a job, usually an Excel sheet.",
-  "Maker":"The person who raises a request or document.",
-  "Checker":"The person who checks a request before it moves on.",
-  "Approver":"The person (usually the Director) who approves and signs POs."};
+  "Staff":"A person who asks for material. Their request goes to their department head.",
+  "Department head":"Approves purchase requests from their department before they go to Purchase.",
+  "Director":"Approves and signs POs before Purchase sends them to the vendor."};
 const glBtn=t=>`<button type="button" class="gl" data-gl="${esc(t)}">${esc(t)}<sup>?</sup></button>`;
 const glText=s=>esc(s).replace(/\[\[([^\]]+)\]\]/g,(m,t)=>GLOSS[t]?glBtn(t):t);
 
@@ -3720,7 +3774,7 @@ const HELP={
   cn:["Reduce what a customer owes ([[Credit note]]).","Click + Credit note, pick the invoice, and enter what was returned or the rate difference."],
   rep:["Reports on delays, suppliers, job costs and GST.","Nothing to fill in. Scroll down for each report; most have a download button."],
   mast:["The lists the whole app uses: items, suppliers, customers, Job Nos. and more.","Choose a list from the drop-down at the top. Edit any cell directly; changes save by themselves."],
-  users:["Who can log in and what each person can do.","Add a person with their role. Their rights follow the role; tick boxes only if someone needs more or less."]};
+  users:["Who can log in and what each person can do.","Add each person with a department and a job. Requests go to the department head automatically. Tick rights boxes only if someone needs more or less."]};
 
 /* simple-view switch, remembered per person on this device */
 const uiKey=()=>"zpo:ui:"+(me?me.name:"");
