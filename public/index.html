@@ -279,6 +279,11 @@ body.gated header.bar,body.gated main{display:none}
   <div class="cards" id="homeCards"></div>
   <div class="panel stack" id="ownerPanel" hidden></div>
   <div class="panel stack" id="homeBackup" hidden></div>
+  <div class="panel stack" id="homePend" hidden>
+    <div class="row"><h2 class="sec">Pending items</h2><span class="dseg" id="pendTabs" role="group" aria-label="Pending items"><button type="button" data-ptab="order" aria-pressed="true">Not on a PO yet <span id="pendN-order"></span></button><button type="button" data-ptab="recv" aria-pressed="false">Not received yet <span id="pendN-recv"></span></button></span><span style="flex:1"></span><input id="pend-q" placeholder="Search item, request, PO, supplier" style="max-width:260px"></div>
+    <div class="note" id="pendNote"></div>
+    <div id="pendBody"></div>
+  </div>
   <div class="panel stack" id="homeFlow"><h2 class="sec">Purchase cycle at a glance</h2><div class="flow" id="flowBox"></div></div>
 </section>
 
@@ -327,6 +332,7 @@ body.gated header.bar,body.gated main{display:none}
       <button class="btn" id="btn-q-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete request</button></div>
     <div id="reqDelete" class="panel stack" style="border-color:var(--danger)" hidden></div>
   </div>
+  <div class="panel stack" id="reqBal" hidden></div>
   <div class="panel stack">
     <div class="row"><h2 class="sec">All requests</h2><select class="per" id="per-req" aria-label="Period" style="width:auto"></select></div>
     <div id="reqList"></div>
@@ -966,6 +972,7 @@ $("#btn-convert").onclick=()=>{
       reqNo:est.reqNo||"",needBy:est.need||"",plant:est.plant||defPlant(),deliv:plantAddr(est.plant||defPlant()),gstmode:sup.state&&sup.state!=="27"?"inter":"intra",remark:"",
       xcols:estCols().filter(c=>lines.some(l=>l.x&&l.x[c])),
       lines:lines.map(l=>{const it=itemByName(l.item);if(estCols().length&&l.x){const pl={x:Object.assign({},l.x),xo:l.xo||"",pn:it?"":l.item,item:it?it.name:"",spec:"",desc:"",hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0};return pl}return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:it?it.name:"",spec:it?(l.spec||""):[l.item,l.spec].filter(Boolean).join(" - "),hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
+  po.lines.forEach((pl,k)=>{if(lines[k]&&lines[k].rq!=null)pl.rq=lines[k].rq}); /* link back to the request line, for the pending balance */
   if(poCols(po).length)po.lines.forEach(l=>{if(l.x)poJoin(l)});
   store.set("po",po);show("po");
 };
@@ -1126,7 +1133,7 @@ $("#btn-del-ok").onclick=()=>{
   const why=$("#po-del-reason").value.trim();if(!why){toast("Give a reason for deleting");$("#po-del-reason").focus();return}
   const del=store.get("deletedPOs",[]);del.unshift({no:po.no,sup:po.sup,status:po.status,total:poCalc().total,by:me.name,at:new Date().toISOString(),reason:why});store.set("deletedPOs",del);
   saved=saved.filter(x=>String(x.no)!==String(po.no));store.set("saved",saved);
-  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="Approved";delete r.poNo;saveReqs()}}
+  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){const o=reqPOs(r);if(!o.length){r.status="Approved";delete r.poNo}else r.poNo=o[o.length-1].no;saveReqs()}}
   const n=po.no;po=null;store.set("po",null);$("#poDelete").hidden=true;toast(`PO ${n} deleted`);renderPO()};
 $("#btn-approve").onclick=()=>{po.approvedBy=me.name;po.approvedAt=today();po.sig=me.sig||"";recordPO("Approved","Approved",$("#po-comment").value.trim());
   if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO approved";saveReqs()}}
@@ -1233,8 +1240,9 @@ function renderReq(){
   renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
   $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
-  $("#btn-q-estimate").hidden=!((PUR_READY.includes(r.status)||r.status==="Estimated")&&has("po.create")&&can("est"));
+  $("#btn-q-estimate").hidden=!((PUR_READY.includes(r.status)||r.status==="Estimated")&&!reqPOs(r).length&&has("po.create")&&can("est"));
   $("#btn-q-del").hidden=!(isRole("Admin")&&reqs.includes(r));if(r!==reqDelFor)$("#reqDelete").hidden=true;
+  renderReqBal(r);
   $("#btn-q-line").hidden=locked;$("#btn-q-clear").hidden=locked;$("#btn-q-file").hidden=locked;$("#btn-q-bom").hidden=locked;
   renderReqList();
 }
@@ -1253,7 +1261,7 @@ function renderAttach(box,a,rm){const L=attList(a);
 }
 function renderReqList(){
   const vis=visibleReqs().filter(r=>inPer(r.date,"req")&&inPlant(r));
-  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
+  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}${reqPendChip(r)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
 }
 $("#reqList").addEventListener("click",e=>{const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
 $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
@@ -1291,11 +1299,15 @@ $("#btn-q-approve").onclick=()=>{const c=$("#q-comment").value.trim();
   if(cur.status==="Submitted"){if(!canCheckReq(cur))return;cur.status="Checked";cur.chkBy=me.name;cur.chkAt=today();cur.chkNote=c;cur.comment=c;reqAdvance(cur);saveReqs();renderReq();toast(cur.status==="Approved"?`Request ${cur.no} approved and sent to Purchase`:`Request ${cur.no} checked. It now goes to the ${reqWith(cur)}.`);return}
   if(!canApproveReq(cur))return;cur.status="Approved";cur.apprBy=me.name;cur.apprAt=today();cur.comment=c||cur.comment||"";saveReqs();renderReq();toast(`Request ${cur.no} approved. It now shows for Purchase.`)};
 $("#btn-q-back").onclick=()=>{const c=$("#q-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#q-comment").focus();return}cur.status="Sent back";cur.comment=c;cur.backBy=me.name;saveReqs();renderReq();toast(`Request ${cur.no} sent back to ${cur.by}`)};
-$("#btn-q-estimate").onclick=()=>{
-  const r=cur;r.status="Estimated";saveReqs();
-  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",xcols:rqCols(r).slice(),lines:r.lines.filter(l=>rqText(l)).map(l=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,x:Object.assign({},l.x||{}),xo:l.spec||"",expr:"",qty:l.qty,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":""}})};
+/* pre-estimate from a request; onlyPending = just the lines (and qty) not yet on any PO */
+function startEst(r,onlyPending){
+  const bal=onlyPending?reqBal(r):null;
+  if(!reqPOs(r).length){r.status="Estimated";saveReqs()}
+  const L=r.lines.map((l,i)=>({l,i,q:l.qty})).filter(x=>rqText(x.l)).map(x=>{if(bal){const b=bal.find(y=>y.i===x.i);x.q=b?b.toOrder:0}return x}).filter(x=>!bal||x.q>0.0001);
+  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",xcols:rqCols(r).slice(),lines:L.map(({l,i,q})=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,x:Object.assign({},l.x||{}),xo:l.spec||"",expr:"",qty:q,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":"",rq:i}})};
   isExample=false;saveEst();bindHeader();renderEst();show("est");
-};
+}
+$("#btn-q-estimate").onclick=()=>startEst(cur,false);
 $("#btn-q-file").onclick=()=>$("#q-file").click();
 $("#q-file").onchange=async e=>{
   const files=[...e.target.files];e.target.value="";if(!files.length)return;const L=attList(cur.attach);let added=0,filled=0;
@@ -1338,6 +1350,67 @@ const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
 function acceptedSoFar(poNo,i){return grns.filter(g=>String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
 function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
 function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
+/* ---------- pending balance: request -> PO -> received ---------- */
+/* A request can be split over several POs (part now, part later, or different suppliers). Each PO line made from a request
+   remembers its request line (rq). Older POs without that link are matched to request lines by item name. */
+const reqPOs=r=>r?saved.filter(p=>p.reqNo&&p.reqNo===r.no):[];
+const poLineName=l=>l.desc||[l.item||l.pn,l.spec].filter(Boolean).join(" - ")||"";
+function rqUsed(pl,rl){/* PO line qty in the request line's unit: a KG raw-material line counts its pieces */
+  if(key(pl.unit||"NOS")!==key(rl.unit||"NOS")&&poKgUnit(pl))return +pl.pcs||1;return +pl.qty||0}
+function reqBal(r){
+  const rows=(r.lines||[]).map((l,i)=>({l,i,name:rqText(l),unit:l.unit||"NOS",qty:+l.qty||0,onPO:0,recv:0,pos:[]})).filter(x=>x.name);
+  reqPOs(r).forEach(p=>{const linked=p.lines.some(pl=>pl.rq!=null);
+    p.lines.forEach((pl,j)=>{let x=null;
+      if(linked){if(pl.rq!=null)x=rows.find(y=>y.i===+pl.rq)}
+      else{const k=key(pl.item||pl.pn||pl.desc);if(k)x=rows.find(y=>key(y.name)===k)||rows.find(y=>{const n=key(y.name);return n&&k.startsWith(n+" ")})}
+      if(!x)return;const q=rqUsed(pl,x.l),pq=+pl.qty||0;x.onPO+=q;
+      if(pq>0)x.recv+=Math.min(q,acceptedSoFar(p.no,j)/pq*q);
+      if(!x.pos.includes(p.no))x.pos.push(p.no)})});
+  rows.forEach(x=>{x.toOrder=r.balClosed?0:Math.max(0,+(x.qty-x.onPO).toFixed(3));x.toRecv=Math.max(0,+(x.onPO-x.recv).toFixed(3))});
+  return rows}
+/* request finished: nothing left to order and every PO for it closed */
+const reqDone=r=>reqBal(r).every(x=>x.toOrder<0.0001)&&reqPOs(r).every(p=>p.closed);
+const REQ_OPEN=[...PUR_READY,"Estimated","PO raised","PO approved"];
+function pendToOrder(){return reqs.filter(r=>REQ_OPEN.includes(r.status)&&!r.balClosed).flatMap(r=>reqBal(r).filter(x=>x.toOrder>0.0001).map(x=>Object.assign({r},x)))}
+function pendToRecv(){return saved.filter(p=>!p.closed&&p.status!=="Rejected").flatMap(p=>p.lines.map((l,i)=>({p,l,i,name:poLineName(l),unit:l.unit||"NOS",ord:+l.qty||0,acc:acceptedSoFar(p.no,i)})).filter(x=>x.name&&x.ord-x.acc>0.0001))}
+function reqPendChip(r){if(!reqPOs(r).length||r.status==="Closed")return"";const B=reqBal(r),o=B.filter(x=>x.toOrder>0.0001).length,v=B.filter(x=>x.toRecv>0.0001).length;
+  return o?` <span class="chip st-Back">${o} not on PO</span>`:v?` <span class="chip sugg">${v} to receive</span>`:""}
+const q3=n=>fmt0(Math.round((+n||0)*1000)/1000);
+/* request page: what is ordered and received against each line */
+function renderReqBal(r){const P=$("#reqBal");const pos=reqPOs(r);
+  if(!r||!pos.length){P.hidden=true;P.innerHTML="";return}
+  const B=reqBal(r),toO=B.filter(x=>x.toOrder>0.0001).length,toR=B.filter(x=>x.toRecv>0.0001).length,pur=has("po.create");
+  P.hidden=false;
+  P.innerHTML=`<div class="row"><h2 class="sec">Ordered and received</h2><span class="note">${pos.map(p=>"PO "+esc(p.no)+" ("+esc(p.closed?"Closed":p.recv||p.status||"Draft")+")").join(" · ")}</span></div>
+  <div class="note">${toO?`<b style="color:var(--danger)">${toO} item${toO>1?"s are":" is"} not on a PO yet.</b> `:r.balClosed?`Balance closed by ${esc(r.balBy||"")} on ${dmy(r.balAt)}: the rest is not needed. `:"Every item is on a PO. "}${toR?`${toR} item${toR>1?"s are":" is"} still to be received.`:"Nothing left to receive."}</div>
+  <div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th style="width:34px">Sr</th><th>Item</th><th class="num">Requested</th><th class="num">On PO</th><th class="num">Received</th><th class="num">Not on PO yet</th><th class="num">Not received yet</th></tr></thead><tbody>
+  ${B.map((x,k)=>`<tr><td>${x.i+1}</td><td>${esc(x.name)}${x.pos.length?`<br><span class="note">PO ${x.pos.map(esc).join(", ")}</span>`:""}</td><td class="num">${q3(x.qty)} ${esc(x.unit)}</td><td class="num">${q3(x.onPO)}</td><td class="num">${q3(x.recv)}</td><td class="num">${x.toOrder>0.0001?`<b style="color:var(--danger)">${q3(x.toOrder)}</b>`:"-"}</td><td class="num">${x.toRecv>0.0001?`<b>${q3(x.toRecv)}</b>`:"-"}</td></tr>`).join("")}</tbody></table></div>
+  ${pur?`<div class="row">${toO&&can("est")?`<button class="btn primary" type="button" id="btn-q-bal-est">Pre-estimate for the ${toO} pending item${toO>1?"s":""}</button>`:""}${toO?`<button class="btn" type="button" id="btn-q-bal-close" title="Use when the rest of this request is no longer needed">Rest not needed</button>`:""}${r.balClosed?`<button class="btn" type="button" id="btn-q-bal-open">Reopen balance</button>`:""}</div>`:""}`;
+  const be=$("#btn-q-bal-est");if(be)be.onclick=()=>startEst(r,true);
+  const bc=$("#btn-q-bal-close");if(bc)bc.onclick=()=>{if(!bc.dataset.sure){bc.dataset.sure="1";bc.textContent="Click again: close the balance";bc.style.color="#b42318";setTimeout(()=>{if(bc.isConnected){delete bc.dataset.sure;bc.textContent="Rest not needed";bc.style.color=""}},5000);return}
+    r.balClosed=true;r.balBy=me.name;r.balAt=today();if(reqDone(r)){r.status="Closed";r.closedAt=today()}saveReqs();renderReq();toast(`Request ${r.no}: the rest is marked not needed`)};
+  const bo=$("#btn-q-bal-open");if(bo)bo.onclick=()=>{delete r.balClosed;delete r.balBy;delete r.balAt;if(r.status==="Closed"&&!reqDone(r))r.status=pos.some(p=>p.status==="Approved")?"PO approved":"PO raised";saveReqs();renderReq();toast(`Request ${r.no}: balance reopened`)};
+}
+/* home: everything still pending, for the purchaser */
+let pendTab="order";
+function renderPend(){const P=$("#homePend");P.hidden=!(has("po.create")||has("req.all"));if(P.hidden)return;
+  const q=key($("#pend-q").value||"");
+  const A=pendToOrder().filter(x=>inPlant(x.r)),Bv=pendToRecv().filter(x=>inPlant(x.p));
+  $("#pendN-order").textContent=`(${A.length})`;$("#pendN-recv").textContent=`(${Bv.length})`;
+  document.querySelectorAll("#pendTabs [data-ptab]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ptab===pendTab?"true":"false"));
+  const t=today();
+  if(pendTab==="order"){const L=A.filter(x=>!q||key([x.r.no,x.name,x.r.job,x.r.by,x.r.dept].join(" ")).includes(q));
+    $("#pendNote").textContent="Approved request items with quantity not yet on any PO. Open the request to make a pre-estimate for just these.";
+    $("#pendBody").innerHTML=L.length?`<div class="tablebox"><table class="est" style="min-width:680px"><thead><tr><th>Request</th><th>Item</th><th>Need by</th><th class="num">Requested</th><th class="num">On PO</th><th class="num">Pending</th><th></th></tr></thead><tbody>${L.map(x=>{const late=x.r.need&&x.r.need<t;return`<tr><td><b style="font-family:var(--mono)">${esc(x.r.no)}</b><br><span class="note">${esc(x.r.job||x.r.dept||"")}${x.r.by?" · "+esc(x.r.by):""}</span></td><td>${esc(x.name)}</td><td style="${late?"color:var(--danger);font-weight:600":""}">${dmy(x.r.need)||"-"}${late?" (late)":""}</td><td class="num">${q3(x.qty)} ${esc(x.unit)}</td><td class="num">${x.onPO?q3(x.onPO):"-"}</td><td class="num"><b style="color:var(--danger)">${q3(x.toOrder)}</b></td><td><button class="btn" type="button" data-preq="${esc(x.r.no)}">Open</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">${q?"Nothing matches that search.":"Nothing pending. Every approved request item is on a PO."}</div>`}
+  else{const L=Bv.filter(x=>!q||key([x.p.no,x.p.sup,x.name,x.p.reqNo,x.p.ref].join(" ")).includes(q));
+    $("#pendNote").textContent="PO items not yet received in full, from requests and direct POs. They leave this list when the store makes the GRN.";
+    $("#pendBody").innerHTML=L.length?`<div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th>PO</th><th>Supplier</th><th>Item</th><th>Need by</th><th class="num">Ordered</th><th class="num">Received</th><th class="num">Pending</th><th></th></tr></thead><tbody>${L.map(x=>{const nb=x.p.needBy,late=nb&&nb<t;return`<tr><td><b style="font-family:var(--mono)">PO ${esc(x.p.no)}</b><br><span class="note">${x.p.reqNo?"Request "+esc(x.p.reqNo):"Direct"}</span> ${x.p.status!=="Approved"?stChip(x.p.status||"Draft"):""}</td><td>${esc(x.p.sup||"-")}</td><td>${esc(x.name)}</td><td style="${late?"color:var(--danger);font-weight:600":""}">${dmy(nb)||"-"}${late?" (late)":""}</td><td class="num">${q3(x.ord)} ${esc(x.unit)}</td><td class="num">${x.acc?q3(x.acc):"-"}</td><td class="num"><b>${q3(x.ord-x.acc)}</b></td><td><button class="btn" type="button" data-ppo="${esc(x.p.no)}">Open</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">${q?"Nothing matches that search.":"Nothing pending. All PO items are received."}</div>`}
+}
+$("#pendTabs").addEventListener("click",e=>{const b=e.target.closest("[data-ptab]");if(b){pendTab=b.dataset.ptab;renderPend()}});
+$("#pend-q").addEventListener("input",renderPend);
+$("#pendBody").addEventListener("click",e=>{const r=e.target.dataset.preq,p=e.target.dataset.ppo;
+  if(r!=null){const x=reqs.find(y=>y.no===r);if(x){cur=x;show("req");setTimeout(()=>$("#reqBal").scrollIntoView({block:"start"}),50)}return}
+  if(p!=null){const x=saved.find(y=>String(y.no)===String(p));if(x){po=JSON.parse(JSON.stringify(x));store.set("po",po);show("po")}}});
 function grnCalc(g){const sub=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l),0);const tax=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l)*(+l.tax||0)/100,0);return{sub,tax,total:Math.round(sub+tax)}}
 let grn=null;
 function renderGRN(){
@@ -1377,7 +1450,7 @@ $("#grnForm").addEventListener("click",e=>{
   grn.status="With accounts";grn.createdAt=new Date().toISOString();grns.unshift(grn);saveGRNs();
   const p=saved.find(x=>String(x.no)===String(grn.poNo));
   if(p){if(pendingLines(p).length){p.recv="Partly received"}else{p.recv="Closed";p.closed=true;p.closedAt=grns.filter(g=>String(g.poNo)===String(p.no)).map(g=>g.date).sort().pop();
-    if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r){r.status="Closed";r.closedAt=p.closedAt;saveReqs()}}}
+    if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r&&reqDone(r)){r.status="Closed";r.closedAt=p.closedAt;saveReqs()}}}
     if(!p.firstGrnAt||grn.date<p.firstGrnAt)p.firstGrnAt=grn.date;store.set("saved",saved)}
   toast(p&&p.closed?`GRN ${grn.no} created. PO ${p.no} is fully received and closed.`:`GRN ${grn.no} created (partial). PO stays open for the balance.`);grn=null;renderGRN()});
 
@@ -1953,7 +2026,7 @@ function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").for
 function addDays(iso,n){const t=new Date(iso);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
 function payChip(p){const gs=grns.filter(g=>String(g.poNo)===String(p.no)&&g.status!=="With accounts");if(!gs.length)return"";const bal=gs.reduce((a,g)=>a+grnBal(g),0),tot=gs.reduce((a,g)=>a+grnCalc(g).total,0);
   return" "+(bal<=0.004?`<span class="chip st-PO">Paid</span>`:bal<tot-0.004?`<span class="chip st-Submitted">Part paid</span>`:`<span class="chip st-Draft">Unpaid</span>`)}
-function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully received"){const gs=grns.filter(g=>String(g.poNo)===String(p.no));if(gs.length&&gs.every(g=>g.status==="Paid")){p.closed=true;p.recv="Closed";if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r){r.status="Closed";saveReqs()}}}}});store.set("saved",saved)}
+function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully received"){const gs=grns.filter(g=>String(g.poNo)===String(p.no));if(gs.length&&gs.every(g=>g.status==="Paid")){p.closed=true;p.recv="Closed";if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r&&reqDone(r)){r.status="Closed";saveReqs()}}}}});store.set("saved",saved)}
 function dueDate(g){const d=parseInt(g.terms,10);const base=g.invDate||g.date;if(!base||isNaN(d))return"";const t=new Date(base);t.setDate(t.getDate()+d);return t.toISOString().slice(0,10)}
 function acctRow(g){return`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">${esc(g.sup)} · PO ${esc(g.poNo)} · <span class="note">Inv ${esc(g.inv||"-")}${dueDate(g)?" · due "+dmy(dueDate(g)):""}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><button class="btn${g.status==="With accounts"?" primary":""}" data-acct="${g.no}">Open</button></div>`}
 function renderAcct(){
@@ -2047,7 +2120,7 @@ function workItems(){
     add(reqs.filter(r=>r.by===me.name&&["Submitted","Checked","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with your department head or Purchase","req")}
   if(has("req.check")||reqs.some(r=>canCheckReq(r)))add(reqs.filter(r=>canCheckReq(r)).length,"Requests to approve","From your department, then they go to Purchase","req",true);
   if(!REQ_DIRECT&&has("req.approve"))add(reqs.filter(r=>canApproveReq(r)).length,"Requests to approve","Checked, waiting for you as approver","req",true);
-  if(has("po.create")){add(reqs.filter(r=>PUR_READY.includes(r.status)).length,"Requests to process","Start a pre-estimate","req",true);
+  if(has("po.create")){add(new Set(pendToOrder().map(x=>x.r.no)).size,"Requests to process","New, or with items not on a PO yet","req",true);
     add(saved.filter(p=>p.status==="Sent back").length,"POs sent back","Correct and resend","saved",true);
     add(saved.filter(p=>p.status==="Draft").length,"Draft POs","Not yet sent for approval","saved");
     add(saved.filter(p=>p.status==="Approved"&&!p.sentAt&&!p.closed&&!p.recv).length,"Approved POs to send","Send to the vendor by email or WhatsApp","saved",true);
@@ -2070,7 +2143,7 @@ function workItems(){
   return W;
 }
 function renderHome(){
-  renderBackup();
+  renderBackup();renderPend();
   $("#homeHello").textContent=`${me.name} · ${me.role}${me.dept?" · "+me.dept:""}`;$("#homeDate").textContent=dmy(today());
   const W=workItems();
   $("#homeCards").innerHTML=W.length?W.map(w=>`<button class="card${w.warn&&w.n&&w.n!==0?" warn":""}${w.zero||w.n===0?" zero":""}" data-go="${w.v}"><span class="n">${w.n}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></button>`).join(""):`<div class="panel empty">No tasks for your role. Ask the admin to give you rights on the Users &amp; rights page.</div>`;
