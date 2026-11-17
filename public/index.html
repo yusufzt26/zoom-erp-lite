@@ -773,7 +773,7 @@ const can=v=>v==="home"||v==="dash"||(["so","dc","inv","cn"].includes(v)?has(v+"
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
 const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 function syncGroups(v){Object.keys(GROUPS).forEach(g=>{const M=GROUPS[g],any=M.some(x=>can(x)),on=M.includes(v);const b=$("#tab-"+g);b.hidden=!any;b.classList.toggle("grp-on",on);b.setAttribute("aria-expanded",on?"true":"false");$("#subnav-"+g).hidden=!on||!any;
@@ -1203,7 +1203,8 @@ function visibleReqs(){
 function renderReq(){
   const vis=visibleReqs();
   if(cur&&cur.status!=="Draft"&&!vis.includes(cur))cur=null;
-  if(!cur){const rv=has("req.check")||has("req.approve")||has("req.all")||has("po.create");if(rv&&vis[0])cur=vis[0];else if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
+  /* the page opens on a blank new request for anyone who can raise one; saved requests open from the list below */
+  if(!cur){if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
   $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
   $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
   if(!cur){$("#reqNone").innerHTML=`No purchase requests ready for Purchase yet. Requests appear here once the department head has approved them. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
@@ -1316,7 +1317,11 @@ $("#q-file").onchange=async e=>{
 };
 $("#btn-q-cam").onclick=()=>$("#q-cam").click();
 $("#q-cam").onchange=e=>$("#q-file").onchange(e);
-$("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
+$("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);
+  /* removing a loaded Excel sheet also clears the lines it filled in (second click confirms) */
+  if(L[+d]&&L[+d].type==="xlsx"){const b=e.target;if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Click again to remove the sheet and its lines";b.style.color="#b42318";b.style.fontSize="12px";setTimeout(()=>{if(b.isConnected)renderReq()},5000);return}
+    cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=L.filter(x=>x.type!=="xlsx");if(cur.status!=="Draft")saveReqs();renderReq();toast("Sheet removed and lines cleared");return}
+  L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
 $("#btn-q-bom").onclick=()=>$("#q-bom").click();
 $("#q-bom").onchange=e=>$("#q-file").onchange(e);
 
