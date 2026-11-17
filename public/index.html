@@ -781,7 +781,7 @@ const can=v=>v==="home"||v==="dash"||(["so","dc","inv","cn"].includes(v)?has(v+"
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req")renderReq();if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);window.scrollTo(0,0)}
 const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 function syncGroups(v){Object.keys(GROUPS).forEach(g=>{const M=GROUPS[g],any=M.some(x=>can(x)),on=M.includes(v);const b=$("#tab-"+g);b.hidden=!any;b.classList.toggle("grp-on",on);b.setAttribute("aria-expanded",on?"true":"false");$("#subnav-"+g).hidden=!on||!any;
@@ -1212,7 +1212,8 @@ function visibleReqs(){
 function renderReq(){
   const vis=visibleReqs();
   if(cur&&cur.status!=="Draft"&&!vis.includes(cur))cur=null;
-  if(!cur){const rv=has("req.check")||has("req.approve")||has("req.all")||has("po.create");if(rv&&vis[0])cur=vis[0];else if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
+  /* the page opens on a blank new request for anyone who can raise one; saved requests open from the list below */
+  if(!cur){if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
   $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
   $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
   if(!cur){$("#reqNone").innerHTML=`No purchase requests ready for Purchase yet. Requests appear here once the department head has approved them. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
@@ -1226,7 +1227,7 @@ function renderReq(){
   $("#reqExample").hidden=!r.example;
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
-  const xc=rqCols(r);
+  const xc=rqShow(r);
   $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description of material</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
     <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description of material, any text"${xc.length?' style="min-width:200px"':""}></td>
@@ -1270,7 +1271,7 @@ $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.b
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
 $("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqFlat(cur.lines[+tr.dataset.i]),xk=e.target.dataset.x;
   if(xk!=null){l.x=l.x||{};l.x[xk]=e.target.value}else{const k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value}if(cur.status!=="Draft")saveReqs()});
-$("#reqHead").addEventListener("click",e=>{const d=e.target.dataset.xdel;if(d==null||!cur)return;const c=rqCols(cur)[+d];
+$("#reqHead").addEventListener("click",e=>{const d=e.target.dataset.xdel;if(d==null||!cur)return;const c=rqShow(cur)[+d];
   const b=e.target;if(cur.lines.some(l=>l.x&&l.x[c])&&!b.dataset.sure){b.dataset.sure="1";b.textContent="remove?";b.title=`Click again to remove the ${c} column`;setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="×"}},4000);return}
   cur.xcols=rqCols(cur).filter(x=>x!==c);cur.lines.forEach(l=>{if(l.x)delete l.x[c]});if(cur.status!=="Draft")saveReqs();renderReq()});
 $("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
@@ -1331,7 +1332,11 @@ $("#q-file").onchange=async e=>{
 };
 $("#btn-q-cam").onclick=()=>$("#q-cam").click();
 $("#q-cam").onchange=e=>$("#q-file").onchange(e);
-$("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
+$("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);
+  /* removing a loaded Excel sheet also clears the lines it filled in (second click confirms) */
+  if(L[+d]&&L[+d].type==="xlsx"){const b=e.target;if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Click again to remove the sheet and its lines";b.style.color="#b42318";b.style.fontSize="12px";setTimeout(()=>{if(b.isConnected)renderReq()},5000);return}
+    cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=L.filter(x=>x.type!=="xlsx");if(cur.status!=="Draft")saveReqs();renderReq();toast("Sheet removed and lines cleared");return}
+  L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
 $("#btn-q-bom").onclick=()=>$("#q-bom").click();
 $("#q-bom").onchange=e=>$("#q-file").onchange(e);
 
@@ -1568,7 +1573,7 @@ const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${wind
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
   return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)+(r.poNo?" · PO "+esc(r.poNo):"")]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["Checked by",r.chkBy?esc(r.chkBy)+" · "+dmy(r.chkAt):(r.apprBy&&!r.chkBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-")],["Approved by",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"]]])+
-  `<table><thead><tr><th>Sr</th><th>Description of material</th>${rqCols(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqCols(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  `<table><thead><tr><th>Sr</th><th>Description of material</th>${rqShow(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqShow(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
   ${r.comment?`<p class="small"><b>Comment:</b> ${esc(r.comment)}</p>`:""}
   <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:center">Checked by: <b>${r.chkBy?esc(r.chkBy)+" ("+dmy(r.chkAt)+")":"________________"}</b></div><div style="text-align:right">Approved by: <b>${r.apprBy?esc(r.apprBy)+" ("+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
 }
@@ -1584,7 +1589,7 @@ function docPO(p){
   return `${p.status!=="Approved"?`<div class="draftmark">${p.status==="Pending approval"?"PENDING APPROVAL":"DRAFT"} · NOT VALID UNTIL APPROVED</div>`:""}`+docHead("PURCHASE ORDER")+
   `<div class="two"><div><b>${esc(p.sup)}</b><br>${esc(p.supAddr||"").replace(/\n/g,"<br>")}</div><div class="kv"><b>P.O. No.</b><span>${esc(p.no)} &nbsp; <b>Date</b> ${dmy(p.date)}</span><b>Delivery</b><span>${esc(p.deliv)}</span><b>Pay. Terms</b><span>${esc(p.terms)}</span><b>Validity</b><span>${esc(p.validity)}</span></div></div>
   <div class="two" style="border-top:none"><div class="kv"><b>Ref. No.</b><span>${esc(p.ref)} &nbsp; <b>Dt.</b> ${dmy(p.refDate)}</span><b>Ven. Code</b><span>${esc(p.venCode)}</span></div><div class="kv"><b>Kind Attn.</b><span>${esc(p.attn)}</span><b>Transport</b><span>${esc(p.transport)}</span><b>Delivery by</b><span>${dmy(p.needBy)}</span></div></div>
-  <table><thead><tr><th>Sn</th><th>Description</th>${poCols(p).map(c=>`<th>${esc(c)}</th>`).join("")}<th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(poCols(p).length&&l.x?[l.item,l.pn,l.xo].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+((String(l.desc||"").match(/ · (Finished size|Raw size|Grade|Total wt): .*$/)||[""])[0]):l.desc)}</td>${poCols(p).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.hsn)}</td><td class="r">${l.tax}</td><td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
+  <table><thead><tr><th>Sn</th><th>Description</th>${poCols(p).map(c=>`<th>${esc(c)}</th>`).join("")}<th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(poCols(p).length&&l.x?[l.item,l.pn,l.xo].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+((String(l.desc||"").match(/ · (Finished size|Raw size|Grade|Total wt): .*$/)||[""])[0]):l.desc)}</td>${poCols(p).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
   <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(c.sub)}</td></tr>${tax}<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr></tbody></table>
   <p style="margin:4px 0"><b>Amount In Words :</b> Rupees ${words(c.total)} Only.</p>
   <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
@@ -2334,6 +2339,10 @@ const poBad=l=>{if(!masterHasItems())return false;const it=itemByName(l.item||""
 /* extra spec columns of a request (from a BOM: Size, B / ø, Block Vol cm³...) and one line's specs as text */
 const rqCols=r=>r&&Array.isArray(r.xcols)?r.xcols:[];
 const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim();return !v?"":c==="Size"?v:`${c} ${v}`}),l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
+/* the request form and its PDF show only size, material and weight-type columns; the other BOM columns
+   (Type, HRC, Plate group, Priority, Source, Shape...) are kept with the request and appear in the pre-estimate, where they can be removed */
+const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg/i;
+const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c));
 const rqSpecHead=r=>!rqCols(r).length?"Specification":rqCols(r).some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec";
 const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
 function rqFlat(l){if(l&&l.item!==undefined){l.desc=rqText(l);delete l.item}return l}
