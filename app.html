@@ -1208,7 +1208,7 @@ function renderReq(){
   $("#reqExample").hidden=!r.example;
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
-  const xc=rqCols(r);
+  const xc=rqShow(r);
   $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description of material</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
     <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description of material, any text"${xc.length?' style="min-width:200px"':""}></td>
@@ -1250,7 +1250,7 @@ $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.b
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
 $("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqFlat(cur.lines[+tr.dataset.i]),xk=e.target.dataset.x;
   if(xk!=null){l.x=l.x||{};l.x[xk]=e.target.value}else{const k=e.target.dataset.k;l[k]=k==="qty"?+e.target.value:e.target.value}if(cur.status!=="Draft")saveReqs()});
-$("#reqHead").addEventListener("click",e=>{const d=e.target.dataset.xdel;if(d==null||!cur)return;const c=rqCols(cur)[+d];
+$("#reqHead").addEventListener("click",e=>{const d=e.target.dataset.xdel;if(d==null||!cur)return;const c=rqShow(cur)[+d];
   const b=e.target;if(cur.lines.some(l=>l.x&&l.x[c])&&!b.dataset.sure){b.dataset.sure="1";b.textContent="remove?";b.title=`Click again to remove the ${c} column`;setTimeout(()=>{if(b.isConnected){delete b.dataset.sure;b.textContent="×"}},4000);return}
   cur.xcols=rqCols(cur).filter(x=>x!==c);cur.lines.forEach(l=>{if(l.x)delete l.x[c]});if(cur.status!=="Draft")saveReqs();renderReq()});
 $("#reqBody").addEventListener("click",e=>{const d=e.target.dataset.qdel;if(d!=null){cur.lines.splice(+d,1);if(cur.status!=="Draft")saveReqs();renderReq()}});
@@ -1487,7 +1487,7 @@ const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${wind
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
   return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)+(r.poNo?" · PO "+esc(r.poNo):"")]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["Checked by",r.chkBy?esc(r.chkBy)+" · "+dmy(r.chkAt):(r.apprBy&&!r.chkBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-")],["Approved by",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"]]])+
-  `<table><thead><tr><th>Sr</th><th>Description of material</th>${rqCols(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqCols(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  `<table><thead><tr><th>Sr</th><th>Description of material</th>${rqShow(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqShow(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
   ${r.comment?`<p class="small"><b>Comment:</b> ${esc(r.comment)}</p>`:""}
   <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:center">Checked by: <b>${r.chkBy?esc(r.chkBy)+" ("+dmy(r.chkAt)+")":"________________"}</b></div><div style="text-align:right">Approved by: <b>${r.apprBy?esc(r.apprBy)+" ("+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
 }
@@ -2243,6 +2243,10 @@ const poBad=l=>{if(!masterHasItems())return false;const it=itemByName(l.item||""
 /* extra spec columns of a request (from a BOM: Size, B / ø, Block Vol cm³...) and one line's specs as text */
 const rqCols=r=>r&&Array.isArray(r.xcols)?r.xcols:[];
 const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim();return !v?"":c==="Size"?v:`${c} ${v}`}),l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
+/* the request form and its PDF show only size, material and weight-type columns; the other BOM columns
+   (Type, HRC, Plate group, Priority, Source, Shape...) are kept with the request and appear in the pre-estimate, where they can be removed */
+const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg/i;
+const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c));
 const rqSpecHead=r=>!rqCols(r).length?"Specification":rqCols(r).some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec";
 const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
 function rqFlat(l){if(l&&l.item!==undefined){l.desc=rqText(l);delete l.item}return l}
