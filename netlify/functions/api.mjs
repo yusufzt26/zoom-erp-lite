@@ -181,7 +181,9 @@ export default async (req) => {
       const admin = await isAdmin(me); const results = [];
       const list = changes.slice(0, 500);
       // fast path: plain saves (not new-numbered docs, not masters) go in one statement, so a 1,000-row import takes one round trip
-      const plain = list.filter((c) => COLLS.has(String(c.coll || "")) && c.id && String(c.id).length <= 200 && !c.isNew && c.coll !== "masters");
+      // only the admin may delete a purchase request
+      const reqDelBlocked = (c) => !admin && c.coll === "reqs" && c.deleted;
+      const plain = list.filter((c) => COLLS.has(String(c.coll || "")) && c.id && String(c.id).length <= 200 && !c.isNew && c.coll !== "masters" && !reqDelBlocked(c));
       const done = new Map();
       if (plain.length) {
         const seen = new Set(); const rows = [];
@@ -196,6 +198,7 @@ export default async (req) => {
         if (done.has(dk)) { results.push(done.get(dk)); continue; }
         const coll = String(c.coll || ""), id = String(c.id || "");
         if (!COLLS.has(coll) || !id || id.length > 200) { results.push({ coll, id, error: "bad" }); continue; }
+        if (reqDelBlocked(c)) { results.push({ coll, id, error: "Only the admin can delete a purchase request" }); continue; }
         if (coll === "masters" && !admin) {
           // Non-admins with project rights may change only the projects (Job Nos.) list; everything else is kept as stored.
           const u = await profile(me); const cur = await mastersDoc();

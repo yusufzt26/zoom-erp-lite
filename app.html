@@ -313,7 +313,9 @@ body.gated header.bar,body.gated main{display:none}
       <button class="btn" id="btn-q-back" hidden>Send back to maker</button>
       <button class="btn primary" id="btn-q-approve" hidden>Approve</button>
       <button class="btn" id="btn-q-pdf">Download PDF</button>
-      <button class="btn primary" id="btn-q-estimate" hidden>Start pre-estimate</button></div>
+      <button class="btn primary" id="btn-q-estimate" hidden>Start pre-estimate</button>
+      <button class="btn" id="btn-q-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete request</button></div>
+    <div id="reqDelete" class="panel stack" style="border-color:var(--danger)" hidden></div>
   </div>
   <div class="panel stack">
     <div class="row"><h2 class="sec">All requests</h2><select class="per" id="per-req" aria-label="Period" style="width:auto"></select></div>
@@ -699,7 +701,7 @@ const isDemoEst=e=>!!e&&e.job==="ZT2349"&&!e.reqNo&&Array.isArray(e.lines)&&e.li
 if(!est||isDemoEst(est)){est={job:"",plant:"",sup:"",date:today(),unit:"NOS",lines:[]};store.set("est",est)}
 let po=store.get("po",null);
 if(po&&po.ref==="ZT2349"&&!po.reqNo&&!saved.some(x=>String(x.no)===String(po.no))&&(po.lines||[]).every(l=>EXAMPLE.some(x=>x[0]===(l.item||l.desc)))){po=null;store.set("po",null)}
-let reqs=store.get("reqs",null);
+let reqs=store.get("reqs",null);let reqDelFor=null;
 if(!reqs)reqs=[];
 /* the old demo request (no. 066, ZT2349) is removed from real data */
 if(reqs.some(r=>r&&r.example)){reqs=reqs.filter(r=>!(r&&r.example));store.set("reqs",reqs)}
@@ -1222,6 +1224,7 @@ function renderReq(){
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
   $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
   $("#btn-q-estimate").hidden=!((PUR_READY.includes(r.status)||r.status==="Estimated")&&has("po.create")&&can("est"));
+  $("#btn-q-del").hidden=!(isRole("Admin")&&reqs.includes(r));if(r!==reqDelFor)$("#reqDelete").hidden=true;
   $("#btn-q-line").hidden=locked;$("#btn-q-clear").hidden=locked;$("#btn-q-file").hidden=locked;$("#btn-q-bom").hidden=locked;
   renderReqList();
 }
@@ -1532,6 +1535,16 @@ async function savePDF(html,filename){
     else toast("Download is not available in this view");
   }catch(err){toast("Could not make the PDF. Try again.")}finally{host.remove()}
 }
+/* Admin only: delete a purchase request. Blocked while a PO made from it exists (delete the PO first, which puts the request back to "Approved") */
+const reqPO=r=>saved.find(p=>p.reqNo!=null&&String(p.reqNo)===String(r.no))||(r.poNo?{no:r.poNo}:null);
+$("#btn-q-del").onclick=()=>{const r=cur;if(!r||!isRole("Admin"))return;reqDelFor=r;const P=$("#reqDelete"),p=reqPO(r);
+  P.innerHTML=p?`<b style="color:var(--danger)">Request ${esc(r.no)} cannot be deleted</b><div class="note">PO ${esc(p.no)} was made from this request. Delete PO ${esc(p.no)} first on the Purchase order tab; the request then goes back to "Approved" and can be deleted here.</div><div class="row"><span style="flex:1"></span><button class="btn" id="btn-qd-cancel">Close</button></div>`
+    :`<b style="color:var(--danger)">Delete purchase request ${esc(r.no)}?</b><div class="note">${esc(r.by||"")}${r.dept?" · "+esc(r.dept):""} · ${r.lines.length} item${r.lines.length===1?"":"s"} · ${stChip(r.status)}. The request is removed for all users and cannot be brought back.${est&&est.reqNo===r.no?" The pre-estimate started from it is cleared too.":""}</div><div class="row"><span style="flex:1"></span><button class="btn" id="btn-qd-cancel">Keep request</button><button class="btn primary" id="btn-qd-ok" style="background:var(--danger);border-color:var(--danger)">Delete permanently</button></div>`;
+  P.hidden=false;P.scrollIntoView({block:"nearest"})};
+$("#reqDelete").addEventListener("click",e=>{const id=e.target.id;if(id==="btn-qd-cancel"){$("#reqDelete").hidden=true;reqDelFor=null;return}
+  if(id!=="btn-qd-ok")return;const r=reqDelFor;if(!r||!isRole("Admin")||reqPO(r))return;const i=reqs.indexOf(r);if(i<0)return;
+  reqs.splice(i,1);saveReqs();if(est&&est.reqNo===r.no){est={job:"",plant:"",sup:"",date:today(),unit:"NOS",lines:[]};saveEst()}
+  reqDelFor=null;cur=null;$("#reqDelete").hidden=true;renderReq();renderBadges();toast(`Request ${r.no} deleted`)});
 $("#btn-q-pdf").onclick=()=>{if(cur)savePDF(docRequest(cur),`Purchase-request-${cur.no}.pdf`)};
 $("#btn-e-pdf").onclick=()=>{if(!est.lines.length){toast("Add some lines first");return}savePDF(docEstimate(est),`Pre-estimate-${est.job||est.reqNo||"direct"}.pdf`)};
 $("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),`PO-${po.no}${po.status==="Approved"?"":"-"+String(po.status||"Draft").replace(/\s+/g,"-").toLowerCase()}.pdf`)};
