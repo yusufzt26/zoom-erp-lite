@@ -3,6 +3,7 @@ import { getDatabase } from "@netlify/database";
 import { scryptSync, randomBytes, randomInt, timingSafeEqual, createHash } from "node:crypto";
 import nodemailer from "nodemailer";
 import Anthropic from "@anthropic-ai/sdk";
+import { gstCall, gstStatus } from "../gst/gsp.mjs";
 
 const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins"]);
 const SESSION_DAYS = 30;
@@ -32,6 +33,9 @@ async function repairAdmin(me) { const cur = await mastersDoc(); if (anyAdmin(cu
 
 const MOULD_ROLES = ["Sales", "Approver", "Purchaser", "Admin"];
 function canMould(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["sales.view", "sales.create", "sales.edit"].some((k) => r.includes(k)); return MOULD_ROLES.includes(u.role) || (!!r && r.includes("page.sales")); }
+// e-invoice / e-way bill API: people who may create or edit tax invoices or credit notes
+const GST_KEYS = ["inv.create", "inv.edit", "cn.create", "cn.edit"];
+function canGst(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return GST_KEYS.some((k) => r.includes(k)); return ["Sales", "Accounts", "Admin"].includes(u.role) || (!!r && r.includes("sales.edit")); }
 const PROJ_ROLES = ["Sales", "Admin"];
 function canProjects(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["proj.create", "proj.edit", "proj.delete", "mast.edit"].some((k) => r.includes(k)); return PROJ_ROLES.includes(u.role) || (!!r && (r.includes("page.mast") || r.includes("sales.edit"))); }
 
@@ -251,6 +255,24 @@ export default async (req) => {
     if (path === "scan-doc" && m === "POST") {
       try { const r = await scanDoc(await body(req)); return json(r.body, r.status); }
       catch (e) { console.error("scan-doc", e && e.status, e && e.message); return json({ error: e && e.status === 429 ? "Document reader is busy. Try again in a minute." : "Could not read the document right now. Fill the form by hand or try again." }, 502); }
+    }
+
+    // e-invoice (IRN, QR) and e-way bill through the GSP. Keys stay in Netlify env vars; the browser only sends invoice data.
+    if (path === "gst/status" && m === "GET") { const st = gstStatus(); return json({ provider: st.provider, mode: st.mode, ready: st.ready, missing: st.missing }); }
+    if (path === "gst" && m === "POST") {
+      const u = await profile(me);
+      if (!u || !((await isAdmin(me)) || canGst(u))) return json({ error: "You do not have rights to make e-invoices" }, 403);
+      const b = await body(req); const action = String(b.action || ""); const mode = gstStatus().mode;
+      const docNo = String(b.payload?.DocDtls?.No || b.no || b.docNo || "").slice(0, 40);
+      const log = (ok, r) => q("INSERT INTO gst_log(by_name,action,mode,doc_no,irn,ewb_no,ok,result) VALUES($1,$2,$3,$4,$5,$6,$7,$8)",
+        [me, action, mode, docNo, String(r.irn || b.irn || "").slice(0, 64), String(r.ewbNo || b.ewbNo || "").slice(0, 12), ok, JSON.stringify(r)]).catch((e) => console.error("gst_log", e && e.message));
+      try { const r = await gstCall(action, b); await log(true, r); return json({ ok: true, mode, ...r }); }
+      catch (e) {
+        const st = e.status || (e.name === "TimeoutError" ? 504 : 502);
+        if (st >= 500) console.error("gst", action, e && e.message);
+        await log(false, { error: String(e.message || e), code: e.code || "" });
+        return json({ error: e.status ? e.message : "GST portal: " + (e.name === "TimeoutError" ? "no answer in time. Try again in a minute." : e.message), code: e.code || "", noSetup: !!e.noSetup }, st);
+      }
     }
 
     if (path === "password" && m === "POST") {
