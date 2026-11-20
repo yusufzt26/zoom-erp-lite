@@ -131,6 +131,12 @@ input.auto,select.auto,textarea.auto,table.est input.auto,table.est textarea.aut
 .attach figure{margin:0;border:1px solid var(--line);border-radius:6px;padding:6px;background:var(--bg);max-width:100%}
 .attach img{display:block;max-height:420px;max-width:100%;border-radius:4px}
 .attach figcaption{font-size:12px;color:var(--muted);margin-top:4px}
+.cattype{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cattype button{font:inherit;font-weight:600;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);padding:7px 14px;cursor:pointer}
+.cattype button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.cattype button:disabled{cursor:default;opacity:.6}
+.cattype.need{outline:2px solid var(--danger);outline-offset:4px;border-radius:8px}
+.chip.cat{background:var(--bg);color:var(--accent);border:1px solid var(--line);text-transform:none;letter-spacing:0}
 .filechip{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg);font-size:13px}
 h2.sec{font-size:15px;margin:0}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
@@ -377,6 +383,8 @@ body.gated header.bar,body.gated main{display:none}
     </div>
     <div class="stack" style="gap:8px">
       <div class="row"><b>Attach the request</b><span class="note">Photo or PDF of the requisition slip, or a BOM Excel sheet. Excel lines are filled in automatically; photos and PDFs are kept with the request for the purchaser.</span></div>
+      <div class="cattype" id="q-cats" role="radiogroup" aria-label="What are you uploading?"><b style="margin-right:4px">What are you uploading?</b><button type="button" role="radio" data-cat="Raw material">1. Raw material</button><button type="button" role="radio" data-cat="Child parts">2. Child parts</button><button type="button" role="radio" data-cat="BOP">3. BOP</button><button type="button" role="radio" data-cat="Others">4. Others</button></div>
+      <div class="note" id="q-cat-note"></div>
       <div class="row"><button class="btn" id="btn-q-file">Upload photos (JPG), PDF or Excel</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden><button class="btn" id="btn-q-cam">Take photo</button><input type="file" id="q-cam" accept="image/*" capture="environment" hidden><span class="note">You can attach several photos to one request.</span></div>
       <div class="attach" id="q-attach"></div>
     </div>
@@ -889,7 +897,7 @@ function renderEst(){
   $("#estHead").innerHTML=`<tr><th style="width:26px"><input type="checkbox" class="pickall" aria-label="Tick all lines" title="Tick all lines"></th><th style="width:34px">Sn</th><th>Description</th>${xc.map((c,k)=>`<th style="white-space:nowrap">${esc(c)} <button class="x noprint" data-exdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button></th>`).join("")}<th>${xc.length?(xc.some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec"):"Specification"}</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr>`;
   if(!est.lines.length){tb.innerHTML=`<tr><td colspan="${11+xc.length}" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
   else tb.innerHTML=est.lines.map((l,i)=>`<tr data-i="${i}">
-    <td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}</td>
+    <td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}${l.cat?" "+catTag(l.cat):""}</td>
     <td><input id="l${i}-item" data-k="item" value="${esc(l.item)}" list="itemnames"${xc.length?' style="min-width:180px"':""}></td>
     ${xc.map((c,k)=>`<td><input id="l${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?120:70}px"></td>`).join("")}
     <td><input id="l${i}-spec" data-k="${xc.length?"xo":"spec"}" value="${esc(xc.length?(l.xo??""):l.spec)}"></td>
@@ -1058,7 +1066,7 @@ $("#btn-convert").onclick=()=>{
       reqNo:est.reqNo||"",needBy:est.need||"",plant:est.plant||defPlant(),deliv:plantAddr(est.plant||defPlant()),gstmode:sup.state&&sup.state!=="27"?"inter":"intra",remark:"",
       xcols:estCols().filter(c=>lines.some(l=>l.x&&l.x[c])),
       lines:lines.map(l=>{const it=itemByName(l.item);if(estCols().length&&l.x){const pl={x:Object.assign({},l.x),xo:l.xo||"",pn:it?"":l.item,item:it?it.name:"",spec:"",desc:"",hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0};return pl}return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:it?it.name:"",spec:it?(l.spec||""):[l.item,l.spec].filter(Boolean).join(" - "),hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
-  po.lines.forEach((pl,k)=>{if(lines[k]&&lines[k].rq!=null)pl.rq=lines[k].rq}); /* link back to the request line, for the pending balance */
+  po.lines.forEach((pl,k)=>{if(lines[k]&&lines[k].rq!=null)pl.rq=lines[k].rq;const c=lines[k]&&lines[k].cat;if(c){pl.cat=c;if(c==="Raw material")pl.rawOn=true}}); /* link back to the request line, for the pending balance */
   if(poCols(po).length)po.lines.forEach(l=>{if(l.x)poJoin(l)});
   store.set("po",po);show("po");
 };
@@ -1093,7 +1101,7 @@ function renderPO(){
     <div class="kv"><b>Kind Attn.</b>${inp("attn","100%")}<b>Transport</b>${inp("transport","100%")}<b>Delivery by</b>${inp("needBy","130px",'type="date"')}</div>
   </div>
   <table><thead><tr><th class="noprint" style="width:22px"><input type="checkbox" class="pickall" aria-label="Tick all PO lines" title="Tick all lines"></th><th>Sn</th><th>Item / service (from master)</th>${poCols(po).map((c,k)=>`<th style="white-space:nowrap">${esc(c)} <button class="x noprint" data-pxdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button></th>`).join("")}<th>${poCols(po).length?"Description / other spec":"Description"}</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
-  <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}</td>
+  <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}${l.cat?`<span class="noprint"> ${catTag(l.cat)}</span>`:""}</td>
     <td><input id="pl${i}-item" data-lk="item" list="masteritems" value="${esc(l.item||"")}" placeholder="Pick from item master" class="${poBad(l)?"badcell":""}" title="${poBad(l)?BADITEM:""}" style="width:100%;min-width:170px"></td>
     ${poCols(po).map((c,k)=>`<td><input id="pl${i}-x${k}" data-px="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?110:64}px"></td>`).join("")}
     <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description / finished size" style="width:100%;min-width:170px">${poRawOn(l)?poRawBox(l,i):`<button class="noprint" type="button" data-praw="${i}" style="font-size:11px;border:none;background:none;color:var(--accent,#0b6e8a);cursor:pointer;padding:2px 0">+ raw size</button>`}</td>
@@ -1259,7 +1267,7 @@ $("#rateForm").onsubmit=e=>{e.preventDefault();const n=$("#r-item").value.trim()
 /* ---------- purchase requests ---------- */
 function saveReqs(){store.set("reqs",reqs)}
 function nextReqNo(){const n=Math.max(66,...reqs.map(r=>parseInt(r.no,10)||0))+1;return String(n).padStart(3,"0")}
-function blankReq(){return{no:nextReqNo(),date:today(),plant:defPlant(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,lines:[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
+function blankReq(){return{no:nextReqNo(),date:today(),plant:defPlant(),by:"",dept:"",job:"",need:"",status:"Draft",attach:null,cat:"",lines:[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}]}}
 const ST={"Draft":"Draft","Submitted":"Submitted","Checked":"Submitted","Sent back":"Back","Approved":"Approved","Estimated":"Estimated","PO raised":"Estimated","PO approved":"PO","Pending approval":"Submitted","With accounts":"Submitted","Booked":"Approved","Paid":"PO","Part paid":"Submitted","Closed":"PO","Open":"Submitted","Partly returned":"Estimated","Partly received":"Estimated","Fully received":"PO","Issued":"Submitted","Returned":"Approved","Opening":"Estimated"};
 const stChip=s=>`<span class="chip st-${ST[s]||"Estimated"}">${esc(s)}</span>`;
 /* request flow: Maker submits -> Checker checks -> Approver approves -> Purchase makes the PO */
@@ -1314,16 +1322,20 @@ function renderReq(){
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   const xc=rqShow(r);
-  $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
+  const tc=rqHasCat(r);
+  $("#q-cats").querySelectorAll("button").forEach(b=>{b.setAttribute("aria-checked",String(b.dataset.cat===r.cat));b.disabled=locked});$("#q-cats").classList.remove("need");
+  $("#q-cat-note").textContent=r.cat?CAT_NOTE[r.cat]:"Pick one of the four types first, then upload. You can upload more files of another type to the same request.";
+  $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th>${tc?'<th style="width:130px">Category</th>':""}<th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
+    ${tc?`<td><select id="q${i}-cat" data-k="cat" aria-label="Category of line ${i+1}" style="min-width:124px"><option value="">-</option>${REQ_CATS.map(c=>`<option${l.cat===c?" selected":""}>${c}</option>`).join("")}</select></td>`:""}
     <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description, any text"${xc.length?' style="min-width:200px"':""}></td>
     ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?130:80}px"></td>`).join("")}
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
     <td><input id="q${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
     <td><input id="q${i}-remark" data-k="remark" value="${esc(l.remark)}"></td>
-    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="${7+xc.length}" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
-  $("#reqBody").querySelectorAll("input").forEach(el=>el.disabled=locked);$("#reqBody").querySelectorAll("button").forEach(el=>el.hidden=locked);
+    <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="${7+xc.length+(tc?1:0)}" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
+  $("#reqBody").querySelectorAll("input,select").forEach(el=>el.disabled=locked);$("#reqBody").querySelectorAll("button").forEach(el=>el.hidden=locked);
   renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
   $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
@@ -1344,11 +1356,11 @@ const attList=a=>Array.isArray(a)?a:(a?[a]:[]);
 function renderAttach(box,a,rm){const L=attList(a);
   if(!L.length){box.innerHTML=`<span class="note">No file attached.</span>`;return}
   box.innerHTML=L.map((x,i)=>{const del=rm?` <button class="x" data-adel="${i}" aria-label="Remove ${esc(x.name)}">×</button>`:"";
-    return x.type==="image"?`<figure><img src="${x.data}" alt="Attached request: ${esc(x.name)}"><figcaption>${esc(x.name)}${del}</figcaption></figure>`:`<span class="filechip">${x.type==="pdf"?"PDF":"Excel"} · ${esc(x.name)}${x.note?` · ${esc(x.note)}`:""}${del}</span>`}).join("");
+    return x.type==="image"?`<figure><img src="${x.data}" alt="Attached request: ${esc(x.name)}"><figcaption>${x.cat?esc(x.cat)+" · ":""}${esc(x.name)}${del}</figcaption></figure>`:`<span class="filechip">${x.cat?esc(x.cat)+" · ":""}${x.type==="pdf"?"PDF":"Excel"} · ${esc(x.name)}${x.note?` · ${esc(x.note)}`:""}${del}</span>`}).join("");
 }
 function renderReqList(){
   const vis=visibleReqs().filter(r=>inPer(r.date,"req")&&inPlant(r));
-  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}${reqPendChip(r)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
+  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}${rqCats(r).length?" · "+rqCats(r).map(c=>esc(c)).join(", "):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}${reqPendChip(r)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
 }
 $("#reqList").addEventListener("click",e=>{const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
 $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
@@ -1368,7 +1380,7 @@ $("#btn-q-clear").onclick=()=>{if(!cur)return;const n=cur.lines.filter(l=>rqText
   clearTimeout(b._t);delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor="";
   cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=attList(cur.attach).filter(a=>a.type!=="xlsx");
   if(cur.status!=="Draft")saveReqs();renderReq();toast("All lines cleared")};
-$("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
+$("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:"",...(cur.cat?{cat:cur.cat}:{})});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
 $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
 $("#btn-q-submit").onclick=()=>{
   cur.lines=cur.lines.map(rqFlat).filter(l=>String(l.desc||"").trim());
@@ -1391,39 +1403,42 @@ function startEst(r,onlyPending){
   const bal=onlyPending?reqBal(r):null;
   if(!reqPOs(r).length){r.status="Estimated";saveReqs()}
   const L=r.lines.map((l,i)=>({l,i,q:l.qty})).filter(x=>rqText(x.l)).map(x=>{if(bal){const b=bal.find(y=>y.i===x.i);x.q=b?b.toOrder:0}return x}).filter(x=>!bal||x.q>0.0001);
-  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",xcols:rqCols(r).slice(),lines:L.map(({l,i,q})=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,x:Object.assign({},l.x||{}),xo:l.spec||"",expr:"",qty:q,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":"",rq:i}})};
+  est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",xcols:rqCols(r).slice(),lines:L.map(({l,i,q})=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,x:Object.assign({},l.x||{}),xo:l.spec||"",expr:"",qty:q,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":"",rq:i,...(l.cat?{cat:l.cat}:{})}})};
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 }
 $("#btn-q-estimate").onclick=()=>startEst(cur,false);
-$("#btn-q-file").onclick=()=>$("#q-file").click();
+$("#q-cats").addEventListener("click",e=>{const b=e.target.closest("button[data-cat]");if(!b||b.disabled||!cur)return;cur.cat=b.dataset.cat;cur.example=false;if(cur.status!=="Draft")saveReqs();renderReq()});
+/* every upload needs its type first: Raw material, Child parts, BOP or Others */
+const needCat=()=>{if(cur&&cur.cat)return false;const c=$("#q-cats");c.classList.add("need");c.scrollIntoView({block:"center",behavior:"smooth"});const b=c.querySelector("button");if(b)b.focus();toast("First choose what you are uploading: 1. Raw material, 2. Child parts, 3. BOP or 4. Others");return true};
+$("#btn-q-file").onclick=()=>{if(!needCat())$("#q-file").click()};
 $("#q-file").onchange=async e=>{
-  const files=[...e.target.files];e.target.value="";if(!files.length)return;const L=attList(cur.attach);let added=0,filled=0;
+  const files=[...e.target.files];e.target.value="";if(!files.length)return;const L=attList(cur.attach);let added=0,filled=0;const cat=cur.cat||"";
   for(const f of files){try{
     if(/\.xlsx?$/i.test(f.name)){
       const {job,lines}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
       if(!lines.length){toast(`No item rows found in ${f.name}`);continue}
       const cols=rqCols(cur);
       cur.lines=cur.lines.filter(l=>rqText(l).trim()).concat(lines.map(l=>{
-        if(!l.x)return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:""};
+        if(!l.x)return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:"",cat};
         const x={};l.x.forEach(([c,v])=>{if(!cols.includes(c))cols.push(c);if(v)x[c]=v});
-        return{desc:l.item,spec:l.note||"",x,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:l.remark||""}}));
+        return{desc:l.item,spec:l.note||"",x,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:l.remark||"",cat}}));
       cur.xcols=cols.filter(c=>cur.lines.some(l=>l.x&&l.x[c]));if(job&&!cur.job)cur.job=job;
-      L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`});filled+=lines.length;
-    }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f)});added++}
-    else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB"});added++}
+      L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`,cat});filled+=lines.length;
+    }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f),cat});added++}
+    else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB",cat});added++}
     else toast(`${f.name}: use a photo, a PDF or an Excel sheet`);
   }catch(err){toast(`Could not read ${f.name}. Try another photo or save the sheet as .xlsx.`)}}
   cur.attach=L;cur.example=false;if(cur.status!=="Draft")saveReqs();renderReq();
-  if(filled||added)toast([filled?`Filled ${filled} lines from the BOM`:"",added?`${added} file${added>1?"s":""} attached`:""].filter(Boolean).join(" · "));
+  if(filled||added)toast([filled?`Filled ${filled} ${cat?cat+" ":""}lines from the BOM`:"",added?`${added} file${added>1?"s":""} attached`:""].filter(Boolean).join(" · "));
 };
-$("#btn-q-cam").onclick=()=>$("#q-cam").click();
+$("#btn-q-cam").onclick=()=>{if(!needCat())$("#q-cam").click()};
 $("#q-cam").onchange=e=>$("#q-file").onchange(e);
 $("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);
   /* removing a loaded Excel sheet also clears the lines it filled in (second click confirms) */
   if(L[+d]&&L[+d].type==="xlsx"){const b=e.target;if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Click again to remove the sheet and its lines";b.style.color="#b42318";b.style.fontSize="12px";setTimeout(()=>{if(b.isConnected)renderReq()},5000);return}
     cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=L.filter(x=>x.type!=="xlsx");if(cur.status!=="Draft")saveReqs();renderReq();toast("Sheet removed and lines cleared");return}
   L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
-$("#btn-q-bom").onclick=()=>$("#q-bom").click();
+$("#btn-q-bom").onclick=()=>{if(!needCat())$("#q-bom").click()};
 $("#q-bom").onchange=e=>$("#q-file").onchange(e);
 
 function shrink(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",0.72))};img.onerror=rej;img.src=u})}
@@ -1659,7 +1674,7 @@ const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${wind
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
   return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)+(r.poNo?" · PO "+esc(r.poNo):"")]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["Checked by",r.chkBy?esc(r.chkBy)+" · "+dmy(r.chkAt):(r.apprBy&&!r.chkBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-")],["Approved by",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"]]])+
-  `<table><thead><tr><th>Sr</th><th>Description</th>${rqShow(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqShow(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  `<table><thead><tr><th>Sr</th>${rqCats(r).length?"<th>Category</th>":""}<th>Description</th>${rqShow(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td>${rqCats(r).length?`<td>${esc(l.cat||"")}</td>`:""}<td>${esc(rqText(l))}</td>${rqShow(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
   ${r.comment?`<p class="small"><b>Comment:</b> ${esc(r.comment)}</p>`:""}
   <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:center">Checked by: <b>${r.chkBy?esc(r.chkBy)+" ("+dmy(r.chkAt)+")":"________________"}</b></div><div style="text-align:right">Approved by: <b>${r.apprBy?esc(r.apprBy)+" ("+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
 }
@@ -2431,7 +2446,18 @@ const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim(
 /* the request form and its PDF show only size, material and weight-type columns; the other BOM columns
    (Type, HRC, Plate group, Priority, Source, Shape...) are kept with the request and appear in the pre-estimate, where they can be removed */
 const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg|make|brand|^std$/i;
-const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c));
+/* what a request upload holds: picked before uploading, kept on every line it fills in, and carried to the pre-estimate and PO */
+const REQ_CATS=["Raw material","Child parts","BOP","Others"];
+const CAT_AB={"Raw material":"RM","Child parts":"CP","BOP":"BOP","Others":"OTH"};
+const CAT_NOTE={"Raw material":"Raw material: size and weight columns are kept, and on the PO these lines open with the raw size box.",
+  "Child parts":"Child parts: size, material and HRC columns are kept.",
+  "BOP":"BOP (bought-out parts): Type, Size x L, STD and Make columns are kept.",
+  "Others":"Others: lines are filled in as they are in the sheet."};
+const CAT_SHOW={"Child parts":/hrc|hardness/i,"BOP":/^type$|size ?x ?l/i};
+const rqCats=r=>REQ_CATS.filter(c=>r&&(r.lines||[]).some(l=>l.cat===c));
+const rqHasCat=r=>!!(r&&(r.cat||rqCats(r).length));
+const catTag=c=>c?`<span class="chip cat" title="${esc(c)}">${CAT_AB[c]||esc(c)}</span>`:"";
+const rqShow=r=>{const cs=rqCats(r);return rqCols(r).filter(c=>REQ_SHOW.test(c)||cs.some(k=>CAT_SHOW[k]&&CAT_SHOW[k].test(c)))};
 const rqSpecHead=r=>!rqCols(r).length?"Specification":rqCols(r).some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec";
 const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
 function rqFlat(l){if(l&&l.item!==undefined){l.desc=rqText(l);delete l.item}return l}
