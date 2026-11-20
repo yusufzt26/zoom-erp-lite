@@ -392,7 +392,7 @@ body.gated header.bar,body.gated main{display:none}
     </div>
     <div class="tablebox">
       <table class="est" style="min-width:760px">
-        <thead id="reqHead"><tr><th style="width:34px">Sr</th><th>Description of material</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
+        <thead id="reqHead"><tr><th style="width:34px">Sr</th><th>Description</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
         <tbody id="reqBody"></tbody>
       </table>
     </div>
@@ -442,7 +442,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="note">Type item, cost parts and qty. "EGP 60+130+20 x2" gives rate 210, amount 420. Leave out the parts ("Mold Leg x10") to use the suggested rate from the last PO or the rate list.</div>
     <div class="tablebox">
       <table class="est">
-        <thead id="estHead"><tr><th style="width:34px">Sn</th><th>Item</th><th>Specification</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr></thead>
+        <thead id="estHead"><tr><th style="width:34px">Sn</th><th>Description</th><th>Specification</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr></thead>
         <tbody id="estBody"></tbody>
       </table>
     </div>
@@ -896,7 +896,7 @@ const estCols=()=>est&&Array.isArray(est.xcols)?est.xcols:[];
 const estJoin=l=>rqSpec({x:l.x,spec:l.xo},{xcols:estCols()});
 function renderEst(){
   const tb=$("#estBody"),xc=estCols();
-  $("#estHead").innerHTML=`<tr><th style="width:26px"><input type="checkbox" class="pickall" aria-label="Tick all lines" title="Tick all lines"></th><th style="width:34px">Sn</th><th>Item</th>${xc.map((c,k)=>`<th style="white-space:nowrap">${esc(c)} <button class="x noprint" data-exdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button></th>`).join("")}<th>${xc.length?(xc.some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec"):"Specification"}</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr>`;
+  $("#estHead").innerHTML=`<tr><th style="width:26px"><input type="checkbox" class="pickall" aria-label="Tick all lines" title="Tick all lines"></th><th style="width:34px">Sn</th><th>Description</th>${xc.map((c,k)=>`<th style="white-space:nowrap">${esc(c)} <button class="x noprint" data-exdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button></th>`).join("")}<th>${xc.length?(xc.some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec"):"Specification"}</th><th>Cost parts</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th class="num" style="width:110px">Amount</th><th style="width:96px">Rate from</th><th style="width:32px"></th></tr>`;
   if(!est.lines.length){tb.innerHTML=`<tr><td colspan="${11+xc.length}" class="empty">No lines yet. Add one above, or import a BOM sheet.</td></tr>`}
   else tb.innerHTML=est.lines.map((l,i)=>`<tr data-i="${i}">
     <td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}</td>
@@ -1322,9 +1322,9 @@ function renderReq(){
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   const xc=rqShow(r);
-  $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description of material</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
+  $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description of material, any text"${xc.length?' style="min-width:200px"':""}></td>
+    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description, any text"${xc.length?' style="min-width:200px"':""}></td>
     ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?130:80}px"></td>`).join("")}
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
@@ -1667,14 +1667,14 @@ const docHead=(title,right="")=>`<div class="co"><img class="cologo" src="${wind
 const kvT=rows=>`<table style="margin-top:4px"><tbody>${rows.map(r=>`<tr>${r.map(([k,v])=>`<td style="width:16%;background:#f5f5f5"><b>${k}</b></td><td>${v||""}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 function docRequest(r){
   return docHead("PURCHASE REQUISITION")+kvT([[["Request No.",esc(r.no)],["Date",dmy(r.date)],["Status",esc(r.status)+(r.poNo?" · PO "+esc(r.poNo):"")]],[["Requested by",esc(r.by)],["Department",esc(r.dept)],["Project / Job",esc(r.job)]],[["Required by",dmy(r.need)],["Checked by",r.chkBy?esc(r.chkBy)+" · "+dmy(r.chkAt):(r.apprBy&&!r.chkBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-")],["Approved by",r.apprBy?esc(r.apprBy)+" · "+dmy(r.apprAt):"-"]]])+
-  `<table><thead><tr><th>Sr</th><th>Description of material</th>${rqShow(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqShow(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
+  `<table><thead><tr><th>Sr</th><th>Description</th>${rqShow(r).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${rqSpecHead(r)}</th><th>Qty</th><th>Unit</th><th>Remark</th></tr></thead><tbody>${r.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(rqText(l))}</td>${rqShow(r).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc(l.spec)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td>${esc(l.remark)}</td></tr>`).join("")}</tbody></table>
   ${r.comment?`<p class="small"><b>Comment:</b> ${esc(r.comment)}</p>`:""}
   <div class="foot small" style="margin-top:40px"><div>Requested by: <b>${esc(r.by)}</b></div><div style="text-align:center">Checked by: <b>${r.chkBy?esc(r.chkBy)+" ("+dmy(r.chkAt)+")":"________________"}</b></div><div style="text-align:right">Approved by: <b>${r.apprBy?esc(r.apprBy)+" ("+dmy(r.apprAt)+")":"________________"}</b></div></div>`;
 }
 function docEstimate(e){
   const tot=e.lines.reduce((a,l)=>a+lineAmt(l),0);
   return docHead("PRE-ESTIMATE SHEET")+kvT([[["Job / Ref.",esc(e.job)],["Date",dmy(e.date)],["Required by",dmy(e.need)||"-"]],[["Source",e.reqNo?"Purchase request "+esc(e.reqNo):"Direct purchase"],["Prepared by",esc(me.name)],["Lines",e.lines.length]]])+
-  `<table><thead><tr><th>Sn</th><th>Item</th>${(e.xcols||[]).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${(e.xcols||[]).length?"Other spec":"Specification"}</th><th>Cost parts</th><th>Rate</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead><tbody>${e.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.item)}</td>${(e.xcols||[]).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc((e.xcols||[]).length?(l.xo??""):l.spec)}</td><td>${esc(l.expr)}</td><td class="r">${l.rate!=null?fmt(l.rate):""}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(lineAmt(l))}</td></tr>`).join("")}
+  `<table><thead><tr><th>Sn</th><th>Description</th>${(e.xcols||[]).map(c=>`<th>${esc(c)}</th>`).join("")}<th>${(e.xcols||[]).length?"Other spec":"Specification"}</th><th>Cost parts</th><th>Rate</th><th>Qty</th><th>Unit</th><th>Amount</th></tr></thead><tbody>${e.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.item)}</td>${(e.xcols||[]).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td>${esc((e.xcols||[]).length?(l.xo??""):l.spec)}</td><td>${esc(l.expr)}</td><td class="r">${l.rate!=null?fmt(l.rate):""}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(lineAmt(l))}</td></tr>`).join("")}
   <tr><td colspan="${7+(e.xcols||[]).length}" class="r"><b>Estimate total (before GST)</b></td><td class="r"><b>${fmt(tot)}</b></td></tr></tbody></table><p class="small" style="margin-top:30px">This is an internal estimate, not a purchase order.</p>`;
 }
 function docPO(p){
