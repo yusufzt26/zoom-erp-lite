@@ -215,6 +215,24 @@ body.gated header.bar,body.gated main{display:none}
 .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
 @media (max-width:640px){table.est input:not(.qty):not(.rate):not([type=number]){min-width:150px}table.est input,table.est select{border:1px solid var(--line)!important;border-radius:4px;background:var(--panel)}}
 @media (pointer:coarse){.xlhint{display:none}}
+/* Excel look for line tables (class xl): gridlines, grey headings and row numbers, green active cell */
+table.est.xl{border-collapse:collapse;font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;font-size:14px;background:#fff}
+table.est.xl th{background:#f3f3f3;color:#333;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600;text-align:center;padding:4px 6px;border:1px solid #d4d4d4;white-space:nowrap}
+table.est.xl td{padding:0;border:1px solid #d4d4d4;height:26px;background:#fff}
+table.est.xl tbody td:first-child,table.est.xl thead th:first-child{background:#f3f3f3;color:#555;text-align:center;font-size:13px;cursor:default;user-select:none}
+table.est.xl tbody tr:focus-within td:first-child{background:#d2e7da;color:#185c37;font-weight:600}
+table.est.xl th.xlsel{background:#d2e7da;color:#185c37;border-bottom:2px solid #217346}
+table.est.xl td:last-child,table.est.xl th:last-child{border:0;background:transparent}
+table.est.xl td.empty{border:1px solid #d4d4d4;padding:8px;background:#fff}
+table.est.xl input,table.est.xl input:not(.qty):not(.rate):not([type=number]){display:block;width:100%;height:26px;margin:0;padding:2px 6px;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;font:inherit;color:#000}
+table.est.xl input.qty{width:100%;text-align:right}
+table.est.xl input::placeholder{color:#aaa}
+table.est.xl input:focus{outline:2px solid #217346;outline-offset:-2px;box-shadow:none}
+table.est.xl input:disabled{color:#333;opacity:1}
+table.est.xl input.cellsel,table.est.xl input.cellsel:not(.qty):not(.rate):not([type=number]){outline:1px solid #217346!important;outline-offset:-1px!important;background:#dcebe1!important}
+table.est.xl input.cellsel:focus,table.est.xl input.cellsel:focus:not(.qty):not(.rate):not([type=number]){outline:2px solid #217346!important;outline-offset:-2px!important;background:#fff!important}
+table.est.xl input.cellsel::selection{background:transparent}
+table.est.xl button.x{opacity:.45}table.est.xl tr:hover button.x{opacity:1}
 .sb-board{display:grid;grid-template-columns:repeat(5,minmax(190px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}
 .sb-col{background:var(--bg);border-radius:8px;padding:8px;min-width:0}
 .sb-col h3{margin:2px 4px 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:flex;justify-content:space-between;gap:6px}
@@ -391,12 +409,12 @@ body.gated header.bar,body.gated main{display:none}
       <div class="attach" id="q-attach"></div>
     </div>
     <div class="tablebox">
-      <table class="est" style="min-width:760px">
+      <table class="est xl" style="min-width:760px">
         <thead id="reqHead"><tr><th style="width:34px">Sr</th><th>Description</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
         <tbody id="reqBody"></tbody>
       </table>
     </div>
-    <div class="note xlhint">Works like Excel: paste rows or columns copied from Excel into any cell. Arrows, Tab and Enter move between cells (Enter on the last row adds a line). Shift+arrows, drag, or click a column heading to select; Ctrl+C copies, Ctrl+V pastes, Delete clears. Double-click or F2 to edit inside a cell.</div>
+    <div class="note xlhint">Works like Excel: copy rows and columns in Excel, click a cell here (or anywhere on this form) and press Ctrl+V. Headings copied with the rows are matched by name, and a copied Sr column is skipped. Arrows, Tab and Enter move between cells (Enter on the last row adds a line). Shift+arrows, drag, or click a column heading to select; Ctrl+C copies, Ctrl+V pastes, Delete clears. Double-click or F2 to edit inside a cell.</div>
     <div class="row"><button class="btn" id="btn-q-line">Add line</button><button class="btn" id="btn-q-clear" title="Remove every line and spec column from this request">Clear all</button><span style="flex:1"></span>
       <button class="btn primary" id="btn-q-submit">Submit request</button>
       <input id="q-comment" placeholder="Comment (needed to send back)" style="flex:1 1 220px;max-width:340px" hidden>
@@ -1982,8 +2000,12 @@ function gSet(el,v){if(!el||el.disabled||el.readOnly)return;v=String(v??"").trim
   else el.value=v;
   el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}
 let gSel=null;
-function gPaint(){document.querySelectorAll(".cellsel").forEach(x=>x.classList.remove("cellsel"));if(!gSel||!gMulti())return;
+function gPaint(){document.querySelectorAll(".cellsel").forEach(x=>x.classList.remove("cellsel"));gHeadPaint();if(!gSel||!gMulti())return;
   const[r0,r1,c0,c1]=gRect();for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){const el=gCell(gSel.g,r,c);if(el)el.classList.add("cellsel")}}
+/* Excel look: the headings over the selected columns light up */
+function gHeadPaint(){document.querySelectorAll("th.xlsel").forEach(x=>x.classList.remove("xlsel"));if(!gSel)return;const tb=gSel.g.q();if(!tb)return;const t=tb.closest("table.xl");if(!t)return;
+  const tr=gRows(tb)[gSel.r];if(!tr)return;const ths=t.querySelectorAll("thead tr:last-child th"),c0=Math.min(gSel.ac,gSel.c),c1=Math.max(gSel.ac,gSel.c);
+  for(let c=c0;c<=c1;c++){const el=gCells(tr)[c],td=el&&el.closest("td");if(td&&ths[td.cellIndex])ths[td.cellIndex].classList.add("xlsel")}}
 const gRect=()=>[Math.min(gSel.ar,gSel.r),Math.max(gSel.ar,gSel.r),Math.min(gSel.ac,gSel.c),Math.max(gSel.ac,gSel.c)];
 const gMulti=()=>gSel&&(gSel.ar!==gSel.r||gSel.ac!==gSel.c);
 function gGrow(g,r){let tries=0;while(gRows(g.q()).length<=r&&tries++<500){if(!g.add())return false}return gRows(g.q()).length>r}
@@ -2029,15 +2051,54 @@ document.addEventListener("copy",e=>{const p=gPos(document.activeElement);if(!p)
   if(!gMulti()){let has=false;try{has=el.selectionStart!=null&&el.selectionStart!==el.selectionEnd}catch(_){}if(has)return;e.clipboardData.setData("text/plain",gVal(el));e.preventDefault();return}
   const[r0,r1,c0,c1]=gRect();const out=[];for(let i=r0;i<=r1;i++){const row=[];for(let j=c0;j<=c1;j++){const x=gCell(p.g,i,j);row.push(x?gVal(x).replace(/[\t\n]/g," "):"")}out.push(row.join("\t"))}
   e.clipboardData.setData("text/plain",out.join("\n"));e.preventDefault();toast(`Copied ${r1-r0+1} row${r1>r0?"s":""} × ${c1-c0+1} column${c1>c0?"s":""}`)});
-document.addEventListener("paste",e=>{const p=gPos(e.target);if(!p)return;if(e.target.disabled)return;
-  const txt=(e.clipboardData||window.clipboardData).getData("text/plain")||"";const one=!/[\t\n]/.test(txt.replace(/\r?\n$/,""));
+/* Excel puts cells that hold a line break, tab or quote inside "quotes"; read those as one cell */
+function gParse(txt){txt=String(txt||"").replace(/\r\n?/g,"\n");const rows=[];let row=[],cell="",q=false,i=0;
+  while(i<txt.length){const ch=txt[i];
+    if(q){if(ch==='"'){if(txt[i+1]==='"'){cell+='"';i+=2;continue}q=false;i++;continue}cell+=ch;i++;continue}
+    if(ch==='"'&&cell===""){q=true;i++;continue}
+    if(ch==="\t"){row.push(cell);cell="";i++;continue}
+    if(ch==="\n"){row.push(cell);rows.push(row);row=[];cell="";i++;continue}
+    cell+=ch;i++}
+  if(cell!==""||row.length)row.push(cell),rows.push(row);
+  return rows.map(r=>r.map(v=>v.replace(/\n+/g," ").trim()))}
+/* heading text of each editable column, for matching headings copied from Excel */
+const G_SYN={QTY:["QUANTITY","QTY REQ","REQ QTY","NOS"],UNIT:["UOM","UNITS"],DESCRIPTION:["ITEM","ITEM NAME","ITEM DESCRIPTION","DESCRIPTION OF MATERIAL","MATERIAL","PARTICULARS","NAME"],SPECIFICATION:["SPEC","SPECS","SPECIFICATIONS","DETAILS"],REMARK:["REMARKS","NOTE","NOTES","COMMENT"]};
+function gHeads(g){const tb=g.q(),tr=gRows(tb)[0];if(!tr)return[];const ths=tb.closest("table").querySelectorAll("thead tr:last-child th");
+  return gCells(tr).map(el=>{const td=el.closest("td"),th=td&&ths[td.cellIndex];if(!th)return"";const c=th.cloneNode(true);c.querySelectorAll("button").forEach(x=>x.remove());return key(c.textContent)})}
+function gHeadIdx(H,v){const k=key(v);if(!k)return -1;let i=H.indexOf(k);if(i>=0)return i;
+  for(const[h,al]of Object.entries(G_SYN))if(al.includes(k)){i=H.indexOf(h);if(i>=0)return i}
+  return H.findIndex(h=>h&&k.length>=3&&(h.startsWith(k)||k.startsWith(h)))}
+const G_SR=/^(SR|S|SL|SR NO|S NO|SL NO|SNO|SRNO|NO|SERIAL|SERIAL NO|ITEM NO|LINE|LINE NO)$/;
+function gPaste(g,r0,c0,txt,rect){
+  let data=gParse(txt);while(data.length&&data[data.length-1].every(v=>!v))data.pop();if(!data.length)return;
+  let map=null;const H=gHeads(g);
+  /* a heading row copied with the data: put each column under the heading of the same name */
+  if(data.length>1){const hit=data[0].map(v=>gHeadIdx(H,v)),n=hit.filter(i=>i>=0).length,srs=data[0].filter(v=>G_SR.test(key(v))).length;
+    if(n>=2||n>=1&&data[0].filter(v=>v).length===n+srs&&n+srs>=2){map=hit;data=data.slice(1);if(!rect)c0=0}}
+  /* a serial-number column (1, 2, 3...) copied in front of the description is skipped */
+  if(!map&&c0===0&&data.length&&data[0].length>1&&data.every(r=>!r[0]||/^\d{1,4}[.)]?$/.test(r[0]))&&data.some(r=>r[0]))data=data.map(r=>r.slice(1));
+  let n=0;
+  if(rect&&data.length===1&&data[0].length===1){const[a,b,c,d]=rect;for(let i=a;i<=b;i++)for(let j=c;j<=d;j++){gSet(gCell(g,i,j),data[0][0]);n++}}
+  else{for(let i=0;i<data.length;i++){if(!gGrow(g,r0+i))break;for(let j=0;j<data[i].length;j++){const col=map?map[j]:c0+j;if(map&&col<0)continue;const el=gCell(g,r0+i,col);if(!el){if(map)continue;break}if(!data[i][j])continue;gSet(el,data[i][j]);n++}}}
+  const back=gCell(g,r0,map?0:c0)||gCell(g,r0,0);if(back)back.focus({preventScroll:true});gSel=null;gPaint();gShow(gCell(g,Math.min(r0+data.length-1,gRows(g.q()).length-1),map?0:c0)||back);
+  toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table${map?" (matched by heading)":""}`:"Nothing pasted: these cells are locked")}
+document.addEventListener("paste",e=>{const p=gPos(e.target);const txt=(e.clipboardData||window.clipboardData).getData("text/plain")||"";
+  if(!p){/* nothing selected (clicked on the page, not a cell): rows copied from Excel go to the first empty row of the line table on screen */
+    const t=e.target;if(t&&t.closest&&t.closest("input,textarea,select,[contenteditable]"))return;if(!/[\t\n]/.test(txt.replace(/\r?\n$/,"")))return;
+    const tb=[...document.querySelectorAll("table.xl tbody")].find(x=>x.offsetParent&&GRIDS.some(g=>g.is(x)));if(!tb)return;const g=GRIDS.find(x=>x.is(tb));
+    const rows=gRows(tb);if(rows.length&&gCells(rows[0])[0]&&gCells(rows[0])[0].disabled)return;
+    let r=rows.findIndex(tr=>gCells(tr).every(el=>!gVal(el)||el.dataset.k==="unit"||el.dataset.k==="qty"));if(r<0)r=rows.length;
+    e.preventDefault();gPaste(g,r,0,txt,null);return}
+  if(e.target.disabled)return;
+  const one=!/[\t\n]/.test(txt.replace(/\r?\n$/,""));
   if(one&&!gMulti())return;e.preventDefault();
-  const data=txt.replace(/\r/g,"").replace(/\n$/,"").split("\n").map(r=>r.split("\t"));
-  let r0=p.r,c0=p.c,r1=null,c1=null;if(gMulti()){[r0,r1,c0,c1]=gRect()}
-  const g=p.g;let n=0;
-  if(one&&r1!=null){for(let i=r0;i<=r1;i++)for(let j=c0;j<=c1;j++){gSet(gCell(g,i,j),data[0][0]);n++}}
-  else{for(let i=0;i<data.length;i++){if(data[i].every(v=>!String(v).trim())&&i===data.length-1)continue;if(!gGrow(g,r0+i))break;for(let j=0;j<data[i].length;j++){const el=gCell(g,r0+i,c0+j);if(!el)break;if(!String(data[i][j]).trim())continue;gSet(el,data[i][j]);n++}}}
-  const back=gCell(g,r0,c0);if(back)back.focus({preventScroll:true});gSel=null;gPaint();gShow(gCell(g,Math.min(r0+data.length-1,gRows(g.q()).length-1),c0)||back);toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table`:"Nothing pasted: these cells are locked")});
+  let r0=p.r,c0=p.c,rect=null;if(gMulti()){rect=gRect();r0=rect[0];c0=rect[2]}
+  gPaste(p.g,r0,c0,txt,rect)});
+/* click a row number (first column) to select the whole row, Shift+click for more rows */
+document.addEventListener("mousedown",e=>{const td=e.target.closest&&e.target.closest("table.xl tbody td:first-child");if(!td||td.querySelector("input,select"))return;
+  const tr=td.parentElement,tb=tr.closest("tbody"),g=GRIDS.find(x=>x.is(tb));if(!g)return;const r=gRows(tb).indexOf(tr);if(r<0)return;const last=gCells(tr).length-1;if(last<0)return;e.preventDefault();
+  if(e.shiftKey&&gSel&&gSel.g===g){gSel.r=r;gSel.ac=0;gSel.c=last}else gSel={g,ar:r,ac:0,r,c:last};
+  gSel.keep=true;gCell(g,r,0).focus({preventScroll:true});gSel.keep=false;gPaint()});
 
 /* ---------- weekly backup ---------- */
 const BK_SKIP=["lastBackup","me","theme","po","est"];
