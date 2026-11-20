@@ -965,7 +965,7 @@ function parseBOM(wb){
      the part name ("ANGLE PIN BLOCK D 180x99") is split out. Falls back to the old fixed ZT layout. */
   const H=v=>String(v??"").toLowerCase().replace(/\s+/g," ").trim();
   const clean=h=>h.replace(/[().:\[\]]/g," ").replace(/\s+/g," ").trim();
-  const descRank=h=>/part ?name|descr|particular|component|item ?name|material ?name|^name$|^desc/.test(h)?2:/^(item|part|material)$/.test(clean(h))?1:0;
+  const descRank=h=>/part ?name|desc|particular|component|item ?name|material ?name|^name$|^desc/.test(h)?2:/^(item|part|material)$/.test(clean(h))?1:0;
   const isQty=h=>/^(qty|qnty|quantity|req\.? ?qty|nos\b|no\.? ?of)/.test(h);
   const isSize=h=>/\bsize\b|dimension|^dims?$|finish(ed)? ?size|l ?x ?w|l ?x ?b/.test(clean(h));
   /* one dimension heading: L, W, H, THK, DIA... also combined ones like "B / Ø" or "H/T", which join the size (180x99x110) */
@@ -990,6 +990,8 @@ function parseBOM(wb){
     if(frac(col(d),isNum)>=0.6){let alt=-1,score=0;hs.forEach((h,i)=>{if(i===d||i===q||isRem(h)||isUnit(h))return;const s=frac(col(i),hasWord)+(descRank(h)?0.5:0);if(s>score){score=s;alt=i}});if(alt>=0&&score>=0.5)d=alt}
     const m={d,q,size:[],dims:[],pre:[],post:[],rem:[],u:-1,c:-1,raw:hd0};
     hs.forEach((h,i)=>{if(i===d||i===q)return;const v=col(i);if(!h&&!v.length)return;
+      /* a section letter (A, B, C) or Sr heading over 1,2,3... before the description is the serial column, never a size */
+      if(i<d&&v.length&&frac(v,isNum)>=0.8&&v.every((x,k)=>k===0||+x>=+v[k-1]))return;
       if(isRem(h))m.rem.push(i);else if(isUnit(h))m.u=i;else if(isCode(h)&&m.c<0&&i!==d)m.c=i;
       else if(isSize(h)||(v.length&&frac(v,isSizeVal)>=0.6))m.size.push(i);
       else if(isDim(h))m.dims.push(i);
@@ -1003,10 +1005,10 @@ function parseBOM(wb){
   sheets.forEach(rows=>{
     for(let ri=0;ri<rows.length;ri++){const hd=headOf(rows[ri]);if(!hd)continue;found=true;
       let end=ri+1;while(end<rows.length&&!headOf(rows[end]))end++;
-      const data=rows.slice(ri+1,end),m=mapCols(hd.hs,hd.d,hd.q,data,rows[ri].map(v=>String(v??"").replace(/\s+/g," ").trim()));
+      const data=rows.slice(ri+1,end).filter(r=>!stop(val(r[hd.d]))&&!r.some(c=>typeof c==="string"&&/^(prepared|checked|approved) ?by\b/i.test(c.trim()))),m=mapCols(hd.hs,hd.d,hd.q,data,rows[ri].map(v=>String(v??"").replace(/\s+/g," ").trim()));
       data.forEach(r=>{let d=val(r[m.d]);if(!d||stop(d)||isNum(d))return;
         const qv=m.q>=0?r[m.q]:null,qn=typeof qv==="number"?qv:parseFloat(String(qv??"").replace(/[^\d.]/g,""));
-        let size=[...m.size.map(i=>val(r[i])),...m.dims.map(i=>val(r[i]))].filter(Boolean).join("x").replace(/\s*[×X*]\s*/g,"x").replace(/\s*x\s*/g,"x");
+        let size=[...m.size.map(i=>val(r[i])),...m.dims.map(i=>val(r[i]))].filter(Boolean).join("x").replace(/\s*[×X*]\s*/g,"x").replace(/\s*x\s*/g,"x").replace(/^(?:Ø|ø|ф|φ|dia)x/i,"Ø");
         if(!size){const s=d.match(SIZE);if(s&&/[a-z]{2,}/i.test(d.replace(s[1],""))){size=s[1].replace(/\s*[x×X*]\s*/g,"x");d=d.replace(s[1],"").replace(/\s+/g," ").replace(/[\s,\-–]+$/,"").trim()}}
         /* text columns (material, make...) follow the size as before; numeric extras keep their heading, e.g. "Wt 1960.2" */
         const all=[...m.pre,...m.post],plain=all.filter(c=>!(c.num&&c.h)).map(c=>val(r[c.i])).filter(Boolean),tagged=all.filter(c=>c.num&&c.h).map(c=>{const v=val(r[c.i]);return v?`${label(c.h)} ${v}`:""}).filter(Boolean);
@@ -2428,7 +2430,7 @@ const rqCols=r=>r&&Array.isArray(r.xcols)?r.xcols:[];
 const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim();return !v?"":c==="Size"?v:`${c} ${v}`}),l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
 /* the request form and its PDF show only size, material and weight-type columns; the other BOM columns
    (Type, HRC, Plate group, Priority, Source, Shape...) are kept with the request and appear in the pre-estimate, where they can be removed */
-const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg/i;
+const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg|make|brand|^std$/i;
 const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c));
 const rqSpecHead=r=>!rqCols(r).length?"Specification":rqCols(r).some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec";
 const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
