@@ -1505,7 +1505,7 @@ const REQ_OPEN=[...PUR_READY,"Estimated","PO raised","PO approved"];
 function pendToOrder(){return reqs.filter(r=>REQ_OPEN.includes(r.status)&&!r.balClosed).flatMap(r=>reqBal(r).filter(x=>x.toOrder>0.0001).map(x=>Object.assign({r},x)))}
 function pendToRecv(){return saved.filter(p=>!p.closed&&p.status!=="Rejected").flatMap(p=>p.lines.map((l,i)=>({p,l,i,name:poLineName(l),unit:l.unit||"NOS",ord:+l.qty||0,acc:acceptedSoFar(p.no,i)})).filter(x=>x.name&&x.ord-x.acc>0.0001))}
 function reqPendChip(r){if(!reqPOs(r).length||r.status==="Closed")return"";const B=reqBal(r),o=B.filter(x=>x.toOrder>0.0001).length,v=B.filter(x=>x.toRecv>0.0001).length;
-  return o?` <span class="chip st-Back">${o} not on PO</span>`:v?` <span class="chip sugg">${v} to receive</span>`:""}
+  return o?` <span class="chip st-Back">Balance: ${o} item${o>1?"s":""} not on PO yet</span>`:v?` <span class="chip sugg">${v} to receive</span>`:""}
 const q3=n=>fmt0(Math.round((+n||0)*1000)/1000);
 /* request page: what is ordered and received against each line */
 function renderReqBal(r){const P=$("#reqBal");const pos=reqPOs(r);
@@ -1645,7 +1645,7 @@ function renderBuy(){
   const L=all.filter(b=>b.cat===buyTab&&bMatch(b,q)),reqN=new Set(all.map(b=>b.x.r.no)).size;
   $("#buy-n").textContent=all.length?`${all.length} line${all.length>1?"s":""} from ${reqN} request${reqN>1?"s":""}`:"";
   const t=today(),ck=b=>`<td><input type="checkbox" data-bf="on"${b.on?" checked":""} aria-label="Buy ${esc(b.x.name)} now"></td>`,
-    rq=b=>{const r=b.x.r,late=r.need&&r.need<t;return`<td><b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?` · ${esc(r.job)}`:""}<br><span class="note"${late?' style="color:var(--danger)"':""}>${r.need?"Need by "+dmy(r.need):""}</span></td>`},
+    rq=b=>{const r=b.x.r,late=r.need&&r.need<t;return`<td><b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?` · ${esc(r.job)}`:""}<br><span class="note"${late?' style="color:var(--danger)"':""}>${r.need?"Need by "+dmy(r.need):""}</span>${b.x.onPO>0.0001?`<br><span class="chip st-Back" title="Already on ${esc(b.x.pos.map(n=>"PO "+n).join(", "))}">Balance ${q3(b.x.toOrder)} of ${q3(b.x.qty)} ${esc(b.x.unit)} · ${esc(b.x.pos.map(n=>"PO "+n).join(", "))}</span>`:""}</td>`},
     inp=(f,v,w,auto,ty="number",ph="")=>`<input data-bf="${f}"${ty==="number"?' type="number" step="any" min="0"':""}${f==="sup"?' list="suppliers"':""}${f==="grade"?' list="gradeList"':""} value="${esc(v)}" placeholder="${esc(ph)}" style="width:${w};${autoSt(auto)}" aria-label="${esc(f)}">`,
     amt=v=>`<td class="num" data-bamt>${v?fmt(v):"-"}</td>`,none=n=>`<tr><td colspan="${n}" class="empty">${all.length&&!L.length&&q?"No line matches that search.":"Nothing to buy here. Approved request lines of this type appear until they are on a PO."}</td></tr>`;
   let head="",body="",note="";
