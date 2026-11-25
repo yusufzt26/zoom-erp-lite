@@ -1350,7 +1350,7 @@ function renderReq(){
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   $("#q-cat").innerHTML=`<option value="">Choose type</option>`+REQ_CATS.map(c=>`<option${r.cat===c?" selected":""}>${esc(c)}</option>`).join("");$("#q-cat").disabled=locked;
-  $("#q-cat-note").textContent=locked?(r.cat?"":"Type not set: goes to Consumables on the Buy sheet."):r.cat?"One type per request. Raise a separate request for each type.":"Choose one type first. Raise a separate request for each type.";
+  $("#q-cat-note").textContent=locked?(r.cat?"":"Type not set: goes to Others on the Buy sheet."):r.cat?"One type per request. Raise a separate request for each type.":"Choose one type first. Raise a separate request for each type.";
   const xc=rqShow(r),cc=catCols(r);
   $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(rqColLabel(r,c))}${locked||cc.includes(c)?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
@@ -1609,8 +1609,8 @@ async function costImport(e){const f=e.target.files[0];e.target.value="";if(!f||
 /* supplier, rate, qty, grade, allowance, operations and tick per line are a working draft kept in this browser (key "reqNo:line") */
 let buyDraft=store.get("buy",{}),buyQ="",buyTab="",buyOpen=new Set();
 const saveBuy=()=>store.set("buy",buyDraft);
-const BUY_TABS=["Raw material","Child parts","BOP","Consumables","Tools & cutters"];
-const buyCat=r=>BUY_TABS.includes(r.cat)?r.cat:"Consumables";
+const BUY_TABS=["Raw material","Child parts","BOP","Consumables","Tools & cutters","Others"];
+const buyCat=r=>BUY_TABS.includes(r.cat)?r.cat:"Others";
 /* last supplier and rate for an item, from the newest PO that has it (by master item, typed name or description) */
 function lastBuyIndex(){const ix={};
   saved.filter(p=>p.status!=="Rejected"&&p.sup).slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).forEach(p=>p.lines.forEach(l=>{if(!(+l.rate>0))return;
@@ -1669,7 +1669,7 @@ function renderBuy(){
     body=L.map(b=>{const c=b.c,lst=buyTab==="BOP"?"bop":"tool";return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${esc(b.x.name)}${!pl&&b.spec?`<br><span class="note">${esc(b.spec)}</span>`:""}</td>
       ${pl?`<td>${esc(lineX(b.x.l,"Size"))}</td><td>${esc(lineX(b.x.l,"L"))}</td><td>${c.m?`<span class="chip st-Approved">Price list${c.m.brand?" · "+esc(c.m.brand):""}</span>`:`<span class="chip st-Back">Not in list</span>${+c.rate>0&&canCost()?` <button class="linkbtn" type="button" data-bsave="${lst}">Save to list</button>`:""}`}</td>`:""}
       <td class="num">${inp("qty",c.qty,"70px",false)}</td><td>${esc(b.x.unit)}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td><td class="num">${inp("rate",c.rate,"90px",c.auto.rate&&c.rate!=="")}</td>${amt(c.amt)}</tr>`}).join("")||none(pl?11:8);
-    note=pl?`Lines are matched on description (type) + ${buyTab==="BOP"?"size":"dia / size"} + length against the ${buyTab==="BOP"?"BOP price list":"tool catalogue"} in Rates &amp; costing. A price typed for an unmatched line can be saved to the list for next time.`:`Rate and supplier come from the last PO for the same item, or from the consumables list in Rates &amp; costing.`}
+    note=pl?`Lines are matched on description (type) + ${buyTab==="BOP"?"size":"dia / size"} + length against the ${buyTab==="BOP"?"BOP price list":"tool catalogue"} in Rates &amp; costing. A price typed for an unmatched line can be saved to the list for next time.`:`Rate and supplier come from the last PO for the same item${buyTab==="Consumables"?", or from the consumables list in Rates &amp; costing":""}.`}
   $("#buyHead").innerHTML=`<tr>${head}</tr>`;$("#buyBody").innerHTML=body;$("#buyNote").innerHTML=note+` Yellow = filled in from the masters or the last PO; change any of it.`;
   $("#buy-all").checked=L.length>0&&L.every(b=>b.on);$("#buy-all").closest("label").hidden=!L.length;
   buyTotals(all)}
@@ -2671,9 +2671,9 @@ const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim(
 /* the request form and its PDF show only size, material and weight-type columns; the other BOM columns
    (Type, HRC, Plate group, Priority, Source, Shape...) are kept with the request and appear in the pre-estimate, where they can be removed */
 const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg|make|brand|^std$/i;
-const REQ_CATS=["Raw material","Child parts","BOP","Consumables","Tools & cutters"];
-const CATCOLS={"Raw material":["Grade","Size"],"Child parts":["Grade","Size"],"BOP":["Size","L"],"Tools & cutters":["Size","L"],"Consumables":[]};
-const CATPH={"Raw material":"Part name, e.g. Core insert","Child parts":"Part name or drawing No.","BOP":"Type, e.g. Ejector pin","Consumables":"Item, e.g. Coolant 20 L","Tools & cutters":"Tool type, e.g. Flat end mill"};
+const REQ_CATS=["Raw material","Child parts","BOP","Consumables","Tools & cutters","Others"];
+const CATCOLS={"Raw material":["Grade","Size"],"Child parts":["Grade","Size"],"BOP":["Size","L"],"Tools & cutters":["Size","L"],"Consumables":[],"Others":[]};
+const CATPH={"Raw material":"Part name, e.g. Core insert","Child parts":"Part name or drawing No.","BOP":"Type, e.g. Ejector pin","Consumables":"Item, e.g. Coolant 20 L","Tools & cutters":"Tool type, e.g. Flat end mill","Others":"Description, any text"};
 const catCols=r=>CATCOLS[r&&r.cat]||[];
 const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c)||catCols(r).includes(c));
 const rqColLabel=(r,c)=>c==="L"?"Length":c==="Size"?(r.cat==="Tools & cutters"?"Dia / size":["Raw material","Child parts"].includes(r.cat)?"Finished size":"Size"):c;
