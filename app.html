@@ -1543,6 +1543,7 @@ costFix();
 const saveCosting=()=>store.set("costing",costing);
 const canCost=()=>has("po.create")||isRole("Admin");
 const gradeOf=g=>{const k=key(g||"");return k?costing.grades.find(x=>key(x.g)===k)||costing.grades.find(x=>k.includes(key(x.g))&&key(x.g).length>1):null};
+const gradeIn=t=>{const T=" "+key(t)+" ";const g=costing.grades.filter(x=>key(x.g)&&T.includes(" "+key(x.g)+" ")).sort((a,b)=>key(b.g).length-key(a.g).length)[0];return g?g.g:""};
 const opOf=o=>costing.ops.find(x=>key(x.op)===key(o||""));
 const STALE_DAYS=90;
 const costStale=x=>!x.upd||(new Date(today())-new Date(x.upd))/864e5>STALE_DAYS;
@@ -1620,7 +1621,7 @@ function rawFrom(fin,allow){const s=String(fin||"").replace(/,/g,"."),n=szNums(s
 function wtFrom(raw,den){const n=szNums(raw);if(szRound(raw)&&n.length>=2)return Math.PI/4*n[0]*n[0]*n[1]*den*1e-6;if(n.length>=3)return n[0]*n[1]*n[2]*den*1e-6;return 0}
 const lineX=(l,c)=>{const x=l.x||{},v=String(x[c]||"").trim();if(v)return v;const re=c==="Grade"?/materi|grade/i:c==="Size"?/size|dimen/i:/^l$|^len/i,k=Object.keys(x).find(k=>re.test(k)&&String(x[k]||"").trim());return k?String(x[k]).trim():""};
 function buyCalc(b){const x=b.x,l=x.l,d=buyDraft[b.k]||{},cat=b.cat,o={};
-  if(cat==="Raw material"||cat==="Child parts"){const gname=d.grade!=null?d.grade:lineX(l,"Grade"),G=gradeOf(gname)||{};o.grade=gname;o.G=G;o.fin=lineX(l,"Size")||String(l.spec||"").trim();
+  if(cat==="Raw material"||cat==="Child parts"){const gname=d.grade!=null?d.grade:(lineX(l,"Grade")||gradeIn([l.spec,x.name].join(" "))),G=gradeOf(gname)||{};o.grade=gname;o.G=G;o.fin=lineX(l,"Size")||String(l.spec||"").trim();
     o.allow=d.allow!=null&&d.allow!==""?+d.allow:(G.allow!=null&&G.allow!==""?+G.allow:RAW_ALLOW);o.raw=d.raw||rawFrom(o.fin,o.allow);o.den=+G.den||poDensity({grade:gname,item:x.name}).d;o.wpc=wtFrom(o.raw,o.den)}
   o.qty=d.qty!=null&&d.qty!==""?+d.qty:x.toOrder;
   if(cat==="Raw material"){o.tot=o.wpc*o.qty;o.rate=d.rate!=null?d.rate:(+o.G.rate||b.last.rate||"");o.sup=d.sup!=null?d.sup:(o.G.sup||b.last.sup||"");o.amt=o.tot*(+o.rate||0);o.ok=o.tot>0&&+o.rate>0&&!!String(o.sup).trim();o.auto={rate:d.rate==null,sup:d.sup==null,allow:d.allow==null,raw:!d.raw,grade:d.grade==null}}
@@ -2718,7 +2719,7 @@ const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim(
    (Type, HRC, Plate group, Priority, Source, Shape...) are kept with the request and appear in the pre-estimate, where they can be removed */
 const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg|make|brand|^std$/i;
 const REQ_CATS=["Raw material","Child parts","BOP","Consumables","Tools & cutters","Others"];
-const CATCOLS={"Raw material":["Grade","Size"],"Child parts":["Grade","Size"],"BOP":["Size","L"],"Tools & cutters":["Size","L"],"Consumables":[],"Others":[]};
+const CATCOLS={"Raw material":["Size"],"Child parts":["Grade","Size"],"BOP":["Size","L"],"Tools & cutters":["Size","L"],"Consumables":[],"Others":[]};
 const CATPH={"Raw material":"Part name, e.g. Core insert","Child parts":"Part name or drawing No.","BOP":"Type, e.g. Ejector pin","Consumables":"Item, e.g. Coolant 20 L","Tools & cutters":"Tool type, e.g. Flat end mill","Others":"Description, any text"};
 const catCols=r=>CATCOLS[r&&r.cat]||[];
 const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c)||catCols(r).includes(c));
