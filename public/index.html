@@ -55,6 +55,8 @@ input,select,textarea{font:inherit;font-size:14px;color:var(--ink);background:va
 .stack{display:flex;flex-direction:column;gap:16px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .note{font-size:12.5px;color:var(--muted)}
+#buyBody input:not([type=checkbox]){border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 7px}
+.hintcell{outline:1px dashed var(--warn,#b54708)!important}
 .badcell{outline:2px solid var(--danger)!important;background:color-mix(in srgb,var(--danger) 10%,transparent)!important}
 .example{background:var(--sugg-bg);color:var(--sugg);border-radius:6px;padding:8px 12px;font-size:13px}
 .quick{display:flex;gap:8px;flex-wrap:wrap}
@@ -330,9 +332,10 @@ body.gated header.bar,body.gated main{display:none}
   </div>
 </div>
 <nav class="subnav" id="subnav-pur" aria-label="Purchase department" hidden><span class="subnav-t">Purchase department</span>
-    <button id="tab-est" data-view="est"><span class="step">2</span>Pre-estimate</button>
+    <button id="tab-buy" data-view="buy"><span class="step">2</span>Buy sheet</button>
     <button id="tab-po" data-view="po"><span class="step">3</span>Purchase order</button>
     <button id="tab-saved" data-view="saved">PO list</button>
+    <button id="tab-est" data-view="est">Pre-estimate</button>
     <button id="tab-rates" data-view="rates">Rate list</button>
 </nav>
 <nav class="subnav" id="subnav-sal" aria-label="Sales department" hidden><span class="subnav-t">Sales department</span>
@@ -372,7 +375,7 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-req" class="stack" hidden>
   <div id="reqNone" class="panel empty" hidden></div>
   <div class="panel stack" id="reqForm">
-    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-q-bom">Import BOM (.xlsx)</button><input type="file" id="q-bom" accept=".xlsx,.xls" hidden><button class="btn" id="btn-req-new">New request</button></div>
+    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-req-new">New request</button></div>
     <div id="reqExample" class="example" hidden>Example request. Click "New request" to fill in your own.</div>
     <div id="reqBanner" class="banner" hidden></div>
     <div id="reqFlow" class="flowbar" aria-label="Where this request is"></div>
@@ -386,7 +389,7 @@ body.gated header.bar,body.gated main{display:none}
       <label class="f">Plant<select id="q-plant" class="plantsel"></select></label>
     </div>
     <div class="stack" style="gap:8px">
-      <div class="row"><b>Attach the request</b><span class="note">Photo or PDF of the requisition slip, or a BOM Excel sheet. Excel lines are filled in automatically; photos and PDFs are kept with the request for the purchaser.</span></div>
+      <div class="row"><b>Attach the request</b><span class="note">Photo or PDF of the requisition slip, or the BOM Excel sheet. Files are kept with the request for the purchaser. Type or paste only the lines you need below; nothing has to match the item master.</span></div>
       <div class="row"><button class="btn" id="btn-q-file">Upload photos (JPG), PDF or Excel</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden><button class="btn" id="btn-q-cam">Take photo</button><input type="file" id="q-cam" accept="image/*" capture="environment" hidden><span class="note">You can attach several photos to one request.</span></div>
       <div class="attach" id="q-attach"></div>
     </div>
@@ -403,7 +406,7 @@ body.gated header.bar,body.gated main{display:none}
       <button class="btn" id="btn-q-back" hidden>Send back to maker</button>
       <button class="btn primary" id="btn-q-approve" hidden>Approve</button>
       <button class="btn" id="btn-q-pdf">Download PDF</button>
-      <button class="btn primary" id="btn-q-estimate" hidden>Start pre-estimate</button>
+      <button class="btn primary" id="btn-q-estimate" hidden>Open in Buy sheet</button>
       <button class="btn" id="btn-q-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete request</button></div>
     <div id="reqDelete" class="panel stack" style="border-color:var(--danger)" hidden></div>
   </div>
@@ -488,6 +491,17 @@ body.gated header.bar,body.gated main{display:none}
     <div class="row"><span class="note" id="sigNote"></span><span style="flex:1"></span><button class="btn" id="btn-po-back">Send back for correction</button><button class="btn primary" id="btn-approve">Approve and sign</button></div>
   </div>
   <div class="paperbox"><div class="paper" id="paper"></div></div>
+</section>
+
+<!-- BUY SHEET: every approved request line not yet on a PO; one PO per supplier -->
+<section id="view-buy" class="stack" hidden>
+  <div class="panel stack">
+    <div class="row"><h2 class="sec">Buy sheet</h2><span class="note" id="buy-n"></span><span style="flex:1"></span><input id="buy-q" placeholder="Search request, job, item or supplier" style="max-width:300px"></div>
+    <div class="note">Every approved request line that is not on a PO yet, from all requests. Supplier and rate are filled in from the last PO for the same item (grey); change any of them. Tick what to buy now and press <b>Make POs</b>: one PO is made for each supplier and sent for approval. Lines do not need to be in the item master.</div>
+    <div id="buyDone" class="banner" hidden></div>
+    <div class="tablebox"><table class="est" style="min-width:980px"><thead><tr><th style="width:30px"><input type="checkbox" id="buy-all" aria-label="Tick all lines" title="Tick all lines"></th><th>Request</th><th>Description</th><th class="num" style="width:90px">Qty to order</th><th style="width:60px">Unit</th><th style="min-width:180px">Supplier</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:110px">Amount</th></tr></thead><tbody id="buyBody"></tbody></table></div>
+    <div class="row"><b id="buy-tot"></b><span style="flex:1"></span><span class="note" id="buy-msg"></span><button class="btn primary" id="btn-buy-make">Make POs</button></div>
+  </div>
 </section>
 
 <!-- SAVED -->
@@ -650,6 +664,7 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack" data-mp="items" style="grid-column:1/-1" id="itemsPanel"><div class="row"><h2 class="sec">Items</h2><span class="note" id="itCount"></span><span style="flex:1"></span><button class="btn" id="btn-it-import" type="button">Import from Excel</button><input type="file" id="it-file" accept=".xlsx,.xls,.csv,.pdf" hidden><button class="btn" id="btn-it-export" type="button">Download list</button></div>
       <div class="note">Import your Item &amp; Service Master workbook (ITEM MASTER and SERVICE MASTER sheets are both read), or a product list exported from your old ERP. Columns are matched by their headings and you see a preview, with missing codes, HSN/SAC and GST flagged, before anything is saved. "Download list" gives the same two-sheet layout back. Item names then show up as suggestions on requests, estimates, POs and sales documents.</div>
       <form class="addrow" id="m-item-form"><select id="mi-kind" style="max-width:110px"><option>Item</option><option>Service</option></select><input id="mi-code" placeholder="Code" style="max-width:110px"><input id="mi-name" placeholder="Item name"><input id="mi-cat" placeholder="Category" list="itemcats" style="max-width:160px"><input id="mi-unit" placeholder="Unit" style="max-width:70px"><input id="mi-hsn" placeholder="HSN" style="max-width:90px"><input id="mi-gst" placeholder="GST %" type="number" step="any" style="max-width:70px"><button class="btn primary" type="submit">Add</button></form>
+      <div id="itNew" class="note" hidden></div>
       <div class="row"><input id="it-q" placeholder="Search name or code" style="max-width:260px"><select id="it-kind" style="width:auto"><option value="">Items and services</option><option value="Item">Items only</option><option value="Service">Services only</option></select><select id="it-cat" style="width:auto"></select></div><datalist id="itemtypes"><option value="Raw Material"><option value="Bought-out"><option value="Finished Good"><option value="Semi-finished"><option value="Consumable"><option value="Tooling"><option value="Spare"><option value="Packing Material"><option value="Job Work"><option value="Machining"><option value="Heat Treatment"><option value="Surface Treatment"><option value="Design"><option value="CAM Programming"><option value="Inspection"><option value="Transport"></datalist>
       <div class="tablebox"><table class="mt" style="min-width:1200px"><thead><tr><th>Code</th><th>Item / service name</th><th>Type</th><th>Category</th><th>Unit</th><th>HSN / SAC</th><th class="num">GST %</th><th class="num">Purchase rate</th><th class="num">Sales rate</th><th class="num">Min stock</th><th>Active</th><th></th></tr></thead><tbody id="m-items"></tbody></table></div>
       <div class="note" id="itMore"></div></div>
@@ -821,7 +836,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","dash","req","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
+const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
@@ -852,17 +867,17 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||v==="dash"||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(v==="buy"?has("po.create"):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);window.scrollTo(0,0)}
-const GROUPS={pur:["est","po","saved","rates"],sal:["sales","so","dc","inv","cn"]};
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);window.scrollTo(0,0)}
+const GROUPS={pur:["buy","po","saved","est","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
 function setHdrCur(v){const el=$("#hdrCur"),b=$("#tab-"+v);if(el)el.textContent=b?[...b.childNodes].filter(n=>!(n.classList&&(n.classList.contains("step")||n.classList.contains("badge")))).map(n=>n.textContent).join("").trim():""}
 const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
-  ["Purchase",[["req","📝","Purchase request"],["est","🧮","Pre-estimate"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["rates","🏷️","Rate list"],["appr","✅","PO approvals"]]],
+  ["Purchase",[["req","📝","Purchase request"],["buy","🧾","Buy sheet"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["est","🧮","Pre-estimate"],["rates","🏷️","Rate list"],["appr","✅","PO approvals"]]],
   ["Store & production",[["grn","📦","Store / GRN"],["stock","🗃️","Stock & issue"],["prod","⚙️","Production"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Tax invoices"],["cn","↩️","Credit notes"]]],
   ["Accounts & reports",[["acct","💰","Accounts"],["rep","📈","Reports"]]],
@@ -1104,7 +1119,7 @@ function renderPO(){
   </div>
   <table><thead><tr><th class="noprint" style="width:22px"><input type="checkbox" class="pickall" aria-label="Tick all PO lines" title="Tick all lines"></th><th>Sn</th><th>Item / service (from master)</th>${poCols(po).map((c,k)=>`<th style="white-space:nowrap">${esc(c)} <button class="x noprint" data-pxdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button></th>`).join("")}<th>${poCols(po).length?"Description / other spec":"Description"}</th><th>HSN/SAC</th><th>Tax%</th><th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th><th class="noprint"></th></tr></thead>
   <tbody id="poBody">${po.lines.map((l,i)=>`<tr data-i="${i}"><td class="noprint"><input type="checkbox" class="pick" data-pick="${i}" aria-label="Tick line ${i+1}"></td><td>${i+1}</td>
-    <td><input id="pl${i}-item" data-lk="item" list="masteritems" value="${esc(l.item||"")}" placeholder="Pick from item master" class="${poBad(l)?"badcell":""}" title="${poBad(l)?BADITEM:""}" style="width:100%;min-width:170px"></td>
+    <td><input id="pl${i}-item" data-lk="item" list="masteritems" value="${esc(l.item||"")}" placeholder="Item master (optional)" class="${poBad(l)?"hintcell":""}" title="${poBad(l)?BADITEM:""}" style="width:100%;min-width:170px"></td>
     ${poCols(po).map((c,k)=>`<td><input id="pl${i}-x${k}" data-px="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?110:64}px"></td>`).join("")}
     <td><input id="pl${i}-desc" data-lk="pdesc" value="${esc(poDesc(l))}" placeholder="Description / finished size" style="width:100%;min-width:170px">${poRawOn(l)?poRawBox(l,i):`<button class="noprint" type="button" data-praw="${i}" style="font-size:11px;border:none;background:none;color:var(--accent,#0b6e8a);cursor:pointer;padding:2px 0">+ raw size</button>`}</td>
     <td><input id="pl${i}-hsn" data-lk="hsn" value="${esc(l.hsn)}" style="width:72px"></td>
@@ -1155,8 +1170,8 @@ function renderTotals(){
   $("#poTot").innerHTML=rows;$("#poWords").innerHTML=`<b>Amount In Words :</b> Rupees ${words(c.total)} Only.`;
 }
 $("#paper").addEventListener("change",e=>{if(e.target.dataset.lk==="unit"){const tr=e.target.closest("tr"),l=po.lines[+tr.dataset.i];if(poRawOn(l)){poRawCalc(l,true);store.set("po",po);renderPO()}return}if(e.target.dataset.lk!=="item")return;const l=po.lines[+e.target.closest("tr").dataset.i],it=itemByName(l.item);
-  e.target.classList.toggle("badcell",poBad(l));e.target.title=poBad(l)?BADITEM:"";if(!it){store.set("po",po);return}
-  const wasRaw=!!e.target.closest("tr").querySelector("[data-lk=raw]");l.item=it.name;poSetDesc(l);e.target.value=it.name;e.target.classList.remove("badcell");e.target.title="";
+  e.target.classList.toggle("hintcell",poBad(l));e.target.title=poBad(l)?BADITEM:"";if(!it){store.set("po",po);return}
+  const wasRaw=!!e.target.closest("tr").querySelector("[data-lk=raw]");l.item=it.name;poSetDesc(l);e.target.value=it.name;e.target.classList.remove("hintcell");e.target.title="";
   if(!wasRaw&&poRawOn(l)){const i=+e.target.closest("tr").dataset.i;if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;store.set("po",po);renderPO();const r=$("#pl"+i+"-raw");if(r)r.focus();return}if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
 $("#paper").addEventListener("input",e=>{
   const t=e.target;
@@ -1216,10 +1231,9 @@ $("#btn-save").onclick=()=>{
 $("#btn-send").onclick=()=>{
   if(!po)return;if(!po.sup.trim()){toast("Fill in the supplier first");return}
   if(!po.lines.some(l=>l.desc&&(+l.qty)*(+l.rate)>0)){toast("Add at least one line with qty and rate");return}
-  {const bi=po.lines.findIndex(l=>(l.desc||l.item)&&poBad(l));if(bi>=0){toast(`Line ${bi+1}: pick the item or service from the item master list`);const el=$("#pl"+bi+"-item");if(el){el.classList.add("badcell");el.focus()}return}}
   if(!po.needBy){toast("Fill in the delivery-by date on the PO");$("#po-needBy").focus();return}
   recordPO("Pending approval","Sent for approval");learnFromPO();
-  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO raised";r.poNo=po.no;saveReqs()}}
+  poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});saveReqs();
   toast(`PO ${po.no} sent for approval`);renderPO();
 };
 $("#btn-po-del").onclick=()=>{$("#poDelete").hidden=false;$("#po-del-reason").value="";$("#po-del-reason").focus()};
@@ -1229,10 +1243,10 @@ $("#btn-del-ok").onclick=()=>{
   const why=$("#po-del-reason").value.trim();if(!why){toast("Give a reason for deleting");$("#po-del-reason").focus();return}
   const del=store.get("deletedPOs",[]);del.unshift({no:po.no,sup:po.sup,status:po.status,total:poCalc().total,by:me.name,at:new Date().toISOString(),reason:why});store.set("deletedPOs",del);
   saved=saved.filter(x=>String(x.no)!==String(po.no));store.set("saved",saved);
-  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){const o=reqPOs(r);if(!o.length){r.status="Approved";delete r.poNo}else r.poNo=o[o.length-1].no;saveReqs()}}
+  poReqs(po).forEach(r=>{const o=reqPOs(r);if(!o.length){r.status="Approved";delete r.poNo}else r.poNo=o[o.length-1].no});saveReqs();
   const n=po.no;po=null;store.set("po",null);$("#poDelete").hidden=true;toast(`PO ${n} deleted`);renderPO()};
 $("#btn-approve").onclick=()=>{po.approvedBy=me.name;po.approvedAt=today();po.sig=me.sig||"";recordPO("Approved","Approved",$("#po-comment").value.trim());
-  if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO approved";saveReqs()}}
+  poReqs(po).forEach(r=>{r.status="PO approved"});saveReqs();
   $("#po-comment").value="";toast(`PO ${po.no} approved and signed`);renderPO()};
 $("#btn-po-back").onclick=()=>{const c=$("#po-comment").value.trim();if(!c){toast("Write what needs correcting first");$("#po-comment").focus();return}
   po.backNote=c;recordPO("Sent back","Sent back for correction",c);$("#po-comment").value="";toast(`PO ${po.no} sent back to the purchaser`);renderPO()};
@@ -1311,7 +1325,7 @@ function renderReq(){
   /* the page opens on a blank new request for anyone who can raise one; saved requests open from the list below */
   if(!cur){if(has("req.create")){cur=blankReq();if(me&&!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}}else cur=vis[0]||null}
   $("#reqForm").hidden=!cur;$("#reqNone").hidden=!!cur;
-  $("#btn-req-new").hidden=!has("req.create");$("#btn-q-bom").hidden=!has("req.create");
+  $("#btn-req-new").hidden=!has("req.create");
   if(!cur){$("#reqNone").innerHTML=`No purchase requests ready for Purchase yet. Requests appear here once the department head has approved them. To buy without a request, use "Direct PO, no request" on the Purchase order tab.`;renderReqList();return}
   const r=cur;const mine=r.status==="Draft"||r.by===me.name||has("req.all");
   const locked=!(["Draft","Sent back"].includes(r.status)&&mine&&(reqs.includes(r)?has("req.edit"):has("req.create")));
@@ -1337,10 +1351,10 @@ function renderReq(){
   renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
   $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
-  $("#btn-q-estimate").hidden=!((PUR_READY.includes(r.status)||r.status==="Estimated")&&!reqPOs(r).length&&has("po.create")&&can("est"));
+  $("#btn-q-estimate").hidden=!(REQ_OPEN.includes(r.status)&&!r.balClosed&&reqs.includes(r)&&has("po.create")&&reqBal(r).some(x=>x.toOrder>0.0001));
   $("#btn-q-del").hidden=!(isRole("Admin")&&reqs.includes(r));if(r!==reqDelFor)$("#reqDelete").hidden=true;
   renderReqBal(r);
-  $("#btn-q-line").hidden=locked;$("#btn-q-clear").hidden=locked;$("#btn-q-file").hidden=locked;$("#btn-q-bom").hidden=locked;
+  $("#btn-q-line").hidden=locked;$("#btn-q-clear").hidden=locked;$("#btn-q-file").hidden=locked;
   renderReqList();
 }
 function opts(list,val,ph){const vals=[...list];if(val&&!vals.includes(val))vals.push(val);return`<option value="">${ph}</option>`+vals.map(v=>`<option${v===val?" selected":""}>${esc(v)}</option>`).join("")}
@@ -1351,10 +1365,19 @@ function fillReqSelects(){
   $("#btn-q-approve").textContent=cur.status==="Checked"?"Approve (director)":"Approve (department head)";
 }
 const attList=a=>Array.isArray(a)?a:(a?[a]:[]);
+function fileData(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
+/* optional: copy the rows of an attached BOM sheet into the request lines */
+function bomFill(r,a){const {job,lines}=parseBOM(XLSX.read(String(a.data).split(",")[1],{type:"base64"}));if(!lines.length)return 0;
+  const cols=rqCols(r);
+  r.lines=r.lines.filter(l=>rqText(l).trim()).concat(lines.map(l=>{
+    if(!l.x)return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:""};
+    const x={};l.x.forEach(([c,v])=>{if(!cols.includes(c))cols.push(c);if(v)x[c]=v});
+    return{desc:l.item,spec:l.note||"",x,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:l.remark||""}}));
+  r.xcols=cols.filter(c=>r.lines.some(l=>l.x&&l.x[c]));if(job&&!r.job)r.job=job;a.filled=lines.length;return lines.length}
 function renderAttach(box,a,rm){const L=attList(a);
   if(!L.length){box.innerHTML=`<span class="note">No file attached.</span>`;return}
   box.innerHTML=L.map((x,i)=>{const del=rm?` <button class="x" data-adel="${i}" aria-label="Remove ${esc(x.name)}">×</button>`:"";
-    return x.type==="image"?`<figure><img src="${x.data}" alt="Attached request: ${esc(x.name)}"><figcaption>${esc(x.name)}${del}</figcaption></figure>`:`<span class="filechip">${x.type==="pdf"?"PDF":"Excel"} · ${esc(x.name)}${x.note?` · ${esc(x.note)}`:""}${del}</span>`}).join("");
+    return x.type==="image"?`<figure><img src="${x.data}" alt="Attached request: ${esc(x.name)}"><figcaption>${esc(x.name)}${del}</figcaption></figure>`:`<span class="filechip">${x.type==="pdf"?"PDF":"Excel"} · ${x.data&&x.type==="xlsx"?`<a href="${esc(x.data)}" download="${esc(x.name)}">${esc(x.name)}</a>`:esc(x.name)}${x.note?` · ${esc(x.note)}`:""}${x.filled?` · ${x.filled} lines copied`:""}${rm&&x.type==="xlsx"&&x.data&&!x.filled?` <button class="linkbtn" type="button" data-afill="${i}">Copy lines from it</button>`:""}${del}</span>`}).join("");
 }
 function renderReqList(){
   const vis=visibleReqs().filter(r=>inPer(r.date,"req")&&inPlant(r));
@@ -1376,7 +1399,7 @@ $("#btn-q-clear").onclick=()=>{if(!cur)return;const n=cur.lines.filter(l=>rqText
   const b=$("#btn-q-clear");if(n&&!b.dataset.sure){b.dataset.sure="1";b.textContent=`Click again to clear ${n} line${n>1?"s":""}`;b.style.color="#b42318";b.style.borderColor="#b42318";
     clearTimeout(b._t);b._t=setTimeout(()=>{delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor=""},5000);return}
   clearTimeout(b._t);delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor="";
-  cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=attList(cur.attach).filter(a=>a.type!=="xlsx");
+  cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=attList(cur.attach).filter(a=>!(a.type==="xlsx"&&a.filled));
   if(cur.status!=="Draft")saveReqs();renderReq();toast("All lines cleared")};
 $("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
 $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
@@ -1404,21 +1427,14 @@ function startEst(r,onlyPending){
   est={job:r.job,plant:r.plant||defPlant(),sup:"",date:today(),unit:"NOS",reqNo:r.no,need:r.need||"",xcols:rqCols(r).slice(),lines:L.map(({l,i,q})=>{const nm=rqText(l),sp=rqSpec(l,r);const g=suggest(nm,sp);return{item:nm,spec:sp,x:Object.assign({},l.x||{}),xo:l.spec||"",expr:"",qty:q,unit:l.unit||"NOS",rate:g,src:g!=null?"sugg":"",rq:i}})};
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 }
-$("#btn-q-estimate").onclick=()=>startEst(cur,false);
+$("#btn-q-estimate").onclick=()=>openBuy(cur);
 $("#btn-q-file").onclick=()=>$("#q-file").click();
 $("#q-file").onchange=async e=>{
   const files=[...e.target.files];e.target.value="";if(!files.length)return;const L=attList(cur.attach);let added=0,filled=0;
   for(const f of files){try{
     if(/\.xlsx?$/i.test(f.name)){
-      const {job,lines}=parseBOM(XLSX.read(await f.arrayBuffer(),{type:"array"}));
-      if(!lines.length){toast(`No item rows found in ${f.name}`);continue}
-      const cols=rqCols(cur);
-      cur.lines=cur.lines.filter(l=>rqText(l).trim()).concat(lines.map(l=>{
-        if(!l.x)return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:""};
-        const x={};l.x.forEach(([c,v])=>{if(!cols.includes(c))cols.push(c);if(v)x[c]=v});
-        return{desc:l.item,spec:l.note||"",x,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:l.remark||""}}));
-      cur.xcols=cols.filter(c=>cur.lines.some(l=>l.x&&l.x[c]));if(job&&!cur.job)cur.job=job;
-      L.push({type:"xlsx",name:f.name,note:`${lines.length} lines filled in`});filled+=lines.length;
+      /* the sheet is kept as a file for Purchase (not read into lines); "Copy lines from it" stays optional */
+      const data=f.size<=900*1024?await fileData(f):"";L.push({type:"xlsx",name:f.name,data,note:Math.round(f.size/1024)+" KB"+(data?"":", too big to keep: send it to Purchase separately")});added++;
     }else if(f.type.startsWith("image/")||/\.(jpe?g|png)$/i.test(f.name)){L.push({type:"image",name:f.name,data:await shrink(f)});added++}
     else if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){L.push({type:"pdf",name:f.name,note:Math.round(f.size/1024)+" KB"});added++}
     else toast(`${f.name}: use a photo, a PDF or an Excel sheet`);
@@ -1428,13 +1444,13 @@ $("#q-file").onchange=async e=>{
 };
 $("#btn-q-cam").onclick=()=>$("#q-cam").click();
 $("#q-cam").onchange=e=>$("#q-file").onchange(e);
-$("#q-attach").addEventListener("click",e=>{const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);
+$("#q-attach").addEventListener("click",e=>{const fi=e.target.dataset.afill;if(fi!=null&&cur){const L=attList(cur.attach),a=L[+fi];if(!a||!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+    try{const n=bomFill(cur,a);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq();toast(n?`Copied ${n} lines from ${a.name}. Delete the ones you do not need.`:`No item rows found in ${a.name}`)}catch(err){toast(`Could not read ${a.name}`)}return}
+  const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);
   /* removing a loaded Excel sheet also clears the lines it filled in (second click confirms) */
-  if(L[+d]&&L[+d].type==="xlsx"){const b=e.target;if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Click again to remove the sheet and its lines";b.style.color="#b42318";b.style.fontSize="12px";setTimeout(()=>{if(b.isConnected)renderReq()},5000);return}
+  if(L[+d]&&L[+d].type==="xlsx"&&L[+d].filled){const b=e.target;if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Click again to remove the sheet and its lines";b.style.color="#b42318";b.style.fontSize="12px";setTimeout(()=>{if(b.isConnected)renderReq()},5000);return}
     cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=L.filter(x=>x.type!=="xlsx");if(cur.status!=="Draft")saveReqs();renderReq();toast("Sheet removed and lines cleared");return}
   L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
-$("#btn-q-bom").onclick=()=>$("#q-bom").click();
-$("#q-bom").onchange=e=>$("#q-file").onchange(e);
 
 function shrink(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",0.72))};img.onerror=rej;img.src=u})}
 function renderEstReq(){
@@ -1454,7 +1470,10 @@ function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
 /* ---------- pending balance: request -> PO -> received ---------- */
 /* A request can be split over several POs (part now, part later, or different suppliers). Each PO line made from a request
    remembers its request line (rq). Older POs without that link are matched to request lines by item name. */
-const reqPOs=r=>r?saved.filter(p=>p.reqNo&&p.reqNo===r.no):[];
+const reqPOs=r=>r?saved.filter(p=>(p.reqNo&&p.reqNo===r.no)||(Array.isArray(p.reqNos)&&p.reqNos.includes(r.no))):[];
+/* a PO made on the Buy sheet can carry lines of several requests: reqNos lists them, each line keeps rqNo + rq */
+const poReqNos=p=>p?(Array.isArray(p.reqNos)?p.reqNos:(p.reqNo?[p.reqNo]:[])):[];
+const poReqs=p=>poReqNos(p).map(n=>reqs.find(x=>x.no===n)).filter(Boolean);
 const poLineName=l=>l.desc||[l.item||l.pn,l.spec].filter(Boolean).join(" - ")||"";
 function rqUsed(pl,rl){/* PO line qty in the request line's unit: a KG raw-material line counts its pieces */
   if(key(pl.unit||"NOS")!==key(rl.unit||"NOS")&&poKgUnit(pl))return +pl.pcs||1;return +pl.qty||0}
@@ -1462,7 +1481,7 @@ function reqBal(r){
   const rows=(r.lines||[]).map((l,i)=>({l,i,name:rqText(l),unit:l.unit||"NOS",qty:+l.qty||0,onPO:0,recv:0,pos:[]})).filter(x=>x.name);
   reqPOs(r).forEach(p=>{const linked=p.lines.some(pl=>pl.rq!=null);
     p.lines.forEach((pl,j)=>{let x=null;
-      if(linked){if(pl.rq!=null)x=rows.find(y=>y.i===+pl.rq)}
+      if(linked){if(pl.rq!=null&&(pl.rqNo==null||pl.rqNo===r.no))x=rows.find(y=>y.i===+pl.rq)}
       else{const k=key(pl.item||pl.pn||pl.desc);if(k)x=rows.find(y=>key(y.name)===k)||rows.find(y=>{const n=key(y.name);return n&&k.startsWith(n+" ")})}
       if(!x)return;const q=rqUsed(pl,x.l),pq=+pl.qty||0;x.onPO+=q;
       if(pq>0)x.recv+=Math.min(q,acceptedSoFar(p.no,j)/pq*q);
@@ -1486,12 +1505,74 @@ function renderReqBal(r){const P=$("#reqBal");const pos=reqPOs(r);
   <div class="note">${toO?`<b style="color:var(--danger)">${toO} item${toO>1?"s are":" is"} not on a PO yet.</b> `:r.balClosed?`Balance closed by ${esc(r.balBy||"")} on ${dmy(r.balAt)}: the rest is not needed. `:"Every item is on a PO. "}${toR?`${toR} item${toR>1?"s are":" is"} still to be received.`:"Nothing left to receive."}</div>
   <div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th style="width:34px">Sr</th><th>Item</th><th class="num">Requested</th><th class="num">On PO</th><th class="num">Received</th><th class="num">Not on PO yet</th><th class="num">Not received yet</th></tr></thead><tbody>
   ${B.map((x,k)=>`<tr><td>${x.i+1}</td><td>${esc(x.name)}${x.pos.length?`<br><span class="note">PO ${x.pos.map(esc).join(", ")}</span>`:""}</td><td class="num">${q3(x.qty)} ${esc(x.unit)}</td><td class="num">${q3(x.onPO)}</td><td class="num">${q3(x.recv)}</td><td class="num">${x.toOrder>0.0001?`<b style="color:var(--danger)">${q3(x.toOrder)}</b>`:"-"}</td><td class="num">${x.toRecv>0.0001?`<b>${q3(x.toRecv)}</b>`:"-"}</td></tr>`).join("")}</tbody></table></div>
-  ${pur?`<div class="row">${toO&&can("est")?`<button class="btn primary" type="button" id="btn-q-bal-est">Pre-estimate for the ${toO} pending item${toO>1?"s":""}</button>`:""}${toO?`<button class="btn" type="button" id="btn-q-bal-close" title="Use when the rest of this request is no longer needed">Rest not needed</button>`:""}${r.balClosed?`<button class="btn" type="button" id="btn-q-bal-open">Reopen balance</button>`:""}</div>`:""}`;
-  const be=$("#btn-q-bal-est");if(be)be.onclick=()=>startEst(r,true);
+  ${pur?`<div class="row">${toO?`<button class="btn primary" type="button" id="btn-q-bal-est">Order the ${toO} pending item${toO>1?"s":""} on the Buy sheet</button>`:""}${toO?`<button class="btn" type="button" id="btn-q-bal-close" title="Use when the rest of this request is no longer needed">Rest not needed</button>`:""}${r.balClosed?`<button class="btn" type="button" id="btn-q-bal-open">Reopen balance</button>`:""}</div>`:""}`;
+  const be=$("#btn-q-bal-est");if(be)be.onclick=()=>openBuy(r);
   const bc=$("#btn-q-bal-close");if(bc)bc.onclick=()=>{if(!bc.dataset.sure){bc.dataset.sure="1";bc.textContent="Click again: close the balance";bc.style.color="#b42318";setTimeout(()=>{if(bc.isConnected){delete bc.dataset.sure;bc.textContent="Rest not needed";bc.style.color=""}},5000);return}
     r.balClosed=true;r.balBy=me.name;r.balAt=today();if(reqDone(r)){r.status="Closed";r.closedAt=today()}saveReqs();renderReq();toast(`Request ${r.no}: the rest is marked not needed`)};
   const bo=$("#btn-q-bal-open");if(bo)bo.onclick=()=>{delete r.balClosed;delete r.balBy;delete r.balAt;if(r.status==="Closed"&&!reqDone(r))r.status=pos.some(p=>p.status==="Approved")?"PO approved":"PO raised";saveReqs();renderReq();toast(`Request ${r.no}: balance reopened`)};
 }
+/* ---------- Buy sheet: every approved request line not yet on a PO, one PO per supplier ---------- */
+/* supplier, rate, qty and tick per line are a working draft kept in this browser (key "reqNo:line") until the POs are made */
+let buyDraft=store.get("buy",{}),buyQ="";
+const saveBuy=()=>store.set("buy",buyDraft);
+/* last supplier and rate for an item, from the newest PO that has it (by master item, typed name or description) */
+function lastBuyIndex(){const ix={};
+  saved.filter(p=>p.status!=="Rejected"&&p.sup).slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).forEach(p=>p.lines.forEach(l=>{if(!(+l.rate>0))return;
+    const v={sup:p.sup,rate:+l.rate,no:p.no,date:p.date};[l.item,l.pn,l.desc,String(l.desc||"").split(" - ")[0],poLineName(l)].forEach(n=>{const k=key(n||"");if(k)ix[k]=v})}));
+  return ix}
+function buyGuess(ix,name,spec){const it=itemByName(name);
+  for(const n of [[name,spec].filter(Boolean).join(" - "),name,it&&it.name]){const v=n&&ix[key(n)];if(v)return v}
+  const r=suggest(name,spec);return r!=null?{sup:"",rate:r}:null}
+function buyRows(){const ix=lastBuyIndex();
+  return pendToOrder().filter(x=>inPlant(x.r)).map(x=>{const k=x.r.no+":"+x.i,spec=rqSpec(x.l,x.r),g=buyGuess(ix,x.name,spec)||{};
+    const d=buyDraft[k]||{};return{k,x,spec,on:d.on!==false,sup:d.sup!=null?d.sup:(g.sup||""),rate:d.rate!=null?d.rate:(g.rate??""),qty:d.qty!=null?d.qty:x.toOrder,autoSup:d.sup==null&&!!g.sup,autoRate:d.rate==null&&g.rate!=null,from:g.no?"PO "+g.no:""}})}
+function openBuy(r){buyQ=r?String(r.no):"";show("buy")}
+function renderBuy(){
+  if(!$("#view-buy"))return;$("#buy-q").value=buyQ;
+  const all=buyRows(),q=key(buyQ),L=all.filter(b=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q));
+  const reqN=new Set(all.map(b=>b.x.r.no)).size;
+  $("#buy-n").textContent=all.length?`${all.length} line${all.length>1?"s":""} from ${reqN} request${reqN>1?"s":""}${L.length<all.length?`, ${L.length} shown`:""}`:"";
+  const t=today();
+  $("#buyBody").innerHTML=L.length?L.map(b=>{const r=b.x.r,late=r.need&&r.need<t,amt=(+b.qty||0)*(+b.rate||0);
+    return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}><td><input type="checkbox" data-bf="on"${b.on?" checked":""} aria-label="Buy ${esc(b.x.name)} now"></td>
+    <td><b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?` · ${esc(r.job)}`:""}<br><span class="note"${late?' style="color:var(--danger)"':""}>${r.need?"Need by "+dmy(r.need):""}${r.by?` · ${esc(r.by)}`:""}</span></td>
+    <td>${esc(b.x.name)}${b.spec?`<br><span class="note">${esc(b.spec)}</span>`:""}</td>
+    <td class="num"><input data-bf="qty" type="number" step="any" min="0" value="${esc(b.qty)}" style="width:80px" aria-label="Qty to order" title="Pending ${q3(b.x.toOrder)} ${esc(b.x.unit)}"></td>
+    <td>${esc(b.x.unit)}</td>
+    <td><input data-bf="sup" list="suppliers" value="${esc(b.sup)}" placeholder="Pick supplier" style="width:100%;${b.autoSup?"color:var(--muted)":""}" aria-label="Supplier"${b.from?` title="Last bought on ${esc(b.from)}"`:""}></td>
+    <td class="num"><input data-bf="rate" type="number" step="0.01" min="0" value="${esc(b.rate)}" style="width:100px;${b.autoRate?"color:var(--muted)":""}" aria-label="Rate"></td>
+    <td class="num" data-bamt>${amt?fmt(amt):"-"}</td></tr>`}).join(""):`<tr><td colspan="8" class="empty">${all.length?"No line matches that search.":"Nothing to buy. Approved request lines appear here until they are on a PO."}</td></tr>`;
+  $("#buy-all").checked=L.length>0&&L.every(b=>b.on);
+  buyTotals(L)}
+function buyTotals(L){L=L||buyRows();const on=L.filter(b=>b.on),bad=on.filter(b=>!String(b.sup).trim()||!(+b.rate>0)||!(+b.qty>0));
+  const sups=new Set(on.filter(b=>String(b.sup).trim()).map(b=>key(b.sup)+"|"+(b.x.r.plant||"P1"))).size;
+  $("#buy-tot").textContent=on.length?`${on.length} line${on.length>1?"s":""} ticked · ₹ ${fmt(on.reduce((a,b)=>a+(+b.qty||0)*(+b.rate||0),0))} before GST`:"";
+  $("#buy-msg").innerHTML=bad.length?`<span style="color:var(--danger)">${bad.length} ticked line${bad.length>1?"s need":" needs"} a supplier, rate and qty, or untick ${bad.length>1?"them":"it"}</span>`:on.length?"Unticked lines stay here for later.":"";
+  const B=$("#btn-buy-make");B.textContent=sups?`Make ${sups} PO${sups>1?"s":""} and send for approval`:"Make POs";B.disabled=!on.length||!!bad.length||!has("po.create")}
+$("#buy-q").addEventListener("input",e=>{buyQ=e.target.value;renderBuy()});
+$("#buyBody").addEventListener("input",e=>{const f=e.target.dataset.bf,tr=e.target.closest("tr");if(!f||f==="on"||!tr)return;const k=tr.dataset.bk,d=buyDraft[k]=buyDraft[k]||{};
+  d[f]=f==="sup"?e.target.value:(e.target.value===""?"":+e.target.value);e.target.style.color="";saveBuy();
+  const b=buyRows().find(x=>x.k===k);if(b){const a=(+b.qty||0)*(+b.rate||0);tr.querySelector("[data-bamt]").textContent=a?fmt(a):"-"}buyTotals()});
+$("#buyBody").addEventListener("change",e=>{if(e.target.dataset.bf!=="on")return;const k=e.target.closest("tr").dataset.bk;(buyDraft[k]=buyDraft[k]||{}).on=e.target.checked;saveBuy();renderBuy()});
+$("#buy-all").onchange=e=>{const q=key(buyQ);buyRows().filter(b=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q)).forEach(b=>{(buyDraft[b.k]=buyDraft[b.k]||{}).on=e.target.checked});saveBuy();renderBuy()};
+$("#btn-buy-make").onclick=()=>{
+  const on=buyRows().filter(b=>b.on);if(!on.length||on.some(b=>!String(b.sup).trim()||!(+b.rate>0)||!(+b.qty>0))){buyTotals();return}
+  const G={};on.forEach(b=>{const sp=supOf(b.sup),nm=sp?sp.name:String(b.sup).trim(),pl=b.x.r.plant||defPlant(),g=nm+"|"+pl;(G[g]=G[g]||{sup:nm,sp,plant:pl,rows:[]}).rows.push(b)});
+  const made=[];
+  Object.values(G).forEach(g=>{const sp=g.sp||{name:g.sup,addr:"",state:"27"},R=g.rows;
+    const nos=[...new Set(R.map(b=>b.x.r.no))],jobs=[...new Set(R.map(b=>b.x.r.job).filter(Boolean))],needs=R.map(b=>b.x.r.need).filter(Boolean).sort();
+    po={no:nextPONo(),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
+      reqNo:nos.join(", "),reqNos:nos,needBy:needs[0]||"",plant:g.plant,deliv:plantAddr(g.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",xcols:[],
+      lines:R.map(b=>{const it=itemByName(b.x.name),full=[b.x.name,b.spec].filter(Boolean).join(" - ");
+        return{desc:full,item:it?it.name:"",spec:it?b.spec:full,hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:+b.qty,unit:b.x.unit||(it&&it.unit)||"NOS",rate:+b.rate,dis:0,rq:b.x.i,rqNo:b.x.r.no}})};
+    recordPO("Pending approval","Made on the Buy sheet and sent for approval");learnFromPO();
+    poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});R.forEach(b=>delete buyDraft[b.k]);made.push(po)});
+  saveReqs();saveBuy();po=made[made.length-1];store.set("po",po);
+  const D=$("#buyDone");D.hidden=false;D.className="banner";
+  D.innerHTML=`<b>${made.length} PO${made.length>1?"s":""} sent for approval:</b> ${made.map(p=>`<button class="linkbtn" type="button" data-bpo="${esc(p.no)}">PO ${esc(p.no)} · ${esc(p.sup)}</button>`).join(" · ")}`;
+  toast(`${made.length} PO${made.length>1?"s":""} made and sent for approval`);renderBuy();renderBadges()};
+$("#buyDone").addEventListener("click",e=>{const n=e.target.dataset.bpo;if(n==null)return;const s=saved.find(x=>String(x.no)===String(n));if(s){po=JSON.parse(JSON.stringify(s));store.set("po",po);show("po")}});
+
 /* home: everything still pending, for the purchaser */
 let pendTab="order";
 function renderPend(){const P=$("#homePend");P.hidden=!(has("po.create")||has("req.all"));if(P.hidden)return;
@@ -1501,7 +1582,7 @@ function renderPend(){const P=$("#homePend");P.hidden=!(has("po.create")||has("r
   document.querySelectorAll("#pendTabs [data-ptab]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ptab===pendTab?"true":"false"));
   const t=today();
   if(pendTab==="order"){const L=A.filter(x=>!q||key([x.r.no,x.name,x.r.job,x.r.by,x.r.dept].join(" ")).includes(q));
-    $("#pendNote").textContent="Approved request items with quantity not yet on any PO. Open the request to make a pre-estimate for just these.";
+    $("#pendNote").textContent="Approved request items with quantity not yet on any PO. Order them from the Buy sheet.";
     $("#pendBody").innerHTML=L.length?`<div class="tablebox"><table class="est" style="min-width:680px"><thead><tr><th>Request</th><th>Item</th><th>Need by</th><th class="num">Requested</th><th class="num">On PO</th><th class="num">Pending</th><th></th></tr></thead><tbody>${L.map(x=>{const late=x.r.need&&x.r.need<t;return`<tr><td><b style="font-family:var(--mono)">${esc(x.r.no)}</b><br><span class="note">${esc(x.r.job||x.r.dept||"")}${x.r.by?" · "+esc(x.r.by):""}</span></td><td>${esc(x.name)}</td><td style="${late?"color:var(--danger);font-weight:600":""}">${dmy(x.r.need)||"-"}${late?" (late)":""}</td><td class="num">${q3(x.qty)} ${esc(x.unit)}</td><td class="num">${x.onPO?q3(x.onPO):"-"}</td><td class="num"><b style="color:var(--danger)">${q3(x.toOrder)}</b></td><td><button class="btn" type="button" data-preq="${esc(x.r.no)}">Open</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">${q?"Nothing matches that search.":"Nothing pending. Every approved request item is on a PO."}</div>`}
   else{const L=Bv.filter(x=>!q||key([x.p.no,x.p.sup,x.name,x.p.reqNo,x.p.ref].join(" ")).includes(q));
     $("#pendNote").textContent="PO items not yet received in full, from requests and direct POs. They leave this list when the store makes the GRN.";
@@ -1551,7 +1632,7 @@ $("#grnForm").addEventListener("click",e=>{
   grn.status="With accounts";grn.createdAt=new Date().toISOString();grns.unshift(grn);saveGRNs();
   const p=saved.find(x=>String(x.no)===String(grn.poNo));
   if(p){if(pendingLines(p).length){p.recv="Partly received"}else{p.recv="Closed";p.closed=true;p.closedAt=grns.filter(g=>String(g.poNo)===String(p.no)).map(g=>g.date).sort().pop();
-    if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r&&reqDone(r)){r.status="Closed";r.closedAt=p.closedAt;saveReqs()}}}
+    poReqs(p).forEach(r=>{if(reqDone(r)){r.status="Closed";r.closedAt=p.closedAt;saveReqs()}})}
     if(!p.firstGrnAt||grn.date<p.firstGrnAt)p.firstGrnAt=grn.date;store.set("saved",saved)}
   toast(p&&p.closed?`GRN ${grn.no} created. PO ${p.no} is fully received and closed.`:`GRN ${grn.no} created (partial). PO stays open for the balance.`);grn=null;renderGRN()});
 
@@ -2127,7 +2208,7 @@ function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").for
 function addDays(iso,n){const t=new Date(iso);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
 function payChip(p){const gs=grns.filter(g=>String(g.poNo)===String(p.no)&&g.status!=="With accounts");if(!gs.length)return"";const bal=gs.reduce((a,g)=>a+grnBal(g),0),tot=gs.reduce((a,g)=>a+grnCalc(g).total,0);
   return" "+(bal<=0.004?`<span class="chip st-PO">Paid</span>`:bal<tot-0.004?`<span class="chip st-Submitted">Part paid</span>`:`<span class="chip st-Draft">Unpaid</span>`)}
-function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully received"){const gs=grns.filter(g=>String(g.poNo)===String(p.no));if(gs.length&&gs.every(g=>g.status==="Paid")){p.closed=true;p.recv="Closed";if(p.reqNo){const r=reqs.find(x=>x.no===p.reqNo);if(r&&reqDone(r)){r.status="Closed";saveReqs()}}}}});store.set("saved",saved)}
+function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully received"){const gs=grns.filter(g=>String(g.poNo)===String(p.no));if(gs.length&&gs.every(g=>g.status==="Paid")){p.closed=true;p.recv="Closed";poReqs(p).forEach(r=>{if(reqDone(r)){r.status="Closed";saveReqs()}})}}});store.set("saved",saved)}
 function dueDate(g){const d=parseInt(g.terms,10);const base=g.invDate||g.date;if(!base||isNaN(d))return"";const t=new Date(base);t.setDate(t.getDate()+d);return t.toISOString().slice(0,10)}
 function acctRow(g){return`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">${esc(g.sup)} · PO ${esc(g.poNo)} · <span class="note">Inv ${esc(g.inv||"-")}${dueDate(g)?" · due "+dmy(dueDate(g)):""}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><button class="btn${g.status==="With accounts"?" primary":""}" data-acct="${g.no}">Open</button></div>`}
 function renderAcct(){
@@ -2221,7 +2302,7 @@ function workItems(){
     add(reqs.filter(r=>r.by===me.name&&["Submitted","Checked","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with your department head or Purchase","req")}
   if(has("req.check")||reqs.some(r=>canCheckReq(r)))add(reqs.filter(r=>canCheckReq(r)).length,"Requests to approve","From your department, then they go to Purchase","req",true);
   if(!REQ_DIRECT&&has("req.approve"))add(reqs.filter(r=>canApproveReq(r)).length,"Requests to approve","Checked, waiting for you as approver","req",true);
-  if(has("po.create")){add(new Set(pendToOrder().map(x=>x.r.no)).size,"Requests to process","New, or with items not on a PO yet","req",true);
+  if(has("po.create")){add(new Set(pendToOrder().map(x=>x.r.no)).size,"Lines to buy","Approved request lines not on a PO yet: open the Buy sheet","buy",true);
     add(saved.filter(p=>p.status==="Sent back").length,"POs sent back","Correct and resend","saved",true);
     add(saved.filter(p=>p.status==="Draft").length,"Draft POs","Not yet sent for approval","saved");
     add(saved.filter(p=>p.status==="Approved"&&!p.sentAt&&!p.closed&&!p.recv).length,"Approved POs to send","Send to the vendor by email or WhatsApp","saved",true);
@@ -2258,7 +2339,7 @@ $("#homeQuick").addEventListener("click",e=>{const b=e.target.closest("[data-go]
 $("#homeCards").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)show(b.dataset.go)});
 function renderBadges(){
   if(!me)return;const W=workItems().filter(w=>w.warn&&typeof w.n==="number");const cnt={};W.forEach(w=>cnt[w.v]=(cnt[w.v]||0)+w.n);
-  ["req","saved","appr","grn","acct"].forEach(v=>{const b=$("#tab-"+v);const old=b.querySelector(".badge");if(old)old.remove();if(cnt[v])b.insertAdjacentHTML("beforeend",`<span class="badge">${cnt[v]}</span>`)});
+  ["req","buy","saved","appr","grn","acct"].forEach(v=>{const b=$("#tab-"+v);const old=b.querySelector(".badge");if(old)old.remove();if(cnt[v])b.insertAdjacentHTML("beforeend",`<span class="badge">${cnt[v]}</span>`)});
   syncGroups(views.find(x=>!$("#view-"+x).hidden));
 }
 
@@ -2392,7 +2473,7 @@ const itId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 /* request lines: item comes from the item master, description is free text */
 const masterHasItems=()=>items.some(i=>i.active!=="No");
 /* PO lines: item from the item master, description free text; desc = both, used by GRN, stock and the printed PO */
-const BADITEM="Not in the item master. Pick an item from the list, or ask the admin to add it in Masters.";
+const BADITEM="Not in the item master. That is fine: the PO uses the description. Pick from the list to link it, or the admin can add it in Masters.";
 /* BOM spec columns on the PO (Size, Material, HRC...): kept per line in l.x, removable per column; l.spec/l.desc keep the full text for GRN and reports */
 const poCols=p=>p&&Array.isArray(p.xcols)?p.xcols:[];
 function poJoin(l){const rest=rqSpec({x:l.x,spec:l.xo},{xcols:poCols(po)});l.spec=[l.pn,rest].map(x=>String(x||"").trim()).filter(Boolean).join(" - ");poSetDesc(l)}
@@ -2434,7 +2515,7 @@ function poRawInput(l,k,v,tr){
 /* raw material: the BOM gives finished sizes, so the purchaser can add the raw (purchase) size */
 const isRawItem=it=>!!it&&/raw/i.test([it.type,it.cat,it.subcat,it.name].join(" "));
 const poRawOn=l=>!!(l.rawOn||String(l.raw||"").trim()||isRawItem(itemByName(l.item||"")));
-const poBad=l=>{if(!masterHasItems())return false;const it=itemByName(l.item||"");return!(it&&it.active!=="No"&&it.name===l.item)};
+const poBad=l=>{if(!masterHasItems()||!String(l.item||"").trim())return false;const it=itemByName(l.item||"");return!(it&&it.active!=="No"&&it.name===l.item)};
 /* extra spec columns of a request (from a BOM: Size, B / ø, Block Vol cm³...) and one line's specs as text */
 const rqCols=r=>r&&Array.isArray(r.xcols)?r.xcols:[];
 const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim();return !v?"":c==="Size"?v:`${c} ${v}`}),l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" · ");
@@ -2452,7 +2533,10 @@ function fillItemList(){
   {const mi=$("#masteritems");if(mi)mi.innerHTML=items.filter(i=>i.active!=="No").map(i=>`<option value="${esc(i.name)}">${esc([i.code,i.kind,i.cat].filter(Boolean).join(" · "))}</option>`).join("")}
   const cats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort();$("#itemcats").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");return cats}
 let itShow=100;
+/* bought on a PO without an item master link: shown so the admin can add them when convenient */
+function boughtNotInMaster(){const seen=new Set(),o=[];saved.forEach(p=>p.lines.forEach(l=>{if(String(l.item||"").trim())return;const n=String(l.pn||String(l.desc||"").split(" - ")[0]||"").trim(),k=key(n);if(!k||seen.has(k)||itemByName(n))return;seen.add(k);o.push(n)}));return o}
 function renderItems(){
+  {const N=boughtNotInMaster(),B=$("#itNew");B.hidden=!N.length;B.innerHTML=N.length?`<b>Bought without an item master entry (${N.length}):</b> ${N.slice(0,40).map(n=>`<button class="linkbtn" type="button" data-itnew="${esc(n)}">${esc(n)}</button>`).join(" · ")}${N.length>40?" …":""}. Click a name to add it below. Nothing is blocked meanwhile.`:""}
   const cats=fillItemList();const sel=$("#it-cat"),cv=sel.value;
   sel.innerHTML=`<option value="">All categories</option>`+cats.map(c=>`<option${c===cv?" selected":""}>${esc(c)}</option>`).join("")+(items.some(i=>!i.cat)?`<option value="\u0000"${cv==="\u0000"?" selected":""}>No category</option>`:"");
   const q=key($("#it-q").value),c=sel.value;
@@ -2461,6 +2545,7 @@ function renderItems(){
   $("#m-items").innerHTML=L.slice(0,itShow).map(([x,i])=>`<tr data-ii="${i}"><td><input id="mi${i}-c" data-if="code" value="${esc(x.code)}" style="font-family:var(--mono);width:100px"></td><td><input id="mi${i}-n" data-if="name" value="${esc(x.name)}" style="min-width:220px"></td><td><input id="mi${i}-t" data-if="type" value="${esc(x.type||"")}" list="itemtypes" style="width:120px"><div class="note">${x.kind==="Service"?"Service":"Item"}</div></td><td><input id="mi${i}-k" data-if="cat" value="${esc(x.cat)}" list="itemcats"></td><td><input id="mi${i}-u" data-if="unit" value="${esc(x.unit)}" style="width:60px"></td><td><input id="mi${i}-h" data-if="hsn" value="${esc(x.hsn)}" style="width:90px"></td><td class="num"><input id="mi${i}-g" data-if="gst" type="number" step="any" value="${x.gst??""}" style="width:60px"></td><td class="num"><input id="mi${i}-r" data-if="rate" type="number" step="any" value="${x.rate??""}" style="width:80px"></td><td class="num"><input id="mi${i}-s" data-if="srate" type="number" step="any" value="${x.srate??""}" style="width:80px"></td><td class="num"><input id="mi${i}-m" data-if="min" type="number" step="any" value="${x.min??""}" style="width:70px"></td><td><select id="mi${i}-a" data-if="active" style="width:auto"><option${x.active!=="No"?" selected":""}>Yes</option><option${x.active==="No"?" selected":""}>No</option></select></td><td><button class="x" data-idel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="12" class="empty">${items.length?"No item matches the search.":"No items yet. Import your product list from Excel, or add items above."}</td></tr>`;
   $("#itMore").innerHTML=L.length>itShow?`Showing ${itShow} of ${L.length}. Search to narrow it down, or <button class="btn" id="btn-it-more" type="button">Show 200 more</button>`:"";
 }
+$("#itNew").addEventListener("click",e=>{const n=e.target.dataset.itnew;if(n==null)return;$("#mi-name").value=n;$("#mi-name").focus()});
 $("#it-q").oninput=()=>{itShow=100;renderItems()};$("#it-cat").onchange=()=>{itShow=100;renderItems()};$("#it-kind").onchange=()=>{itShow=100;renderItems()};
 $("#itMore").addEventListener("click",e=>{if(e.target.id==="btn-it-more"){itShow+=200;renderItems()}});
 $("#m-items").addEventListener("change",e=>{const f=e.target.dataset.if,tr=e.target.closest("tr");if(!f||!tr)return;const x=items[+tr.dataset.ii];let v=e.target.value.trim();
