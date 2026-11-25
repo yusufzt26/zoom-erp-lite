@@ -377,7 +377,7 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-req" class="stack" hidden>
   <div id="reqNone" class="panel empty" hidden></div>
   <div class="panel stack" id="reqForm">
-    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-req-new">New request</button><button class="btn primary" id="btn-q-file" title="Photo, PDF or Excel sheet of the request">Upload</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden></div>
+    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-req-new">New request</button></div>
     <div id="reqExample" class="example" hidden>Example request. Click "New request" to fill in your own.</div>
     <div id="reqBanner" class="banner" hidden></div>
     <div id="reqFlow" class="flowbar" aria-label="Where this request is" hidden></div>
@@ -391,6 +391,7 @@ body.gated header.bar,body.gated main{display:none}
       <label class="f">Plant<select id="q-plant" class="plantsel"></select></label>
     </div>
     <div class="row" id="reqCatRow"><b>What are you purchasing? *</b><span class="dseg" style="flex-wrap:wrap" id="q-cat" role="group" aria-label="What are you purchasing"></span><span class="note" id="q-cat-note">One type per request. Raise a separate request for each type.</span></div>
+    <div class="row"><button class="btn primary" id="btn-q-file" title="Photo, PDF or Excel sheet of the request">Upload</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden></div>
     <div class="attach" id="q-attach"></div>
     <div class="tablebox">
       <table class="est" style="min-width:760px">
