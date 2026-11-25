@@ -1741,16 +1741,16 @@ function acScore(K,c){const C=c.k;if(C===K)return 1000;
   let tw=0;qT.forEach(t=>{let best=0;const tg=acGrams(t);W.forEach(w=>{const wg=acGrams(w);let m=0;tg.forEach(x=>{if(wg.has(x))m++});best=Math.max(best,2*m/(tg.size+wg.size))});tw+=best});tw/=qT.length||1;
   const s=Math.max(d,tw*0.9);return s>=0.38?Math.round(s*600):-1}
 function acDescList(){const c=cur&&cur.cat,pri=c==="BOP"?costing.bop.map(x=>x.type):c==="Tools & cutters"?costing.tool.map(x=>x.type):c==="Consumables"?costing.cons.map(x=>x.name):[];
-  return [...pri,...items.map(i=>i.name),...costing.cons.map(x=>x.name),...costing.bop.map(x=>x.type),...costing.tool.map(x=>x.type),
+  acDescList.pri=new Set(pri.map(key));return [...pri,...items.map(i=>i.name),...costing.cons.map(x=>x.name),...costing.bop.map(x=>x.type),...costing.tool.map(x=>x.type),
     ...reqs.slice(0,400).flatMap(r=>(r.lines||[]).map(rqText)),...saved.slice(0,400).flatMap(p=>(p.lines||[]).map(l=>l.item||String(l.desc||"").split(" - ")[0]))]}
 function acSource(el){const a=el.dataset.ac||"";let L=[];
   if(a.startsWith("list:")){const d=document.getElementById(a.slice(5));L=d?[...d.options].map(o=>o.value||o.textContent):[]}
   else if(a==="desc")L=acDescList();
-  const seen=new Set(),out=[];L.forEach(v=>{v=String(v||"").trim();const k=key(v);if(!k||seen.has(k))return;seen.add(k);out.push({v,k})});return out}
+  const P=a==="desc"&&acDescList.pri||new Set(),seen=new Set(),out=[];L.forEach(v=>{v=String(v||"").trim();const k=key(v);if(!k||seen.has(k))return;seen.add(k);out.push({v,k,p:P.has(k)})});return out}
 function acHide(){if(AC.box)AC.box.hidden=true;AC.hits=[];AC.i=-1}
 function acShow(){const el=AC.el;if(!el||!el.isConnected||el.disabled||el.readOnly){acHide();return}
   const K=key(el.value);if(!K){acHide();return}
-  const H=AC.src.map(c=>[acScore(K,c),c]).filter(([s])=>s>0&&s<1000).sort((a,b)=>b[0]-a[0]).slice(0,8).map(x=>x[1]);
+  const H=AC.src.map(c=>[acScore(K,c),c]).filter(([s])=>s>0&&s<1000).map(([s,c])=>[s+(c.p?150:0),c]).sort((a,b)=>b[0]-a[0]).slice(0,8).map(x=>x[1]);
   if(!H.length){acHide();return}
   if(!AC.box){AC.box=document.createElement("div");AC.box.className="acbox";AC.box.setAttribute("role","listbox");document.body.appendChild(AC.box);
     AC.box.addEventListener("mousedown",e=>{e.preventDefault();const o=e.target.closest("[data-aci]");if(o)acPick(+o.dataset.aci)})}
