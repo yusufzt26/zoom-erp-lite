@@ -390,7 +390,7 @@ body.gated header.bar,body.gated main{display:none}
       <label class="f">Material required by *<input id="q-need" type="date" required></label>
       <label class="f">Plant<select id="q-plant" class="plantsel"></select></label>
     </div>
-    <div class="row" id="reqCatRow"><b>What are you purchasing? *</b><span class="dseg" style="flex-wrap:wrap" id="q-cat" role="group" aria-label="What are you purchasing"></span><span class="note" id="q-cat-note">One type per request. Raise a separate request for each type.</span></div>
+    <div class="row" id="reqCatRow"><label for="q-cat"><b>What are you purchasing? *</b></label><select id="q-cat" style="width:auto;min-width:200px"></select><span class="note" id="q-cat-note">One type per request. Raise a separate request for each type.</span></div>
     <div class="row"><button class="btn primary" id="btn-q-file" title="Photo, PDF or Excel sheet of the request">Upload</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden></div>
     <div class="attach" id="q-attach"></div>
     <div class="tablebox">
@@ -1349,7 +1349,7 @@ function renderReq(){
   $("#reqExample").hidden=!r.example;
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
-  $("#q-cat").innerHTML=REQ_CATS.map(c=>`<button type="button" data-qcat="${esc(c)}" aria-pressed="${r.cat===c}"${locked&&r.cat!==c?" disabled":""}>${esc(c)}</button>`).join("");
+  $("#q-cat").innerHTML=`<option value="">Choose type</option>`+REQ_CATS.map(c=>`<option${r.cat===c?" selected":""}>${esc(c)}</option>`).join("");$("#q-cat").disabled=locked;
   $("#q-cat-note").textContent=locked?(r.cat?"":"Type not set: goes to Consumables on the Buy sheet."):r.cat?"One type per request. Raise a separate request for each type.":"Choose one type first. Raise a separate request for each type.";
   const xc=rqShow(r),cc=catCols(r);
   $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(rqColLabel(r,c))}${locked||cc.includes(c)?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
@@ -1443,9 +1443,9 @@ function startEst(r,onlyPending){
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 }
 $("#btn-q-estimate").onclick=()=>openBuy(cur);
-$("#q-cat").addEventListener("click",e=>{const b=e.target.closest("[data-qcat]");if(!b||b.disabled||!cur)return;const c=b.dataset.qcat;if(cur.cat===c)return;
+$("#q-cat").addEventListener("change",e=>{const c=e.target.value;if(!cur||!c||cur.cat===c)return;
   const locked=!["Draft","Sent back"].includes(cur.status);if(locked)return;reqSetCat(cur,c);cur.example=false;if(cur.status!=="Draft")saveReqs();renderReq()});
-const needCat=()=>{if(cur&&cur.cat)return true;toast("First choose what you are purchasing: one type per request");const b=$("#q-cat button");if(b)b.focus();return false};
+const needCat=()=>{if(cur&&cur.cat)return true;toast("First choose what you are purchasing: one type per request");$("#q-cat").focus();return false};
 $("#btn-q-file").onclick=()=>{if(needCat())$("#q-file").click()};
 $("#q-file").onchange=async e=>{
   const files=[...e.target.files];e.target.value="";if(!files.length)return;const L=attList(cur.attach);let added=0,filled=0;
