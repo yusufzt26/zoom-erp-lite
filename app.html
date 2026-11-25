@@ -171,6 +171,8 @@ h2.dsec{margin-top:10px}
 .flow b{display:block;font-family:var(--mono);font-size:20px}
 .flow span{font-size:12px;color:var(--muted)}
 nav .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.acbox{position:fixed;z-index:999;max-height:280px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.15);padding:3px 0;font-size:14px}.acbox[hidden]{display:none}
+.acopt{padding:6px 10px;cursor:pointer;white-space:nowrap}.acopt:hover,.acopt[aria-selected="true"]{background:color-mix(in srgb,var(--accent) 14%,transparent)}.acopt b{color:var(--accent)}
 .cattype{display:inline-block;padding:0 6px;border-radius:4px;border:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--muted);margin-right:2px}
 .masters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px;align-items:start}
 .masters .panel{min-width:0}
@@ -1341,10 +1343,10 @@ function renderReq(){
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   $("#q-cat").innerHTML=`<option value="">Choose type</option>`+REQ_CATS.map(c=>`<option${r.cat===c?" selected":""}>${esc(c)}</option>`).join("");$("#q-cat").disabled=locked;
   $("#q-cat-note").textContent=locked?(r.cat?"":"Type not set: goes to Others on the Buy sheet."):r.cat?"One type per request. Raise a separate request for each type.":"Choose one type first. Raise a separate request for each type.";
-  const xc=rqShow(r),cc=catCols(r);
+  fillGradeList();const xc=rqShow(r),cc=catCols(r);
   $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(rqColLabel(r,c))}${locked||cc.includes(c)?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="${esc(CATPH[r.cat]||"Description, any text")}"${xc.length?' style="min-width:200px"':""}></td>
+    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" data-ac="desc" autocomplete="off" placeholder="${esc(CATPH[r.cat]||"Description, any text")}"${xc.length?' style="min-width:200px"':""}></td>
     ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(rqColLabel(r,c))}" placeholder="${c==="Size"&&["Raw material","Child parts"].includes(r.cat)?"L x W x T or Ø D x L":c==="Grade"?"P20, EN8...":""}"${c==="Grade"?' list="gradeList"':""} style="min-width:${c==="Size"?130:80}px"></td>`).join("")}
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
@@ -1559,7 +1561,7 @@ function renderCost(){
     ${ed?`<form class="row" id="tplNew"><input id="tpl-name" placeholder="New template name, e.g. Slider" style="max-width:280px"><button class="btn" type="submit">Add template</button></form>`:""}`;return}
   const D=COST_LISTS[costTab],L=costing[costTab],old=L.filter(costStale).length;
   B.innerHTML=`<div class="row">${ed?`<button class="btn" type="button" data-cadd>Add row</button>`:""}<button class="btn" type="button" data-cxout>Download to Excel</button>${ed?`<button class="btn" type="button" data-cxin>Import updated Excel</button><input type="file" id="cost-file" accept=".xlsx,.xls,.csv" hidden>`:""}<span style="flex:1"></span>${L.length?(old?`<span class="chip st-Back">${old} not updated in ${STALE_DAYS} days</span>`:`<span class="chip st-Approved">All updated in the last ${STALE_DAYS} days</span>`):""}</div>
-  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr>${D.cols.map(c=>`<th${c[2]==="n"?' class="num"':""}>${esc(c[0])}</th>`).join("")}<th>Updated</th><th></th></tr></thead><tbody>${L.map((x,i)=>`<tr data-ci="${i}">${D.cols.map(([h,f,ty])=>`<td${ty==="n"?' class="num"':""}><input data-cf="${f}"${ty==="n"?' type="number" step="any" min="0" style="width:100px"':ty==="s"?' list="suppliers" style="min-width:170px"':' style="min-width:110px"'} value="${esc(x[f])}" aria-label="${esc(h)}"${ed?"":" disabled"}></td>`).join("")}<td class="note" style="white-space:nowrap">${x.upd?dmy(x.upd):"Not set"}${costStale(x)?` <span class="chip st-Back">old</span>`:""}${x.by?`<br>${esc(x.by)}`:""}</td><td>${ed?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove row">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="${D.cols.length+2}" class="empty">Nothing here yet. Add rows, or import an Excel sheet with these column headings.</td></tr>`}</tbody></table></div>
+  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr>${D.cols.map(c=>`<th${c[2]==="n"?' class="num"':""}>${esc(c[0])}</th>`).join("")}<th>Updated</th><th></th></tr></thead><tbody>${L.map((x,i)=>`<tr data-ci="${i}">${D.cols.map(([h,f,ty])=>`<td${ty==="n"?' class="num"':""}><input data-cf="${f}"${ty==="n"?' type="number" step="any" min="0" style="width:100px"':ty==="s"?' list="suppliers" style="min-width:170px"':f==="type"||f==="name"?' data-ac="desc" autocomplete="off" style="min-width:110px"':f==="g"?' list="gradeList" style="min-width:110px"':' style="min-width:110px"'} value="${esc(x[f])}" aria-label="${esc(h)}"${ed?"":" disabled"}></td>`).join("")}<td class="note" style="white-space:nowrap">${x.upd?dmy(x.upd):"Not set"}${costStale(x)?` <span class="chip st-Back">old</span>`:""}${x.by?`<br>${esc(x.by)}`:""}</td><td>${ed?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove row">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="${D.cols.length+2}" class="empty">Nothing here yet. Add rows, or import an Excel sheet with these column headings.</td></tr>`}</tbody></table></div>
   <div class="note">A changed rate applies from ${esc("PO "+nextPONo())} onwards. POs already made or approved keep their own rates.</div>`;
   const fi=$("#cost-file");if(fi)fi.onchange=costImport}
 $("#costTabs").addEventListener("click",e=>{const b=e.target.closest("[data-ctab]");if(b){costTab=b.dataset.ctab;renderCost()}});
@@ -1633,7 +1635,7 @@ function openBuy(r){buyQ=r?String(r.no):"";if(r)buyTab=buyCat(r);show("buy")}
 const bMatch=(b,q)=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.c.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q);
 const autoSt=on=>on?"background:color-mix(in srgb,#ffe600 28%,transparent)":"";
 function renderBuy(){
-  if(!$("#view-buy"))return;$("#buy-q").value=buyQ;$("#gradeList").innerHTML=costing.grades.map(g=>`<option value="${esc(g.g)}">`).join("");
+  if(!$("#view-buy"))return;$("#buy-q").value=buyQ;fillGradeList();
   const all=buyRows(),q=key(buyQ);if(!BUY_TABS.includes(buyTab))buyTab=(BUY_TABS.find(t=>all.some(b=>b.cat===t))||BUY_TABS[0]);
   $("#buyTabs").innerHTML=BUY_TABS.map((t,i)=>{const n=all.filter(b=>b.cat===t).length;return`<button type="button" data-btab="${esc(t)}" aria-pressed="${t===buyTab}">${i+1}. ${esc(t)}${n?` (${n})`:""}</button>`}).join("");
   const L=all.filter(b=>b.cat===buyTab&&bMatch(b,q)),reqN=new Set(all.map(b=>b.x.r.no)).size;
@@ -1711,6 +1713,57 @@ $("#btn-buy-make").onclick=()=>{
   toast(`${made.length} PO${made.length>1?"s":""} made and sent for approval`);renderBuy();renderBadges()};
 $("#buyDone").addEventListener("click",e=>{const n=e.target.dataset.bpo;if(n==null)return;const s=saved.find(x=>String(x.no)===String(n));if(s){po=JSON.parse(JSON.stringify(s));store.set("po",po);show("po")}});
 
+
+/* ---------- type-ahead: from the first letter, the nearest matches from the lists (close spellings included) ----------
+   Works on every box tied to a list (suppliers, grades, items, projects, customers...) and on description boxes (data-ac="desc").
+   Up/Down pick, Enter or a click takes it, Esc closes. */
+const AC={el:null,src:[],box:null,hits:[],i:-1};
+function acGrams(s){s=" "+s+" ";const g=new Set();for(let i=0;i<s.length-2;i++)g.add(s.slice(i,i+3));return g}
+function acScore(K,c){const C=c.k;if(C===K)return 1000;
+  if(C.startsWith(K))return 900-Math.min(C.length,99);
+  const W=C.split(" ");if(W.some(w=>w.startsWith(K)))return 800-Math.min(C.length,99);
+  if(K.length>1&&C.includes(K))return 700-Math.min(C.length,99);
+  const qT=K.split(" ").filter(Boolean);
+  if(qT.length>1&&qT.every(t=>W.some(w=>w.startsWith(t))))return 650-Math.min(C.length,99);
+  if(K.length<3)return -1;
+  const A=acGrams(K),B=c.g||(c.g=acGrams(C));let n=0;A.forEach(x=>{if(B.has(x))n++});const d=2*n/(A.size+B.size);
+  /* word by word: each typed word close to some word of the entry (ejecter ~ ejector) */
+  let tw=0;qT.forEach(t=>{let best=0;const tg=acGrams(t);W.forEach(w=>{const wg=acGrams(w);let m=0;tg.forEach(x=>{if(wg.has(x))m++});best=Math.max(best,2*m/(tg.size+wg.size))});tw+=best});tw/=qT.length||1;
+  const s=Math.max(d,tw*0.9);return s>=0.38?Math.round(s*600):-1}
+function acDescList(){const c=cur&&cur.cat,pri=c==="BOP"?costing.bop.map(x=>x.type):c==="Tools & cutters"?costing.tool.map(x=>x.type):c==="Consumables"?costing.cons.map(x=>x.name):[];
+  return [...pri,...items.map(i=>i.name),...costing.cons.map(x=>x.name),...costing.bop.map(x=>x.type),...costing.tool.map(x=>x.type),
+    ...reqs.slice(0,400).flatMap(r=>(r.lines||[]).map(rqText)),...saved.slice(0,400).flatMap(p=>(p.lines||[]).map(l=>l.item||String(l.desc||"").split(" - ")[0]))]}
+function acSource(el){const a=el.dataset.ac||"";let L=[];
+  if(a.startsWith("list:")){const d=document.getElementById(a.slice(5));L=d?[...d.options].map(o=>o.value||o.textContent):[]}
+  else if(a==="desc")L=acDescList();
+  const seen=new Set(),out=[];L.forEach(v=>{v=String(v||"").trim();const k=key(v);if(!k||seen.has(k))return;seen.add(k);out.push({v,k})});return out}
+function acHide(){if(AC.box)AC.box.hidden=true;AC.hits=[];AC.i=-1}
+function acShow(){const el=AC.el;if(!el||!el.isConnected||el.disabled||el.readOnly){acHide();return}
+  const K=key(el.value);if(!K){acHide();return}
+  const H=AC.src.map(c=>[acScore(K,c),c]).filter(([s])=>s>0&&s<1000).sort((a,b)=>b[0]-a[0]).slice(0,8).map(x=>x[1]);
+  if(!H.length){acHide();return}
+  if(!AC.box){AC.box=document.createElement("div");AC.box.className="acbox";AC.box.setAttribute("role","listbox");document.body.appendChild(AC.box);
+    AC.box.addEventListener("mousedown",e=>{e.preventDefault();const o=e.target.closest("[data-aci]");if(o)acPick(+o.dataset.aci)})}
+  AC.hits=H;AC.i=-1;const qs=String(el.value).trim().split(/\s+/).filter(Boolean).map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+  const re=qs.length?new RegExp("("+qs.join("|")+")","ig"):null;
+  AC.box.innerHTML=H.map((c,i)=>`<div class="acopt" role="option" data-aci="${i}">${re?esc(c.v).replace(re,"<b>$1</b>"):esc(c.v)}</div>`).join("");
+  const r=el.getBoundingClientRect();AC.box.style.left=Math.max(4,Math.min(r.left,innerWidth-260))+"px";AC.box.style.top=(r.bottom+2)+"px";AC.box.style.minWidth=Math.max(r.width,220)+"px";AC.box.hidden=false}
+function acPick(i){const c=AC.hits[i],el=AC.el;if(!c||!el)return;el.value=c.v;acHide();el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}
+function acMark(){if(!AC.box)return;AC.box.querySelectorAll(".acopt").forEach((o,i)=>o.setAttribute("aria-selected",i===AC.i?"true":"false"));const o=AC.box.querySelector('[aria-selected="true"]');if(o)o.scrollIntoView({block:"nearest"})}
+document.addEventListener("focusin",e=>{const el=e.target;if(!(el instanceof HTMLInputElement))return;
+  if(el.hasAttribute("list")){el.dataset.ac="list:"+el.getAttribute("list");el.removeAttribute("list");el.setAttribute("autocomplete","off")}
+  if(!el.dataset.ac){AC.el=null;acHide();return}
+  AC.el=el;AC.src=acSource(el);acHide()});
+document.addEventListener("input",e=>{if(e.target===AC.el&&e.isTrusted!==false)acShow()});
+document.addEventListener("focusout",e=>{if(e.target===AC.el)setTimeout(()=>{if(document.activeElement!==AC.el)acHide()},0)});
+document.addEventListener("keydown",e=>{if(!AC.box||AC.box.hidden||e.target!==AC.el)return;const n=AC.hits.length;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){AC.i=e.key==="ArrowDown"?(AC.i+1)%n:(AC.i<=0?n-1:AC.i-1);acMark();e.preventDefault();e.stopImmediatePropagation();return}
+  if(e.key==="Enter"&&AC.i>=0){acPick(AC.i);e.preventDefault();e.stopImmediatePropagation();return}
+  if(e.key==="Escape"){acHide();e.preventDefault();e.stopImmediatePropagation()}},true);
+document.addEventListener("change",e=>{if(e.target===AC.el)acHide()},true);
+document.addEventListener("mousedown",e=>{if(AC.box&&!AC.box.hidden&&e.target!==AC.el&&!AC.box.contains(e.target))acHide()},true);
+window.addEventListener("scroll",()=>{if(AC.box&&!AC.box.hidden)acShow()},true);window.addEventListener("resize",acHide);
+function fillGradeList(){const d=$("#gradeList");if(d)d.innerHTML=costing.grades.map(g=>`<option value="${esc(g.g)}">`).join("")}
 
 /* home: everything still pending, for the purchaser */
 let pendTab="order";
