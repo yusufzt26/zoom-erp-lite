@@ -1975,7 +1975,7 @@ function docPO(p){
   return `${p.status!=="Approved"?`<div class="draftmark">${p.status==="Pending approval"?"PENDING APPROVAL":"DRAFT"} · NOT VALID UNTIL APPROVED</div>`:""}`+docHead("PURCHASE ORDER")+
   `<div class="two"><div><b>${esc(p.sup)}</b><br>${esc(p.supAddr||"").replace(/\n/g,"<br>")}</div><div class="kv"><b>P.O. No.</b><span>${esc(p.no)} &nbsp; <b>Date</b> ${dmy(p.date)}</span><b>Delivery</b><span>${esc(p.deliv)}</span><b>Pay. Terms</b><span>${esc(p.terms)}</span><b>Validity</b><span>${esc(p.validity)}</span></div></div>
   <div class="two" style="border-top:none"><div class="kv"><b>Ref. No.</b><span>${esc(p.ref)} &nbsp; <b>Dt.</b> ${dmy(p.refDate)}</span><b>Ven. Code</b><span>${esc(p.venCode)}</span></div><div class="kv"><b>Kind Attn.</b><span>${esc(p.attn)}</span><b>Transport</b><span>${esc(p.transport)}</span><b>Delivery by</b><span>${dmy(p.needBy)}</span></div></div>
-  <table><thead><tr><th>Sn</th><th>Description</th>${poCols(p).map(c=>`<th>${esc(c)}</th>`).join("")}<th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(poCols(p).length&&l.x?[l.item,l.pn,l.xo].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+((String(l.desc||"").match(/ · (Finished size|Raw size|Grade|Total wt): .*$/)||[""])[0]):l.desc)}</td>${poCols(p).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
+  <table><thead><tr><th>Sn</th><th>Description</th>${poCols(p).map(c=>`<th>${esc(c)}</th>`).join("")}<th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(poCols(p).length&&l.x?[l.item,l.pn,l.xo].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+((String(l.desc||"").match(/ · (Finished size|Finished|Raw size|Raw|Grade|Total wt|Pcs): .*$/)||[""])[0]):String(l.desc||"").replace(/ · Total wt: [^·]*/,""))}</td>${poCols(p).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
   <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(c.sub)}</td></tr>${tax}<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr></tbody></table>
   <p style="margin:4px 0"><b>Amount In Words :</b> Rupees ${words(c.total)} Only.</p>
   <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
@@ -2686,10 +2686,10 @@ const BADITEM="Not in the item master. That is fine: the PO uses the description
 /* BOM spec columns on the PO (Size, Material, HRC...): kept per line in l.x, removable per column; l.spec/l.desc keep the full text for GRN and reports */
 const poCols=p=>p&&Array.isArray(p.xcols)?p.xcols:[];
 function poJoin(l){const rest=rqSpec({x:l.x,spec:l.xo},{xcols:poCols(po)});l.spec=[l.pn,rest].map(x=>String(x||"").trim()).filter(Boolean).join(" - ");poSetDesc(l)}
-const poDesc=(l,v)=>{if(poCols(po).length&&l.x){if(v===undefined)return[l.pn,l.xo].filter(Boolean).join(" - ");l.pn="";l.xo=v;poJoin(l);return}if(v===undefined)return l.item?[l.item,l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" - "):String(l.desc||"").replace(/ · (Finished size|Raw size|Grade|Total wt): .*$/,"");
+const poDesc=(l,v)=>{if(poCols(po).length&&l.x){if(v===undefined)return[l.pn,l.xo].filter(Boolean).join(" - ");l.pn="";l.xo=v;poJoin(l);return}if(v===undefined)return l.item?[l.item,l.spec].map(x=>String(x||"").trim()).filter(Boolean).join(" - "):String(l.desc||"").replace(/ · (Finished size|Finished|Raw size|Raw|Grade|Total wt|Pcs): .*$/,"");
   /* no item column on the PO: the description box holds "item - spec"; keep the master item only while the text still starts with it */
   const it=String(l.item||"").trim();if(it&&(v===it||v.startsWith(it+" - ")))l.spec=v.slice(it.length).replace(/^ - /,"");else{l.item="";l.spec=v}poSetDesc(l)};
-function poSetDesc(l){const t=x=>String(x||"").trim(),raw=poRawOn(l);l.desc=[l.item,l.spec].map(t).filter(Boolean).join(" - ")+(raw&&t(l.fin)?" · Finished size: "+t(l.fin):"")+(t(l.raw)?" · Raw size: "+t(l.raw):"")+(raw&&t(poGrade(l))?" · Grade: "+t(poGrade(l)):"")+(raw&&l.wt?" · Total wt: "+fmtKg(l.wt)+" kg":"")}
+function poSetDesc(l){const t=x=>String(x||"").trim(),raw=poRawOn(l);l.desc=[l.item,l.spec].map(t).filter(Boolean).join(" - ")+(raw&&t(l.fin)?" · Finished: "+t(l.fin):"")+(t(l.raw)?" · Raw: "+t(l.raw):"")+(raw&&t(poGrade(l))?" · Grade: "+t(poGrade(l)):"")+(raw&&poKgUnit(l)&&+l.pcs>0?" · Pcs: "+(+l.pcs):"")}
 /* raw material sizes and weight. Sizes in mm: plate/block "L x W x T", round bar "Ø D x L".
    Raw size = finished size + RAW_ALLOW mm on every dimension (purchaser can overwrite it). */
 const RAW_ALLOW=7;
@@ -2710,14 +2710,13 @@ function poRawCalc(l,setQty){const n=szNums(l.raw),rd=szRound(l.raw)&&n.length>=
 function poWtText(l){if(!String(l.raw||"").trim())return`<span class="note">Enter the finished size</span>`;
   if(!l.wpc)return`<span class="note">Size as L x W x T or Ø D x L (mm) to get the weight</span>`;const dn=poDensity(l),pcs=poKgUnit(l)?(+l.pcs||1):(+l.qty||0);
   return`${fmtKg(l.wpc)} kg/pc × ${pcs} = <b>${fmtKg(l.wt)} kg</b> <span class="note">(${dn.d} g/cc${dn.known?"":", steel assumed"})</span>`}
-function poRawBox(l,i){poRawCalc(l);const lab='style="font-size:11px;white-space:nowrap"';
-  return`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 6px;align-items:center;margin-top:3px">
-  <b ${lab}>Finished size</b><input id="pl${i}-fin" data-lk="fin" value="${esc(l.fin||"")}" placeholder="e.g. 553 x 403 x 78 or Ø50 x 200" style="width:100%">
-  <b ${lab}>Raw size</b><input id="pl${i}-raw" data-lk="raw" value="${esc(l.raw||"")}" placeholder="finished + ${RAW_ALLOW} mm" style="width:100%">
-  <b ${lab}>Grade</b><input id="pl${i}-grade" data-lk="grade" value="${esc(poGrade(l))}" placeholder="e.g. P20, EN8, Aluminium" style="width:100%">
-  ${poKgUnit(l)?`<b ${lab}>Pieces</b><input id="pl${i}-pcs" data-lk="pcs" type="number" min="1" step="1" value="${+l.pcs||1}" style="width:60px">`:""}
-  <b ${lab}>Total wt</b><span data-wt style="font-size:11.5px">${poWtText(l)}</span></div>`}
-function poRawShow(l,tr){const w=tr.querySelector("[data-wt]");if(w)w.innerHTML=poWtText(l);const q=tr.querySelector("[data-lk=qty]");if(q&&poKgUnit(l))q.value=l.qty;tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}
+function poRawBox(l,i){poRawCalc(l);const lab='style="font-size:10.5px;color:#5d6b74;white-space:nowrap"',w='style="width:100%;min-width:0;padding:0 3px"';
+  return`<div class="rawbox" style="display:grid;grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr);gap:0 5px;align-items:center;margin-top:1px;line-height:1.2">
+  <span ${lab}>Fin</span><input id="pl${i}-fin" data-lk="fin" value="${esc(l.fin||"")}" placeholder="553 x 403 x 78" ${w}>
+  <span ${lab}>Raw</span><input id="pl${i}-raw" data-lk="raw" value="${esc(l.raw||"")}" placeholder="finished + ${RAW_ALLOW}" ${w}>
+  <span ${lab}>Grade</span><input id="pl${i}-grade" data-lk="grade" list="gradeList" value="${esc(poGrade(l))}" placeholder="P20" ${w}>
+  ${poKgUnit(l)?`<span ${lab}>Pcs</span><input id="pl${i}-pcs" data-lk="pcs" type="number" min="1" step="1" value="${+l.pcs||1}" ${w}>`:""}</div>`}
+function poRawShow(l,tr){const q=tr.querySelector("[data-lk=qty]");if(q&&poKgUnit(l))q.value=l.qty;tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}
 function poRawInput(l,k,v,tr){
   if(k==="fin"){l.fin=v;const auto=l.rawAuto!==false||!String(l.raw||"").trim();if(auto){l.raw=rawFromFin(v);l.rawAuto=true;const r=tr.querySelector("[data-lk=raw]");if(r)r.value=l.raw}}
   else if(k==="raw"){l.raw=v;l.rawAuto=!String(v).trim()}
