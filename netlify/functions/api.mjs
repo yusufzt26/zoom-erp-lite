@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 import Anthropic from "@anthropic-ai/sdk";
 import { gstCall, gstStatus } from "../gst/gsp.mjs";
 
-const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins"]);
+const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "costing", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins"]);
 const SESSION_DAYS = 30;
 let db;
 const q = async (text, params = []) => {

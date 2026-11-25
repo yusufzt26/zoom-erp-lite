@@ -181,6 +181,7 @@ h2.dsec{margin-top:10px}
 .flow b{display:block;font-family:var(--mono);font-size:20px}
 .flow span{font-size:12px;color:var(--muted)}
 nav .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.cattype{display:inline-block;padding:0 6px;border-radius:4px;border:1px solid var(--line);font-size:11.5px;font-weight:600;color:var(--muted);margin-right:2px}
 .masters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:16px;align-items:start}
 .masters .panel{min-width:0}
 .rgroup{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px}
@@ -336,6 +337,7 @@ body.gated header.bar,body.gated main{display:none}
     <button id="tab-po" data-view="po"><span class="step">3</span>Purchase order</button>
     <button id="tab-saved" data-view="saved">PO list</button>
     <button id="tab-est" data-view="est">Pre-estimate</button>
+    <button id="tab-rmast" data-view="rmast">Rates &amp; costing</button>
     <button id="tab-rates" data-view="rates">Rate list</button>
 </nav>
 <nav class="subnav" id="subnav-sal" aria-label="Sales department" hidden><span class="subnav-t">Sales department</span>
@@ -375,10 +377,10 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-req" class="stack" hidden>
   <div id="reqNone" class="panel empty" hidden></div>
   <div class="panel stack" id="reqForm">
-    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-req-new">New request</button></div>
+    <div class="row"><h2 class="sec" id="reqTitle">New purchase request</h2><span id="reqStatus"></span><span style="flex:1"></span><button class="btn" id="btn-req-new">New request</button><button class="btn primary" id="btn-q-file" title="Photo, PDF or Excel sheet of the request">Upload</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden></div>
     <div id="reqExample" class="example" hidden>Example request. Click "New request" to fill in your own.</div>
     <div id="reqBanner" class="banner" hidden></div>
-    <div id="reqFlow" class="flowbar" aria-label="Where this request is"></div>
+    <div id="reqFlow" class="flowbar" aria-label="Where this request is" hidden></div>
     <div class="grid-fields">
       <label class="f">Request No.<input id="q-no"></label>
       <label class="f">Date<input id="q-date" type="date"></label>
@@ -388,18 +390,15 @@ body.gated header.bar,body.gated main{display:none}
       <label class="f">Material required by *<input id="q-need" type="date" required></label>
       <label class="f">Plant<select id="q-plant" class="plantsel"></select></label>
     </div>
-    <div class="stack" style="gap:8px">
-      <div class="row"><b>Attach the request</b><span class="note">Photo or PDF of the requisition slip, or the BOM Excel sheet. Files are kept with the request for the purchaser. Type or paste only the lines you need below; nothing has to match the item master.</span></div>
-      <div class="row"><button class="btn" id="btn-q-file">Upload photos (JPG), PDF or Excel</button><input type="file" id="q-file" accept="image/*,.jpg,.jpeg,.png,.pdf,.xlsx,.xls" multiple hidden><button class="btn" id="btn-q-cam">Take photo</button><input type="file" id="q-cam" accept="image/*" capture="environment" hidden><span class="note">You can attach several photos to one request.</span></div>
-      <div class="attach" id="q-attach"></div>
-    </div>
+    <div class="row" id="reqCatRow"><b>What are you purchasing? *</b><span class="dseg" style="flex-wrap:wrap" id="q-cat" role="group" aria-label="What are you purchasing"></span><span class="note" id="q-cat-note">One type per request. Raise a separate request for each type.</span></div>
+    <div class="attach" id="q-attach"></div>
     <div class="tablebox">
       <table class="est" style="min-width:760px">
         <thead id="reqHead"><tr><th style="width:34px">Sr</th><th>Description</th><th>Specification</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr></thead>
         <tbody id="reqBody"></tbody>
       </table>
     </div>
-    <div class="note xlhint">Works like Excel: paste rows or columns copied from Excel into any cell. Arrows, Tab and Enter move between cells (Enter on the last row adds a line). Shift+arrows, drag, or click a column heading to select; Ctrl+C copies, Ctrl+V pastes, Delete clears. Double-click or F2 to edit inside a cell.</div>
+    <div class="note xlhint" hidden>Works like Excel: paste rows or columns copied from Excel into any cell. Arrows, Tab and Enter move between cells (Enter on the last row adds a line). Shift+arrows, drag, or click a column heading to select; Ctrl+C copies, Ctrl+V pastes, Delete clears. Double-click or F2 to edit inside a cell.</div>
     <div class="row"><button class="btn" id="btn-q-line">Add line</button><button class="btn" id="btn-q-clear" title="Remove every line and spec column from this request">Clear all</button><span style="flex:1"></span>
       <button class="btn primary" id="btn-q-submit">Submit request</button>
       <input id="q-comment" placeholder="Comment (needed to send back)" style="flex:1 1 220px;max-width:340px" hidden>
@@ -493,16 +492,28 @@ body.gated header.bar,body.gated main{display:none}
   <div class="paperbox"><div class="paper" id="paper"></div></div>
 </section>
 
-<!-- BUY SHEET: every approved request line not yet on a PO; one PO per supplier -->
+<!-- BUY SHEET: approved request lines not yet on a PO, one tab per purchase type; one PO per supplier -->
 <section id="view-buy" class="stack" hidden>
   <div class="panel stack">
     <div class="row"><h2 class="sec">Buy sheet</h2><span class="note" id="buy-n"></span><span style="flex:1"></span><input id="buy-q" placeholder="Search request, job, item or supplier" style="max-width:300px"></div>
-    <div class="note">Every approved request line that is not on a PO yet, from all requests. Supplier and rate are filled in from the last PO for the same item (grey); change any of them. Tick what to buy now and press <b>Make POs</b>: one PO is made for each supplier and sent for approval. Lines do not need to be in the item master.</div>
+    <div class="dseg" style="flex-wrap:wrap;align-self:flex-start" id="buyTabs" role="group" aria-label="Purchase type"></div>
     <div id="buyDone" class="banner" hidden></div>
-    <div class="tablebox"><table class="est" style="min-width:980px"><thead><tr><th style="width:30px"><input type="checkbox" id="buy-all" aria-label="Tick all lines" title="Tick all lines"></th><th>Request</th><th>Description</th><th class="num" style="width:90px">Qty to order</th><th style="width:60px">Unit</th><th style="min-width:180px">Supplier</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:110px">Amount</th></tr></thead><tbody id="buyBody"></tbody></table></div>
+    <div class="row"><label style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="buy-all" style="width:auto;margin:0"> Tick all lines in this tab</label></div>
+    <div class="tablebox"><table class="est" style="min-width:980px"><thead id="buyHead"></thead><tbody id="buyBody"></tbody></table></div>
+    <div class="note" id="buyNote"></div>
     <div class="row"><b id="buy-tot"></b><span style="flex:1"></span><span class="note" id="buy-msg"></span><button class="btn primary" id="btn-buy-make">Make POs</button></div>
   </div>
 </section>
+
+<!-- RATES & COSTING: purchaser's master of rates, price lists and calculation sheets -->
+<section id="view-rmast" class="stack" hidden>
+  <div class="panel stack">
+    <div class="row"><h2 class="sec">Rates &amp; costing</h2><span class="note">Used by the Buy sheet to work out raw sizes, weights, estimates and prices. Keep it up to date; a change applies from the next PO number.</span></div>
+    <div class="dseg" style="flex-wrap:wrap;align-self:flex-start" id="costTabs" role="group" aria-label="Rate lists"></div>
+    <div id="costBody" class="stack"></div>
+  </div>
+</section>
+<datalist id="gradeList"></datalist>
 
 <!-- SAVED -->
 <section id="view-saved" class="panel stack" hidden>
@@ -710,7 +721,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},jwins:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},costing:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -753,7 +764,7 @@ async function cloudRenumber(list){
 function cloudApply(r){const k=r.coll,S=SYNC[k];if(!S)return false;const kk=k+"\u0001"+r.id;if(cloud.pending.has(kk))return false;
   const sh=cloud.shadow[k]||(cloud.shadow[k]={});const s=r.deleted?undefined:JSON.stringify(r.data);if(sh[r.id]===s)return false;
   if(r.deleted)delete sh[r.id];else sh[r.id]=s;
-  if(S.doc){if(r.deleted)return false;const m=cloud.cache[k];if(m&&k==="masters"){Object.keys(m).forEach(x=>delete m[x]);Object.assign(m,r.data);migRoles(m)}else cloud.cache[k]=r.data;return true}
+  if(S.doc){if(r.deleted)return false;const m=cloud.cache[k];if(m&&k==="masters"){Object.keys(m).forEach(x=>delete m[x]);Object.assign(m,r.data);migRoles(m)}else if(k==="costing"&&typeof costing!=="undefined"){Object.keys(costing).forEach(x=>delete costing[x]);Object.assign(costing,r.data);costFix();cloud.cache[k]=costing}else cloud.cache[k]=r.data;return true}
   if(S.map){const o=cloud.get(k);if(r.deleted)delete o[r.id];else o[r.id]=r.data;return true}
   const a=cloud.get(k),i=a.findIndex(x=>x&&S.id(x)===r.id);
   if(r.deleted){if(i>=0)a.splice(i,1);return true}
@@ -836,7 +847,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","mast","users"];
+const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
@@ -867,17 +878,17 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||v==="dash"||(v==="buy"?has("po.create"):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);window.scrollTo(0,0)}
-const GROUPS={pur:["buy","po","saved","est","rates"],sal:["sales","so","dc","inv","cn"]};
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);window.scrollTo(0,0)}
+const GROUPS={pur:["buy","po","saved","est","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
 function setHdrCur(v){const el=$("#hdrCur"),b=$("#tab-"+v);if(el)el.textContent=b?[...b.childNodes].filter(n=>!(n.classList&&(n.classList.contains("step")||n.classList.contains("badge")))).map(n=>n.textContent).join("").trim():""}
 const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
-  ["Purchase",[["req","📝","Purchase request"],["buy","🧾","Buy sheet"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["est","🧮","Pre-estimate"],["rates","🏷️","Rate list"],["appr","✅","PO approvals"]]],
+  ["Purchase",[["req","📝","Purchase request"],["buy","🧾","Buy sheet"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["est","🧮","Pre-estimate"],["rmast","📐","Rates & costing"],["rates","🏷️","Rate list"],["appr","✅","PO approvals"]]],
   ["Store & production",[["grn","📦","Store / GRN"],["stock","🗃️","Stock & issue"],["prod","⚙️","Production"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Tax invoices"],["cn","↩️","Credit notes"]]],
   ["Accounts & reports",[["acct","💰","Accounts"],["rep","📈","Reports"]]],
@@ -1337,18 +1348,20 @@ function renderReq(){
   $("#reqExample").hidden=!r.example;
   fillReqSelects();
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
-  const xc=rqShow(r);
-  $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(c)}${locked?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
+  $("#q-cat").innerHTML=REQ_CATS.map(c=>`<button type="button" data-qcat="${esc(c)}" aria-pressed="${r.cat===c}"${locked&&r.cat!==c?" disabled":""}>${esc(c)}</button>`).join("");
+  $("#q-cat-note").textContent=locked?(r.cat?"":"Type not set: goes to Consumables on the Buy sheet."):r.cat?"One type per request. Raise a separate request for each type.":"Choose one type first. Raise a separate request for each type.";
+  const xc=rqShow(r),cc=catCols(r);
+  $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(rqColLabel(r,c))}${locked||cc.includes(c)?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
-    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="Description, any text"${xc.length?' style="min-width:200px"':""}></td>
-    ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(c)}" style="min-width:${c==="Size"?130:80}px"></td>`).join("")}
+    <td><input id="q${i}-desc" data-k="desc" value="${esc(rqText(l))}" placeholder="${esc(CATPH[r.cat]||"Description, any text")}"${xc.length?' style="min-width:200px"':""}></td>
+    ${xc.map((c,k)=>`<td><input id="q${i}-x${k}" data-x="${esc(c)}" value="${esc((l.x||{})[c]||"")}" aria-label="${esc(rqColLabel(r,c))}" placeholder="${c==="Size"&&["Raw material","Child parts"].includes(r.cat)?"L x W x T or Ø D x L":c==="Grade"?"P20, EN8...":""}"${c==="Grade"?' list="gradeList"':""} style="min-width:${c==="Size"?130:80}px"></td>`).join("")}
     <td><input id="q${i}-spec" data-k="spec" value="${esc(l.spec)}"></td>
     <td class="num"><input id="q${i}-qty" class="qty" data-k="qty" type="number" step="any" value="${l.qty??""}"></td>
     <td><input id="q${i}-unit" data-k="unit" value="${esc(l.unit)}" style="width:60px"></td>
     <td><input id="q${i}-remark" data-k="remark" value="${esc(l.remark)}"></td>
     <td><button class="x" data-qdel="${i}" aria-label="Remove line ${i+1}">×</button></td></tr>`).join("")||`<tr><td colspan="${7+xc.length}" class="empty">No lines yet. Add a line or upload a BOM sheet.</td></tr>`;
   $("#reqBody").querySelectorAll("input").forEach(el=>el.disabled=locked);$("#reqBody").querySelectorAll("button").forEach(el=>el.hidden=locked);
-  renderAttach($("#q-attach"),r.attach,!locked);$("#btn-q-cam").hidden=locked;
+  renderAttach($("#q-attach"),r.attach,!locked);if(!attList(r.attach).length)$("#q-attach").innerHTML="";
   $("#btn-q-submit").hidden=locked;$("#btn-q-submit").textContent=r.status==="Sent back"?"Resubmit request":"Submit request";
   $("#btn-q-approve").hidden=!canApprove;$("#btn-q-back").hidden=!canApprove;$("#q-comment").hidden=!canApprove;$("#q-comment").value="";
   $("#btn-q-estimate").hidden=!(REQ_OPEN.includes(r.status)&&!r.balClosed&&reqs.includes(r)&&has("po.create")&&reqBal(r).some(x=>x.toOrder>0.0001));
@@ -1373,7 +1386,7 @@ function bomFill(r,a){const {job,lines}=parseBOM(XLSX.read(String(a.data).split(
     if(!l.x)return{desc:l.item,spec:l.spec,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:""};
     const x={};l.x.forEach(([c,v])=>{if(!cols.includes(c))cols.push(c);if(v)x[c]=v});
     return{desc:l.item,spec:l.note||"",x,qty:l.qty,unit:l.unit||"NOS",vendor:"",remark:l.remark||""}}));
-  r.xcols=cols.filter(c=>r.lines.some(l=>l.x&&l.x[c]));if(job&&!r.job)r.job=job;a.filled=lines.length;return lines.length}
+  r.xcols=[...new Set([...catCols(r),...cols.filter(c=>r.lines.some(l=>l.x&&l.x[c]))])];if(job&&!r.job)r.job=job;a.filled=lines.length;return lines.length}
 function renderAttach(box,a,rm){const L=attList(a);
   if(!L.length){box.innerHTML=`<span class="note">No file attached.</span>`;return}
   box.innerHTML=L.map((x,i)=>{const del=rm?` <button class="x" data-adel="${i}" aria-label="Remove ${esc(x.name)}">×</button>`:"";
@@ -1381,7 +1394,7 @@ function renderAttach(box,a,rm){const L=attList(a);
 }
 function renderReqList(){
   const vis=visibleReqs().filter(r=>inPer(r.date,"req")&&inPlant(r));
-  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}${reqPendChip(r)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
+  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${r.cat?`<span class="cattype">${esc(r.cat)}</span> `:""}${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}${reqPendChip(r)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
 }
 $("#reqList").addEventListener("click",e=>{const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
 $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
@@ -1399,11 +1412,12 @@ $("#btn-q-clear").onclick=()=>{if(!cur)return;const n=cur.lines.filter(l=>rqText
   const b=$("#btn-q-clear");if(n&&!b.dataset.sure){b.dataset.sure="1";b.textContent=`Click again to clear ${n} line${n>1?"s":""}`;b.style.color="#b42318";b.style.borderColor="#b42318";
     clearTimeout(b._t);b._t=setTimeout(()=>{delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor=""},5000);return}
   clearTimeout(b._t);delete b.dataset.sure;b.textContent="Clear all";b.style.color=b.style.borderColor="";
-  cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=attList(cur.attach).filter(a=>!(a.type==="xlsx"&&a.filled));
+  cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=catCols(cur).slice();cur.attach=attList(cur.attach).filter(a=>!(a.type==="xlsx"&&a.filled));
   if(cur.status!=="Draft")saveReqs();renderReq();toast("All lines cleared")};
 $("#btn-q-line").onclick=()=>{cur.lines.push({desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""});renderReq();const i=cur.lines.length-1;$("#q"+i+"-desc").focus()};
 $("#btn-req-new").onclick=()=>{cur=blankReq();if(!has("req.all")){cur.by=me.name;cur.dept=me.dept||""}renderReq();$("#q-job").focus()};
 $("#btn-q-submit").onclick=()=>{
+  if(!needCat())return;
   cur.lines=cur.lines.map(rqFlat).filter(l=>String(l.desc||"").trim());
   if(!cur.lines.length&&!attList(cur.attach).length){toast("Add at least one item or attach the request slip");renderReq();return}
   if(!cur.dept){toast("Choose the department");$("#q-dept").focus();return}
@@ -1428,7 +1442,10 @@ function startEst(r,onlyPending){
   isExample=false;saveEst();bindHeader();renderEst();show("est");
 }
 $("#btn-q-estimate").onclick=()=>openBuy(cur);
-$("#btn-q-file").onclick=()=>$("#q-file").click();
+$("#q-cat").addEventListener("click",e=>{const b=e.target.closest("[data-qcat]");if(!b||b.disabled||!cur)return;const c=b.dataset.qcat;if(cur.cat===c)return;
+  const locked=!["Draft","Sent back"].includes(cur.status);if(locked)return;reqSetCat(cur,c);cur.example=false;if(cur.status!=="Draft")saveReqs();renderReq()});
+const needCat=()=>{if(cur&&cur.cat)return true;toast("First choose what you are purchasing: one type per request");const b=$("#q-cat button");if(b)b.focus();return false};
+$("#btn-q-file").onclick=()=>{if(needCat())$("#q-file").click()};
 $("#q-file").onchange=async e=>{
   const files=[...e.target.files];e.target.value="";if(!files.length)return;const L=attList(cur.attach);let added=0,filled=0;
   for(const f of files){try{
@@ -1442,14 +1459,12 @@ $("#q-file").onchange=async e=>{
   cur.attach=L;cur.example=false;if(cur.status!=="Draft")saveReqs();renderReq();
   if(filled||added)toast([filled?`Filled ${filled} lines from the BOM`:"",added?`${added} file${added>1?"s":""} attached`:""].filter(Boolean).join(" · "));
 };
-$("#btn-q-cam").onclick=()=>$("#q-cam").click();
-$("#q-cam").onchange=e=>$("#q-file").onchange(e);
 $("#q-attach").addEventListener("click",e=>{const fi=e.target.dataset.afill;if(fi!=null&&cur){const L=attList(cur.attach),a=L[+fi];if(!a||!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
     try{const n=bomFill(cur,a);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq();toast(n?`Copied ${n} lines from ${a.name}. Delete the ones you do not need.`:`No item rows found in ${a.name}`)}catch(err){toast(`Could not read ${a.name}`)}return}
   const d=e.target.dataset.adel;if(d==null||!cur)return;const L=attList(cur.attach);
   /* removing a loaded Excel sheet also clears the lines it filled in (second click confirms) */
   if(L[+d]&&L[+d].type==="xlsx"&&L[+d].filled){const b=e.target;if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Click again to remove the sheet and its lines";b.style.color="#b42318";b.style.fontSize="12px";setTimeout(()=>{if(b.isConnected)renderReq()},5000);return}
-    cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=[];cur.attach=L.filter(x=>x.type!=="xlsx");if(cur.status!=="Draft")saveReqs();renderReq();toast("Sheet removed and lines cleared");return}
+    cur.lines=[{desc:"",spec:"",qty:1,unit:"NOS",vendor:"",remark:""}];cur.xcols=catCols(cur).slice();cur.attach=L.filter(x=>x.type!=="xlsx");if(cur.status!=="Draft")saveReqs();renderReq();toast("Sheet removed and lines cleared");return}
   L.splice(+d,1);cur.attach=L;if(cur.status!=="Draft")saveReqs();renderReq()});
 
 function shrink(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const m=1400,s=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",0.72))};img.onerror=rej;img.src=u})}
@@ -1511,10 +1526,90 @@ function renderReqBal(r){const P=$("#reqBal");const pos=reqPOs(r);
     r.balClosed=true;r.balBy=me.name;r.balAt=today();if(reqDone(r)){r.status="Closed";r.closedAt=today()}saveReqs();renderReq();toast(`Request ${r.no}: the rest is marked not needed`)};
   const bo=$("#btn-q-bal-open");if(bo)bo.onclick=()=>{delete r.balClosed;delete r.balBy;delete r.balAt;if(r.status==="Closed"&&!reqDone(r))r.status=pos.some(p=>p.status==="Approved")?"PO approved":"PO raised";saveReqs();renderReq();toast(`Request ${r.no}: balance reopened`)};
 }
-/* ---------- Buy sheet: every approved request line not yet on a PO, one PO per supplier ---------- */
-/* supplier, rate, qty and tick per line are a working draft kept in this browser (key "reqNo:line") until the POs are made */
-let buyDraft=store.get("buy",{}),buyQ="";
+/* ---------- Rates & costing master (Purchase): grades, operations, price lists, calculation sheets ----------
+   One shared document "costing". Each rate keeps when and by whom it was last changed; every change is logged with the
+   next PO number it applies from. POs store their own rates, so made or approved POs never change. */
+const COST_LISTS={
+  grades:{t:"Raw material ₹/kg",key:"g",cols:[["Grade","g","t"],["Density g/cc","den","n"],["Allowance mm (added to each dimension)","allow","n"],["Rate ₹ / kg","rate","n"],["Usual supplier","sup","s"]]},
+  ops:{t:"Operation rates",key:"op",cols:[["Operation","op","t"],["Unit (hr, mm, kg, nos)","unit","t"],["Rate ₹","rate","n"],["Usual vendor","sup","s"]]},
+  bop:{t:"BOP price list",key:"",cols:[["Type","type","t"],["Size","size","t"],["Length","len","t"],["Brand","brand","t"],["Price ₹","price","n"],["Supplier","sup","s"]]},
+  tool:{t:"Tool catalogue",key:"",cols:[["Tool type","type","t"],["Dia / size","size","t"],["Length","len","t"],["Brand","brand","t"],["Price ₹","price","n"],["Supplier","sup","s"]]},
+  cons:{t:"Consumables",key:"name",cols:[["Item","name","t"],["Unit","unit","t"],["Rate ₹","rate","n"],["Usual supplier","sup","s"]]}};
+function costDefault(){const g=(n,d)=>({g:n,den:d,allow:7,rate:"",sup:"",upd:"",by:""}),o=(n,u)=>({op:n,unit:u,rate:"",sup:"",upd:"",by:""});
+  return{grades:[g("P20",7.85),g("2738",7.85),g("H13",7.8),g("D2",7.7),g("SS 420 / Stavax",7.75),g("EN8",7.85),g("EN24",7.85),g("EN31",7.81),g("MS",7.85),g("Al 6061",2.7),g("Al 7075",2.81),g("Copper",8.96),g("BeCu",8.25),g("Brass",8.5)],
+    ops:[o("VMC machining","hr"),o("CNC turning","hr"),o("Wire cut","mm"),o("EDM","hr"),o("Surface grinding","hr"),o("Drilling / tapping","nos"),o("Vacuum hardening","kg"),o("Nitriding","kg"),o("Blackodizing","kg"),o("Polishing","hr")],
+    bop:[],tool:[],cons:[],calc:{round:5,oh:10},
+    tpl:{"Core / cavity insert":[["VMC machining",0],["Wire cut",0],["Vacuum hardening",0],["Surface grinding",0]],"Plate":[["VMC machining",0],["Surface grinding",0]],"Turned pin / bush":[["CNC turning",0],["Vacuum hardening",0],["Blackodizing",0]]},
+    hist:[]}}
+let costing=store.get("costing",null);if(!costing||!Array.isArray(costing.grades))costing=costDefault();
+function costFix(){const D=costDefault();if(!Array.isArray(costing.grades))costing.grades=D.grades;if(!Array.isArray(costing.ops))costing.ops=D.ops;["bop","tool","cons","hist"].forEach(k=>{if(!Array.isArray(costing[k]))costing[k]=[]});costing.calc=costing.calc||{round:5,oh:10};costing.tpl=costing.tpl||{}}
+costFix();
+const saveCosting=()=>store.set("costing",costing);
+const canCost=()=>has("po.create")||isRole("Admin");
+const gradeOf=g=>{const k=key(g||"");return k?costing.grades.find(x=>key(x.g)===k)||costing.grades.find(x=>k.includes(key(x.g))&&key(x.g).length>1):null};
+const opOf=o=>costing.ops.find(x=>key(x.op)===key(o||""));
+const STALE_DAYS=90;
+const costStale=x=>!x.upd||(new Date(today())-new Date(x.upd))/864e5>STALE_DAYS;
+function costLog(what,o,n){costing.hist.push({at:new Date().toISOString(),by:me?me.name:"",what,o:o??"",n:n??"",from:"PO "+nextPONo()});if(costing.hist.length>2000)costing.hist=costing.hist.slice(-2000)}
+const costName=(L,x)=>L==="grades"?x.g:L==="ops"?x.op:L==="cons"?x.name:[x.type,x.size,x.len].filter(Boolean).join(" ");
+let costTab="grades";
+function renderCost(){
+  const B=$("#costBody");if(!B)return;const ed=canCost();
+  $("#costTabs").innerHTML=[...Object.entries(COST_LISTS).map(([k,v])=>[k,v.t]),["calc","Calculation sheets"],["hist","Rate history"]].map(([k,t])=>`<button type="button" data-ctab="${k}" aria-pressed="${costTab===k}">${esc(t)}</button>`).join("");
+  if(costTab==="hist"){const H=costing.hist.slice().reverse().slice(0,300);
+    B.innerHTML=H.length?`<div class="tablebox"><table class="est" style="min-width:720px"><thead><tr><th>When</th><th>By</th><th>What</th><th class="num">Old</th><th class="num">New</th><th>Applies from</th></tr></thead><tbody>${H.map(h=>`<tr><td>${dmy(String(h.at).slice(0,10))}</td><td>${esc(h.by)}</td><td>${esc(h.what)}</td><td class="num">${esc(h.o)}</td><td class="num">${esc(h.n)}</td><td>${esc(h.from)} onwards</td></tr>`).join("")}</tbody></table></div><div class="note">POs made before a change keep the rates they were made with.</div>`:`<div class="empty">No rate changes yet. Every change made here is listed with the old and new value and the PO number it applies from.</div>`;return}
+  if(costTab==="calc"){const C=costing.calc;
+    B.innerHTML=`<div class="grid-fields"><label class="f">Round raw size up to (mm, 0 = no rounding)<input type="number" min="0" step="1" data-calc="round" value="${esc(C.round)}"${ed?"":" disabled"}></label><label class="f">Overhead % on child-part estimates<input type="number" min="0" step="0.5" data-calc="oh" value="${esc(C.oh)}"${ed?"":" disabled"}></label></div>
+    <div class="note">Raw size = finished size + the grade's allowance on each dimension, rounded up. Weight = L × W × T × density, or π/4 × D² × L for rounds (mm, g/cc). Child-part estimate per piece = (material + Σ operation qty × rate) × (1 + overhead %). A per-kg operation left blank takes the part weight.</div>
+    <h3 class="sec" style="margin-top:12px">Operation templates</h3>
+    ${Object.entries(costing.tpl).map(([n,ops])=>`<div class="panel stack" style="padding:10px"><div class="row"><b>${esc(n)}</b><span class="note">${ops.length} operation${ops.length===1?"":"s"}</span><span style="flex:1"></span>${ed?`<button class="btn" type="button" data-tdelall="${esc(n)}">Delete template</button>`:""}</div>
+      <div class="tablebox"><table class="est" style="min-width:420px"><thead><tr><th>Operation</th><th class="num">Default qty per piece</th><th></th></tr></thead><tbody>${ops.map(([op,q],j)=>`<tr data-tp="${esc(n)}" data-j="${j}"><td><select data-tf="op"${ed?"":" disabled"}>${opts(costing.ops.map(o=>o.op),op,"Choose")}</select></td><td class="num"><input data-tf="q" type="number" step="any" min="0" value="${q||""}" placeholder="from weight / enter" style="width:120px"${ed?"":" disabled"}></td><td>${ed?`<button class="x" type="button" data-tdel="${j}" aria-label="Remove operation">×</button>`:""}</td></tr>`).join("")}</tbody></table></div>
+      ${ed?`<div class="row"><button class="btn" type="button" data-tadd="${esc(n)}">Add operation</button></div>`:""}</div>`).join("")}
+    ${ed?`<form class="row" id="tplNew"><input id="tpl-name" placeholder="New template name, e.g. Slider" style="max-width:280px"><button class="btn" type="submit">Add template</button></form>`:""}`;return}
+  const D=COST_LISTS[costTab],L=costing[costTab],old=L.filter(costStale).length;
+  B.innerHTML=`<div class="row">${ed?`<button class="btn" type="button" data-cadd>Add row</button>`:""}<button class="btn" type="button" data-cxout>Download to Excel</button>${ed?`<button class="btn" type="button" data-cxin>Import updated Excel</button><input type="file" id="cost-file" accept=".xlsx,.xls,.csv" hidden>`:""}<span style="flex:1"></span>${L.length?(old?`<span class="chip st-Back">${old} not updated in ${STALE_DAYS} days</span>`:`<span class="chip st-Approved">All updated in the last ${STALE_DAYS} days</span>`):""}</div>
+  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr>${D.cols.map(c=>`<th${c[2]==="n"?' class="num"':""}>${esc(c[0])}</th>`).join("")}<th>Updated</th><th></th></tr></thead><tbody>${L.map((x,i)=>`<tr data-ci="${i}">${D.cols.map(([h,f,ty])=>`<td${ty==="n"?' class="num"':""}><input data-cf="${f}"${ty==="n"?' type="number" step="any" min="0" style="width:100px"':ty==="s"?' list="suppliers" style="min-width:170px"':' style="min-width:110px"'} value="${esc(x[f])}" aria-label="${esc(h)}"${ed?"":" disabled"}></td>`).join("")}<td class="note" style="white-space:nowrap">${x.upd?dmy(x.upd):"Not set"}${costStale(x)?` <span class="chip st-Back">old</span>`:""}${x.by?`<br>${esc(x.by)}`:""}</td><td>${ed?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove row">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="${D.cols.length+2}" class="empty">Nothing here yet. Add rows, or import an Excel sheet with these column headings.</td></tr>`}</tbody></table></div>
+  <div class="note">A changed rate applies from ${esc("PO "+nextPONo())} onwards. POs already made or approved keep their own rates.</div>`;
+  const fi=$("#cost-file");if(fi)fi.onchange=costImport}
+$("#costTabs").addEventListener("click",e=>{const b=e.target.closest("[data-ctab]");if(b){costTab=b.dataset.ctab;renderCost()}});
+$("#costBody").addEventListener("change",e=>{if(!canCost())return;const t=e.target;
+  if(t.dataset.calc){const o=costing.calc[t.dataset.calc],n=+t.value||0;if(o===n)return;costing.calc[t.dataset.calc]=n;costLog(t.dataset.calc==="oh"?"Overhead %":"Raw size rounding mm",o,n);saveCosting();renderCost();toast("Saved");return}
+  const tp=t.closest("[data-tp]");if(tp&&t.dataset.tf){const T=costing.tpl[tp.dataset.tp][+tp.dataset.j];if(t.dataset.tf==="op")T[0]=t.value;else T[1]=+t.value||0;saveCosting();toast("Template saved");return}
+  const tr=t.closest("[data-ci]");if(!tr||!t.dataset.cf)return;const L=costing[costTab],x=L[+tr.dataset.ci],f=t.dataset.cf,ty=(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[])[2];
+  const n=ty==="n"?(t.value===""?"":+t.value):t.value.trim(),o=x[f];if(String(o??"")===String(n))return;
+  x[f]=n;x.upd=today();x.by=me?me.name:"";costLog(`${COST_LISTS[costTab].t}: ${costName(costTab,x)||"new row"} · ${(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[f])[0]}`,o,n);saveCosting();renderCost();toast(`Saved. Applies from PO ${nextPONo()} onwards.`)});
+$("#costBody").addEventListener("click",async e=>{const t=e.target;if(!t.closest("button"))return;const b=t.closest("button"),d=b.dataset;
+  if(d.cxout!=null){costExport();return}
+  if(!canCost())return;
+  if(d.cadd!=null){const x={};COST_LISTS[costTab].cols.forEach(([,f,ty])=>x[f]="");if(costTab==="grades"){x.allow=RAW_ALLOW;x.den=7.85}x.upd="";x.by="";costing[costTab].push(x);saveCosting();renderCost();const ins=$("#costBody").querySelectorAll("tbody tr:last-child input");if(ins[0])ins[0].focus();return}
+  if(d.cxin!=null){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}$("#cost-file").click();return}
+  if(d.cdel!=null){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Remove?";return}const x=costing[costTab].splice(+d.cdel,1)[0];costLog(`${COST_LISTS[costTab].t}: removed ${costName(costTab,x)}`,"","");saveCosting();renderCost();return}
+  if(d.tadd){costing.tpl[d.tadd].push([costing.ops[0]?costing.ops[0].op:"",0]);saveCosting();renderCost();return}
+  if(d.tdel!=null){const n=b.closest("[data-tp]").dataset.tp;costing.tpl[n].splice(+d.tdel,1);saveCosting();renderCost();return}
+  if(d.tdelall){if(!b.dataset.sure){b.dataset.sure="1";b.textContent="Click again to delete";return}delete costing.tpl[d.tdelall];saveCosting();renderCost();return}});
+$("#costBody").addEventListener("submit",e=>{if(e.target.id!=="tplNew")return;e.preventDefault();const n=$("#tpl-name").value.trim();if(!n||costing.tpl[n]){toast(n?"That template already exists":"Give the template a name");return}costing.tpl[n]=[];saveCosting();renderCost()});
+async function costExport(){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}const D=COST_LISTS[costTab]||COST_LISTS.grades,L=costing[costTab]||[];
+  const ws=XLSX.utils.aoa_to_sheet([D.cols.map(c=>c[0]),...L.map(x=>D.cols.map(([,f])=>x[f]??""))]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,D.t.slice(0,30).replace(/[\\\/?*\[\]:]/g," "));
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(await deliver(blob,`${D.t.replace(/[^A-Za-z0-9]+/g,"-")}-${today()}.xlsx`))toast(`Saved ${L.length} rows`)}
+async function costImport(e){const f=e.target.files[0];e.target.value="";if(!f||!canCost())return;
+  try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+    const D=COST_LISTS[costTab],hi=rows.findIndex(r=>r.some(c=>D.cols.some(([h])=>key(c)===key(h)||key(h).startsWith(key(c))&&String(c).trim().length>2)));if(hi<0){toast(`No heading row found. Use the headings: ${D.cols.map(c=>c[0]).join(", ")}`);return}
+    const map=D.cols.map(([h])=>rows[hi].findIndex(c=>key(c)===key(h)||(String(c).trim().length>2&&key(h).startsWith(key(c)))));
+    const L=costing[costTab],idOf=x=>key(D.key?x[D.key]:[x.type,x.size,x.len].join(" "));let add=0,upd=0;
+    rows.slice(hi+1).forEach(r=>{const v={};D.cols.forEach(([,f,ty],k)=>{if(map[k]<0)return;let c=r[map[k]];if(ty==="n")c=c===""?"":itNum(c);else c=String(c).trim();v[f]=c});if(!idOf(v))return;
+      let x=L.find(y=>idOf(y)===idOf(v));const ch=[];
+      if(!x){x={upd:"",by:""};D.cols.forEach(([,f])=>x[f]="");if(costTab==="grades"){x.allow=RAW_ALLOW;x.den=7.85}L.push(x);add++}
+      Object.keys(v).forEach(f=>{if(v[f]===""||String(x[f]??"")===String(v[f]))return;ch.push([f,x[f],v[f]]);x[f]=v[f]});
+      if(ch.length){x.upd=today();x.by=me?me.name:"";ch.forEach(([f,o,n])=>costLog(`${D.t}: ${costName(costTab,x)} · ${(D.cols.find(c=>c[1]===f)||[f])[0]} (Excel)`,o,n));if(!x.__n)upd++}});
+    saveCosting();renderCost();toast(`${f.name}: ${add} added, ${Math.max(0,upd-add)} updated`)}catch(err){toast(`Could not read ${f.name}`)}}
+
+/* ---------- Buy sheet: every approved request line not yet on a PO, one tab per purchase type, one PO per supplier ---------- */
+/* supplier, rate, qty, grade, allowance, operations and tick per line are a working draft kept in this browser (key "reqNo:line") */
+let buyDraft=store.get("buy",{}),buyQ="",buyTab="",buyOpen=new Set();
 const saveBuy=()=>store.set("buy",buyDraft);
+const BUY_TABS=["Raw material","Child parts","BOP","Consumables","Tools & cutters"];
+const buyCat=r=>BUY_TABS.includes(r.cat)?r.cat:"Consumables";
 /* last supplier and rate for an item, from the newest PO that has it (by master item, typed name or description) */
 function lastBuyIndex(){const ix={};
   saved.filter(p=>p.status!=="Rejected"&&p.sup).slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).forEach(p=>p.lines.forEach(l=>{if(!(+l.rate>0))return;
@@ -1523,55 +1618,108 @@ function lastBuyIndex(){const ix={};
 function buyGuess(ix,name,spec){const it=itemByName(name);
   for(const n of [[name,spec].filter(Boolean).join(" - "),name,it&&it.name]){const v=n&&ix[key(n)];if(v)return v}
   const r=suggest(name,spec);return r!=null?{sup:"",rate:r}:null}
+/* raw size and weight, mm and g/cc */
+const roundUp=v=>{const r=+costing.calc.round||0;return r>0?Math.ceil(v/r-1e-9)*r:Math.round(v*100)/100};
+function rawFrom(fin,allow){const s=String(fin||"").replace(/,/g,"."),n=szNums(s),a=+allow||0;if(szRound(s)&&n.length>=2)return`Ø${roundUp(n[0]+a)} x ${roundUp(n[1]+a)}`;if(n.length>=3)return n.slice(0,3).map(v=>roundUp(v+a)).join(" x ");return""}
+function wtFrom(raw,den){const n=szNums(raw);if(szRound(raw)&&n.length>=2)return Math.PI/4*n[0]*n[0]*n[1]*den*1e-6;if(n.length>=3)return n[0]*n[1]*n[2]*den*1e-6;return 0}
+const lineX=(l,c)=>{const x=l.x||{},v=String(x[c]||"").trim();if(v)return v;const re=c==="Grade"?/materi|grade/i:c==="Size"?/size|dimen/i:/^l$|^len/i,k=Object.keys(x).find(k=>re.test(k)&&String(x[k]||"").trim());return k?String(x[k]).trim():""};
+function buyCalc(b){const x=b.x,l=x.l,d=buyDraft[b.k]||{},cat=b.cat,o={};
+  if(cat==="Raw material"||cat==="Child parts"){const gname=d.grade!=null?d.grade:lineX(l,"Grade"),G=gradeOf(gname)||{};o.grade=gname;o.G=G;o.fin=lineX(l,"Size")||String(l.spec||"").trim();
+    o.allow=d.allow!=null&&d.allow!==""?+d.allow:(G.allow!=null&&G.allow!==""?+G.allow:RAW_ALLOW);o.raw=d.raw||rawFrom(o.fin,o.allow);o.den=+G.den||poDensity({grade:gname,item:x.name}).d;o.wpc=wtFrom(o.raw,o.den)}
+  o.qty=d.qty!=null&&d.qty!==""?+d.qty:x.toOrder;
+  if(cat==="Raw material"){o.tot=o.wpc*o.qty;o.rate=d.rate!=null?d.rate:(+o.G.rate||b.last.rate||"");o.sup=d.sup!=null?d.sup:(o.G.sup||b.last.sup||"");o.amt=o.tot*(+o.rate||0);o.ok=o.tot>0&&+o.rate>0&&!!String(o.sup).trim();o.auto={rate:d.rate==null,sup:d.sup==null,allow:d.allow==null,raw:!d.raw,grade:d.grade==null}}
+  else if(cat==="Child parts"){const names=Object.keys(costing.tpl);o.tpl=d.tpl!=null?d.tpl:(names[0]||"");const ops=d.ops||(costing.tpl[o.tpl]||[]).map(([op,q])=>({op,q:q||null}));o.mat=o.wpc*(+o.G.rate||0);
+    o.ops=ops.map(p=>{const O=opOf(p.op)||{},q=p.q!=null&&p.q!==""?+p.q:(String(O.unit||"").toLowerCase()==="kg"?Math.round(o.wpc*100)/100:0),rate=p.rate!=null&&p.rate!==""?+p.rate:(+O.rate||0);return{op:p.op,unit:O.unit||"",q,rate,sup:p.sup!=null?p.sup:(O.sup||""),amt:q*rate,autoQ:p.q==null||p.q==="",autoR:p.rate==null||p.rate==="",autoS:p.sup==null}});
+    o.opc=o.ops.reduce((a,p)=>a+p.amt,0);o.est=(o.mat+o.opc)*(1+(+costing.calc.oh||0)/100);o.amt=o.opc*o.qty;o.ok=o.opc>0&&o.ops.every(p=>!p.amt||String(p.sup).trim())}
+  else if(cat==="BOP"||cat==="Tools & cutters"){const L=costing[cat==="BOP"?"bop":"tool"],sz=key(lineX(l,"Size")),ln=key(lineX(l,"L"));
+    o.m=L.find(p=>key(p.type)===key(x.name)&&key(p.size)===sz&&(!key(p.len)||key(p.len)===ln))||null;o.rate=d.rate!=null?d.rate:(o.m?+o.m.price:(b.last.rate||""));o.sup=d.sup!=null?d.sup:(o.m?o.m.sup:(b.last.sup||""));o.amt=o.qty*(+o.rate||0);o.ok=o.qty>0&&+o.rate>0&&!!String(o.sup).trim();o.auto={rate:d.rate==null,sup:d.sup==null}}
+  else{const c=costing.cons.find(p=>key(p.name)===key(x.name));o.rate=d.rate!=null?d.rate:(b.last.rate||(c?+c.rate:"")||"");o.sup=d.sup!=null?d.sup:(b.last.sup||(c?c.sup:""));o.amt=o.qty*(+o.rate||0);o.ok=o.qty>0&&+o.rate>0&&!!String(o.sup).trim();o.auto={rate:d.rate==null,sup:d.sup==null}}
+  return o}
 function buyRows(){const ix=lastBuyIndex();
-  return pendToOrder().filter(x=>inPlant(x.r)).map(x=>{const k=x.r.no+":"+x.i,spec=rqSpec(x.l,x.r),g=buyGuess(ix,x.name,spec)||{};
-    const d=buyDraft[k]||{};return{k,x,spec,on:d.on!==false,sup:d.sup!=null?d.sup:(g.sup||""),rate:d.rate!=null?d.rate:(g.rate??""),qty:d.qty!=null?d.qty:x.toOrder,autoSup:d.sup==null&&!!g.sup,autoRate:d.rate==null&&g.rate!=null,from:g.no?"PO "+g.no:""}})}
-function openBuy(r){buyQ=r?String(r.no):"";show("buy")}
+  return pendToOrder().filter(x=>inPlant(x.r)).map(x=>{const k=x.r.no+":"+x.i,spec=rqSpec(x.l,x.r),g=buyGuess(ix,x.name,spec)||{},d=buyDraft[k]||{};
+    const b={k,x,spec,cat:buyCat(x.r),on:d.on!==false,last:{sup:g.sup||"",rate:g.rate??"",no:g.no||""}};b.c=buyCalc(b);return b})}
+function openBuy(r){buyQ=r?String(r.no):"";if(r)buyTab=buyCat(r);show("buy")}
+const bMatch=(b,q)=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.c.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q);
+const autoSt=on=>on?"background:color-mix(in srgb,#ffe600 28%,transparent)":"";
 function renderBuy(){
-  if(!$("#view-buy"))return;$("#buy-q").value=buyQ;
-  const all=buyRows(),q=key(buyQ),L=all.filter(b=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q));
-  const reqN=new Set(all.map(b=>b.x.r.no)).size;
-  $("#buy-n").textContent=all.length?`${all.length} line${all.length>1?"s":""} from ${reqN} request${reqN>1?"s":""}${L.length<all.length?`, ${L.length} shown`:""}`:"";
-  const t=today();
-  $("#buyBody").innerHTML=L.length?L.map(b=>{const r=b.x.r,late=r.need&&r.need<t,amt=(+b.qty||0)*(+b.rate||0);
-    return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}><td><input type="checkbox" data-bf="on"${b.on?" checked":""} aria-label="Buy ${esc(b.x.name)} now"></td>
-    <td><b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?` · ${esc(r.job)}`:""}<br><span class="note"${late?' style="color:var(--danger)"':""}>${r.need?"Need by "+dmy(r.need):""}${r.by?` · ${esc(r.by)}`:""}</span></td>
-    <td>${esc(b.x.name)}${b.spec?`<br><span class="note">${esc(b.spec)}</span>`:""}</td>
-    <td class="num"><input data-bf="qty" type="number" step="any" min="0" value="${esc(b.qty)}" style="width:80px" aria-label="Qty to order" title="Pending ${q3(b.x.toOrder)} ${esc(b.x.unit)}"></td>
-    <td>${esc(b.x.unit)}</td>
-    <td><input data-bf="sup" list="suppliers" value="${esc(b.sup)}" placeholder="Pick supplier" style="width:100%;${b.autoSup?"color:var(--muted)":""}" aria-label="Supplier"${b.from?` title="Last bought on ${esc(b.from)}"`:""}></td>
-    <td class="num"><input data-bf="rate" type="number" step="0.01" min="0" value="${esc(b.rate)}" style="width:100px;${b.autoRate?"color:var(--muted)":""}" aria-label="Rate"></td>
-    <td class="num" data-bamt>${amt?fmt(amt):"-"}</td></tr>`}).join(""):`<tr><td colspan="8" class="empty">${all.length?"No line matches that search.":"Nothing to buy. Approved request lines appear here until they are on a PO."}</td></tr>`;
-  $("#buy-all").checked=L.length>0&&L.every(b=>b.on);
-  buyTotals(L)}
-function buyTotals(L){L=L||buyRows();const on=L.filter(b=>b.on),bad=on.filter(b=>!String(b.sup).trim()||!(+b.rate>0)||!(+b.qty>0));
-  const sups=new Set(on.filter(b=>String(b.sup).trim()).map(b=>key(b.sup)+"|"+(b.x.r.plant||"P1"))).size;
-  $("#buy-tot").textContent=on.length?`${on.length} line${on.length>1?"s":""} ticked · ₹ ${fmt(on.reduce((a,b)=>a+(+b.qty||0)*(+b.rate||0),0))} before GST`:"";
-  $("#buy-msg").innerHTML=bad.length?`<span style="color:var(--danger)">${bad.length} ticked line${bad.length>1?"s need":" needs"} a supplier, rate and qty, or untick ${bad.length>1?"them":"it"}</span>`:on.length?"Unticked lines stay here for later.":"";
+  if(!$("#view-buy"))return;$("#buy-q").value=buyQ;$("#gradeList").innerHTML=costing.grades.map(g=>`<option value="${esc(g.g)}">`).join("");
+  const all=buyRows(),q=key(buyQ);if(!BUY_TABS.includes(buyTab))buyTab=(BUY_TABS.find(t=>all.some(b=>b.cat===t))||BUY_TABS[0]);
+  $("#buyTabs").innerHTML=BUY_TABS.map((t,i)=>{const n=all.filter(b=>b.cat===t).length;return`<button type="button" data-btab="${esc(t)}" aria-pressed="${t===buyTab}">${i+1}. ${esc(t)}${n?` (${n})`:""}</button>`}).join("");
+  const L=all.filter(b=>b.cat===buyTab&&bMatch(b,q)),reqN=new Set(all.map(b=>b.x.r.no)).size;
+  $("#buy-n").textContent=all.length?`${all.length} line${all.length>1?"s":""} from ${reqN} request${reqN>1?"s":""}`:"";
+  const t=today(),ck=b=>`<td><input type="checkbox" data-bf="on"${b.on?" checked":""} aria-label="Buy ${esc(b.x.name)} now"></td>`,
+    rq=b=>{const r=b.x.r,late=r.need&&r.need<t;return`<td><b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?` · ${esc(r.job)}`:""}<br><span class="note"${late?' style="color:var(--danger)"':""}>${r.need?"Need by "+dmy(r.need):""}</span></td>`},
+    inp=(f,v,w,auto,ty="number",ph="")=>`<input data-bf="${f}"${ty==="number"?' type="number" step="any" min="0"':""}${f==="sup"?' list="suppliers"':""}${f==="grade"?' list="gradeList"':""} value="${esc(v)}" placeholder="${esc(ph)}" style="width:${w};${autoSt(auto)}" aria-label="${esc(f)}">`,
+    amt=v=>`<td class="num" data-bamt>${v?fmt(v):"-"}</td>`,none=n=>`<tr><td colspan="${n}" class="empty">${all.length&&!L.length&&q?"No line matches that search.":"Nothing to buy here. Approved request lines of this type appear until they are on a PO."}</td></tr>`;
+  let head="",body="",note="";
+  if(buyTab==="Raw material"){head=`<th></th><th>Request</th><th>Part</th><th>Grade</th><th>Finished size</th><th class="num">Allow mm</th><th>Raw size to order</th><th class="num">kg / pc</th><th class="num">Pcs</th><th class="num">Total kg</th><th class="num">₹ / kg</th><th>Supplier</th><th class="num">Amount</th>`;
+    body=L.map(b=>{const c=b.c;return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${esc(b.x.name)}</td><td>${inp("grade",c.grade,"90px",c.auto.grade&&!!c.grade,"text")}</td><td class="note">${esc(c.fin)||"<span style=\"color:var(--danger)\">no size</span>"}</td><td class="num">${inp("allow",c.allow,"60px",c.auto.allow)}</td><td>${inp("raw",c.raw,"150px",c.auto.raw,"text")}</td><td class="num">${fmtKg(c.wpc)}</td><td class="num">${inp("qty",c.qty,"60px",false)}</td><td class="num"><b>${fmtKg(c.wpc*c.qty)}</b></td><td class="num">${inp("rate",c.rate,"80px",c.auto.rate&&c.rate!=="")}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td>${amt(c.amt)}</tr>`}).join("")||none(13);
+    note=`Raw size = finished size + allowance on each dimension, rounded up to ${+costing.calc.round||0} mm. The PO is made in kg with the finished size, raw size, grade and pieces on each line. Grades, densities and ₹/kg are in Rates &amp; costing.`}
+  else if(buyTab==="Child parts"){head=`<th></th><th>Request</th><th>Part</th><th>Grade · finished size</th><th class="num">Qty</th><th>Template</th><th class="num">Material / pc</th><th class="num">Operations / pc</th><th class="num">Estimate / pc</th><th class="num">PO value</th><th></th>`;
+    const tn=Object.keys(costing.tpl);
+    body=L.map(b=>{const c=b.c,open=buyOpen.has(b.k);return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${esc(b.x.name)}</td><td class="note">${esc([c.grade,c.fin].filter(Boolean).join(" · "))}<br>raw ${esc(c.raw||"-")} · ${fmtKg(c.wpc)} kg</td><td class="num">${inp("qty",c.qty,"60px",false)}</td><td><select data-bf="tpl">${opts(tn,c.tpl,"No template")}</select></td><td class="num">${fmt(c.mat)}</td><td class="num">${fmt(c.opc)}</td><td class="num"><b>${fmt(c.est)}</b></td>${amt(c.amt)}<td><button class="btn" type="button" data-bops="${esc(b.k)}">${open?"Hide":"Operations"} (${c.ops.length})</button></td></tr>
+      ${open?`<tr data-bk="${esc(b.k)}"><td></td><td colspan="10" style="background:var(--bg)"><table class="est" style="min-width:640px"><thead><tr><th>Operation</th><th class="num">Qty / pc</th><th>Unit</th><th class="num">Rate</th><th>Job-work vendor</th><th class="num">Per piece</th><th></th></tr></thead><tbody>
+        <tr><td class="note">Material ${esc(c.grade||"")} (for the estimate; buy the block on the Raw material tab)</td><td class="num">${fmtKg(c.wpc)}</td><td>kg</td><td class="num">${fmt(+c.G.rate||0)}</td><td></td><td class="num">${fmt(c.mat)}</td><td></td></tr>
+        ${c.ops.map((p,j)=>`<tr data-oj="${j}"><td><select data-of="op">${opts(costing.ops.map(o=>o.op),p.op,"Choose")}</select></td><td class="num"><input data-of="q" type="number" step="any" min="0" value="${p.q||""}" style="width:80px;${autoSt(p.autoQ&&!!p.q)}"></td><td>${esc(p.unit)}</td><td class="num"><input data-of="rate" type="number" step="any" min="0" value="${p.rate||""}" style="width:80px;${autoSt(p.autoR&&!!p.rate)}"></td><td><input data-of="sup" list="suppliers" value="${esc(p.sup)}" style="min-width:160px;${autoSt(p.autoS&&!!p.sup)}"></td><td class="num">${fmt(p.amt)}</td><td><button class="x" type="button" data-odel="${j}" aria-label="Remove operation">×</button></td></tr>`).join("")}</tbody></table>
+        <div class="row"><button class="btn" type="button" data-oadd>Add operation</button><button class="btn" type="button" data-osave>Save as template</button><span class="note">Overhead ${+costing.calc.oh||0}% is in the estimate, not on the job-work PO.</span></div></td></tr>`:""}`}).join("")||none(11);
+    note=`Estimate per piece = (material + operations) × (1 + overhead ${+costing.calc.oh||0}%). Make POs raises one job-work line per operation, to that operation's vendor. Operation rates and templates are in Rates &amp; costing.`}
+  else{const pl=buyTab==="BOP"||buyTab==="Tools & cutters";
+    head=`<th></th><th>Request</th><th>Description</th>${pl?`<th>${buyTab==="BOP"?"Size":"Dia / size"}</th><th>Length</th><th>Price</th>`:""}<th class="num">Qty</th><th>Unit</th><th>Supplier</th><th class="num">Rate</th><th class="num">Amount</th>`;
+    body=L.map(b=>{const c=b.c,lst=buyTab==="BOP"?"bop":"tool";return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${esc(b.x.name)}${!pl&&b.spec?`<br><span class="note">${esc(b.spec)}</span>`:""}</td>
+      ${pl?`<td>${esc(lineX(b.x.l,"Size"))}</td><td>${esc(lineX(b.x.l,"L"))}</td><td>${c.m?`<span class="chip st-Approved">Price list${c.m.brand?" · "+esc(c.m.brand):""}</span>`:`<span class="chip st-Back">Not in list</span>${+c.rate>0&&canCost()?` <button class="linkbtn" type="button" data-bsave="${lst}">Save to list</button>`:""}`}</td>`:""}
+      <td class="num">${inp("qty",c.qty,"70px",false)}</td><td>${esc(b.x.unit)}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td><td class="num">${inp("rate",c.rate,"90px",c.auto.rate&&c.rate!=="")}</td>${amt(c.amt)}</tr>`}).join("")||none(pl?11:8);
+    note=pl?`Lines are matched on description (type) + ${buyTab==="BOP"?"size":"dia / size"} + length against the ${buyTab==="BOP"?"BOP price list":"tool catalogue"} in Rates &amp; costing. A price typed for an unmatched line can be saved to the list for next time.`:`Rate and supplier come from the last PO for the same item, or from the consumables list in Rates &amp; costing.`}
+  $("#buyHead").innerHTML=`<tr>${head}</tr>`;$("#buyBody").innerHTML=body;$("#buyNote").innerHTML=note+` Yellow = filled in from the masters or the last PO; change any of it.`;
+  $("#buy-all").checked=L.length>0&&L.every(b=>b.on);$("#buy-all").closest("label").hidden=!L.length;
+  buyTotals(all)}
+function buyLines(all){const out=[];(all||buyRows()).filter(b=>b.on).forEach(b=>{const c=b.c;
+  if(b.cat==="Child parts")c.ops.forEach((p,j)=>{if(p.amt>0)out.push({b,sup:p.sup,amt:p.amt*c.qty,op:p,j})});else out.push({b,sup:c.sup,amt:c.amt})});return out}
+function buyTotals(all){all=all||buyRows();const on=all.filter(b=>b.on),bad=on.filter(b=>!b.c.ok),out=buyLines(all);
+  const sups=new Set(out.filter(o=>String(o.sup||"").trim()).map(o=>key(o.sup)+"|"+(o.b.x.r.plant||"P1"))).size;
+  $("#buy-tot").textContent=on.length?`${on.length} line${on.length>1?"s":""} ticked in all tabs · ₹ ${fmt(out.reduce((a,o)=>a+o.amt,0))} before GST`:"";
+  $("#buy-msg").innerHTML=bad.length?`<span style="color:var(--danger)">${bad.length} ticked line${bad.length>1?"s need":" needs"} a supplier, rate or size (${[...new Set(bad.map(b=>b.cat))].map(esc).join(", ")}), or untick ${bad.length>1?"them":"it"}</span>`:on.length?"Unticked lines stay here for later.":"";
   const B=$("#btn-buy-make");B.textContent=sups?`Make ${sups} PO${sups>1?"s":""} and send for approval`:"Make POs";B.disabled=!on.length||!!bad.length||!has("po.create")}
+$("#buyTabs").addEventListener("click",e=>{const b=e.target.closest("[data-btab]");if(b){buyTab=b.dataset.btab;renderBuy()}});
 $("#buy-q").addEventListener("input",e=>{buyQ=e.target.value;renderBuy()});
-$("#buyBody").addEventListener("input",e=>{const f=e.target.dataset.bf,tr=e.target.closest("tr");if(!f||f==="on"||!tr)return;const k=tr.dataset.bk,d=buyDraft[k]=buyDraft[k]||{};
-  d[f]=f==="sup"?e.target.value:(e.target.value===""?"":+e.target.value);e.target.style.color="";saveBuy();
-  const b=buyRows().find(x=>x.k===k);if(b){const a=(+b.qty||0)*(+b.rate||0);tr.querySelector("[data-bamt]").textContent=a?fmt(a):"-"}buyTotals()});
-$("#buyBody").addEventListener("change",e=>{if(e.target.dataset.bf!=="on")return;const k=e.target.closest("tr").dataset.bk;(buyDraft[k]=buyDraft[k]||{}).on=e.target.checked;saveBuy();renderBuy()});
-$("#buy-all").onchange=e=>{const q=key(buyQ);buyRows().filter(b=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q)).forEach(b=>{(buyDraft[b.k]=buyDraft[b.k]||{}).on=e.target.checked});saveBuy();renderBuy()};
+const bDraft=k=>buyDraft[k]=buyDraft[k]||{};
+const bOps=(k,b)=>{const d=bDraft(k);if(!d.ops)d.ops=b.c.ops.map(p=>({op:p.op,q:p.autoQ?null:p.q,rate:p.autoR?null:p.rate,sup:p.autoS?null:p.sup}));return d.ops};
+$("#buyBody").addEventListener("change",e=>{const t=e.target,tr=t.closest("[data-bk]");if(!tr)return;const k=tr.dataset.bk,d=bDraft(k),f=t.dataset.bf;
+  if(f==="on"){d.on=t.checked}
+  else if(f==="tpl"){d.tpl=t.value;delete d.ops}
+  else if(f){d[f]=["sup","grade","raw"].includes(f)?t.value:(t.value===""?null:+t.value);if(f==="grade"){delete d.allow;delete d.raw;delete d.rate;delete d.sup}if(f==="allow")delete d.raw;if(f==="raw"&&!t.value.trim())delete d.raw}
+  else if(t.dataset.of){const b=buyRows().find(x=>x.k===k),ops=bOps(k,b),p=ops[+t.closest("[data-oj]").dataset.oj],of=t.dataset.of;p[of]=of==="op"||of==="sup"?t.value:(t.value===""?null:+t.value);if(of==="op"){p.q=null;p.rate=null;p.sup=null}}
+  else return;
+  saveBuy();renderBuy()});
+$("#buyBody").addEventListener("click",e=>{const btn=e.target.closest("button");if(!btn)return;const tr=btn.closest("[data-bk]"),k=tr&&tr.dataset.bk;
+  if(btn.dataset.bops){buyOpen.has(btn.dataset.bops)?buyOpen.delete(btn.dataset.bops):buyOpen.add(btn.dataset.bops);renderBuy();return}
+  const b=k&&buyRows().find(x=>x.k===k);if(!b)return;
+  if(btn.dataset.oadd!=null){bOps(k,b).push({op:costing.ops[0]?costing.ops[0].op:"",q:null,rate:null,sup:null});saveBuy();renderBuy();return}
+  if(btn.dataset.odel!=null){bOps(k,b).splice(+btn.dataset.odel,1);saveBuy();renderBuy();return}
+  if(btn.dataset.osave!=null){let n=b.x.name;if(costing.tpl[n])n=n+" ("+today()+")";costing.tpl[n]=b.c.ops.map(p=>[p.op,p.autoQ?0:p.q]);bDraft(k).tpl=n;delete bDraft(k).ops;saveCosting();saveBuy();renderBuy();toast(`Saved template "${n}"`);return}
+  if(btn.dataset.bsave){const L=costing[btn.dataset.bsave];L.push({type:b.x.name,size:lineX(b.x.l,"Size"),len:lineX(b.x.l,"L"),brand:"",price:+b.c.rate,sup:b.c.sup||"",upd:today(),by:me?me.name:""});costLog(`${COST_LISTS[btn.dataset.bsave].t}: added ${b.x.name} ${lineX(b.x.l,"Size")} ${lineX(b.x.l,"L")}`.trim(),"",+b.c.rate);delete bDraft(k).rate;saveCosting();saveBuy();renderBuy();toast("Saved to the price list");return}});
+$("#buy-all").onchange=e=>{const q=key(buyQ);buyRows().filter(b=>b.cat===buyTab&&bMatch(b,q)).forEach(b=>{bDraft(b.k).on=e.target.checked});saveBuy();renderBuy()};
 $("#btn-buy-make").onclick=()=>{
-  const on=buyRows().filter(b=>b.on);if(!on.length||on.some(b=>!String(b.sup).trim()||!(+b.rate>0)||!(+b.qty>0))){buyTotals();return}
-  const G={};on.forEach(b=>{const sp=supOf(b.sup),nm=sp?sp.name:String(b.sup).trim(),pl=b.x.r.plant||defPlant(),g=nm+"|"+pl;(G[g]=G[g]||{sup:nm,sp,plant:pl,rows:[]}).rows.push(b)});
+  const all=buyRows(),on=all.filter(b=>b.on);if(!on.length||on.some(b=>!b.c.ok)){buyTotals(all);return}
+  const G={};buyLines(all).forEach(o=>{const sp=supOf(o.sup),nm=sp?sp.name:String(o.sup).trim(),pl=o.b.x.r.plant||defPlant(),g=nm+"|"+pl;(G[g]=G[g]||{sup:nm,sp,plant:pl,rows:[]}).rows.push(o)});
   const made=[];
   Object.values(G).forEach(g=>{const sp=g.sp||{name:g.sup,addr:"",state:"27"},R=g.rows;
-    const nos=[...new Set(R.map(b=>b.x.r.no))],jobs=[...new Set(R.map(b=>b.x.r.job).filter(Boolean))],needs=R.map(b=>b.x.r.need).filter(Boolean).sort();
+    const nos=[...new Set(R.map(o=>o.b.x.r.no))],jobs=[...new Set(R.map(o=>o.b.x.r.job).filter(Boolean))],needs=R.map(o=>o.b.x.r.need).filter(Boolean).sort();
     po={no:nextPONo(),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
       reqNo:nos.join(", "),reqNos:nos,needBy:needs[0]||"",plant:g.plant,deliv:plantAddr(g.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",xcols:[],
-      lines:R.map(b=>{const it=itemByName(b.x.name),full=[b.x.name,b.spec].filter(Boolean).join(" - ");
-        return{desc:full,item:it?it.name:"",spec:it?b.spec:full,hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:+b.qty,unit:b.x.unit||(it&&it.unit)||"NOS",rate:+b.rate,dis:0,rq:b.x.i,rqNo:b.x.r.no,...(b.x.l.cat?{cat:b.x.l.cat,...(b.x.l.cat==="Raw material"?{rawOn:true}:{})}:{})}})};
+      lines:R.map(o=>{const b=o.b,x=b.x,c=b.c,cat=b.cat,base={hsn:"84801000",tax:18,dis:0,rqNo:x.r.no,cat};
+        if(cat==="Raw material"){const l=Object.assign(base,{item:"",spec:x.name,fin:c.fin,raw:c.raw,rawAuto:false,grade:c.grade,rawOn:true,pcs:c.qty,qty:Math.round(c.wpc*c.qty*100)/100,unit:"KG",rate:+c.rate,rq:x.i,hsn:"72269990"});poSetDesc(l);return l}
+        if(cat==="Child parts"){const p=o.op,t=`${p.op} - ${x.name}${c.grade?" ("+c.grade+")":""} · ${fmt0(p.q)} ${p.unit}/pc`;const l=Object.assign(base,{desc:t,item:"",spec:t,qty:c.qty,unit:x.unit||"NOS",rate:Math.round(p.amt*100)/100,hsn:"998898"});if(o.j===c.ops.findIndex(q=>q.amt>0))l.rq=x.i;return l}
+        const it=itemByName(x.name),sz=[lineX(x.l,"Size"),lineX(x.l,"L")].filter(Boolean).join(" x "),spec=cat==="BOP"||cat==="Tools & cutters"?[sz,x.l.spec].filter(Boolean).join(" · "):b.spec,full=[x.name,spec].filter(Boolean).join(" - ");
+        return Object.assign(base,{desc:full,item:it?it.name:"",spec:it?spec:full,hsn:(it&&it.hsn)||base.hsn,tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:+c.qty,unit:x.unit||(it&&it.unit)||"NOS",rate:+c.rate,rq:x.i})})};
     recordPO("Pending approval","Made on the Buy sheet and sent for approval");learnFromPO();
-    poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});R.forEach(b=>delete buyDraft[b.k]);made.push(po)});
+    poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});made.push(po)});
+  on.forEach(b=>{delete buyDraft[b.k];buyOpen.delete(b.k)});
   saveReqs();saveBuy();po=made[made.length-1];store.set("po",po);
   const D=$("#buyDone");D.hidden=false;D.className="banner";
   D.innerHTML=`<b>${made.length} PO${made.length>1?"s":""} sent for approval:</b> ${made.map(p=>`<button class="linkbtn" type="button" data-bpo="${esc(p.no)}">PO ${esc(p.no)} · ${esc(p.sup)}</button>`).join(" · ")}`;
   toast(`${made.length} PO${made.length>1?"s":""} made and sent for approval`);renderBuy();renderBadges()};
 $("#buyDone").addEventListener("click",e=>{const n=e.target.dataset.bpo;if(n==null)return;const s=saved.find(x=>String(x.no)===String(n));if(s){po=JSON.parse(JSON.stringify(s));store.set("po",po);show("po")}});
+
 
 /* home: everything still pending, for the purchaser */
 let pendTab="order";
@@ -2489,7 +2637,7 @@ const szRound=s=>/ø|⌀|dia|(^|[^a-z])d\s*\d|round|\brd\b/i.test(String(s||""))
 const rawFromFin=f=>String(f||"").trim()?String(f).replace(/,/g,".").replace(SZ_NUM,(m,a,n)=>a+String(Math.round((+n+RAW_ALLOW)*100)/100)):"";
 const DENS=[[/beryl|becu/i,8.25],[/brass/i,8.5],[/bronze/i,8.8],[/copper|\bcu\b/i,8.96],[/alu|\bal\b|6061|6082|7075|5083/i,2.7],[/titan/i,4.51],[/nylon|acetal|delrin|\bpom\b/i,1.41],[/cast iron|\bci\b/i,7.2],[/ss\s*-?\s*420|stavax|2083/i,7.75],[/stainless|\bss\b|\bss\d|\b30[34]\b|\b316/i,7.95],[/h13|2344|8407/i,7.8],[/\bd2\b|2379|hchcr|hcrc/i,7.7]];
 function poGrade(l){if(l.grade!==undefined)return l.grade;const it=itemByName(l.item||"");return it&&it.spec||""}
-function poDensity(l){const t=[poGrade(l),l.item].join(" ");const d=DENS.find(([r])=>r.test(t));return{d:d?d[1]:7.85,known:!!d||!!String(poGrade(l)).trim()}}
+function poDensity(l){const G=typeof gradeOf==="function"&&gradeOf(poGrade(l));if(G&&+G.den>0)return{d:+G.den,known:true};const t=[poGrade(l),l.item].join(" ");const d=DENS.find(([r])=>r.test(t));return{d:d?d[1]:7.85,known:!!d||!!String(poGrade(l)).trim()}}
 const poKgUnit=l=>/^kgs?\.?$|^kilo/i.test(String(l.unit||"").trim());
 function poRawCalc(l,setQty){const n=szNums(l.raw),rd=szRound(l.raw)&&n.length>=2,ok=rd||n.length>=3;
   if(!ok){l.wpc=0;l.wt=0;poSetDesc(l);return}
@@ -2522,7 +2670,14 @@ const rqSpec=(l,r)=>[...rqCols(r).map(c=>{const v=String((l.x||{})[c]||"").trim(
 /* the request form and its PDF show only size, material and weight-type columns; the other BOM columns
    (Type, HRC, Plate group, Priority, Source, Shape...) are kept with the request and appear in the pre-estimate, where they can be removed */
 const REQ_SHOW=/size|dimen|materi|grade|weight|\bwt\b|volume|kg|make|brand|^std$/i;
-const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c));
+const REQ_CATS=["Raw material","Child parts","BOP","Consumables","Tools & cutters"];
+const CATCOLS={"Raw material":["Grade","Size"],"Child parts":["Grade","Size"],"BOP":["Size","L"],"Tools & cutters":["Size","L"],"Consumables":[]};
+const CATPH={"Raw material":"Part name, e.g. Core insert","Child parts":"Part name or drawing No.","BOP":"Type, e.g. Ejector pin","Consumables":"Item, e.g. Coolant 20 L","Tools & cutters":"Tool type, e.g. Flat end mill"};
+const catCols=r=>CATCOLS[r&&r.cat]||[];
+const rqShow=r=>rqCols(r).filter(c=>REQ_SHOW.test(c)||catCols(r).includes(c));
+const rqColLabel=(r,c)=>c==="L"?"Length":c==="Size"?(r.cat==="Tools & cutters"?"Dia / size":["Raw material","Child parts"].includes(r.cat)?"Finished size":"Size"):c;
+function reqSetCat(r,cat){const old=catCols(r);r.cat=cat;const nw=CATCOLS[cat]||[];
+  r.xcols=[...nw,...rqCols(r).filter(c=>!nw.includes(c)&&!(old.includes(c)&&!r.lines.some(l=>l.x&&String(l.x[c]||"").trim())))]}
 const rqSpecHead=r=>!rqCols(r).length?"Specification":rqCols(r).some(c=>/materi|grade/i.test(c))?"Other spec":"Material spec";
 const rqText=l=>[l.item,l.desc].map(x=>String(x||"").trim()).filter(Boolean).filter((x,k,a)=>a.indexOf(x)===k).join(" - ");
 function rqFlat(l){if(l&&l.item!==undefined){l.desc=rqText(l);delete l.item}return l}
