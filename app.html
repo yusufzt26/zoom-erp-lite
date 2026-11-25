@@ -1634,7 +1634,7 @@ function buyCalc(b){const x=b.x,l=x.l,d=buyDraft[b.k]||{},cat=b.cat,o={};
   return o}
 function buyRows(){const ix=lastBuyIndex();
   return pendToOrder().filter(x=>inPlant(x.r)).map(x=>{const k=x.r.no+":"+x.i,spec=rqSpec(x.l,x.r),g=buyGuess(ix,x.name,spec)||{},d=buyDraft[k]||{};
-    const b={k,x,spec,cat:buyCat(x.r),on:d.on!==false,last:{sup:g.sup||"",rate:g.rate??"",no:g.no||""}};b.c=buyCalc(b);return b})}
+    const b={k,x,spec,cat:buyCat(x.r),on:d.on===true,last:{sup:g.sup||"",rate:g.rate??"",no:g.no||""}};b.c=buyCalc(b);return b})}
 function openBuy(r){buyQ=r?String(r.no):"";if(r)buyTab=buyCat(r);show("buy")}
 const bMatch=(b,q)=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.c.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q);
 const autoSt=on=>on?"background:color-mix(in srgb,#ffe600 28%,transparent)":"";
@@ -1669,22 +1669,22 @@ function renderBuy(){
   $("#buyHead").innerHTML=`<tr>${head}</tr>`;$("#buyBody").innerHTML=body;$("#buyNote").innerHTML=note+` Yellow = filled in from the masters or the last PO; change any of it.`;
   $("#buy-all").checked=L.length>0&&L.every(b=>b.on);$("#buy-all").closest("label").hidden=!L.length;
   buyTotals(all)}
-function buyLines(all){const out=[];(all||buyRows()).filter(b=>b.on).forEach(b=>{const c=b.c;
+function buyLines(all){const out=[];(all||buyRows()).filter(b=>b.on&&b.c.ok).forEach(b=>{const c=b.c;
   if(b.cat==="Child parts")c.ops.forEach((p,j)=>{if(p.amt>0)out.push({b,sup:p.sup,amt:p.amt*c.qty,op:p,j})});else out.push({b,sup:c.sup,amt:c.amt})});return out}
-function buyTotals(all){all=all||buyRows();const on=all.filter(b=>b.on),bad=on.filter(b=>!b.c.ok),out=buyLines(all);
+function buyTotals(all){all=all||buyRows();const on=all.filter(b=>b.on),ready=on.filter(b=>b.c.ok),bad=on.filter(b=>!b.c.ok),out=buyLines(all);
   const sups=new Set(out.filter(o=>String(o.sup||"").trim()).map(o=>key(o.sup)+"|"+(o.b.x.r.plant||"P1"))).size;
-  $("#buy-tot").textContent=on.length?`${on.length} line${on.length>1?"s":""} ticked in all tabs · ₹ ${fmt(out.reduce((a,o)=>a+o.amt,0))} before GST`:"";
-  $("#buy-msg").innerHTML=bad.length?`<span style="color:var(--danger)">${bad.length} ticked line${bad.length>1?"s need":" needs"} a supplier, rate or size (${[...new Set(bad.map(b=>b.cat))].map(esc).join(", ")}), or untick ${bad.length>1?"them":"it"}</span>`:on.length?"Unticked lines stay here for later.":"";
-  const B=$("#btn-buy-make");B.textContent=sups?`Make ${sups} PO${sups>1?"s":""} and send for approval`:"Make POs";B.disabled=!on.length||!!bad.length||!has("po.create")}
+  $("#buy-tot").textContent=ready.length?`${ready.length} line${ready.length>1?"s":""} ready in all tabs · ₹ ${fmt(out.reduce((a,o)=>a+o.amt,0))} before GST`:on.length?"":"Tick the lines to order now.";
+  $("#buy-msg").innerHTML=bad.length?`<span style="color:var(--danger)">${bad.length} ticked line${bad.length>1?"s have":" has"} no supplier, rate or size yet (${[...new Set(bad.map(b=>b.cat))].map(esc).join(", ")}) and will stay pending.</span>`:on.length?"Unticked lines stay pending for the next PO.":"";
+  const B=$("#btn-buy-make");B.textContent=sups?`Make ${sups} PO${sups>1?"s":""} and send for approval`:"Make POs";B.disabled=!ready.length||!has("po.create")}
 $("#buyTabs").addEventListener("click",e=>{const b=e.target.closest("[data-btab]");if(b){buyTab=b.dataset.btab;renderBuy()}});
 $("#buy-q").addEventListener("input",e=>{buyQ=e.target.value;renderBuy()});
 const bDraft=k=>buyDraft[k]=buyDraft[k]||{};
 const bOps=(k,b)=>{const d=bDraft(k);if(!d.ops)d.ops=b.c.ops.map(p=>({op:p.op,q:p.autoQ?null:p.q,rate:p.autoR?null:p.rate,sup:p.autoS?null:p.sup}));return d.ops};
 $("#buyBody").addEventListener("change",e=>{const t=e.target,tr=t.closest("[data-bk]");if(!tr)return;const k=tr.dataset.bk,d=bDraft(k),f=t.dataset.bf;
   if(f==="on"){d.on=t.checked}
-  else if(f==="tpl"){d.tpl=t.value;delete d.ops}
-  else if(f){d[f]=["sup","grade","raw"].includes(f)?t.value:(t.value===""?null:+t.value);if(f==="grade"){delete d.allow;delete d.raw;delete d.rate;delete d.sup}if(f==="allow")delete d.raw;if(f==="raw"&&!t.value.trim())delete d.raw}
-  else if(t.dataset.of){const b=buyRows().find(x=>x.k===k),ops=bOps(k,b),p=ops[+t.closest("[data-oj]").dataset.oj],of=t.dataset.of;p[of]=of==="op"||of==="sup"?t.value:(t.value===""?null:+t.value);if(of==="op"){p.q=null;p.rate=null;p.sup=null}}
+  else if(f==="tpl"){if(d.on==null)d.on=true;d.tpl=t.value;delete d.ops}
+  else if(f){if(d.on==null)d.on=true;d[f]=["sup","grade","raw"].includes(f)?t.value:(t.value===""?null:+t.value);if(f==="grade"){delete d.allow;delete d.raw;delete d.rate;delete d.sup}if(f==="allow")delete d.raw;if(f==="raw"&&!t.value.trim())delete d.raw}
+  else if(t.dataset.of){if(d.on==null)d.on=true;const b=buyRows().find(x=>x.k===k),ops=bOps(k,b),p=ops[+t.closest("[data-oj]").dataset.oj],of=t.dataset.of;p[of]=of==="op"||of==="sup"?t.value:(t.value===""?null:+t.value);if(of==="op"){p.q=null;p.rate=null;p.sup=null}}
   else return;
   saveBuy();renderBuy()});
 $("#buyBody").addEventListener("click",e=>{const btn=e.target.closest("button");if(!btn)return;const tr=btn.closest("[data-bk]"),k=tr&&tr.dataset.bk;
@@ -1696,7 +1696,7 @@ $("#buyBody").addEventListener("click",e=>{const btn=e.target.closest("button");
   if(btn.dataset.bsave){const L=costing[btn.dataset.bsave];L.push({type:b.x.name,size:lineX(b.x.l,"Size"),len:lineX(b.x.l,"L"),brand:"",price:+b.c.rate,sup:b.c.sup||"",upd:today(),by:me?me.name:""});costLog(`${COST_LISTS[btn.dataset.bsave].t}: added ${b.x.name} ${lineX(b.x.l,"Size")} ${lineX(b.x.l,"L")}`.trim(),"",+b.c.rate);delete bDraft(k).rate;saveCosting();saveBuy();renderBuy();toast("Saved to the price list");return}});
 $("#buy-all").onchange=e=>{const q=key(buyQ);buyRows().filter(b=>b.cat===buyTab&&bMatch(b,q)).forEach(b=>{bDraft(b.k).on=e.target.checked});saveBuy();renderBuy()};
 $("#btn-buy-make").onclick=()=>{
-  const all=buyRows(),on=all.filter(b=>b.on);if(!on.length||on.some(b=>!b.c.ok)){buyTotals(all);return}
+  const all=buyRows(),on=all.filter(b=>b.on&&b.c.ok);if(!on.length){buyTotals(all);return}
   const G={};buyLines(all).forEach(o=>{const sp=supOf(o.sup),nm=sp?sp.name:String(o.sup).trim(),pl=o.b.x.r.plant||defPlant(),g=nm+"|"+pl;(G[g]=G[g]||{sup:nm,sp,plant:pl,rows:[]}).rows.push(o)});
   const made=[];
   Object.values(G).forEach(g=>{const sp=g.sp||{name:g.sup,addr:"",state:"27"},R=g.rows;
