@@ -1564,7 +1564,7 @@ $("#btn-buy-make").onclick=()=>{
     po={no:nextPONo(),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
       reqNo:nos.join(", "),reqNos:nos,needBy:needs[0]||"",plant:g.plant,deliv:plantAddr(g.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",xcols:[],
       lines:R.map(b=>{const it=itemByName(b.x.name),full=[b.x.name,b.spec].filter(Boolean).join(" - ");
-        return{desc:full,item:it?it.name:"",spec:it?b.spec:full,hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:+b.qty,unit:b.x.unit||(it&&it.unit)||"NOS",rate:+b.rate,dis:0,rq:b.x.i,rqNo:b.x.r.no}})};
+        return{desc:full,item:it?it.name:"",spec:it?b.spec:full,hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:+b.qty,unit:b.x.unit||(it&&it.unit)||"NOS",rate:+b.rate,dis:0,rq:b.x.i,rqNo:b.x.r.no,...(b.x.l.cat?{cat:b.x.l.cat,...(b.x.l.cat==="Raw material"?{rawOn:true}:{})}:{})}})};
     recordPO("Pending approval","Made on the Buy sheet and sent for approval");learnFromPO();
     poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});R.forEach(b=>delete buyDraft[b.k]);made.push(po)});
   saveReqs();saveBuy();po=made[made.length-1];store.set("po",po);
