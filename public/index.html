@@ -970,7 +970,7 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-xlx]
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   if(await deliver(blob,`${nm.replace(/[^A-Za-z0-9]+/g,"-")}-${today()}.xlsx`))toast(`Saved ${aoa.length-1} row${aoa.length===2?"":"s"} to Excel`)});
 const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const ltD=iso=>{const x=String(iso||"");if(!/^\d{4}-\d\d-\d\d/.test(x))return"-";return`${+x.slice(8,10)} ${MON3[+x.slice(5,7)-1]} ${x.slice(0,4)}`};
+const ltD=iso=>{const x=sortDay(iso);if(!/^\d{4}-\d\d-\d\d/.test(x))return"-";return`${+x.slice(8,10)} ${MON3[+x.slice(5,7)-1]} ${x.slice(0,4)}`};
 const ltDT=iso=>{const x=String(iso||"");if(x.length<=10)return ltD(x);const d=new Date(x);if(isNaN(d))return ltD(x);const h=d.getHours(),m=String(d.getMinutes()).padStart(2,"0");return`${d.getDate()} ${MON3[d.getMonth()]} ${d.getFullYear()}, ${String(h%12||12).padStart(2,"0")}:${m} ${h<12?"am":"pm"}`};
 const ltPrj=j=>j?`<span class="prj" title="${esc(j)}">${esc(j)}</span>`:`<span class="note">-</span>`;
 const ltAmt=n=>"₹"+fmt(n);
@@ -981,7 +981,9 @@ const PO_COLS=[["PO number","no"],["Project"],["Vendor"],["PO date","dt"],["Amou
 const poPdfBtn=i=>{const s=saved[i];return`<button class="btn${s.status==="Approved"?" pdf":""}" type="button" data-pdf="${i}">${s.status==="Approved"?"Signed PDF":"PDF"}</button>`};
 /* newest first on every list: document date, then document number, then time saved */
 const docNum=x=>{const m=String(x??"").match(/\d+/);return m?+m[0]:0};
-const cmpNew=(a,b,d=x=>x.date,n=x=>x.no)=>String(d(b)||"").slice(0,10).localeCompare(String(d(a)||"").slice(0,10))||docNum(n(b))-docNum(n(a))||String(b.savedAt||b.createdAt||"").localeCompare(String(a.savedAt||a.createdAt||""));
+/* date key for sorting: ISO dates as they are; dd/mm/yyyy, 26-Nov-2026, Excel serials and Date objects (old imports) are read too */
+const sortDay=v=>{if(v==null||v==="")return"";const t=String(v);if(/^\d{4}-\d{2}-\d{2}/.test(t))return t.slice(0,10);try{return obDate(v)||""}catch(_){return""}};
+const cmpNew=(a,b,d=x=>x.date,n=x=>x.no)=>sortDay(d(b)).localeCompare(sortDay(d(a)))||docNum(n(b))-docNum(n(a))||String(b.savedAt||b.createdAt||"").localeCompare(String(a.savedAt||a.createdAt||""));
 const byNew=(L,d,n)=>L.slice().sort((a,b)=>cmpNew(a,b,d,n));
 const lfNone=`<div class="empty">Nothing matches the search, project or period. Clear them to see everything.</div>`;
 function fillPrj(k,jobs){fillPlDep(k);const el=$("#prj-"+k);if(!el)return;const v=el.value,L=[...new Set(M.projects.map(p=>p.no).concat(jobs).map(x=>String(x||"").trim()).filter(Boolean))].sort();
@@ -1486,7 +1488,7 @@ const apprTbl=(L,bulk)=>ltT(PO_COLS,L.map(s=>{const i=saved.indexOf(s);return{c:
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
   fillPrj("appr",saved.map(s=>s.ref));
-  const pend=apprPend(),done=byNew(saved.filter(s=>["Approved","Sent back"].includes(s.status)&&apprOk(s)),poUpd).slice(0,10);
+  const pend=apprPend(),done=byNew(saved.filter(s=>["Approved","Sent back"].includes(s.status)&&apprOk(s)));
   const bulk=canBulkAppr()&&pend.length>0;$("#apprBulk").hidden=!bulk;
   $("#apprList").innerHTML=pend.length?apprTbl(pend,bulk):`<div class="empty">Nothing is waiting for approval${saved.some(s=>s.status==="Pending approval")?" that matches the filters":""}.</div>`;
   apprSelSync();
@@ -2394,7 +2396,7 @@ function renderRgpForm(){
     <div class="row"><span style="flex:1"></span><button class="btn primary" id="btn-r-ret">Save receipt</button></div>`;return}
   const c=rgp;
   F.innerHTML=`<div class="row"><h2 class="sec">New returnable challan · RC-${c.no}</h2><span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
-  <div class="grid-fields"><label class="f">Plant<select id="rg-plant">${plantOpts(c.plant)}</select></label><label class="f">Send to<input id="rg-party" list="suppliers" value="${esc(c.party)}" placeholder="Supplier or party"></label><label class="f">Purpose<input id="rg-purpose" value="${esc(c.purpose)}" placeholder="Hardening, repair, trial..."></label><label class="f">Challan date<input id="rg-date" type="date" value="${c.date}"></label><label class="f">Expected return by<input id="rg-expected" type="date" value="${c.expected}"></label><label class="f">Vehicle / transport<input id="rg-vehicle" value="${esc(c.vehicle)}"></label><label class="f">Job No.<input id="rg-job" list="projects" value="${esc(c.job)}"></label><label class="f">Against service PO<select id="rg-po"><option value="">No PO</option>${saved.filter(p=>p.status==="Approved"&&(!c.party||key(p.sup)===key(c.party))).map(p=>`<option value="${esc(p.no)}"${String(c.po||"")===String(p.no)?" selected":""}>PO ${esc(p.no)} · ${esc(p.sup)}${p.ref?" · "+esc(p.ref):""}</option>`).join("")}</select></label></div>
+  <div class="grid-fields"><label class="f">Plant<select id="rg-plant">${plantOpts(c.plant)}</select></label><label class="f">Send to<input id="rg-party" list="suppliers" value="${esc(c.party)}" placeholder="Supplier or party"></label><label class="f">Purpose<input id="rg-purpose" value="${esc(c.purpose)}" placeholder="Hardening, repair, trial..."></label><label class="f">Challan date<input id="rg-date" type="date" value="${c.date}"></label><label class="f">Expected return by<input id="rg-expected" type="date" value="${c.expected}"></label><label class="f">Vehicle / transport<input id="rg-vehicle" value="${esc(c.vehicle)}"></label><label class="f">Job No.<input id="rg-job" list="projects" value="${esc(c.job)}"></label><label class="f">Against service PO<select id="rg-po"><option value="">No PO</option>${byNew(saved.filter(p=>p.status==="Approved"&&(!c.party||key(p.sup)===key(c.party)))).map(p=>`<option value="${esc(p.no)}"${String(c.po||"")===String(p.no)?" selected":""}>PO ${esc(p.no)} · ${esc(p.sup)}${p.ref?" · "+esc(p.ref):""}</option>`).join("")}</select></label></div>
   <label class="f">Party address<textarea id="rg-addr" rows="2">${esc(c.addr)}</textarea></label>
   <div class="tablebox"><table class="est" style="min-width:720px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th class="num">Qty</th><th>Unit</th><th class="num">Approx. value</th><th>Remark</th><th></th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input id="rgl${i}-d" data-rl="desc" value="${esc(l.desc)}"></td><td><input id="rgl${i}-h" data-rl="hsn" value="${esc(l.hsn)}" style="width:90px"></td><td class="num"><input id="rgl${i}-q" class="qty" data-rl="qty" type="number" step="any" value="${l.qty}"></td><td><input id="rgl${i}-u" data-rl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="rgl${i}-v" class="rate" data-rl="value" type="number" step="0.01" value="${l.value||""}"></td><td><input id="rgl${i}-r" data-rl="remark" value="${esc(l.remark)}"></td><td><button class="x" data-rdel="${i}" aria-label="Remove line">×</button></td></tr>`).join("")}</tbody></table></div>
   <div class="row"><button class="btn" id="btn-r-line">Add line</button><span style="flex:1"></span><button class="btn primary" id="btn-r-save">Save and download PDF</button></div>`;
@@ -2723,7 +2725,7 @@ function backupBook(){
   add("Summary",[{Company:COMPANY.name,"Backup date":dmy(today()),Time:new Date().toLocaleTimeString("en-IN"),"Taken by":me?me.name:"",Requests:reqs.length,POs:saved.length,GRNs:grns.length,Payments:pays.length,"Stock items":stockItems().length,"Issue/return slips":slips.length,"Returnable challans":rgps.length}]);
   add("Requests",reqs.map(r=>({No:r.no,Date:dmy(r.date),By:r.by,Dept:r.dept,"Job No":r.job,"Need by":dmy(r.need),Status:r.status,Lines:r.lines.length})));
   add("Request lines",reqs.flatMap(r=>r.lines.map(l=>({Request:r.no,Description:rqText(l),Spec:rqSpec(l,r),Qty:l.qty,Unit:l.unit,Remark:l.remark}))));
-  add("POs",saved.map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
+  add("POs",byNew(saved).map(p=>({"PO No":p.no,Date:dmy(p.date),Supplier:p.sup,"Job/Ref":p.ref,Status:p.status,Receipt:p.recv||"","Total incl GST":p.total,"Approved by":p.approvedBy||"","Approved on":dmy(p.approvedAt)})));
   add("PO lines",saved.flatMap(p=>p.lines.map(l=>({"PO No":p.no,Description:l.desc,HSN:l.hsn,"Tax%":l.tax,Qty:l.qty,Unit:l.unit,Rate:l.rate,"Dis%":l.dis||0,Amount:Math.round((+l.qty||0)*lineNet(l)*100)/100}))));
   add("GRNs",grns.map(g=>({"GRN No":g.no,Date:dmy(g.date),"PO No":g.poNo,Supplier:g.sup,DC:g.dc,Invoice:g.inv,Status:g.status,Value:grnCalc(g).total,Paid:grnPaid(g),Balance:grnBal(g)})));
   add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":x.adv?"Advance, PO "+x.po:(x.alloc||[]).map(a=>a.ob?obBill(a.ob):a.grn).join(", ")})));
@@ -2945,7 +2947,7 @@ $("#vendDetail").addEventListener("click",e=>{
 const dd=(a,b)=>a&&b?Math.round((new Date(b)-new Date(a))/864e5):null;
 const hAt=(p,act)=>{const h=(p.history||[]).find(x=>x.action===act);return h?h.at.slice(0,10):""};
 function trackRows(){
-  return saved.filter(p=>p.status!=="Draft"||p.reqNo).map(p=>{const r=p.reqNo?reqs.find(x=>x.no===p.reqNo):null;const need=(r&&r.need)||p.needBy||"";
+  return byNew(saved.filter(p=>p.status!=="Draft"||p.reqNo)).map(p=>{const r=p.reqNo?reqs.find(x=>x.no===p.reqNo):null;const need=(r&&r.need)||p.needBy||"";
     const sent=hAt(p,"Sent for approval"),appr=p.approvedAt||hAt(p,"Approved");const end=p.closedAt||"";
     const delay=need?(end?dd(need,end):(today()>need?dd(need,today()):null)):null;
     return{p,r,need,reqDate:r?r.date:"",hod:r?r.apprAt||"":"",sent,appr,first:p.firstGrnAt||"",end,buyer:(p.history||[]).find(h=>h.action==="Sent for approval")?.by||"",
@@ -4012,7 +4014,7 @@ $("#btn-dn-new").onclick=()=>{if(!has("dn.create")){toast("Only accounts can mak
 $("#btn-cn-new").onclick=()=>{if(!has("cn.create")){toast("You can view but not make credit notes");return}ntCur={t:"cn",isNew:true,rec:ntNew("cn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
 function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"#cnForm");if(!ntCur||ntCur.t!==t){F.hidden=true;F.innerHTML=""}});if(!ntCur)return;
   const {t,rec:x,isNew}=ntCur,F=$(t==="dn"?"#dnForm":"#cnForm"),k=ntCalc(t,x),ro=isNew?!has(t+".create"):!has(t+".edit");F.hidden=false;
-  const refs=t==="dn"?grns.filter(g=>key(g.sup)===key(x.party)).map(g=>[String(g.no),`GRN ${g.no} · PO ${g.poNo} · ${dmy(g.date)}`]):invoices.filter(v=>key(v.cust)===key(x.party)).map(v=>[ntInvId(v),`${invNo(v)} · ${dmy(v.date)} · ₹ ${fmt0(invTot(v))}`]);
+  const refs=t==="dn"?grns.filter(g=>key(g.sup)===key(x.party)).map(g=>[String(g.no),`GRN ${g.no} · PO ${g.poNo} · ${dmy(g.date)}`]):byNew(invoices.filter(v=>key(v.cust)===key(x.party))).map(v=>[ntInvId(v),`${invNo(v)} · ${dmy(v.date)} · ₹ ${fmt0(invTot(v))}`]);
   const rk=t==="dn"?"grn":"inv";
   F.innerHTML=`<div class="row"><h2 class="sec">${NT[t].name} · ${esc(ntNo(t,x))}</h2><span style="flex:1"></span>${!isNew&&t==="cn"&&!x.irn?`<button class="btn" type="button" id="nt-json">E-invoice JSON</button>`:""}${isNew?"":`<button class="btn" type="button" id="nt-pdf">PDF</button>`}${!isNew&&has(t+".delete")?`<button class="btn" type="button" id="nt-del">Delete</button>`:""}<button class="btn" type="button" id="nt-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="nt-save">Save</button>`}</div>
   <div class="grid-fields"><label class="f">${t==="dn"?"Supplier":"Customer"}<input id="nt-party" data-nf="party" value="${esc(x.party)}" list="${t==="dn"?"suppliers":"custnames"}"></label><label class="f">Date<input id="nt-date" data-nf="date" type="date" value="${esc(x.date)}"></label><label class="f">Plant<select id="nt-plant" data-nf="plant">${plantOpts(x.plant)}</select></label>
