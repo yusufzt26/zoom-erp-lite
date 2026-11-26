@@ -129,6 +129,17 @@ table.lt td{padding-top:6px!important;padding-bottom:6px!important;font-size:13p
 table.lt td.no{font-size:13px}table.lt td.no small{font-size:10.5px}table.lt td .note{font-size:11.5px}
 select.prj,select.pl,select.dep,select.per{max-width:190px}
 @media (max-width:640px){.tablebox:has(> table.lt){max-height:none;overflow:visible;border:0}table.lt thead th{position:static}table.lt td.act,table.lt th.act{position:static;box-shadow:none;background:none}table.lt .prj{max-width:none}}
+/* type-to-filter dropdowns */
+select.cb-h{position:absolute!important;width:1px!important;height:1px!important;min-width:0!important;opacity:0!important;pointer-events:none!important;padding:0!important;border:0!important;margin:0!important;overflow:hidden}
+input.cbx{cursor:pointer;padding-right:26px;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23889' stroke-width='1.6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+input.cbx:focus{cursor:text}input.cbx:disabled{cursor:default;background-image:none}input.cbx:disabled{color:var(--muted);-webkit-text-fill-color:var(--muted)}.paper input.cbx:disabled{color:var(--paper-ink);-webkit-text-fill-color:var(--paper-ink)}
+input.cbx.prj,input.cbx.pl,input.cbx.dep,input.cbx.per{max-width:190px}.who input.cbx{width:auto;padding:5px 24px 5px 8px;font-size:13px}.dhead input.cbx{width:auto}
+.hdrmenu .who input.cbx{flex:1;min-width:0;font-size:14px;padding:7px 24px 7px 8px;background-color:var(--panel)}
+table.mt input.cbx{background-color:transparent;border-color:transparent;padding:5px 22px 5px 6px}.paper input.cbx{padding-right:16px;background-position:right 4px center}
+.cblist{position:fixed;z-index:10000;overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;font-size:14px}
+.cblist .cbo{padding:7px 10px;border-radius:5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cblist .cbo b{font-weight:700;text-decoration:underline}
+.cblist .cbo.act{background:var(--sugg-bg)}.cblist .cbo.cur{font-weight:600}.cblist .cbo.dis{opacity:.45;cursor:default}
+.cblist .cbg{padding:6px 10px 2px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.6}.cblist .cbnone{padding:8px 10px;opacity:.7}
 .ltbar{display:flex;justify-content:flex-end;margin-bottom:-4px}
 table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.lt th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg);font-weight:600;white-space:nowrap}
@@ -929,11 +940,11 @@ function xlTargets(){const T=[];document.querySelectorAll(".tablebox:not(:has(ta
 function xlEnsure(){xlTargets().forEach(t=>{const pv=t.previousElementSibling;if(pv&&pv.classList.contains("xlbar"))return;t.insertAdjacentHTML("beforebegin",`<div class="ltbar xlbar"><button class="btn" type="button" data-xlx title="Download this list as shown as an Excel file">Export to Excel</button></div>`)});
   document.querySelectorAll(".xlbar").forEach(b=>{const n=b.nextElementSibling;if(!n||!xlTargets().includes(n))b.remove()})}
 {let xt=0;new MutationObserver(()=>{clearTimeout(xt);xt=setTimeout(xlEnsure,120)}).observe(document.body,{childList:true,subtree:true})}
-const xlCell=el=>{const f=[...el.querySelectorAll("input:not([type=checkbox]):not([type=button]):not([type=file]),select,textarea")];
+const xlCell=el=>{const f=[...el.querySelectorAll("input:not([type=checkbox]):not([type=button]):not([type=file]):not(.cbx),select,textarea")];
   const t=f.length?f.map(x=>x.tagName==="SELECT"?(x.selectedOptions[0]?.textContent||""):x.value).filter(Boolean).join(" · "):[...el.childNodes].length?el.innerText:"";
   const v=String(t).replace(/\s*\n+\s*/g," · ").trim(),n=v.replace(/[₹,\s]/g,"");if(/^₹?\s?-?[\d,]+(\.\d+)?$/.test(v)&&!isNaN(+n)&&n.length<15&&!/^0\d/.test(n))return+n;
   const m=v.match(/^(\d\d)\/(\d\d)\/(\d{4})$/);if(m)return new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));return v==="-"?"":v};
-const onlyBtn=el=>{if(el.querySelector("input:not([type=checkbox]):not([type=button]):not([type=file]),select,textarea"))return false;const w=x=>String(x||"").replace(/\s+/g,"");return w(el.textContent)===w([...el.querySelectorAll("button,a.btn,.x")].map(b=>b.textContent).join(""))};
+const onlyBtn=el=>{if(el.querySelector("input:not([type=checkbox]):not([type=button]):not([type=file]):not(.cbx),select,textarea"))return false;const w=x=>String(x||"").replace(/\s+/g,"");return w(el.textContent)===w([...el.querySelectorAll("button,a.btn,.x")].map(b=>b.textContent).join(""))};
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-xlx]");if(!b)return;const t=b.parentElement.nextElementSibling;if(!t)return;
   if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   let aoa;const tb=t.querySelector("table");
@@ -2578,6 +2589,83 @@ document.addEventListener("paste",e=>{const p=gPos(e.target);if(!p)return;if(e.t
   else{for(let i=0;i<data.length;i++){if(data[i].every(v=>!String(v).trim())&&i===data.length-1)continue;if(!gGrow(g,r0+i))break;for(let j=0;j<data[i].length;j++){const el=gCell(g,r0+i,c0+j);if(!el)break;if(!String(data[i][j]).trim())continue;gSet(el,data[i][j]);n++}}}
   const back=gCell(g,r0,c0);if(back)back.focus({preventScroll:true});gSel=null;gPaint();gShow(gCell(g,Math.min(r0+data.length-1,gRows(g.q()).length-1),c0)||back);toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table`:"Nothing pasted: these cells are locked")});
 
+/* ---------- type-to-filter dropdowns: every single-choice dropdown gets a search box. Type a few letters to narrow the list,
+   then click, or use the arrow keys and Enter. The real <select> stays in the page (hidden) and keeps its value, events and code. ---------- */
+if(!window.__cbOn){window.__cbOn=1;
+const CBX=new WeakMap();let cbCur=null,cbAct=-1,cbItems=[];
+const cbL=document.createElement("div");cbL.id="cbList";cbL.className="cblist";cbL.setAttribute("role","listbox");cbL.hidden=true;document.body.appendChild(cbL);
+const cbTxt=s=>{const o=s.options[s.selectedIndex];return o?o.text.trim():""};
+const cbSkip=s=>s.multiple||s.size>1||s.closest("[data-nocb]")||(()=>{const tb=s.closest("tbody");return!!tb&&GRIDS.some(g=>{try{return g.is(tb)}catch(_){return false}})})();
+function cbSync(s){const c=CBX.get(s);if(!c)return;const i=c.i;
+  if(!c.typing)i.value=cbTxt(s);
+  i.disabled=s.disabled;i.hidden=s.hidden;const st=s.getAttribute("style")||"";if(i.getAttribute("style")!==st)i.setAttribute("style",st);
+  i.className=(s.className.replace(/\bcb-h\b/g,"")+" cbx").trim();i.title=s.title||(i.value.length>18?i.value:"");
+  let L=4;for(const o of s.options)L=Math.max(L,o.text.trim().length);i.size=Math.min(Math.max(L-1,4),40);
+  if(cbCur===s&&!cbL.hidden)cbFill()}
+function cbMake(s){if(CBX.has(s)||cbSkip(s))return;
+  const i=document.createElement("input");i.type="text";i.autocomplete="off";i.spellcheck=false;i.setAttribute("role","combobox");i.setAttribute("aria-autocomplete","list");
+  const lab=s.getAttribute("aria-label")||(s.id&&document.querySelector(`label[for="${s.id}"]`)?.textContent)||"";if(lab)i.setAttribute("aria-label",lab);
+  let fresh=false;CBX.set(s,{i,typing:false});i._cbSel=s;s.classList.add("cb-h");s.tabIndex=-1;s.after(i);cbSync(s);
+  s.addEventListener("focus",()=>{if(!i.disabled&&!i.hidden)i.focus()});
+  i.addEventListener("focus",()=>{fresh=true;cbOpen(s,true);try{i.select()}catch(_){}});
+  i.addEventListener("mouseup",e=>{if(fresh){fresh=false;e.preventDefault();try{i.select()}catch(_){}}});i.addEventListener("keydown",()=>{fresh=false},true);
+  i.addEventListener("mousedown",()=>{if(document.activeElement===i&&cbL.hidden){fresh=true;cbOpen(s,true)}});
+  i.addEventListener("input",e=>{e.stopPropagation();CBX.get(s).typing=true;cbOpen(s,false)});
+  i.addEventListener("change",e=>e.stopPropagation());
+  i.addEventListener("keydown",e=>{const k=e.key;
+    if(k==="ArrowDown"||k==="ArrowUp"){e.preventDefault();e.stopPropagation();if(cbL.hidden||cbCur!==s){cbOpen(s,true);return}cbMove(k==="ArrowDown"?1:-1)}
+    else if(k==="Enter"){if(cbCur===s&&!cbL.hidden){e.preventDefault();e.stopPropagation();if(cbAct>=0)cbPick(cbItems[cbAct]);else cbClose(true)}}
+    else if(k==="Escape"){if(!cbL.hidden){e.preventDefault();e.stopPropagation();cbClose(true)}}
+    else if(k==="Tab"){if(CBX.get(s).typing&&cbAct>=0&&i.value.trim())cbPick(cbItems[cbAct]);else cbClose(true)}});
+  i.addEventListener("blur",()=>setTimeout(()=>{if(cbCur===s&&document.activeElement!==i)cbClose(true)},120))}
+const cbKey=t=>String(t||"").toLowerCase().replace(/\s+/g," ").trim();
+function cbMatch(text,q){const t=cbKey(text);if(!q)return true;if(t.startsWith(q))return true;
+  if(t.split(/[\s\-–—·,()\/:|]+/).some(w=>w&&w.startsWith(q)))return true;return q.length>=3&&t.includes(q)}
+function cbFill(){const s=cbCur;if(!s)return;const c=CBX.get(s);const q=c.typing?cbKey(c.i.value):"";
+  cbItems=[];let h="",grp=null;
+  for(const o of s.options){if(o.hidden)continue;const t=o.text.trim();if(q&&(!t||!cbMatch(t,q)))continue;
+    const g=o.parentElement.tagName==="OPTGROUP"?o.parentElement.label:null;if(g!==grp){grp=g;if(g)h+=`<div class="cbg">${esc(g)}</div>`}
+    const n=cbItems.length;cbItems.push(o);
+    h+=`<div class="cbo${o.disabled?" dis":""}${o.selected?" cur":""}" role="option" data-cbi="${n}" aria-selected="${o.selected}">${t?q?cbHi(t,q):esc(t):"&nbsp;"}</div>`}
+  cbL.innerHTML=h||`<div class="cbnone">No match for “${esc(c.i.value.trim())}”</div>`;
+  cbAct=q?cbItems.findIndex(o=>!o.disabled):cbItems.findIndex(o=>o.selected);cbMark();cbPlace()}
+function cbHi(t,q){const k=t.toLowerCase();let at=k.startsWith(q)?0:-1;
+  if(at<0){const m=k.match(new RegExp("(^|[\\s\\-–—·,()\\/:|])"+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")));at=m?m.index+m[1].length:k.indexOf(q)}
+  return at<0?esc(t):esc(t.slice(0,at))+"<b>"+esc(t.slice(at,at+q.length))+"</b>"+esc(t.slice(at+q.length))}
+function cbMark(){cbL.querySelectorAll(".cbo.act").forEach(x=>x.classList.remove("act"));const el=cbL.querySelector(`[data-cbi="${cbAct}"]`);
+  if(el){el.classList.add("act");const r=el.offsetTop,b=r+el.offsetHeight;if(r<cbL.scrollTop)cbL.scrollTop=r;else if(b>cbL.scrollTop+cbL.clientHeight)cbL.scrollTop=b-cbL.clientHeight}}
+function cbMove(d){if(!cbItems.length)return;let n=cbAct;for(let k=0;k<cbItems.length;k++){n=(n+d+cbItems.length)%cbItems.length;if(!cbItems[n].disabled)break}cbAct=n;cbMark()}
+function cbPlace(){const s=cbCur;if(!s)return;const i=CBX.get(s).i,r=i.getBoundingClientRect();
+  if(!r.width&&!r.height){cbClose(true);return}
+  const W=Math.min(Math.max(r.width,200),innerWidth-16),below=innerHeight-r.bottom-8,above=r.top-8,up=below<180&&above>below;
+  cbL.style.width=W+"px";cbL.style.left=Math.max(8,Math.min(r.left,innerWidth-W-8))+"px";cbL.style.maxHeight=Math.max(120,Math.min(300,up?above:below))+"px";
+  if(up){cbL.style.top="";cbL.style.bottom=(innerHeight-r.top+2)+"px"}else{cbL.style.bottom="";cbL.style.top=(r.bottom+2)+"px"}}
+function cbOpen(s,all){if(cbCur&&cbCur!==s)cbClose(true);cbCur=s;const c=CBX.get(s);if(all)c.typing=false;
+  c.i.setAttribute("aria-expanded","true");cbL.hidden=false;cbFill()}
+function cbClose(revert){const s=cbCur;cbL.hidden=true;cbCur=null;cbItems=[];cbAct=-1;if(!s)return;const c=CBX.get(s);if(!c)return;
+  c.i.setAttribute("aria-expanded","false");c.typing=false;if(revert)c.i.value=cbTxt(s)}
+function cbPick(o){const s=cbCur;if(!s||!o||o.disabled)return;const c=CBX.get(s);const ch=s.value!==o.value||s.selectedIndex!==o.index;
+  c.typing=false;s.selectedIndex=o.index;c.i.value=cbTxt(s);cbClose(false);
+  if(ch){s.dispatchEvent(new Event("input",{bubbles:true}));s.dispatchEvent(new Event("change",{bubbles:true}))}}
+cbL.addEventListener("mousedown",e=>{e.preventDefault();const el=e.target.closest("[data-cbi]");if(el)cbPick(cbItems[+el.dataset.cbi])});
+addEventListener("resize",()=>{if(cbCur)cbPlace()});
+document.addEventListener("scroll",e=>{if(cbCur&&!cbL.contains(e.target))cbPlace()},true);
+/* code that sets a dropdown's value (sel.value=…, selectedIndex, option.selected) updates its search box too */
+for(const[P,k]of[[HTMLSelectElement.prototype,"value"],[HTMLSelectElement.prototype,"selectedIndex"],[HTMLOptionElement.prototype,"selected"]]){
+  const d=Object.getOwnPropertyDescriptor(P,k);if(!d||!d.set)continue;
+  Object.defineProperty(P,k,{configurable:true,enumerable:d.enumerable,get(){return d.get.call(this)},
+    set(v){d.set.call(this,v);const s=this.tagName==="SELECT"?this:this.closest&&this.closest("select");if(s&&CBX.has(s))cbSync(s)}})}
+const cbScan=n=>{if(n.nodeType!==1)return;if(n.tagName==="SELECT")cbMake(n);else if(n.querySelector&&n.firstElementChild)n.querySelectorAll("select").forEach(cbMake)};
+new MutationObserver(ms=>{const sync=new Set();
+  for(const m of ms){const t=m.target;
+    if(m.type==="childList"){m.addedNodes.forEach(cbScan);
+      m.removedNodes.forEach(n=>{if(n.nodeType===1&&n.tagName==="SELECT"){const c=CBX.get(n);if(c&&!n.isConnected&&c.i.isConnected)c.i.remove()}});
+      const s=t.tagName==="SELECT"?t:t.closest&&t.closest("select");if(s)sync.add(s)}
+    else if(t.tagName==="SELECT")sync.add(t);else if(t.tagName==="OPTION"||t.tagName==="OPTGROUP"){const s=t.closest("select");if(s)sync.add(s)}}
+  sync.forEach(s=>{if(CBX.has(s))cbSync(s);else if(s.isConnected)cbMake(s)})})
+  .observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["disabled","style","hidden","title","class","selected","label"]});
+cbScan(document.body);
+}
 /* ---------- weekly backup ---------- */
 const BK_SKIP=["lastBackup","me","theme","po","est","_rp"];
 const isDesktop=()=>!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)&&!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);
