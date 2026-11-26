@@ -1654,7 +1654,7 @@ function renderEstReq(){
 /* ---------- store / GRN ---------- */
 const saveGRNs=()=>store.set("grns",grns);
 const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
-function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;return o+grns.filter(g=>String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
+function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;return o+grns.filter(g=>!g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
 function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
 function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
 /* ---------- pending balance: request -> PO -> received ---------- */
@@ -2306,13 +2306,13 @@ let slip=null,ledgerK=null;
 const SLIP={Issue:{pre:"IS-",base:1000,title:"MATERIAL ISSUE SLIP",sign:-1},Return:{pre:"MR-",base:500,title:"MATERIAL RETURN TO STORE",sign:1},Opening:{pre:"OP-",base:0,title:"OPENING STOCK",sign:1}};
 function movements(){
   const mv=[];
-  grns.forEach(g=>g.lines.forEach(l=>{const q=(+l.recv||0)-(+l.rej||0);if(q>0)mv.push({date:g.date,t:g.createdAt||g.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:q,rate:lineNet(l),doc:"GRN "+g.no,type:"GRN",job:g.job,party:g.sup})}));
+  grns.filter(g=>!g.old).forEach(g=>g.lines.forEach(l=>{const q=(+l.recv||0)-(+l.rej||0);if(q>0)mv.push({date:g.date,t:g.createdAt||g.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:q,rate:lineNet(l),doc:"GRN "+g.no,type:"GRN",job:g.job,party:g.sup})}));
   slips.forEach(s=>s.lines.forEach(l=>mv.push({date:s.date,t:s.createdAt||s.date,k:l.k,desc:l.desc,unit:l.unit,qty:SLIP[s.type].sign*(+l.qty||0),rate:+l.rate||0,doc:SLIP[s.type].pre+s.no,type:s.type,job:s.job,party:s.to||""})));
   dnotes.filter(d=>d.reason==="Returned after acceptance").forEach(d=>d.lines.forEach(l=>mv.push({date:d.date,t:d.createdAt||d.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:-(+l.qty||0),rate:+l.rate||0,doc:"DN-"+d.no,type:"DN",job:"",party:d.party})));
   try{const stk=new Set(mv.filter(v=>v.type==="GRN"||v.type==="Opening").map(v=>v.k));items.forEach(i=>{if(i.stock==="Yes")stk.add(key(i.name))});
     const out=(d,doc,x)=>d.lines.forEach(l=>{const k=key(l.desc);if(stk.has(k)&&+l.qty>0)mv.push({date:x.date,t:x.createdAt||x.date,k,desc:l.desc,unit:l.unit,qty:-(+l.qty),rate:+l.rate||0,doc,type:"Sale",job:x.job||"",party:x.cust})});
     dchallans.forEach(d=>out(d,"DC-"+d.no,d));
-    invoices.filter(v=>!(v.dc&&v.dc.length)&&!v.jw).forEach(v=>out(v,"INV "+invNo(v),v));
+    invoices.filter(v=>!(v.dc&&v.dc.length)&&!v.jw&&!v.old).forEach(v=>out(v,"INV "+invNo(v),v));
     cnotes.filter(n=>n.reason==="Sales return").forEach(n=>(n.lines||[]).forEach(l=>{const k=key(l.desc);if(stk.has(k)&&+l.qty>0)mv.push({date:n.date,t:n.createdAt||n.date,k,desc:l.desc,unit:l.unit,qty:+l.qty,rate:0,doc:"CN "+(n.no||""),type:"SR",job:"",party:n.cust||n.party||""})}))}catch(e){}
   return mv.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.t<b.t?-1:a.t>b.t?1:0));
 }
@@ -2581,8 +2581,8 @@ const poAdv=no=>pays.filter(p=>p.adv&&String(p.po)===String(no)).reduce((a,p)=>a
 function grnAdv(g){if(g.status==="With accounts")return 0;let left=poAdv(g.poNo);if(left<=0.004)return 0;for(const h of grns.filter(x=>String(x.poNo)===String(g.poNo)&&x.status!=="With accounts").sort((a,b)=>a.no-b.no)){const take=Math.min(Math.max(0,grnCalc(h).total-grnDirect(h)-dnAdj(h)),left);if(h.no===g.no)return take;left-=take}return 0}
 const grnPaid=g=>grnDirect(g)+grnAdv(g);
 const poAdvLeft=no=>Math.max(0,poAdv(no)-grns.filter(x=>String(x.poNo)===String(no)).reduce((a,h)=>a+grnAdv(h),0));
-const grnBal=g=>Math.round((grnCalc(g).total-grnPaid(g)-dnAdj(g))*100)/100;
-function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts").forEach(g=>{const v=m[g.sup]||(m[g.sup]={sup:g.sup,booked:0,paid:0,overdue:0,due7:0});const b=grnBal(g);v.booked+=grnCalc(g).total-dnAdj(g);v.paid+=grnPaid(g);
+const grnBal=g=>g.old?0:Math.round((grnCalc(g).total-grnPaid(g)-dnAdj(g))*100)/100;
+function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts"&&!g.old).forEach(g=>{const v=m[g.sup]||(m[g.sup]={sup:g.sup,booked:0,paid:0,overdue:0,due7:0});const b=grnBal(g);v.booked+=grnCalc(g).total-dnAdj(g);v.paid+=grnPaid(g);
   const d=dueDate(g);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});
   [...new Set(pays.filter(p=>p.adv).map(p=>String(p.po)))].forEach(po=>{const p=pays.find(x=>x.adv&&String(x.po)===po),left=poAdvLeft(po);if(left<=0.004)return;const v=m[p.sup]||(m[p.sup]={sup:p.sup,booked:0,paid:0,overdue:0,due7:0});v.paid+=left});
   obills.filter(o=>o.kind==="sup").forEach(o=>{const v=m[o.party]||(m[o.party]={sup:o.party,booked:0,paid:0,overdue:0,due7:0});const b=obBal(o);v.booked+=+o.amt||0;v.paid+=obPaid(o);const d=obDue(o);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});return Object.values(m)}
@@ -2619,7 +2619,7 @@ function renderVend(){
   const D=$("#vendDetail");if(!vendSel){D.hidden=true;return}D.hidden=false;
   const open=grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts"&&grnBal(g)>0.004).sort((a,b)=>(dueDate(a)||"").localeCompare(dueDate(b)||""));
   const obo=obills.filter(o=>o.kind==="sup"&&o.party===vendSel&&obBal(o)>0.004).sort((a,b)=>(obDue(a)||a.date).localeCompare(obDue(b)||b.date));const opTot=open.reduce((a,g)=>a+grnBal(g),0)+obo.reduce((a,o)=>a+obBal(o),0);
-  const led=[];grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts").forEach(g=>led.push({d:g.bookedAt||g.date,t:`GRN ${g.no} booked (${g.voucher}) · PO ${g.poNo}`,cr:grnCalc(g).total,dr:0}));
+  const led=[];grns.filter(g=>g.sup===vendSel&&g.status!=="With accounts"&&!g.old).forEach(g=>led.push({d:g.bookedAt||g.date,t:`GRN ${g.no} booked (${g.voucher}) · PO ${g.poNo}`,cr:grnCalc(g).total,dr:0}));
   obills.filter(o=>o.kind==="sup"&&o.party===vendSel).forEach(o=>{led.push({d:o.date,t:`Opening bill ${o.bill||""} (old ERP)`,cr:+o.amt||0,dr:0});if(+o.prior)led.push({d:o.date,t:`Paid before start (old ERP) · bill ${o.bill||""}`,cr:0,dr:+o.prior})});
   dnotes.filter(d=>key(d.party)===key(vendSel)&&d.reason!=="Rejected at GRN").forEach(d=>led.push({d:d.date,t:`Debit note DN-${d.no} · ${d.reason}${d.grn?" · GRN "+d.grn:""}`,cr:0,dr:ntCalc("dn",d).grand}));
   pays.filter(p=>p.sup===vendSel).forEach(p=>led.push({d:p.date,t:`Payment ${p.no} · ${p.mode} ${p.ref} · ${p.adv?"advance against PO "+p.po:p.alloc.map(x=>x.ob?obBill(x.ob):"GRN "+x.grn).join(", ")}`,cr:0,dr:p.amount}));
@@ -3323,7 +3323,7 @@ const nextInvNo=(fy,pl)=>{pl=pl||"P1";const P=plantBy(pl)||{};const base=fy===fy
 const invKey=x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no;
 const sellerCfg=x=>{const c=salesCfg(),p=x&&x.plant&&plantBy(x.plant);return p?Object.assign({},c,{sAddr1:p.addr1,sAddr2:p.addr2,sLoc:p.loc,sPin:p.pin,sPh:p.ph||c.sPh}):c};
 const salesCfg=()=>Object.assign({pre:"Z",lastNo:"",sAddr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",sAddr2:"Jyotiba Nagar, Talwade",sLoc:"PUNE",sPin:"412114",sPh:"7030953792",sEm:"sales@zoomtechnologies.net",bank:"Name: Kotak Mahindra Bank\nAccount Name: Zoom Technologies\nBranch: Bhosari\nAccount No.: 0212771835 ( Current )\nIFSC: KKBK0001774",invTerms:"Payment to be made by A/c. Payee Cheque Only.\nInterest @18% will be charged on bill not paid within due date.",soTerms:"Delivery as per the date above, subject to approval of drawings.\nPayment as agreed in our quotation."},M.salesCfg||{});
-const invNo=x=>`${x.plant?(plantBy(x.plant)||{}).pre||"":salesCfg().pre}${x.no}/${x.fy}`;
+const invNo=x=>x.oldNo?x.oldNo:`${x.plant?(plantBy(x.plant)||{}).pre||"":salesCfg().pre}${x.no}/${x.fy}`;
 const sdNo=(t,x)=>t==="inv"?invNo(x):SD[t].pre+x.no;
 const sdId=(t,x)=>t==="inv"?invKey(x):String(x.no);
 const isIntra=c=>stOf(custByName(c)||{})==="27";
@@ -3333,7 +3333,7 @@ const sentQ=(so,i)=>dchallans.filter(d=>String(d.so)===String(so)).reduce((a,d)=
 const billQ=(so,i)=>invoices.filter(v=>String(v.so)===String(so)).reduce((a,v)=>a+v.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
 function soStatus(s){if(s.closed)return"Closed";const L=s.lines.map((l,i)=>({q:+l.qty||0,s:sentQ(s.no,i),b:billQ(s.no,i)}));
   if(L.every(x=>x.b>=x.q-1e-9))return"Billed";if(L.every(x=>x.s>=x.q-1e-9))return"Dispatched";if(L.some(x=>x.s>0||x.b>0))return"Part dispatched";return"Open"}
-const invDue0=x=>Math.max(0,invTot(x)-recdOf(x)-cnAdj(x));
+const invDue0=x=>x.old?0:Math.max(0,invTot(x)-recdOf(x)-cnAdj(x));
 function invAdv(x){if(!x.so||x.cancelled)return 0;const s=sorders.find(y=>String(y.no)===String(x.so));if(!s||!(s.adv||[]).length)return 0;let left=soAdvTot(s);for(const y of invoices.filter(z=>!z.cancelled&&String(z.so)===String(x.so)).sort((a,b)=>String(a.date).localeCompare(String(b.date))||(+a.no)-(+b.no))){const take=Math.min(invDue0(y),left);if(y===x)return take;left-=take}return 0}
 const invDue=x=>Math.max(0,invDue0(x)-invAdv(x));
 let sdCur=null;// {t, rec, isNew}
@@ -3385,7 +3385,7 @@ function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEac
   const COLS={so:[["SO No.","no"],["Project"],["Customer"],["SO date","dt"],["Customer PO"],["Delivery","dt"],["Amount","num"],["Status"],["Actions","act"]],dc:[["Challan No.","no"],["Project"],["Customer"],["Challan date","dt"],["Sales order"],["Vehicle"],["Amount","num"],["Status"],["Actions","act"]],inv:[["Invoice No.","no"],["Project"],["Customer"],["Invoice date","dt"],["Customer PO"],["Challan"],["Amount","num"],["Status"],["Actions","act"]]}[t];
   const row=x=>{if(t==="so"){const st=soStatus(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.due?ltD(x.due):"-",ltAmt(sdSub(x)),`<span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span>`,acts(x)]}
     if(t==="dc")return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),x.so?"SO-"+esc(x.so):"-",esc(x.vehicle||"-"),ltAmt(sdSub(x)),x.inv?`<span class="chip calc">Billed</span>`:`<span class="chip sugg">Not billed</span>`,acts(x)];
-    const d=invDue(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.dc&&x.dc.length?"DC-"+x.dc.map(esc).join(", DC-"):"-",ltAmt(invTot(x)),`${d<0.5?`<span class="chip calc">Paid</span>`:recdOf(x)?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irnCnl?` <span class="chip st-Back">IRN cancelled</span>`:x.irn?` <span class="chip ${gstTest(x.irnMode)?"sugg":"calc"}">${gstTest(x.irnMode)?"Test IRN":"IRN"}</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}${x.eway&&!x.ewbCnl?` <span class="chip calc">EWB</span>`:""}`,acts(x)]};
+    const d=invDue(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.dc&&x.dc.length?"DC-"+x.dc.map(esc).join(", DC-"):"-",ltAmt(invTot(x)),x.old?`<span class="chip">Old ERP</span>`:`${d<0.5?`<span class="chip calc">Paid</span>`:recdOf(x)?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irnCnl?` <span class="chip st-Back">IRN cancelled</span>`:x.irn?` <span class="chip ${gstTest(x.irnMode)?"sugg":"calc"}">${gstTest(x.irnMode)?"Test IRN":"IRN"}</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}${x.eway&&!x.ewbCnl?` <span class="chip calc">EWB</span>`:""}`,acts(x)]};
   $(`#${t}-list`).innerHTML=A.length?ltT(COLS,A.slice(0,200).map(x=>({c:row(x)}))):(A0.length?lfNone:`<div class="empty">None yet.</div>`)}
 ["so","dc","inv"].forEach(t=>{$(`#${t}-q`).oninput=()=>renderSDList(t);
   $(`#${t}-list`).addEventListener("click",e=>{const o=e.target.dataset.sdopen,p=e.target.dataset.sdpdf;const x=SD[t].arr().find(r=>sdId(t,r)===(o||p));if(!x)return;
@@ -3526,7 +3526,7 @@ function ewbCheck(x,o){const P=[],c=custByName(x.cust)||{},cfg=salesCfg();
   if(!o.veh&&!o.tid)P.push("enter the vehicle No. or the transporter ID");
   if(o.tid&&!/^\d\d[A-Z0-9]{13}$/.test(o.tid.toUpperCase()))P.push("transporter ID must be a 15-character GSTIN / TRANSIN");
   (x.lines||[]).forEach((l,i)=>{if(!/^(\d{4}|\d{6}|\d{8})$/.test(String(l.hsn||"").replace(/\D/g,"")))P.push(`line ${i+1}: HSN must be 4, 6 or 8 digits`)});return P}
-function ewbOpen(only){const L=invoices.filter(x=>inPlant(x)&&!x.cancelled&&!x.eway&&ewbGoods(x)&&(!only||x===only)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+function ewbOpen(only){const L=invoices.filter(x=>inPlant(x)&&!x.cancelled&&!x.old&&!x.eway&&ewbGoods(x)&&(!only||x===only)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   if(!L.length){toast(only?"This invoice already has an e-way bill No. or has only services":"No goods invoices waiting for an e-way bill");return}
   const d=document.createElement("div");d.className="modal";
   d.innerHTML=`<div class="panel stack" style="max-width:980px;width:100%;max-height:92vh;overflow:auto"><div class="row"><h2 class="sec">Generate e-way bill</h2><span style="flex:1"></span><button class="btn" type="button" id="ewb-x">Close</button></div>
@@ -3546,7 +3546,7 @@ $("#btn-ewb").onclick=()=>ewbOpen();
 async function einvExport(list,fname){const bad=[];list.forEach(x=>{const p=einvCheck(x);if(p.length)bad.push(invNo(x)+": "+p.join("; "))});
   if(bad.length){alert("Fix these before exporting the e-invoice JSON:\n\n"+bad.slice(0,15).join("\n")+(bad.length>15?`\n…and ${bad.length-15} more`:""));return}
   const blob=new Blob([JSON.stringify(list.map(einvJSON),null,2)],{type:"application/json"});if(await deliver(blob,fname))toast(`Saved ${fname} with ${list.length} invoice${list.length===1?"":"s"}. Upload it on the e-invoice portal (Bulk upload).`)}
-$("#btn-einv-bulk").onclick=()=>{const L=invoices.filter(x=>!x.irn&&!x.cancelled&&(custByName(x.cust)||{}).gstin),C=cnotes.filter(x=>!x.irn&&(custByName(x.party)||{}).gstin);
+$("#btn-einv-bulk").onclick=()=>{const L=invoices.filter(x=>!x.irn&&!x.cancelled&&!x.old&&(custByName(x.cust)||{}).gstin),C=cnotes.filter(x=>!x.irn&&(custByName(x.party)||{}).gstin);
   if(!L.length&&!C.length){toast("All invoices and credit notes to registered customers already have an IRN");return}
   const names=[...L.map(invNo),...C.map(n=>ntNo("cn",n))];
   if(!confirm(`Export ${names.length} document${names.length===1?"":"s"} without an IRN (${names.slice(0,6).join(", ")}${names.length>6?"…":""}) as one e-invoice JSON file?`))return;
@@ -4067,11 +4067,15 @@ const IMP_LIST=[
   ["obc","Customers' unpaid bills","Outstanding receivables on the start date: party, bill no., date, amount, received, credit days.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
   ["obs","Suppliers' unpaid bills","Outstanding payables on the start date, same columns as customers' bills.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
   ["opo","Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN.","Excel (.xlsx, .xls), CSV, PDF","PO"],
+  ["ogrn","Old GRNs","One row per GRN line: GRN no., date, supplier, supplier invoice no., PO no., item, qty, unit, rate, GST %. Kept as history: they do not add stock, do not add to vendor dues, and do not change PO received qty.","Excel (.xlsx, .xls), CSV, PDF","PO"],
+  ["oinv","Old sales invoices","One row per invoice line: invoice no. (e.g. Z0001/26-27), date, customer, customer PO, item, HSN, qty, unit, rate, discount %, GST %. Kept as history: they show in invoice lists, sales figures and registers, not in amounts to collect.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["bank","Bank statement","Statement downloaded from net banking. Lines are matched to the bills above in Accounts.","Excel (.xlsx), CSV","Acct"],
   ["restore","Full backup","A ZT-ERP LITE backup file (Home > Backup). Replaces everything.","Backup file (.xlsx)","Admin"]];
 const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN","PAN","Address","City","PIN","State code","Contact person","Phone","Email"],["ABC Engineering Pvt Ltd","Sundry Debtors","27ABCDE1234F1Z5","ABCDE1234F","Plot 12, MIDC","Pune","411019","27","Mr. Patil","9800000000","accounts@abc.in"],["Shree Steels","Sundry Creditors","27AAAAA0000A1Z5","","Bhosari","Pune","411026","27","","",""]]),
   items:()=>tplBook("Items-template.xlsx",[["Item name","Item code","HSN / SAC","GST %","Unit","Rate","Opening stock"],["Ejector pin 6 x 200","","84807100","18","NOS","85","40"],["Wire cutting","","998898","18","HR","450",""]]),
-  obc:()=>obTemplate(),obs:()=>obTemplate(),opo:()=>opoTemplate()};
+  obc:()=>obTemplate(),obs:()=>obTemplate(),opo:()=>opoTemplate(),
+  ogrn:()=>tplBook("Old-GRN-template.xlsx",[OGRN_FIELDS.map(f=>f[1]),["J/00001/26-27","03/04/2026","P2","EXCEL ENTERPRISES","27CHDPM4358P1ZO","EE-383","30/03/2026","J/2848/25-26","","DIA 3 FLAT STANDARD","83024900","10","10","10","","NOS","600","","18"]]),
+  oinv:()=>tplBook("Old-invoice-template.xlsx",[OINV_FIELDS.map(f=>f[1]),["Z0001/26-27","01/04/2026","P1","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","","","","","Gun drilling of WO-391 cavity","998898","1","NOS","1000","","18"]])};
 async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((h,k)=>({wch:Math.max(10,...rows.map(r=>String(r[k]||"").length))+2}));XLSX.utils.book_append_sheet(wb,ws,"Sheet1");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
@@ -4086,11 +4090,13 @@ function renderImportHub(){const P=$("#importPanel");if(!P)return;
   ${L.map((x,k)=>`<tr><td>${k+1}</td><td><b>${esc(x[1])}</b></td><td class="note">${esc(x[2])}</td><td style="white-space:nowrap">${esc(x[3])}</td><td style="white-space:nowrap">${IMP_TPL[x[0]]?`<button class="btn" type="button" data-imp="tpl:${x[0]}">Template</button> `:""}<button class="btn primary" type="button" data-imp="${x[0]}">${x[0]==="restore"?"Go to backup":x[0]==="bank"?"Go to Accounts":"Import"}</button></td></tr>`).join("")}
   </tbody></table></div>
   ${L.length?"":`<div class="empty">Only the Admin or Accounts can import old data.</div>`}
-  <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div>`;renderOpo()}
+  <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div><div id="ohPrev"></div>`;renderOpo();renderOh()}
 $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!k)return;
   if(k.startsWith("tpl:")){const f=IMP_TPL[k.slice(4)];if(f)f();return}
   if(k==="opo-go"){opoSave();return}
   if(k==="opo-cancel"){opoPv=null;renderOpo();return}
+  if(k==="oh-go"){ohSave();return}
+  if(k==="oh-cancel"){ohPv=null;renderOh();return}
   if(k==="restore"){show("home");return}
   if(k==="bank"){show("acct");setTimeout(()=>{const i=$("#bks-file");if(i)i.click()},50);return}
   if(k==="party"){$("#sup-file").click();return}
@@ -4098,7 +4104,82 @@ $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!
   const i=$("#imp-file");i.dataset.kind=k;i.click()});
 $("#importPanel").addEventListener("change",e=>{if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
   if(k==="opo"){opoImport(f);return}
+  if(k==="ogrn"||k==="oinv"){ohImport(f,k);return}
   obImport(f,k==="obc"?"cust":"sup")});
+/* ---------- old GRNs and old sales invoices: history only, one row per line ---------- */
+const OGRN_FIELDS=[["no","GRN No",["grnno","grnnumber","inwardno","mrnno","grn","receiptno"]],["date","GRN date",["grndate","inwarddate","receiptdate","date"]],["plant","Plant",["plant","branch"]],
+  ["sup","Supplier",["supplier","suppliername","vendor","vendorname","partyname","party"]],["gstin","Supplier GSTIN",["suppliergstin","gstin","gstno"]],
+  ["inv","Supplier invoice / DC No",["supplierinvoicedcno","supplierinvoiceno","invoiceno","billno","dcno","challanno"]],["invDate","Supplier invoice date",["supplierinvoicedate","invoicedate","billdate","dcdate"]],
+  ["po","PO No",["pono","ponumber","orderno","purchaseorderno"]],["job","Project / Job No",["projectjobno","jobno","projectno","project"]],
+  ["desc","Item",["item","itemdescription","description","itemname","particulars","material"]],["hsn","HSN / SAC",["hsnsac","hsn","hsncode","sac"]],
+  ["qty","Qty",["qty","billedqty","quantity","invoiceqty"]],["recv","Received qty",["receivedqty","recdqty","received"]],["acc","Accepted qty",["acceptedqty","accepted","okqty"]],["rej","Rejected qty",["rejectedqty","rejected","rejqty"]],
+  ["unit","Unit",["unit","uom","units"]],["rate","Rate",["rate","unitrate","price"]],["dis","Discount %",["discount","discountpercent","disc"]],["gst","GST %",["gst","gstpercent","gstrate","taxrate"]]];
+const OINV_FIELDS=[["no","Invoice No",["invoiceno","invno","invoicenumber","billno","taxinvoiceno"]],["date","Invoice date",["invoicedate","invdate","billdate","date"]],["plant","Plant",["plant","branch"]],
+  ["cust","Customer",["customer","customername","partyname","party","buyer","billto"]],["gstin","Customer GSTIN",["customergstin","gstin","gstno"]],
+  ["custPO","Customer PO No",["customerpono","pono","ponumber","buyerpono"]],["custPODate","Customer PO date",["customerpodate","podate"]],["so","Our SO No",["oursono","sono","salesorderno"]],["job","Job No",["jobno","projectno","projectjobno","project"]],
+  ["desc","Item",["item","itemdescription","description","itemname","particulars"]],["hsn","HSN / SAC",["hsnsac","hsn","hsncode","sac"]],
+  ["qty","Qty",["qty","quantity"]],["unit","Unit",["unit","uom","units"]],["rate","Rate",["rate","unitrate","price"]],["dis","Discount %",["discount","discountpercent","disc"]],["gst","GST %",["gst","gstpercent","gstrate","taxrate"]]];
+let ohPv=null;
+const ohGst=v=>{const t=String(v??"").trim();if(t==="")return 18;const n=Math.abs(obNum(t));return n>0&&n<1?Math.round(n*100):n};
+const ohPlant=(v,no)=>{const t=String(v??"").trim().toUpperCase();if(plants().some(x=>x.id===t))return t;const m=String(no||"").match(/^([A-Za-z]+)/);const P=m&&plants().find(x=>String(x.pre||"").toUpperCase()===m[1].toUpperCase());return P?P.id:"P1"};
+async function ohImport(f,kind){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const F=kind==="ogrn"?OGRN_FIELDS:OINV_FIELDS,who=kind==="ogrn"?"sup":"cust";
+  try{toast("Reading the file…");const wb=await readBook(f,F,"csv");let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],F),sc=Object.keys(m).length;
+      if(m.no!=null&&m.desc!=null&&m.qty!=null&&sc>=5&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
+    if(!best){toast(`Could not find the columns. The sheet needs ${kind==="ogrn"?"GRN No":"Invoice No"}, Item and Qty columns. Download the template to see the layout.`);return}
+    const M=best.map,G=new Map(),bad=[];let lastNo="";
+    best.rows.slice(best.hr+1).forEach((r,i)=>{const g=k=>M[k]==null?"":r[M[k]],row=i+best.hr+2;
+      const no=String(g("no")??"").trim()||lastNo,desc=String(g("desc")??"").replace(/\s+/g," ").trim();
+      if(!no&&!desc)return;if(/^(grand\s*)?total/i.test(no)||/^(grand\s*)?total/i.test(desc))return;
+      if(!no){bad.push(`Row ${row}: no ${kind==="ogrn"?"GRN":"invoice"} number`);return}lastNo=no;
+      if(!desc){bad.push(`Row ${row} (${no}): no item`);return}
+      let qty=Math.abs(obNum(g("qty")));const rate=Math.abs(obNum(g("rate")));
+      if(!(qty>0)&&kind==="ogrn")qty=Math.abs(obNum(g("acc")))||Math.abs(obNum(g("recv")));
+      if(!(qty>0)){if(rate>0)qty=1;else{bad.push(`Row ${row} (${no}): no qty`);return}}
+      let H=G.get(key(no));if(!H){H={no,lines:[]};G.set(key(no),H)}
+      ["date","plant","gstin","inv","invDate","po","job","custPO","custPODate","so",who].forEach(k=>{if(M[k]==null||H[k])return;const v=g(k);if(String(v??"").trim()==="")return;H[k]=/date/i.test(k)||k==="date"?obDate(v):String(v).replace(/\s+/g," ").trim()});
+      const L={desc,hsn:String(g("hsn")??"").trim(),qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||"NOS",rate,dis:Math.abs(obNum(g("dis"))),tax:ohGst(g("gst"))};
+      if(kind==="ogrn"){const rc=String(g("recv")).trim(),ac=String(g("acc")).trim(),rj=Math.abs(obNum(g("rej")));const nt=[];if(rc!==""&&Math.abs(obNum(rc)-qty)>0.0001)nt.push("received "+obNum(rc));if(ac!==""&&Math.abs(obNum(ac)-qty)>0.0001)nt.push("accepted "+obNum(ac));if(rj>0)nt.push("rejected "+rj);L.remark=nt.length?"Old ERP: "+nt.join(", "):""}
+      H.lines.push(L)});
+    const have=new Set(kind==="ogrn"?grns.map(x=>key(x.no)):invoices.map(x=>(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)))),out=[],dup=[];
+    G.forEach(H=>{if(!H.date){bad.push(`${H.no}: date missing or not readable`);return}if(!H[who]){bad.push(`${H.no}: no ${kind==="ogrn"?"supplier":"customer"}`);return}
+      H.plant=ohPlant(H.plant,H.no);
+      if(kind==="oinv"){const m=String(H.no).match(/^[A-Za-z]*\s*\/?\s*(\d+)\s*(?:\/\s*(\d{2}-\d{2}))?$/);if(!m){bad.push(`${H.no}: invoice number not understood (expected like Z0001/26-27)`);return}H.num=m[1];H.fy=m[2]||fyOf(H.date);
+        if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))){dup.push(H.no);return}}
+      else if(have.has(key(H.no))){dup.push(H.no);return}
+      const sub=H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100),0);H.total=Math.round(sub+H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100)*l.tax/100,0));
+      out.push(H)});
+    out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true}));
+    const known=kind==="ogrn"?n=>!!supOf(n):n=>!!custByName(n),unk=[...new Set(out.filter(H=>!known(H[who])).map(H=>H[who]))];
+    let poLinked=0;if(kind==="ogrn"){const P=new Set(saved.map(x=>key(x.no)));poLinked=out.filter(H=>H.po&&P.has(key(H.po))).length}
+    ohPv={kind,fname:f.name,sn:best.sn,map:M,recs:out,bad,dup,unk,poLinked};renderOh();const el=$("#ohPrev");if(el)el.scrollIntoView({block:"start"})}
+  catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
+function renderOh(){const P=$("#ohPrev");if(!P)return;if(!ohPv){P.innerHTML="";return}const g=ohPv.kind==="ogrn",R=ohPv.recs,F=g?OGRN_FIELDS:OINV_FIELDS,lab=g?"GRNs":"invoices";
+  P.innerHTML=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c);margin-top:12px"><h3 class="rg" style="margin:0">Check before importing: old ${g?"GRNs":"sales invoices"} from ${esc(ohPv.fname)}</h3>
+  <div class="note">Sheet "${esc(ohPv.sn)}". Columns found: ${F.filter(([f])=>ohPv.map[f]!=null).map(([,l])=>l).join(", ")}.</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip calc">${R.length} ${lab}, ${R.reduce((a,x)=>a+x.lines.length,0)} lines</span><span class="chip">₹ ${fmt(R.reduce((a,x)=>a+x.total,0))} incl. GST</span>${g?`<span class="chip sugg">${ohPv.poLinked} linked to a PO already in the app</span>`:""}${ohPv.dup.length?`<span class="chip">${ohPv.dup.length} already in the app, skipped</span>`:""}${ohPv.bad.length?`<span class="chip st-Draft">${ohPv.bad.length} problems, skipped</span>`:""}</div>
+  <div class="note">${g?"These come in as history: they show in the GRN list, purchase figures and the purchase register, but they do not add stock, do not add to vendor dues, and do not change the received qty of POs (the old-PO file already carries it). Set stock with Opening stock and vendor dues with Suppliers' unpaid bills.":"These come in as history: they show in the invoice list, sales figures and the sales register, but not in amounts to collect (use Customers' unpaid bills for that), not in stock, and they are never sent for e-invoice or e-way bill. New invoice numbers continue after the highest imported number for each plant and year."}</div>
+  ${ohPv.bad.length?`<div class="note" style="color:var(--danger)">${ohPv.bad.slice(0,8).map(esc).join("<br>")}${ohPv.bad.length>8?"<br>…":""}</div>`:""}
+  ${ohPv.unk.length?`<div class="note">${ohPv.unk.length} ${g?"supplier":"customer"}${ohPv.unk.length===1?" is":"s are"} not in the master and will be added with the name and GSTIN in the file: ${ohPv.unk.slice(0,6).map(esc).join("; ")}${ohPv.unk.length>6?" …":""}</div>`:""}
+  ${R.length?`<div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th>${g?"GRN":"Invoice"}</th><th>Date</th><th>${g?"Supplier":"Customer"}</th><th>${g?"PO":"Customer PO"}</th><th>Plant</th><th class="num">Lines</th><th class="num">Total ₹</th></tr></thead><tbody>${R.slice(0,100).map(x=>`<tr><td style="font-family:var(--mono)">${esc(x.no)}</td><td>${dmy(x.date)}</td><td>${esc(g?x.sup:x.cust)}</td><td>${esc((g?x.po:x.custPO)||"")}</td><td>${esc(x.plant)}</td><td class="num">${x.lines.length}</td><td class="num">${fmt(x.total)}</td></tr>`).join("")}</tbody></table></div>${R.length>100?`<div class="note">Showing the first 100 of ${R.length}.</div>`:""}`:""}
+  <div class="row"><span style="flex:1"></span><button class="btn" type="button" data-imp="oh-cancel">Cancel</button>${R.length?`<button class="btn primary" type="button" data-imp="oh-go">Import ${R.length} ${lab}</button>`:""}</div></div>`}
+function ohSave(){if(!ohPv)return;const g=ohPv.kind==="ogrn",at=new Date().toISOString();let n=0,addS=0,addC=0;
+  if(g){const have=new Set(grns.map(x=>key(x.no))),PO=new Map(saved.map(p=>[key(p.no),p]));
+    ohPv.recs.forEach(H=>{if(have.has(key(H.no)))return;let sp=supOf(H.sup);if(!sp){sp={name:H.sup,addr:"",gstin:H.gstin||"",state:(H.gstin||"").slice(0,2)||"27"};suppliers.push(sp);addS++}
+      const p=H.po&&PO.get(key(H.po)),used=new Set();
+      const lines=H.lines.map(l=>{let i=null;if(p){const j=p.lines.findIndex((x,k)=>!used.has(k)&&key(x.desc||x.spec||x.item)===key(l.desc));if(j>=0){i=j;used.add(j)}}
+        return{i,desc:l.desc,unit:l.unit,rate:l.rate,dis:l.dis,tax:l.tax,hsn:l.hsn,ordered:l.qty,prev:0,recv:l.qty,rej:0,remark:l.remark||""}});
+      const st=String(sp.gstin||H.gstin||"").slice(0,2);
+      grns.push({no:H.no,date:H.date,poNo:H.po||"",plant:H.plant,sup:sp.name,job:H.job||"",reqNo:"",terms:"",gstmode:st&&st!=="27"?"inter":"intra",dc:"",dcDate:"",inv:H.inv||"",invDate:H.invDate||"",vehicle:"",by:me.name,
+        lines,status:"Paid",voucher:"Old ERP",bookedAt:H.date,bookedBy:"Old ERP",createdAt:H.date+"T00:00:00.000Z",old:true,importedAt:at,importFile:ohPv.fname});n++});
+    saveGRNs();store.set("suppliers",suppliers)}
+  else{const have=new Set(invoices.map(x=>(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no))));
+    ohPv.recs.forEach(H=>{if(have.has(H.plant+"|"+H.fy+"|"+(+H.num)))return;let c=custByName(H.cust);if(!c){c={id:itId(),name:H.cust,gstin:H.gstin||""};customers.push(c);addC++}
+      invoices.push({fy:H.fy,no:H.num,oldNo:H.no,date:H.date,cust:c.name,so:"",oldSO:H.so||"",job:H.job||"",dc:[],custPO:H.custPO||"",custPODate:H.custPODate||"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:"",
+        lines:H.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:l.qty,unit:l.unit,rate:l.rate,dis:l.dis,tax:l.tax})),rcpts:[],irn:"",ackNo:"",ackDt:"",qr:"",by:me.name,plant:H.plant,old:true,importedAt:at,importFile:ohPv.fname});n++});
+    sdSave("inv");if(addC)saveCusts()}
+  bindHeader();toast(`${n} old ${g?"GRNs":"invoices"} imported${addS?`, ${addS} suppliers added`:""}${addC?`, ${addC} customers added`:""}.`);ohPv=null;renderOh()}
 /* ---------- old purchase orders from the old ERP (Excel / CSV / PDF), one row per PO line ---------- */
 const OPO_FIELDS=[["po","PO No",["pono","ponumber","purchaseorderno","purchaseordernumber","orderno","ordernumber","voucherno","vchno","po","no"]],
   ["date","PO date",["podate","orderdate","purchaseorderdate","voucherdate","vchdate","date"]],
