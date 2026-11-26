@@ -923,7 +923,11 @@ const lfOk=(k,job,parts,x)=>{const pe=$("#prj-"+k),p=pe?pe.value:"";if(p&&key(jo
   const pl=($("#pl-"+k)||{}).value;if(pl&&x&&(x.plant||"P1")!==pl)return false;const dp=($("#dep-"+k)||{}).value;if(dp&&recDept(k,x)!==dp)return false;
   const q=key(($("#"+k+"-q")||{}).value||"");if(!q)return true;const t=" "+key(parts.filter(x=>x!=null&&x!=="").join(" "));return q.split(" ").every(w=>t.includes(w))};
 /* document lists shown as tables: cols [label, class], rows {c:[cells], a:" attrs"} */
-const ltT=(cols,rows)=>`<div class="ltbar"><button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+/* every document list starts with its date, then its number (owner asked 2026-11-26); the Excel export follows the table */
+const ltOrd=cols=>{const ix=cols.map((_,i)=>i),cl=c=>" "+(c[1]||"")+" ",di=cols.findIndex(c=>cl(c).includes(" dt ")),ni=cols.findIndex(c=>cl(c).includes(" no "));
+  if(ni<0||di<0||di<ni)return ix;ix.splice(di,1);ix.splice(ni,0,di);return ix};
+const ltT=(cols0,rows0)=>{const o=ltOrd(cols0),cols=o.map(i=>cols0[i]),rows=rows0.map(r=>Object.assign({},r,{c:o.map(i=>r.c[i])}));return ltT0(cols,rows)};
+const ltT0=(cols,rows)=>`<div class="ltbar"><button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 /* Export to Excel: takes the table under the button exactly as shown (filters applied), without the Actions column */
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-ltx]");if(!b)return;const T=b.parentElement.nextElementSibling?.querySelector("table.lt");if(!T)return;
   if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
