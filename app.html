@@ -114,7 +114,7 @@ table.lt .prj{font-family:var(--mono);font-size:12px;text-decoration:underline;t
 table.lt td.dt{white-space:nowrap}table.lt td.upd{color:var(--muted);font-size:12.5px;min-width:96px}
 table.lt .chip{text-transform:none;letter-spacing:0;font-size:12.5px;padding:4px 10px 4px 9px;margin:1px 0}table.lt .chip::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:2px}
 table.lt td.act{text-align:right}table.lt td.act .acts{display:inline-flex;flex-direction:column;gap:6px;align-items:stretch}table.lt td.act .btn{white-space:nowrap}
-table.lt .btn.pdf{background:#2e6b45;border-color:#2e6b45;color:#fff}
+table.lt th.sel,table.lt td.sel{text-align:left;width:36px}table.lt .btn.pdf{background:#2e6b45;border-color:#2e6b45;color:#fff}
 table.lt tr[data-ri]{cursor:pointer}table.lt tr[aria-selected="true"] td{background:var(--sugg-bg)}
 @media (max-width:640px){table.lt thead{display:none}table.lt,table.lt tbody{display:block}table.lt tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
 table.lt td{display:block;padding:0;border:0}table.lt td[data-l]::before{content:attr(data-l);display:block;font-family:"IBM Plex Sans",system-ui,sans-serif;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
@@ -581,6 +581,8 @@ table.hlist{min-width:0}table.hlist td{padding:7px 6px}
 <!-- SAVED -->
 <section id="view-saved" class="panel stack" hidden>
   <div class="row"><h2 class="sec">Purchase orders</h2><input id="saved-q" placeholder="Search PO, supplier, item, job" style="max-width:280px"><select class="prj" id="prj-saved" aria-label="Project" style="width:auto"></select><select class="per" id="per-saved" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><span class="note" id="saved-n"></span></div>
+  <div class="row" id="savedBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="saved-all" style="width:18px;height:18px"> Select all shown</label><span class="note" id="saved-seln">Tick POs to delete them together. POs with material received cannot be deleted.</span><span style="flex:1"></span><button class="btn" id="btn-saved-del" style="color:var(--danger);border-color:var(--danger)" disabled>Delete selected</button></div>
+  <div class="banner stack" id="savedDelAsk" hidden style="border-color:var(--danger)"><b id="saved-ask-t" style="color:var(--danger)"></b><span class="note" id="saved-ask-n"></span><label class="f">Reason for deleting (optional)<input id="saved-del-reason" placeholder="e.g. old POs from the previous ERP"></label><div class="row"><span style="flex:1"></span><button class="btn" id="btn-saved-no">Keep them</button><button class="btn primary" id="btn-saved-yes" style="background:var(--danger);border-color:var(--danger)">Delete permanently</button></div></div>
   <div id="savedList"></div>
 </section>
 
@@ -1386,11 +1388,11 @@ $("#btn-send").onclick=()=>{
   poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});saveReqs();
   toast(`PO ${po.no} sent for approval`);renderPO();
 };
-$("#btn-po-del").onclick=()=>{$("#poDelete").hidden=false;$("#po-del-reason").value="";$("#po-del-reason").focus()};
+$("#btn-po-del").onclick=()=>{$("#poDelete").hidden=false;$("#po-del-reason").value="";$("#po-del-reason").previousSibling.textContent=canBulkDel()?"Reason for deleting (optional)":"Reason for deleting";$("#po-del-reason").focus()};
 $("#btn-del-cancel").onclick=()=>{$("#poDelete").hidden=true};
 $("#btn-del-ok").onclick=()=>{
   if(!po||!has("po.delete"))return;if(grns.some(g=>String(g.poNo)===String(po.no))){toast("Material has been received against this PO, so it cannot be deleted");return}
-  const why=$("#po-del-reason").value.trim();if(!why){toast("Give a reason for deleting");$("#po-del-reason").focus();return}
+  const why=$("#po-del-reason").value.trim();if(!why&&!canBulkDel()){toast("Give a reason for deleting");$("#po-del-reason").focus();return}
   const del=store.get("deletedPOs",[]);del.unshift({no:po.no,sup:po.sup,status:po.status,total:poCalc().total,by:me.name,at:new Date().toISOString(),reason:why});store.set("deletedPOs",del);
   saved=saved.filter(x=>String(x.no)!==String(po.no));store.set("saved",saved);
   poReqs(po).forEach(r=>{const o=reqPOs(r);if(!o.length){r.status="Approved";delete r.poNo}else r.poNo=o[o.length-1].no});saveReqs();
@@ -1410,9 +1412,11 @@ $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
 /* ---------- saved / rates ---------- */
 function renderSaved(){
   const L=$("#savedList");
-  if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
+  $("#savedBulk").hidden=!(canBulkDel()&&saved.length);if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;$("#savedDelAsk").hidden=true;return}
   const q=key($("#saved-q").value||"");fillPrj("saved",saved.map(s=>s.ref));const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&lfOk("saved",s.ref,[s.no,pcx(s.sup),s.ref,s.reqNo,s.status,lineTxt(s.lines)],s)).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
-  L.innerHTML=S.length?ltT(PO_COLS,S.map(([s,i])=>({c:[`${esc(s.no)}<small>${esc(plantName(s.plant))}</small>`,ltPrj(s.ref),`${esc(s.sup||"No supplier")}<br><span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span>`,ltD(s.date),ltAmt(s.total),esc(poBy(s)),`${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}`,ltDT(poUpd(s)),ltActs(`<button class="btn" type="button" data-open="${i}">View</button>`,poPdfBtn(i))]}))):lfNone;
+  const bd=canBulkDel();savedShown=S.map(([s])=>String(s.no));
+  L.innerHTML=S.length?ltT(bd?[["Select","sel act"],...PO_COLS]:PO_COLS,S.map(([s,i])=>({c:[...(bd?[poHasGrn(s)?`<input type="checkbox" disabled title="Material has been received against this PO, so it cannot be deleted" style="width:18px;height:18px">`:`<input type="checkbox" data-dsel="${esc(s.no)}" aria-label="Select PO ${esc(s.no)}" style="width:18px;height:18px"${delSel.has(String(s.no))?" checked":""}>`]:[]),`${esc(s.no)}<small>${esc(plantName(s.plant))}</small>`,ltPrj(s.ref),`${esc(s.sup||"No supplier")}<br><span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span>`,ltD(s.date),ltAmt(s.total),esc(poBy(s)),`${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}`,ltDT(poUpd(s)),ltActs(`<button class="btn" type="button" data-open="${i}">View</button>`,poPdfBtn(i))]}))):lfNone;
+  if(bd)delSelSync();
 }
 function poPdfClick(e){const b=e.target.closest("[data-pdf]");if(!b)return;const p=saved[+b.dataset.pdf];if(p)savePDF(docPO(p),`PO-${p.no}${p.status==="Approved"?"":"-"+String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase()}.pdf`)}
 const apprTbl=(L,bulk)=>ltT(PO_COLS,L.map(s=>{const i=saved.indexOf(s);return{c:[bulk?`<label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-bsel="${esc(s.no)}" style="width:18px;height:18px"${apprSel.has(String(s.no))?" checked":""}>${esc(s.no)}</label>`:esc(s.no),ltPrj(s.ref),esc(s.sup||"No supplier"),ltD(s.date),ltAmt(s.total),esc(poBy(s)),stChip(s.status),ltDT(poUpd(s)),ltActs(`<button class="btn${s.status==="Pending approval"?" primary":""}" type="button" data-open="${i}">${s.status==="Pending approval"?"Review":"View"}</button>`,poPdfBtn(i))]}}));
@@ -1456,6 +1460,36 @@ $("#btn-appr-yes").onclick=()=>{
   apprSel.clear();renderAppr();renderBadges();toast(`${L.length} PO${L.length>1?"s":""} approved and signed`)};
 ["#apprList","#apprDone"].forEach(id=>$(id).addEventListener("click",e=>{poPdfClick(e);const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}}));
 $("#saved-q").addEventListener("input",renderSaved);
+/* bulk delete: Director and Admin can tick several POs on the PO list and delete them in one go */
+const delSel=new Set();let savedShown=[];
+const canBulkDel=()=>isRole("Director","Approver","Admin")&&has("po.delete");
+const poHasGrn=p=>grns.some(g=>String(g.poNo)===String(p.no));
+function delOk(){return saved.filter(s=>savedShown.includes(String(s.no))&&!poHasGrn(s))}
+function delSelSync(){
+  const ok=delOk(),ids=new Set(ok.map(s=>String(s.no)));[...delSel].forEach(n=>{if(!ids.has(n))delSel.delete(n)});
+  const n=delSel.size,tot=ok.filter(s=>delSel.has(String(s.no))).reduce((a,s)=>a+(+s.total||0),0);
+  $("#saved-all").checked=n>0&&n===ok.length;$("#saved-all").indeterminate=n>0&&n<ok.length;$("#saved-all").disabled=!ok.length;
+  $("#saved-seln").textContent=n?`${n} of ${ok.length} selected · ₹ ${fmt(tot)}`:"Tick POs to delete them together. POs with material received cannot be deleted.";
+  $("#btn-saved-del").disabled=!n;$("#btn-saved-del").textContent=n?`Delete selected (${n})`:"Delete selected";if(!n)$("#savedDelAsk").hidden=true;
+}
+$("#savedList").addEventListener("change",e=>{const n=e.target.dataset.dsel;if(n==null)return;if(e.target.checked)delSel.add(n);else delSel.delete(n);delSelSync()});
+$("#saved-all").addEventListener("change",e=>{delSel.clear();if(e.target.checked)delOk().forEach(s=>delSel.add(String(s.no)));renderSaved()});
+$("#btn-saved-del").onclick=()=>{
+  if(!canBulkDel())return;const L=delOk().filter(s=>delSel.has(String(s.no)));if(!L.length){toast("Tick at least one PO first");return}
+  const tot=L.reduce((a,s)=>a+(+s.total||0),0);
+  $("#saved-ask-t").textContent=`Delete ${L.length} PO${L.length>1?"s":""} (₹ ${fmt(tot)}) permanently?`;
+  $("#saved-ask-n").textContent=`PO ${L.map(s=>s.no).join(", ")}. They are removed from all lists. Requests they came from go back to Approved, so their lines show as pending again. The deletion is recorded with your name.`;
+  $("#saved-del-reason").value="";$("#savedDelAsk").hidden=false;$("#btn-saved-yes").focus()};
+$("#btn-saved-no").onclick=()=>{$("#savedDelAsk").hidden=true};
+$("#btn-saved-yes").onclick=()=>{
+  $("#savedDelAsk").hidden=true;if(!canBulkDel())return;const L=delOk().filter(s=>delSel.has(String(s.no)));if(!L.length)return;
+  const why=$("#saved-del-reason").value.trim(),at=new Date().toISOString(),gone=new Set(L.map(s=>String(s.no)));
+  const del=store.get("deletedPOs",[]);L.forEach(s=>del.unshift({no:s.no,sup:s.sup,status:s.status,total:s.total,by:me.name,at,reason:why||"Deleted with other POs in one go"}));store.set("deletedPOs",del);
+  const rs=new Set();L.forEach(s=>poReqs(s).forEach(r=>rs.add(r)));
+  saved=saved.filter(x=>!gone.has(String(x.no)));store.set("saved",saved);
+  rs.forEach(r=>{const o=reqPOs(r);if(!o.length){r.status="Approved";delete r.poNo}else r.poNo=o[o.length-1].no});if(rs.size)saveReqs();
+  if(po&&gone.has(String(po.no))){po=null;store.set("po",null)}
+  delSel.clear();renderSaved();renderBadges();toast(`${L.length} PO${L.length>1?"s":""} deleted`)};
 $("#savedList").addEventListener("click",e=>{poPdfClick(e);const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}});
 function renderRates(){
   const list=Object.entries(rates).sort((a,b)=>a[1].name.localeCompare(b[1].name));
