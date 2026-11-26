@@ -21,6 +21,18 @@ const sha = (t) => createHash("sha256").update(t).digest("hex");
 const normName = (n) => String(n || "").trim().replace(/\s+/g, " ");
 
 async function mastersDoc() { const r = await q("SELECT data FROM records WHERE coll='masters' AND id='_' AND NOT deleted"); return r[0] ? r[0].data : null; }
+// a purchase request may be deleted by its requester or their department head while no PO has been made from it (the admin may delete any time)
+async function canDelReq(me, id) {
+  const r = await q("SELECT data FROM records WHERE coll='reqs' AND id=$1 AND NOT deleted", [id]); const d = r[0] && r[0].data;
+  if (!d) return true;
+  const m = await mastersDoc(); const dept = ((m && m.depts) || []).find((x) => x && x.name === d.dept); const u = ((m && m.users) || []).find((x) => x && x.name === me);
+  const head = d.checker === me || (dept && dept.hod === me) || (!(dept && dept.hod) && u && ["Department head", "Checker", "HOD"].includes(u.role) && u.dept === d.dept);
+  if (d.by !== me && !head) return false;
+  if (d.poNo) return false;
+  const no = String(d.no ?? id);
+  const p = await q("SELECT 1 FROM records WHERE coll='saved' AND NOT deleted AND COALESCE(data->>'status','')<>'Rejected' AND (data->>'reqNo'=$1 OR (jsonb_typeof(data->'reqNos')='array' AND data->'reqNos' @> jsonb_build_array($1::text))) LIMIT 1", [no]);
+  return !p.length;
+}
 async function profile(name) { const m = await mastersDoc(); const u = m && (m.users || []).find((x) => x.name === name); return u || null; }
 const ADMIN_RIGHT = "page.users";
 async function isAdmin(name) { const u = await profile(name); if (u && (u.role === "Admin" || (Array.isArray(u.rights) && u.rights.includes(ADMIN_RIGHT)))) return true; return (await ownerName()) === name && !(await hasAdmin()); }
@@ -260,8 +272,10 @@ export default async (req) => {
       const list = changes.slice(0, 500);
       await autoPoint(me, list).catch((e) => console.error("restore point", e && e.message));
       // fast path: plain saves (not new-numbered docs, not masters) go in one statement, so a 1,000-row import takes one round trip
-      // only the admin may delete a purchase request
-      const reqDelBlocked = (c) => !admin && c.coll === "reqs" && c.deleted;
+      // a purchase request may be deleted by the admin, or by its requester or department head before any PO is made from it
+      const reqDelOK = new Set();
+      if (!admin) for (const c of list) if (c && c.coll === "reqs" && c.deleted && c.id && (await canDelReq(me, String(c.id)))) reqDelOK.add(String(c.id));
+      const reqDelBlocked = (c) => !admin && c.coll === "reqs" && c.deleted && !reqDelOK.has(String(c.id));
       const plain = list.filter((c) => COLLS.has(String(c.coll || "")) && c.id && String(c.id).length <= 200 && !c.isNew && c.coll !== "masters" && !reqDelBlocked(c));
       const done = new Map();
       if (plain.length) {
@@ -277,7 +291,7 @@ export default async (req) => {
         if (done.has(dk)) { results.push(done.get(dk)); continue; }
         const coll = String(c.coll || ""), id = String(c.id || "");
         if (!COLLS.has(coll) || !id || id.length > 200) { results.push({ coll, id, error: "bad" }); continue; }
-        if (reqDelBlocked(c)) { results.push({ coll, id, error: "Only the admin can delete a purchase request" }); continue; }
+        if (reqDelBlocked(c)) { results.push({ coll, id, error: "Only the requester or department head (before a PO is made) or the admin can delete a purchase request" }); continue; }
         if (coll === "masters" && !admin) {
           // Non-admins with project rights may change only the projects (Job Nos.) list; everything else is kept as stored.
           const u = await profile(me); const cur = await mastersDoc();
