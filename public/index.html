@@ -143,6 +143,7 @@ table.mt input.cbx{background-color:transparent;border-color:transparent;padding
 .ltbar .ltsum{margin-right:auto;align-self:center;font-size:14px;color:var(--muted)}.ltbar .ltsum b{color:var(--ink);font-family:var(--mono)}
 table.lt tfoot td{border-top:2px solid var(--line);background:var(--bg);font-size:13px;white-space:nowrap}table.lt tfoot td.act{background:var(--bg)}table.lt tfoot td.num b{font-family:var(--mono)}
 @media (max-width:640px){table.lt tfoot{display:none}.ltbar .ltsum{font-size:13px}}
+.perdates{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}.perdates label{display:inline-flex;gap:4px;align-items:center;font-size:12px;color:var(--muted,#667);white-space:nowrap}.perdates input[type=date]{width:auto;max-width:150px;padding:5px 6px;font-size:13px}
 .ltbar{display:flex;justify-content:flex-end;margin-bottom:-4px}
 table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.lt th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg);font-weight:600;white-space:nowrap}
@@ -938,14 +939,21 @@ const fmt=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{minimumFracti
 const fmt0=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{maximumFractionDigits:2});
 const key=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
 /* period filter on document lists */
-const PERIODS=[["all","All"],["d1","Today"],["wk","This week"],["tm","This month"],["lm","Last month"],["fy","This year (Apr-Mar)"],["ly","Last year (Apr-Mar)"]];
+const PERIODS=[["all","All"],["d1","Today"],["wk","This week"],["tm","This month"],["lm","Last month"],["fy","This year (Apr-Mar)"],["ly","Last year (Apr-Mar)"],["cus","From – To dates"]];
 function perRange(v){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),p=n=>String(n).padStart(2,"0"),fy=m>=4?y:y-1;
   const mon=addDays(t,-((new Date(t+"T00:00:00Z").getUTCDay()+6)%7));
   return{d1:[t,t],wk:[mon,addDays(mon,6)],w1:[addDays(t,-6),t],m1:[addDays(t,-29),t],tm:[t.slice(0,7)+"-01",t],lm:(()=>{const ly=m===1?y-1:y,lmm=m===1?12:m-1;return[`${ly}-${p(lmm)}-01`,`${ly}-${p(lmm)}-31`]})(),fy:[`${fy}-04-01`,`${fy+1}-03-31`],ly:[`${fy-1}-04-01`,`${fy}-03-31`]}[v]}
 const perOf=k=>{const el=$("#per-"+k);return el?el.value:"all"};
-const inPer=(d,k)=>{const v=perOf(k);if(v==="all")return true;const r=perRange(v),x=sortDay(d);return!!x&&x>=r[0]&&x<=r[1]};
-document.querySelectorAll("select.per").forEach(el=>{el.innerHTML=PERIODS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");el.addEventListener("change",()=>{const k=el.id.slice(4);
-  ({saved:renderSaved,so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv"),cn:()=>renderNotes("cn"),dn:()=>renderNotes("dn"),req:renderReqList,grn:renderGRN,gpo:renderGRN,appr:renderAppr})[k]()})});
+const perDates=k=>{const f=$("#pf-"+k),t=$("#pt-"+k);return[f?f.value:"",t?t.value:""]};
+const inPer=(d,k)=>{const v=perOf(k);if(v==="all")return true;const r=v==="cus"?perDates(k):perRange(v),x=sortDay(d);if(v==="cus"){if(!r[0]&&!r[1])return true;return!!x&&(!r[0]||x>=r[0])&&(!r[1]||x<=r[1])}return!!x&&x>=r[0]&&x<=r[1]};
+const PER_RENDER={saved:()=>renderSaved(),so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv"),cn:()=>renderNotes("cn"),dn:()=>renderNotes("dn"),req:()=>renderReqList(),grn:()=>renderGRN(),gpo:()=>renderGRN(),appr:()=>renderAppr()};
+/* From / To calendar boxes next to each period filter: picking a date switches the period to "From – To dates"; picking another period clears them */
+document.querySelectorAll("select.per").forEach(el=>{el.innerHTML=PERIODS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");const k=el.id.slice(4);
+  const sp=document.createElement("span");sp.className="perdates";sp.innerHTML=`<label>From<input type="date" id="pf-${k}" aria-label="From date"></label><label>To<input type="date" id="pt-${k}" aria-label="To date"></label>`;
+  const nx=el.nextElementSibling;(nx&&nx._cbSel===el?nx:el).after(sp);
+  el.addEventListener("change",()=>{if(el.value!=="cus"){$("#pf-"+k).value="";$("#pt-"+k).value=""}PER_RENDER[k]()});
+  sp.addEventListener("change",e=>{e.stopPropagation();const[f,t]=perDates(k);if(f&&t&&f>t){const o=e.target.id.startsWith("pf-")?$("#pt-"+k):$("#pf-"+k);o.value=e.target.value}
+    if(f||t){if(el.value!=="cus")el.value="cus"}else if(el.value==="cus")el.value="all";PER_RENDER[k]()})});
 /* search box and project picker on document lists: every typed word must appear somewhere (3 letters is usually enough) */
 const lineTxt=L=>(L||[]).map(l=>[l.item,l.desc,l.spec,l.hsn].filter(Boolean).join(" ")).join(" ");
 const reqDept=no=>no?((reqs.find(r=>r.no===no)||{}).dept||""):"";
