@@ -275,6 +275,7 @@ body.ready #boot,body.gated #boot{display:none}
 .paper .tihead{display:flex;justify-content:space-between;align-items:center;font-size:10px;margin:6px 0 4px}.paper .tibox{border:1px solid var(--paper-line);padding:2px 14px;font-size:13px;font-style:italic}
 .paper table.ti{margin-top:0;border-collapse:collapse}.paper table.ti>tbody>tr>td,.paper table.ti>tr>td{font-size:10px;vertical-align:top;padding:3px 5px;line-height:1.45}
 .paper table.ti0{margin:0;border:none}.paper table.ti0 td{border:none;font-size:10px;padding:2px 5px}
+.paper table.einvt td{font-size:11px;padding:2px 6px}.paper table.einvt td:first-child{white-space:nowrap;width:1%}
 .paper table.tit td{border-top:none;border-bottom:none;font-size:10px;vertical-align:top}.paper table.tit td.c{text-align:center}.paper table.tit tr.fill td{height:40px}.paper table.tit tbody tr:last-child td{border-bottom:1px solid var(--paper-line)}
 .paper table.tot2 td.tl{text-align:right}.paper table.tot2 td.r{width:90px;text-align:right}.paper td.decl{font-size:9.5px!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -374,6 +375,11 @@ button.kpi{cursor:pointer}button.kpi:hover{background:#f7fafd}
 .kpi .d b.up{color:#16794a}.kpi .d b.down{color:var(--danger)}
 .kpi.warn{border-left-color:var(--danger)}.kpi.warn .n{color:var(--danger)}
 #homeChart .vb{height:240px}
+.hplant{margin-top:6px;align-self:flex-start}
+.ksplit{display:flex;flex-direction:column;gap:2px;margin-top:2px;padding-top:6px;border-top:1px dashed var(--line);font-size:12.5px}
+.ksplit span{display:flex;justify-content:space-between;gap:8px}.ksplit i{font-style:normal;color:var(--muted)}.ksplit i{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ksplit b{white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+.hpcharts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}.hpchart{display:flex;flex-direction:column;gap:6px;min-width:0}.hpchart>b{font-size:13px}
+.hpcharts .vb{height:200px}
 table.hlist{min-width:0}table.hlist td{padding:7px 6px}
 /* PC and tablet: the grouped menu stays open as a left sidebar */
 @media (min-width:761px){
@@ -448,7 +454,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 <!-- PURCHASE REQUEST -->
 <!-- HOME -->
 <section id="view-home" class="stack">
-  <div class="hhead"><div class="hhello"><h1 id="homeHello">Welcome</h1><span class="note" id="homeDate"></span></div><div class="htabs" id="homeTabs" role="tablist" aria-label="Home"></div></div>
+  <div class="hhead"><div class="hhello"><h1 id="homeHello">Welcome</h1><span class="note" id="homeDate"></span><span class="dseg hplant" id="homePlant" role="group" aria-label="Plant" hidden></span></div><div class="htabs" id="homeTabs" role="tablist" aria-label="Home"></div></div>
   <div class="stack" id="homeOv">
   <div class="qacts" id="homeQuick" aria-label="Quick actions"></div>
   <div class="kpis" id="homeKpi"></div>
@@ -710,10 +716,10 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 <!-- USERS & RIGHTS -->
 <section id="view-users" class="stack" hidden>
   <div class="masters">
-    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Users</h2><div class="note">Add each person with their <b>department</b> and <b>job</b>. That is all: the job gives them the right screens. Pick a <b>plant</b> to have it filled in on every new request, PO, challan, invoice and other document they make; they can still change it on the document.</div>
+    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Users</h2><div class="note">Add each person with their <b>department</b> and <b>job</b>. That is all: the job gives them the right screens. Pick a <b>plant</b> to have it filled in on every new request, PO, challan, invoice and other document they make; they can still change it on the document. <b>Can see</b> decides whether they see only their own plant or both plants. Admin and Director always see both; Accounts, Purchase and HR see both unless you change it; everyone else sees their own plant.</div>
       <div class="note" style="line-height:1.6"><b>Staff</b>: only asks for material (their request goes to their department head). · <b>Department head</b>: approves requests from their department. · <b>Purchase</b>: the buyer. Gets approved requests, makes pre-estimates and POs, sends POs to vendors. · <b>Store</b>: receives material, issues stock. · <b>Accounts</b>: books bills and payments. · <b>Sales</b>: enquiries, quotations, orders, invoices. · <b>Production</b>: job cards. · <b>Director</b>: approves and signs POs, sees everything. · <b>Admin</b>: sets up the app.</div>
-      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-plant" aria-label="Plant" title="Plant filled in on this person's new documents"></select><select id="mu-role" aria-label="Job"><option>Staff</option><option>Department head</option><option>Purchase</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Director</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
-      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Plant</th><th>Job</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
+      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-plant" aria-label="Plant" title="Plant filled in on this person's new documents"></select><select id="mu-plants" aria-label="Plants they can see" title="Admin and Director always see both plants"><option value="">Plants: usual for the job</option><option value="own">Own plant only</option><option value="both">Both plants</option></select><select id="mu-role" aria-label="Job"><option>Staff</option><option>Department head</option><option>Purchase</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Director</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Plant</th><th>Can see</th><th>Job</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
@@ -815,8 +821,8 @@ function zpoMain(BOOT){
 try{document.getElementById("brandLogo").src=window.ZT_LOGO}catch(e){}
 const COMPANY={name:"ZOOM TECHNOLOGIES",addr:"Gat No 669 and 670, Industrial Estate, Wadacha Mala, Jadhavwadi, Chikhali - Pune - 411062",contact:"Mob: 70309 53792 / 9967023983   Email: sales@zoomtechnologies.net",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala,",addr2:"Jadhavwadi, Chikhali, Pune - 411062",mob:"Mob: 70309 53792 / 99670 23983",email:"Email: sales@zoomtechnologies.net",gstin:"27AMAPD1813A1Z0",state:"State Code : 27 Maharashtra",pan:"AMAPD1813A"};
 /* plants */
-const PLANT_DEF=[{id:"P1",name:"Plant 1 - Talwade",short:"Talwade",pre:"Z",lastNo:"",qpre:"QT-",qLast:"",addr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",addr2:"Jyotiba Nagar, Talwade",loc:"PUNE",pin:"412114",ph:"7030953792"},
-  {id:"P2",name:"Plant 2 - Jadhavwadi",short:"Jadhavwadi",pre:"J",lastNo:"",qpre:"JQT-",qLast:"",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala",addr2:"Jadhavwadi, Chikhali",loc:"PUNE",pin:"411062",ph:"7030953792"}];
+const PLANT_DEF=[{id:"P1",name:"Plant 1 - Talwade",short:"Talwade",pre:"Z",lastNo:"",qpre:"ZQ-",qLast:"",addr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",addr2:"Jyotiba Nagar, Talwade",loc:"PUNE",pin:"412114",ph:"7030953792"},
+  {id:"P2",name:"Plant 2 - Jadhavwadi",short:"Jadhavwadi",pre:"J",lastNo:"",qpre:"JQ-",qLast:"",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala",addr2:"Jadhavwadi, Chikhali",loc:"PUNE",pin:"411062",ph:"7030953792"}];
 const plants=()=>{let m=[];try{m=(M&&M.plants)||[]}catch(e){}return PLANT_DEF.map(d=>Object.assign({},d,m.find(x=>x.id===d.id)||{}))};
 const plantBy=id=>plants().find(p=>p.id===id)||null;
 const plantName=id=>(plantBy(id||"P1")||{}).short||"";
@@ -824,8 +830,18 @@ const plantLines=p=>[p.addr1+",",`${p.addr2}, ${p.loc.charAt(0)+p.loc.slice(1).t
 const plantAddr=id=>{const p=plantBy(id);return p?plantLines(p).join(" "):COMPANY.addr};
 let curPlant="";try{curPlant=localStorage.getItem("zpo:curPlant")||""}catch(e){}
 const userPlant=()=>{try{return me&&me.plant&&plantBy(me.plant)?me.plant:""}catch(e){return""}};
+/* a user kept to their own plant only sees that plant. Admin and Director always see both;
+   Accounts, Purchase and HR see both unless Admin changes it; everyone else sees their own plant unless Admin allows both */
+const plantsDef=u=>["Accounts","Purchase"].includes(u.role)||/^(hr|human resources?)$/i.test(String(u.dept||"").trim())?"both":"own";
+const plantsOf=u=>u.plants||plantsDef(u);
+const seesBoth=u=>!u||["Admin","Director"].includes(u.role)||plantsOf(u)==="both"||!(u.plant&&plantBy(u.plant));
+const lockedPlant=()=>{try{return me&&!seesBoth(me)?me.plant:""}catch(e){return""}};
 const defPlant=()=>curPlant||userPlant()||"P1";
 const inPlant=x=>!curPlant||(x.plant||"P1")===curPlant;
+/* run fn as if one plant were picked in the header (for side-by-side plant figures) */
+const withPlant=(id,fn)=>{const k=curPlant;curPlant=id;try{return fn()}finally{curPlant=k}};
+const splitPlants=()=>!curPlant&&plants().length>1;
+const plantDue=()=>grns.filter(g=>inPlant(g)&&g.status!=="With accounts"&&!g.old).reduce((a,g)=>a+Math.max(0,grnBal(g)),0);
 const plantOpts=v=>plants().map(p=>`<option value="${p.id}"${p.id===(v||"P1")?" selected":""}>${esc(p.name)}</option>`).join("");
 const plantChip=x=>`<span class="chip" style="margin-left:6px">${esc(plantName(x.plant))}</span>`;
 let DOCPLANT=null;
@@ -866,7 +882,7 @@ async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pendi
 async function cloudRenumber(list){
   const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,jwins:()=>nextJW(),pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>0,sorders:()=>nextSO(),dchallans:()=>nextDC(),dnotes:()=>nextDN()};
   for(const c of list){const k=c.coll,arr=cloud.cache[k];const obj=arr.find(r=>SYNC[k].id(r)===c.id);if(!obj)continue;const old=obj.no;
-    delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):k==="invoices"?nextInvNo(obj.fy,obj.plant):k==="cnotes"?nextCN(obj.fy):k==="deals"?nextDealNo(obj.plant):nexts[k]();
+    delete cloud.shadow[k][c.id];obj.no=k==="saved"?nextPONo(obj.plant,fyOf(obj.date||today())):k==="grns"?nextGRN(obj.plant,fyOf(obj.date||today())):k==="sorders"?nextSO(obj.plant,fyOf(obj.date||today())):k==="dchallans"?nextDC(obj.plant,fyOf(obj.date||today())):k==="slips"?nextSlip(obj.type):k==="invoices"?nextInvNo(obj.fy,obj.plant):k==="cnotes"?nextCN(obj.fy):k==="deals"?nextDealNo(obj.plant):nexts[k]();
     if(k==="saved"&&po&&String(po.no)===String(old)){po.no=obj.no;store.set("po",po)}
     if(k==="reqs"&&est&&est.reqNo===old){est.reqNo=obj.no;saveEst()}
     if(k==="sorders"){[dchallans,invoices].forEach(A=>A.forEach(r=>{if(String(r.so)===String(old))r.so=obj.no}));deals.forEach(d=>{if(String(d.so)===String(old))d.so=obj.no});store.set("dchallans",dchallans);store.set("invoices",invoices);saveDeals()}
@@ -1168,7 +1184,7 @@ $("#quickForm").onsubmit=e=>{
 };
 function newDirect(){est={job:"",plant:defPlant(),sup:"",date:today(),unit:"NOS",lines:[],direct:true};isExample=false;saveEst();bindHeader();renderEst();renderEstReq();$("#e-job").focus()}
 $("#btn-new").onclick=newDirect;
-$("#btn-direct").onclick=()=>{const pl=defPlant();po={no:nextPONo(),date:today(),sup:"",supAddr:"",ref:"",refDate:today(),attn:"",venCode:"",terms:"60 Days",transport:"",validity:"",reqNo:"",needBy:"",plant:pl,deliv:plantAddr(pl),gstmode:"intra",remark:"",xcols:[],lines:[{desc:"",item:"",spec:"",hsn:"84801000",tax:18,qty:1,unit:"NOS",rate:0,dis:0}]};store.set("po",po);show("po")};
+$("#btn-direct").onclick=()=>{const pl=defPlant();po={no:nextPONo(pl),date:today(),sup:"",supAddr:"",ref:"",refDate:today(),attn:"",venCode:"",terms:"60 Days",transport:"",validity:"",reqNo:"",needBy:"",plant:pl,deliv:plantAddr(pl),gstmode:"intra",remark:"",xcols:[],lines:[{desc:"",item:"",spec:"",hsn:"84801000",tax:18,qty:1,unit:"NOS",rate:0,dis:0}]};store.set("po",po);show("po")};
 
 /* BOM import */
 $("#btn-import").onclick=()=>$("#file-bom").click();
@@ -1280,13 +1296,26 @@ function parseBOM(wb){
 /* the first document of a series (PO, GRN, invoice per plant and year) can get a typed starting number; every next number is automatic.
    firstNo marks that typed start, so the default base (2055 for POs, 1000 for GRNs) no longer applies after it. */
 function okNo(v){return /^\d{1,7}$/.test(String(v??"").trim())&&+v>0}
-function poFirst(){return !saved.length&&!store.get("deletedPOs",[]).length}
-function nextPONo(){const D=store.get("deletedPOs",[]);return Math.max(saved.some(s=>s.firstNo)||D.some(d=>d.firstNo)?0:2055,...saved.map(s=>+s.no||0),...D.map(d=>+d.no||0))+1}
+/* plant series: new POs, GRNs, sales orders and delivery challans are numbered per plant and financial year like the old ERP,
+   L/0001/26-27 (L = the plant letter, its invoice prefix: Z for Plant 1, J for Plant 2). Imported old numbers in that form count,
+   so each series continues after the highest one. Numbers made before this keep their old form. The first number of an empty series can be typed. */
+const SER={po:{w:4,tag:"",n:"PO"},grn:{w:5,tag:"",n:"GRN"},so:{w:4,tag:"SO/",n:"Sales order"},dc:{w:4,tag:"DC/",n:"Delivery challan"}};
+function serL(pl){const P=plantBy(pl||"P1")||{};return String(P.pre||"").replace(/[^A-Za-z0-9]/g,"")||(pl==="P2"?"J":"Z")}
+function serRe(k,pl,fy){const e=x=>String(x).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return new RegExp("^"+e(serL(pl))+"\\s*/\\s*"+e(SER[k].tag)+"(\\d+)\\s*/\\s*"+e(fy)+"$","i")}
+function serList(k){return k==="po"?saved.map(x=>x.no).concat(store.get("deletedPOs",[]).map(d=>d.no)):k==="grn"?grns.map(g=>g.no):k==="so"?sorders.map(x=>x.no):dchallans.map(x=>x.no)}
+function serMax(k,pl,fy){const re=serRe(k,pl,fy);let m=null;serList(k).forEach(n=>{const r=String(n??"").trim().match(re);if(r)m=Math.max(m||0,+r[1])});return m}
+function serFmt(k,pl,fy,n){return `${serL(pl)}/${SER[k].tag}${String(n).padStart(SER[k].w,"0")}/${fy}`}
+function serFirst(k,pl,fy){return serMax(k,pl||"P1",fy||fyOf(today()))==null}
+function serNext(k,pl,fy){pl=pl||"P1";fy=fy||fyOf(today());return serFmt(k,pl,fy,(serMax(k,pl,fy)||0)+1)}
+function serNum(no){const m=String(no??"").match(/(\d+)\s*\/\s*\d{2}-\d{2}$/);return m?+m[1]:""}
+const soLbl=n=>/\//.test(String(n??""))?String(n):"SO-"+n,dcLbl=n=>/\//.test(String(n??""))?String(n):"DC-"+n;
+function nextPONo(pl,fy){return serNext("po",pl||defPlant(),fy)}
+function poNew(){return !!po&&!saved.some(x=>String(x.no)===String(po.no))}
 $("#btn-convert").onclick=()=>{
   const lines=est.lines.filter(l=>l.item&&lineAmt(l)>0);
   if(!lines.length){toast("Add at least one line with a rate and qty");return}
   const sup=suppliers.find(s=>key(s.name)===key(est.sup))||{name:est.sup||"",addr:"",state:"27"};
-  po={no:nextPONo(),date:today(),sup:sup.name,supAddr:sup.addr,ref:est.job,refDate:est.date,attn:"",venCode:sup.gstin||"",terms:sup.terms||"60 Days",transport:"",validity:"",
+  po={no:nextPONo(est.plant||defPlant()),date:today(),sup:sup.name,supAddr:sup.addr,ref:est.job,refDate:est.date,attn:"",venCode:sup.gstin||"",terms:sup.terms||"60 Days",transport:"",validity:"",
       reqNo:est.reqNo||"",needBy:est.need||"",plant:est.plant||defPlant(),deliv:plantAddr(est.plant||defPlant()),gstmode:sup.state&&sup.state!=="27"?"inter":"intra",remark:"",
       xcols:estCols().filter(c=>lines.some(l=>l.x&&l.x[c])),
       lines:lines.map(l=>{const it=itemByName(l.item);if(estCols().length&&l.x){const pl={x:Object.assign({},l.x),xo:l.xo||"",pn:it?"":l.item,item:it?it.name:"",spec:"",desc:"",hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0};return pl}return{desc:[l.item,l.spec].filter(Boolean).join(" - "),item:it?it.name:"",spec:it?(l.spec||""):[l.item,l.spec].filter(Boolean).join(" - "),hsn:(it&&it.hsn)||"84801000",tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:l.qty,unit:l.unit||(it&&it.unit)||"NOS",rate:l.rate,dis:0}})};
@@ -1315,8 +1344,8 @@ function renderPO(){
   <h3>PURCHASE ORDER</h3>
   <div class="two">
     <div>${inp("sup","100%",'style="font-weight:700;width:100%" list="suppliers" placeholder="Supplier name"')}<textarea id="po-supAddr" data-pk="supAddr" rows="4" style="width:100%;resize:vertical">${esc(po.supAddr)}</textarea></div>
-    <div class="kv"><b>P.O. No.</b><div>${poFirst()?inp("no","70px",'inputmode="numeric" title="First PO: type the starting number. After this, PO numbers are automatic."'):inp("no","70px",'readonly title="PO numbers are automatic"')} &nbsp;<b>Date</b> ${inp("date","120px",'type="date"')}</div>
-      <b>Plant</b><select id="po-plant" data-pk="plant" style="width:100%">${plantOpts(po.plant)}</select>
+    <div class="kv"><b>P.O. No.</b><div>${poNew()&&(serFirst("po",po.plant,fyOf(po.date||today()))||isRole("Admin"))?`${esc(serL(po.plant))}/<input id="po-nofirst" inputmode="numeric" value="${esc(serNum(po.no))}" style="width:60px" title="${serFirst("po",po.plant,fyOf(po.date||today()))?"First PO of this plant and year: the next number is filled in, change it to match your old records. After this, PO numbers are automatic.":"Next number filled in. Only Admin can change it."}">/${esc(fyOf(po.date||today()))}`:inp("no","120px",'readonly title="PO numbers are automatic"')} &nbsp;<b>Date</b> ${inp("date","120px",'type="date"')}</div>
+      <b>Plant</b><select id="po-plant" data-pk="plant" style="width:100%"${poNew()?"":" disabled title=\"PO number already given for this plant\""}>${plantOpts(po.plant)}</select>
       <b>Delivery</b><textarea id="po-deliv" data-pk="deliv" rows="2" style="width:100%;resize:vertical">${esc(po.deliv)}</textarea>
       <b>Pay. Terms</b>${inp("terms","100%")}<b>Validity</b>${inp("validity","100%")}</div>
   </div>
@@ -1385,7 +1414,8 @@ $("#paper").addEventListener("change",e=>{if(e.target.dataset.lk==="pdesc"){/* a
   if(!wasRaw&&poRawOn(l)){const i=+e.target.closest("tr").dataset.i;if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;store.set("po",po);renderPO();const r=$("#pl"+i+"-raw");if(r)r.focus();return}if(it.hsn)l.hsn=it.hsn;if(it.gst!==""&&it.gst!=null)l.tax=+it.gst;if(it.unit)l.unit=it.unit;const i=+e.target.closest("tr").dataset.i;[["hsn","hsn"],["tax","tax"],["unit","unit"]].forEach(([f,k])=>{const el=$(`#pl${i}-${f}`);if(el)el.value=l[k]});store.set("po",po);renderTotals()});
 $("#paper").addEventListener("input",e=>{
   const t=e.target;
-  if(t.dataset.pk==="plant"){const old=po.deliv;if(!old||old===COMPANY.addr||plants().some(p=>plantAddr(p.id)===old))po.deliv=plantAddr(t.value);po.plant=t.value;store.set("po",po);renderPO();return}
+  if(t.id==="po-nofirst"){if(okNo(t.value)){const n=serFmt("po",po.plant,fyOf(po.date||today()),+t.value);if(!serList("po").some(x=>String(x)===n)){po.no=n;store.set("po",po)}}return}
+  if(t.dataset.pk==="plant"){const old=po.deliv;if(!old||old===COMPANY.addr||plants().some(p=>plantAddr(p.id)===old))po.deliv=plantAddr(t.value);po.plant=t.value;if(poNew())po.no=nextPONo(t.value,fyOf(po.date||today()));store.set("po",po);renderPO();return}
   if(t.dataset.pk){po[t.dataset.pk]=t.value;
     if(t.dataset.pk==="sup"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp&&!po.supAddr){po.supAddr=sp.addr;$("#po-supAddr").value=sp.addr;if(sp.terms){po.terms=sp.terms;$("#po-terms").value=sp.terms}po.gstmode=sp.state&&sp.state!=="27"?"inter":"intra";$("#p-gstmode").value=po.gstmode;renderTotals()}}}
   else if(t.dataset.px!=null){const l=po.lines[+t.closest("tr").dataset.i];l.x=l.x||{};l.x[t.dataset.px]=t.value;poJoin(l)}
@@ -1430,17 +1460,17 @@ $("#btn-pv-wa").onclick=()=>{let ph=$("#pv-phone").value.replace(/\D/g,"");if(ph
 $("#btn-pv-mark").onclick=()=>poSent("");
 function recordPO(status,action,comment){
   po.status=status;po.history=(po.history||[]).concat([{by:me.name,action,at:new Date().toISOString(),comment:comment||""}]);
-  if(poFirst()){po.no=okNo(po.no)?+po.no:nextPONo();po.firstNo=true}
   const c=poCalc();const rec=JSON.parse(JSON.stringify(po));rec.total=c.total;rec.savedAt=new Date().toISOString();
   const i=saved.findIndex(s=>String(s.no)===String(po.no));if(i>=0)saved[i]=rec;else saved.unshift(rec);store.set("saved",saved);store.set("po",po);
 }
+function poNoBad(){const nf=$("#po-nofirst");if(!nf||!po)return false;if(!okNo(nf.value)){toast("Type the PO number in digits, e.g. 97");nf.focus();return true}const n=serFmt("po",po.plant,fyOf(po.date||today()),+nf.value);if(n!==String(po.no)){toast(`PO ${n} already exists. Pick another number.`);nf.focus();return true}return false}
 $("#btn-save").onclick=()=>{
-  if(!po){toast("Nothing to save yet");return}
+  if(!po){toast("Nothing to save yet");return}if(poNoBad())return;
   if(po.status==="Pending approval"){recordPO("Pending approval","Edited before approval");learnFromPO();toast(`PO ${po.no} updated. The approver sees the new version.`);renderPO();return}
   recordPO(po.status==="Sent back"?"Sent back":"Draft","Saved draft");learnFromPO();toast(`Draft PO ${po.no} saved`);renderPO();
 };
 $("#btn-send").onclick=()=>{
-  if(!po)return;if(!po.sup.trim()){toast("Fill in the supplier first");return}
+  if(!po)return;if(poNoBad())return;if(!po.sup.trim()){toast("Fill in the supplier first");return}
   if(!po.lines.some(l=>l.desc&&(+l.qty)*(+l.rate)>0)){toast("Add at least one line with qty and rate");return}
   if(!po.needBy){toast("Fill in the delivery-by date on the PO");$("#po-needBy").focus();return}
   recordPO("Pending approval","Sent for approval");learnFromPO();
@@ -1751,8 +1781,8 @@ const saveGRNs=()=>store.set("grns",grns);
 const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
 function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;return o+grns.filter(g=>!g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
 function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
-function grnFirst(){return !grns.length}
-function nextGRN(){return Math.max(grns.some(g=>g.firstNo)?0:1000,...grns.map(g=>+g.no||0))+1}
+function grnFirst(){return !!grn&&serFirst("grn",grn.plant,fyOf(grn.date||today()))}
+function nextGRN(pl,fy){return serNext("grn",pl||"P1",fy)}
 /* ---------- pending balance: request -> PO -> received ---------- */
 /* A request can be split over several POs (part now, part later, or different suppliers). Each PO line made from a request
    remembers its request line (rq). Older POs without that link are matched to request lines by item name. */
@@ -1824,7 +1854,7 @@ const gradeIn=t=>{const T=" "+key(t)+" ";const g=costing.grades.filter(x=>key(x.
 const opOf=o=>costing.ops.find(x=>key(x.op)===key(o||""));
 const STALE_DAYS=90;
 const costStale=x=>!x.upd||(new Date(today())-new Date(x.upd))/864e5>STALE_DAYS;
-function costLog(what,o,n){costing.hist.push({at:new Date().toISOString(),by:me?me.name:"",what,o:o??"",n:n??"",from:"PO "+nextPONo()});if(costing.hist.length>2000)costing.hist=costing.hist.slice(-2000)}
+function costLog(what,o,n){costing.hist.push({at:new Date().toISOString(),by:me?me.name:"",what,o:o??"",n:n??"",from:"PO "+nextPONo(defPlant())});if(costing.hist.length>2000)costing.hist=costing.hist.slice(-2000)}
 const costName=(L,x)=>L==="grades"?x.g:L==="ops"?x.op:L==="cons"?x.name:[x.type,x.size,x.len].filter(Boolean).join(" ");
 let costTab="grades";
 function renderCost(){
@@ -1844,7 +1874,7 @@ function renderCost(){
   const D=COST_LISTS[costTab],L=costing[costTab],old=L.filter(costStale).length;
   B.innerHTML=`<div class="row">${ed?`<button class="btn" type="button" data-cadd>Add row</button>`:""}<button class="btn" type="button" data-cxout>Download to Excel</button>${ed?`<button class="btn" type="button" data-cxin>Import updated Excel</button><input type="file" id="cost-file" accept=".xlsx,.xls,.csv" hidden>`:""}<span style="flex:1"></span>${L.length?(old?`<span class="chip st-Back">${old} not updated in ${STALE_DAYS} days</span>`:`<span class="chip st-Approved">All updated in the last ${STALE_DAYS} days</span>`):""}</div>
   <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr>${D.cols.map(c=>`<th${c[2]==="n"?' class="num"':""}>${esc(c[0])}</th>`).join("")}<th>Updated</th><th></th></tr></thead><tbody>${L.map((x,i)=>`<tr data-ci="${i}">${D.cols.map(([h,f,ty])=>`<td${ty==="n"?' class="num"':""}><input data-cf="${f}"${ty==="n"?' type="number" step="any" min="0" style="width:100px"':ty==="s"?' list="suppliers" style="min-width:170px"':f==="type"||f==="name"?' data-ac="desc" autocomplete="off" style="min-width:110px"':f==="g"?' list="gradeList" style="min-width:110px"':' style="min-width:110px"'} value="${esc(x[f])}" aria-label="${esc(h)}"${ed?"":" disabled"}></td>`).join("")}<td class="note" style="white-space:nowrap">${x.upd?dmy(x.upd):"Not set"}${costStale(x)?` <span class="chip st-Back">old</span>`:""}${x.by?`<br>${esc(x.by)}`:""}</td><td>${ed?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove row">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="${D.cols.length+2}" class="empty">Nothing here yet. Add rows, or import an Excel sheet with these column headings.</td></tr>`}</tbody></table></div>
-  <div class="note">A changed rate applies from ${esc("PO "+nextPONo())} onwards. POs already made or approved keep their own rates.</div>`;
+  <div class="note">A changed rate applies from ${esc("PO "+nextPONo(defPlant()))} onwards. POs already made or approved keep their own rates.</div>`;
   const fi=$("#cost-file");if(fi)fi.onchange=costImport}
 $("#costTabs").addEventListener("click",e=>{const b=e.target.closest("[data-ctab]");if(b){costTab=b.dataset.ctab;renderCost()}});
 $("#costBody").addEventListener("change",e=>{if(!canCost())return;const t=e.target;
@@ -1852,7 +1882,7 @@ $("#costBody").addEventListener("change",e=>{if(!canCost())return;const t=e.targ
   const tp=t.closest("[data-tp]");if(tp&&t.dataset.tf){const T=costing.tpl[tp.dataset.tp][+tp.dataset.j];if(t.dataset.tf==="op")T[0]=t.value;else T[1]=+t.value||0;saveCosting();toast("Template saved");return}
   const tr=t.closest("[data-ci]");if(!tr||!t.dataset.cf)return;const L=costing[costTab],x=L[+tr.dataset.ci],f=t.dataset.cf,ty=(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[])[2];
   const n=ty==="n"?(t.value===""?"":+t.value):t.value.trim(),o=x[f];if(String(o??"")===String(n))return;
-  x[f]=n;x.upd=today();x.by=me?me.name:"";costLog(`${COST_LISTS[costTab].t}: ${costName(costTab,x)||"new row"} · ${(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[f])[0]}`,o,n);saveCosting();clearTimeout(renderCost.t);renderCost.t=setTimeout(renderCost,0);toast(`Saved. Applies from PO ${nextPONo()} onwards.`)});
+  x[f]=n;x.upd=today();x.by=me?me.name:"";costLog(`${COST_LISTS[costTab].t}: ${costName(costTab,x)||"new row"} · ${(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[f])[0]}`,o,n);saveCosting();clearTimeout(renderCost.t);renderCost.t=setTimeout(renderCost,0);toast(`Saved. Applies from PO ${nextPONo(defPlant())} onwards.`)});
 $("#costBody").addEventListener("click",async e=>{const t=e.target;if(!t.closest("button"))return;const b=t.closest("button"),d=b.dataset;
   if(d.cxout!=null){costExport();return}
   if(!canCost())return;
@@ -1979,7 +2009,7 @@ $("#btn-buy-make").onclick=()=>{
   const made=[];
   Object.values(G).forEach(g=>{const sp=g.sp||{name:g.sup,addr:"",state:"27"},R=g.rows;
     const nos=[...new Set(R.map(o=>o.b.x.r.no))],jobs=[...new Set(R.map(o=>o.b.x.r.job).filter(Boolean))],needs=R.map(o=>o.b.x.r.need).filter(Boolean).sort();
-    po={no:nextPONo(),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
+    po={no:nextPONo(g.plant),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
       reqNo:nos.join(", "),reqNos:nos,needBy:needs[0]||"",plant:g.plant,deliv:plantAddr(g.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",notes:String(buyNotes||"").trim(),xcols:[],
       lines:R.map(o=>{const b=o.b,x=b.x,c=b.c,cat=b.cat,base={hsn:"84801000",tax:18,dis:0,rqNo:x.r.no,cat};
         if(cat==="Raw material"){const l=Object.assign(base,{item:"",spec:x.name,fin:c.fin,raw:c.raw,rawAuto:false,grade:c.grade,rawOn:true,pcs:c.qty,qty:Math.round(c.wpc*c.qty*100)/100,unit:"KG",rate:+c.rate,rq:x.i,hsn:"72269990"});poSetDesc(l);return l}
@@ -2081,7 +2111,7 @@ function renderGRNForm(){
   const f=(k,lab,type="text")=>`<label class="f">${lab}<input id="g-${k}" data-gk="${k}" type="${type}" value="${esc(grn[k])}"></label>`;
   F.innerHTML=`<div class="row"><h2 class="sec">GRN ${grn.no} · PO ${esc(grn.poNo)}</h2><span class="note">${esc(grn.sup)}</span><span style="flex:1"></span><button class="btn" id="btn-g-cancel">Cancel</button></div>
   ${scanBar("grn","Read supplier invoice")}
-  <div class="grid-fields">${grnFirst()?`<label class="f">GRN No. (first GRN: type the starting number)<input id="g-no" data-gk="no" inputmode="numeric" value="${esc(grn.no)}"></label>`:""}${f("date","GRN date","date")}${f("dc","Delivery challan no.")}${f("dcDate","Challan date","date")}${f("inv","Supplier invoice no.")}${f("invDate","Invoice date","date")}${f("vehicle","Vehicle / transport")}</div>
+  <div class="grid-fields">${grnFirst()||isRole("Admin")?`<label class="f">GRN No. ${esc(serL(grn.plant))}/…/${esc(fyOf(grn.date||today()))} ${grnFirst()?"(first GRN of this plant and year: next number filled in, change it to match your old records)":"(Admin can change it)"}<input id="g-no" inputmode="numeric" value="${esc(serNum(grn.no))}"></label>`:""}${f("date","GRN date","date")}${f("dc","Delivery challan no.")}${f("dcDate","Challan date","date")}${f("inv","Supplier invoice no.")}${f("invDate","Invoice date","date")}${f("vehicle","Vehicle / transport")}</div>
   <div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sn</th><th>Description</th><th>Unit</th><th class="num">Ordered</th><th class="num">Already accepted</th><th class="num">Received now</th><th class="num">Rejected</th><th class="num">Accepted</th><th>Remark</th></tr></thead>
   <tbody id="grnBody">${grn.lines.map((l,j)=>`<tr data-j="${j}"><td>${l.i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.unit)}</td><td class="num">${fmt0(l.ordered)}</td><td class="num">${fmt0(l.prev)}</td>
     <td class="num"><input id="g${j}-recv" class="qty" data-lk="recv" type="number" step="any" min="0" value="${l.recv}"></td>
@@ -2093,7 +2123,7 @@ function renderGRNForm(){
 }
 $("#grnList").addEventListener("click",poPdfClick);
 $("#grnPOs").addEventListener("click",e=>{poPdfClick(e);const n=e.target.dataset.grnpo;if(n==null)return;const p=saved.find(x=>String(x.no)===n);
-  grn={no:nextGRN(),date:today(),poNo:p.no,plant:p.plant||"",sup:p.sup,job:p.ref||"",reqNo:p.reqNo||"",terms:p.terms||"",gstmode:p.gstmode,dc:"",dcDate:today(),inv:"",invDate:"",vehicle:"",by:me.name,
+  grn={no:nextGRN(p.plant),date:today(),poNo:p.no,plant:p.plant||"",sup:p.sup,job:p.ref||"",reqNo:p.reqNo||"",terms:p.terms||"",gstmode:p.gstmode,dc:"",dcDate:today(),inv:"",invDate:"",vehicle:"",by:me.name,
     lines:pendingLines(p).map(({l,i,acc})=>({i,desc:l.desc,unit:l.unit,rate:l.rate,dis:l.dis||0,tax:l.tax,hsn:l.hsn,ordered:+l.qty,prev:acc,recv:+((+l.qty)-acc).toFixed(3),rej:0,remark:""}))};
   scanState.rec=null;renderGRNForm();$("#grnForm").scrollIntoView({block:"start"})});
 $("#grnForm").addEventListener("input",e=>{const t=e.target;if(t.dataset.gk)grn[t.dataset.gk]=t.value;
@@ -2105,7 +2135,8 @@ $("#grnForm").addEventListener("click",e=>{
   if(grn.lines.some(l=>(+l.rej||0)>(+l.recv||0)||(+l.recv||0)<0)){toast("Rejected qty cannot be more than received");return}
   if(grn.lines.some(l=>(+l.recv||0)-(+l.rej||0)>l.ordered-l.prev+0.0001)){toast("Accepted qty is more than the PO balance. Check the quantities.");return}
   grn.lines=grn.lines.filter(l=>(+l.recv||0)>0);if(!grn.lines.length){toast("Enter the received qty for at least one line");renderGRNForm();return}
-  if(grnFirst()){if(!okNo(grn.no)){toast("Type the GRN number in digits, e.g. 1001");$("#g-no").focus();return}grn.no=+grn.no;grn.firstNo=true}
+  if($("#g-no")){const v=$("#g-no").value;if(!okNo(v)){toast("Type the GRN number in digits, e.g. 108");$("#g-no").focus();return}const n=serFmt("grn",grn.plant,fyOf(grn.date||today()),+v);if(grns.some(g=>String(g.no)===n)){toast(`GRN ${n} already exists. Pick another number.`);$("#g-no").focus();return}grn.no=n}
+  else if(grns.some(g=>String(g.no)===String(grn.no)))grn.no=nextGRN(grn.plant,fyOf(grn.date||today()));
   grn.status="With accounts";grn.createdAt=new Date().toISOString();grns.unshift(grn);saveGRNs();
   const p=saved.find(x=>String(x.no)===String(grn.poNo));
   if(p){if(pendingLines(p).length){p.recv="Partly received"}else{p.recv="Closed";p.closed=true;p.closedAt=grns.filter(g=>String(g.poNo)===String(p.no)).map(g=>g.date).sort().pop();
@@ -2434,7 +2465,7 @@ function movements(){
   dnotes.filter(d=>d.reason==="Returned after acceptance").forEach(d=>d.lines.forEach(l=>mv.push({date:d.date,t:d.createdAt||d.date,k:key(l.desc),desc:l.desc,unit:l.unit,qty:-(+l.qty||0),rate:+l.rate||0,doc:"DN-"+d.no,type:"DN",job:"",party:d.party})));
   try{const stk=new Set(mv.filter(v=>v.type==="GRN"||v.type==="Opening").map(v=>v.k));items.forEach(i=>{if(i.stock==="Yes")stk.add(key(i.name))});
     const out=(d,doc,x)=>d.lines.forEach(l=>{const k=key(l.desc);if(stk.has(k)&&+l.qty>0)mv.push({date:x.date,t:x.createdAt||x.date,k,desc:l.desc,unit:l.unit,qty:-(+l.qty),rate:+l.rate||0,doc,type:"Sale",job:x.job||"",party:x.cust})});
-    dchallans.forEach(d=>out(d,"DC-"+d.no,d));
+    dchallans.forEach(d=>out(d,dcLbl(d.no),d));
     invoices.filter(v=>!(v.dc&&v.dc.length)&&!v.jw&&!v.old).forEach(v=>out(v,"INV "+invNo(v),v));
     cnotes.filter(n=>n.reason==="Sales return").forEach(n=>(n.lines||[]).forEach(l=>{const k=key(l.desc);if(stk.has(k)&&+l.qty>0)mv.push({date:n.date,t:n.createdAt||n.date,k,desc:l.desc,unit:l.unit,qty:+l.qty,rate:0,doc:"CN "+(n.no||""),type:"SR",job:"",party:n.cust||n.party||""})}))}catch(e){}
   return mv.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.t<b.t?-1:a.t>b.t?1:0));
@@ -2726,7 +2757,7 @@ function backupBook(){
   add("Items",items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})));
   add("Customers",customers.map(c=>({Customer:c.name,"Contact person":c.contact||"",Mobile:c.phone||"",Email:c.email||"",City:c.city||"",GSTIN:c.gstin||"",Address:c.addr||""})));
   add("Enquiries",deals.map(d=>({"QT No":qtNo(d),Plant:plantName(d.plant),Date:d.date,Customer:d.cust,"Enquiry for":d.title,Stage:d.stage,Salesperson:d.owner||"",Value:Math.round(dealVal(d)),"Customer PO":d.custPO||"","Job No":d.job||"","Lost reason":d.lostWhy||""})));
-  add("Sales orders",sorders.map(x=>({"SO No":"SO-"+x.no,Date:x.date,Customer:x.cust,"Customer PO":x.custPO||"","Job No":x.job||"",Status:soStatus(x),Value:Math.round(sdSub(x))})));
+  add("Sales orders",sorders.map(x=>({"SO No":soLbl(x.no),Plant:plantName(x.plant),Date:x.date,Customer:x.cust,"Customer PO":x.custPO||"","Job No":x.job||"",Status:soStatus(x),Value:Math.round(sdSub(x))})));
   add("Invoices",invoices.map(x=>({"Invoice No":invNo(x),Date:x.date,Customer:x.cust,"Before GST":Math.round(sdSub(x)+(+x.freight||0)),Total:Math.round(invTot(x)),Received:recdOf(x),"To collect":Math.round(invDue(x))})));
   add("Jobs",jobs.map(j=>({"Job No":j.no,Customer:j.cust||"",Part:j.desc||"",Status:j.status,"% done":jobPct(j),Due:j.due||"","Actual hours":(j.ops||[]).reduce((a,o)=>a+(+o.act||0),0),"Labour ₹":Math.round(jobLabour(j))})));
   add("Debit notes",dnotes.map(d=>({"DN No":"DN-"+d.no,Date:d.date,Supplier:d.party,GRN:d.grn||"",Reason:d.reason,Total:ntCalc("dn",d).grand})));
@@ -3068,9 +3099,10 @@ function renderMasters(){
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   {const mp=$("#mu-plant"),v=mp.value;mp.innerHTML=`<option value="">Plant (optional)</option>`+plants().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");mp.value=v}
+  const uSee=(u,i)=>["Admin","Director"].includes(u.role)?`<span class="note">Both plants (${esc(u.role)})</span>`:!(u.plant&&plantBy(u.plant))?`<span class="note" title="Set a plant first to keep this person to one plant">Both plants (no plant set)</span>`:`<select id="mu${i}-s" data-f="plants" aria-label="Plants ${esc(u.name)} can see">${[["own","Own plant only"],["both","Both plants"]].map(([v,l])=>`<option value="${v}"${plantsOf(u)===v?" selected":""}>${l}${plantsDef(u)===v?" (usual)":""}</option>`).join("")}</select>`;
   const uPl=u=>`<option value=""${u.plant?"":" selected"}>Not set (${esc(plantName("P1"))})</option>`+plants().map(p=>`<option value="${p.id}"${p.id===u.plant?" selected":""}>${esc(p.name)}</option>`).join("");
   $("#md-hod").innerHTML=opts(hods,"","Department head (optional)");
-  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-p" data-f="plant" title="Filled in on new documents. They can still pick another plant.">${uPl(u)}</select></td><td><select id="mu${i}-r" data-f="role">${["Staff","Department head","Purchase","Store","Accounts","Sales","Production","Director","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select>${jobWarn(u)}</td><td>${(rightsOf(u).includes("po.approve")||u.role==="Department head")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No users yet.</td></tr>`;
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-p" data-f="plant" title="Filled in on new documents. They can still pick another plant.">${uPl(u)}</select></td><td>${uSee(u,i)}</td><td><select id="mu${i}-r" data-f="role">${["Staff","Department head","Purchase","Store","Accounts","Sales","Production","Director","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select>${jobWarn(u)}</td><td>${(rightsOf(u).includes("po.approve")||u.role==="Department head")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">No users yet.</td></tr>`;
   $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
   const pjE=projCan("edit"),pjD=projCan("delete"),pjRO=pjE?"":" disabled";$("#m-proj-form").hidden=!projCan("create");
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input${pjRO} id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input${pjRO} id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input${pjRO} id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select${pjRO} id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td>${pjD?`<button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
@@ -3085,6 +3117,7 @@ function renderMasters(){
     if(tr.dataset.t==="users"&&f==="checker"&&rec.checker)toast(`${rec.checker} now checks and approves ${rec.name}'s purchase requests`);
     if(tr.dataset.t==="users"&&f==="dept"&&rec.role==="Staff"&&deptJob(rec.dept)){rec.role=deptJob(rec.dept);if(rec.rights)delete rec.rights;toast(`${rec.name}'s job set to ${rec.role}, to match the ${rec.dept} department`)}
     if(tr.dataset.t==="users"&&f==="plant")toast(rec.plant?`New documents by ${rec.name} will start with ${plantName(rec.plant)}`:`${rec.name} has no plant set: new documents start with ${plantName("P1")}`);
+    if(tr.dataset.t==="users"&&f==="plants")toast(rec.plants==="both"?`${rec.name} can now see both plants`:`${rec.name} now sees ${plantName(rec.plant)} only`);
     if(tr.dataset.t==="users"&&f==="role"&&rec.rights){delete rec.rights;toast(`${rec.name} now has the standard ${rec.role} rights`)}
     saveM();renderMasters()});
   $(id).addEventListener("click",e=>{if(e.target.dataset.mdel===undefined)return;const tr=e.target.closest("tr");M[tr.dataset.t].splice(+tr.dataset.i,1);saveM();renderMasters()});
@@ -3134,7 +3167,7 @@ const JOBDEPT={purchase:"Purchase",store:"Store",stores:"Store",accounts:"Accoun
 const deptJob=d=>JOBDEPT[String(d||"").trim().toLowerCase()]||"";
 function jobWarn(u){const j=deptJob(u.dept);return u.role==="Staff"&&j?`<div class="note" style="color:var(--danger);white-space:normal;max-width:240px;margin-top:3px">Staff can only ask for material. To do ${esc(u.dept)} work, set the job to ${j}.</div>`:""}
 $("#mu-dept").addEventListener("change",()=>{const j=deptJob($("#mu-dept").value);if(j&&$("#mu-role").value==="Staff")$("#mu-role").value=j});
-$("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,email:$("#mu-email").value.trim(),dept:$("#mu-dept").value,plant:$("#mu-plant").value,role:$("#mu-role").value},n)){$("#mu-name").value="";$("#mu-email").value="";$("#mu-plant").value=""}};
+$("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,email:$("#mu-email").value.trim(),dept:$("#mu-dept").value,plant:$("#mu-plant").value,plants:$("#mu-plants").value,role:$("#mu-role").value},n)){$("#mu-name").value="";$("#mu-email").value="";$("#mu-plant").value="";$("#mu-plants").value=""}};
 $("#m-dept-form").onsubmit=e=>{e.preventDefault();const n=$("#md-name").value.trim();if(addM("depts",{name:n,hod:$("#md-hod").value},n))$("#md-name").value=""};
 $("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim().toUpperCase();if(addM("projects",{no:n,desc:$("#mp-desc").value.trim(),cust:$("#mp-cust").value.trim(),status:"Active"},n)){$("#mp-no").value="";$("#mp-desc").value="";$("#mp-cust").value=""}};
 
@@ -3351,7 +3384,7 @@ const QT_TERMS="Prices: Ex-works Pune\nGST: Extra as applicable\nPayment: 40% ad
 let customers=store.get("customers",[]);const saveCusts=()=>{store.set("customers",customers);codesSoon("cust")};
 let deals=store.get("deals",[]);const saveDeals=()=>store.set("deals",deals);
 let fups=store.get("fups",[]);const saveFups=()=>store.set("fups",fups);
-/* quotations are numbered per plant: Plant 1 keeps the old series (QT-1001 ...), other plants start their own (JQT-1001 ...).
+/* quotations are numbered per plant with the plant letter: Plant 1 ZQ-, Plant 2 JQ- (each continues its own numbers; older ones keep the QT-/JQT- they were saved with).
    ps marks a quotation numbered in its plant's series; older ones (no ps) keep their number and key. */
 const dealKey=d=>SYNC.deals.id(d);
 const dealBy=k=>deals.find(x=>dealKey(x)===String(k));
@@ -3617,7 +3650,7 @@ const fyOf=d=>{const y=+d.slice(0,4),m=+d.slice(5,7);const s=m>=4?y:y-1;return S
 let sorders=store.get("sorders",[]),dchallans=store.get("dchallans",[]),invoices=store.get("invoices",[]);
 const SD={so:{coll:"sorders",arr:()=>sorders,name:"Sales order",pre:"SO-",base:100},dc:{coll:"dchallans",arr:()=>dchallans,name:"Delivery challan",pre:"DC-",base:200},inv:{coll:"invoices",arr:()=>invoices,name:"Tax invoice",pre:"",base:0}};
 const sdSave=t=>store.set(SD[t].coll,SD[t].arr());
-const nextSO=()=>Math.max(SD.so.base,...sorders.map(x=>+x.no||0))+1,nextDC=()=>Math.max(SD.dc.base,...dchallans.map(x=>+x.no||0))+1;
+const nextSO=(pl,fy)=>serNext("so",pl||defPlant(),fy),nextDC=(pl,fy)=>serNext("dc",pl||defPlant(),fy);
 const nextInvNo=(fy,pl)=>{pl=pl||"P1";const P=plantBy(pl)||{};const base=fy===fyOf(today())?(+(P.lastNo!==""&&P.lastNo!=null?P.lastNo:(pl==="P1"?salesCfg().lastNo:""))||0):0;return Math.max(base,...invoices.filter(x=>x.fy===fy&&(x.plant||"P1")===pl).map(x=>+x.no||0))+1};
 const invKey=x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no;
 const sellerCfg=x=>{const c=salesCfg(),p=x&&x.plant&&plantBy(x.plant);return p?Object.assign({},c,{sAddr1:p.addr1,sAddr2:p.addr2,sLoc:p.loc,sPin:p.pin,sPh:p.ph||c.sPh}):c};
@@ -3627,7 +3660,7 @@ const invPreOf=pl=>pl?(plantBy(pl)||{}).pre||"":salesCfg().pre;
 const invNo=x=>x.oldNo?x.oldNo:`${x.pre!=null?x.pre:invPreOf(x.plant)}${x.no}/${x.fy}`;
 /* invoices made before the prefix was stored: keep the prefix they were printed with (Plant 1 default was "ZT" then) */
 {let ch=0;const OLDP={P1:"ZT",P2:"J"};invoices.forEach(x=>{if(!x||x.oldNo||x.pre!=null)return;const m=((M.plants||[]).find(p=>p.id===x.plant)||{});x.pre=!x.plant?salesCfg().pre:m.pre!=null?String(m.pre):(OLDP[x.plant]??"");ch++});if(ch)store.set("invoices",invoices)}
-const sdNo=(t,x)=>t==="inv"?invNo(x):SD[t].pre+x.no;
+const sdNo=(t,x)=>t==="inv"?invNo(x):t==="so"?soLbl(x.no):dcLbl(x.no);
 const sdId=(t,x)=>t==="inv"?invKey(x):String(x.no);
 const isIntra=c=>stOf(custByName(c)||{})==="27";
 const sdSub=x=>(x.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100),0);
@@ -3641,8 +3674,8 @@ function invAdv(x){if(!x.so||x.cancelled)return 0;const s=sorders.find(y=>String
 const invDue=x=>Math.max(0,invDue0(x)-invAdv(x));
 let sdCur=null;// {t, rec, isNew}
 function sdOpen(t,rec,isNew){sdCur={t,rec:JSON.parse(JSON.stringify(rec)),isNew};show(t);renderSDForm();$(`#${t}-form`).scrollIntoView({block:"start"})}
-function sdNew(t,extra){const pl=(extra&&extra.plant)||defPlant();const c={so:{no:nextSO(),date:today(),cust:"",deal:"",custPO:"",custPODate:"",job:"",due:"",gst:18,terms:salesCfg().soTerms,lines:[]},
-  dc:{no:nextDC(),date:today(),cust:"",so:"",job:"",vehicle:"",transporter:"",lr:"",remark:"",lines:[]},
+function sdNew(t,extra){const pl=(extra&&extra.plant)||defPlant();const c={so:{no:nextSO(pl),date:today(),cust:"",deal:"",custPO:"",custPODate:"",job:"",due:"",gst:18,terms:salesCfg().soTerms,lines:[]},
+  dc:{no:nextDC(pl),date:today(),cust:"",so:"",job:"",vehicle:"",transporter:"",lr:"",remark:"",lines:[]},
   inv:{fy:fyOf(today()),no:nextInvNo(fyOf(today()),pl),date:today(),cust:"",so:"",job:"",dc:[],custPO:"",custPODate:"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:salesCfg().invTerms,lines:[],rcpts:[],irn:"",ackNo:"",ackDt:"",qr:""}}[t];
   return Object.assign(c,{by:me.name,plant:pl},extra||{})}
 document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has(b.dataset.sdnew+".create")){toast("You can view but not create sales documents");return}const t=b.dataset.sdnew;if(t==="inv"){invStart();return}sdOpen(t,sdNew(t,{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true)});
@@ -3687,8 +3720,8 @@ function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEac
   const no=x=>`${t==="inv"?invNo(x):sdNo(t,x)}<small>${esc(plantName(x.plant))}</small>`,acts=x=>ltActs(`<button class="btn" type="button" data-sdopen="${esc(sdId(t,x))}">View</button>`,`<button class="btn pdf" type="button" data-sdpdf="${esc(sdId(t,x))}">PDF</button>`);
   const COLS={so:[["SO No.","no"],["Project"],["Customer"],["SO date","dt"],["Customer PO"],["Delivery","dt"],["Amount","num"],["Status"],["Actions","act"]],dc:[["Challan No.","no"],["Project"],["Customer"],["Challan date","dt"],["Sales order"],["Vehicle"],["Amount","num"],["Status"],["Actions","act"]],inv:[["Invoice No.","no"],["Project"],["Customer"],["Invoice date","dt"],["Customer PO"],["Challan"],["Amount","num"],["Status"],["Actions","act"]]}[t];
   const row=x=>{if(t==="so"){const st=soStatus(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.due?ltD(x.due):"-",ltAmt(sdSub(x)),`<span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span>`,acts(x)]}
-    if(t==="dc")return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),x.so?"SO-"+esc(x.so):"-",esc(x.vehicle||"-"),ltAmt(sdSub(x)),x.inv?`<span class="chip calc">Billed</span>`:`<span class="chip sugg">Not billed</span>`,acts(x)];
-    const d=invDue(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.dc&&x.dc.length?"DC-"+x.dc.map(esc).join(", DC-"):"-",ltAmt(invTot(x)),x.old?`<span class="chip">Old ERP</span>`:`${d<0.5?`<span class="chip calc">Paid</span>`:recdOf(x)?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irnCnl?` <span class="chip st-Back">IRN cancelled</span>`:x.irn?` <span class="chip ${gstTest(x.irnMode)?"sugg":"calc"}">${gstTest(x.irnMode)?"Test IRN":"IRN"}</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}${x.eway&&!x.ewbCnl?` <span class="chip calc">EWB</span>`:""}`,acts(x)]};
+    if(t==="dc")return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),x.so?esc(soLbl(x.so)):"-",esc(x.vehicle||"-"),ltAmt(sdSub(x)),x.inv?`<span class="chip calc">Billed</span>`:`<span class="chip sugg">Not billed</span>`,acts(x)];
+    const d=invDue(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.dc&&x.dc.length?x.dc.map(n=>esc(dcLbl(n))).join(", "):"-",ltAmt(invTot(x)),x.old?`<span class="chip">Old ERP</span>${x.irnCnl?` <span class="chip st-Back">IRN cancelled</span>`:x.irn?` <span class="chip calc">IRN</span>`:""}`:`${d<0.5?`<span class="chip calc">Paid</span>`:recdOf(x)?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irnCnl?` <span class="chip st-Back">IRN cancelled</span>`:x.irn?` <span class="chip ${gstTest(x.irnMode)?"sugg":"calc"}">${gstTest(x.irnMode)?"Test IRN":"IRN"}</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}${x.eway&&!x.ewbCnl?` <span class="chip calc">EWB</span>`:""}`,acts(x)]};
   $(`#${t}-list`).innerHTML=A.length?ltT(COLS,A.slice(0,200).map(x=>({c:row(x)}))):(A0.length?lfNone:`<div class="empty">None yet.</div>`)}
 ["so","dc","inv"].forEach(t=>{$(`#${t}-q`).oninput=()=>renderSDList(t);
   $(`#${t}-list`).addEventListener("click",e=>{const o=e.target.dataset.sdopen,p=e.target.dataset.sdpdf;const x=SD[t].arr().find(r=>sdId(t,r)===(o||p));if(!x)return;
@@ -3697,17 +3730,17 @@ function renderSD(t){renderSDList(t);renderSDForm()}
 function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if(!sdCur||sdCur.t!==t){F.hidden=true;F.innerHTML="";return}});if(!sdCur)return;
   const {t,rec:x,isNew}=sdCur,F=$(`#${t}-form`),ro=isNew?!has(t+".create"):!has(t+".edit");F.hidden=false;const link=t!=="so"&&x.so;
   const fld=(k,lab,type,extra)=>`<label class="f">${lab}<input id="sd-${k}" data-sf="${k}"${type?` type="${type}"`:""} value="${esc(x[k]??"")}"${extra||""}></label>`;
-  const plS=`<label class="f">Plant<select id="sd-plant" data-sf="plant"${t==="inv"&&!isNew?" disabled title=\"Invoice number already given for this plant\"":""}>${plantOpts(x.plant)}</select></label>`;
+  const plS=`<label class="f">Plant<select id="sd-plant" data-sf="plant"${!isNew?" disabled title=\"Number already given for this plant\"":""}>${plantOpts(x.plant)}</select></label>`;
   const head0={so:fld("cust","Customer","",` list="custnames"`)+fld("date","Order date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("job","Job No.","",` list="projects"`)+fld("due","Delivery date","date"),
-    dc:fld("cust","Customer","",` list="custnames"`)+fld("date","Challan date","date")+`<label class="f">Sales order<input value="${x.so?"SO-"+esc(x.so):"Direct, no order"}" disabled></label>`+fld("job","Job No.","",` list="projects"`)+fld("vehicle","Vehicle No.")+fld("transporter","Transporter")+fld("lr","LR / docket No.")+fld("remark","Remark"),
-    inv:fld("cust","Customer","",` list="custnames"`)+fld("date","Invoice date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("custDC","Your challan No.")+fld("custDCDate","Your challan date","date")+fld("job","Job No.","",` list="projects"`)+fld("attn","Kind Attn.","",` placeholder="From customer contact"`)+fld("delivery","Delivery")+fld("payDays","Pay terms (days)","number")+fld("vehicle","Vehicle No.")+fld("eway","E-way bill No.")+`<label class="f">Challan / order<input value="${esc([x.dc&&x.dc.length?"DC-"+x.dc.join(", DC-"):"",x.so?"SO-"+x.so:"",x.jw?"Job work JW-"+x.jw:""].filter(Boolean).join(" · ")||"Direct")}" disabled></label>`}[t];const head=plS+(t==="inv"&&isNew&&invFirst(fyOf(x.date||today()),x.plant)?`<label class="f">Invoice No. (first ${esc(invPreOf(x.plant))}…/${esc(fyOf(x.date||today()))}: type the starting number)<input id="sd-no" data-sf="no" inputmode="numeric" value="${esc(x.no??"")}"></label>`:"")+head0;
+    dc:fld("cust","Customer","",` list="custnames"`)+fld("date","Challan date","date")+`<label class="f">Sales order<input value="${x.so?esc(soLbl(x.so)):"Direct, no order"}" disabled></label>`+fld("job","Job No.","",` list="projects"`)+fld("vehicle","Vehicle No.")+fld("transporter","Transporter")+fld("lr","LR / docket No.")+fld("remark","Remark"),
+    inv:fld("cust","Customer","",` list="custnames"`)+fld("date","Invoice date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("custDC","Your challan No.")+fld("custDCDate","Your challan date","date")+fld("job","Job No.","",` list="projects"`)+fld("attn","Kind Attn.","",` placeholder="From customer contact"`)+fld("delivery","Delivery")+fld("payDays","Pay terms (days)","number")+fld("vehicle","Vehicle No.")+fld("eway","E-way bill No.")+`<label class="f">Challan / order<input value="${esc([x.dc&&x.dc.length?x.dc.map(dcLbl).join(", "):"",x.so?soLbl(x.so):"",x.jw?"Job work JW-"+x.jw:""].filter(Boolean).join(" · ")||"Direct")}" disabled></label>`}[t];const head=plS+(t!=="inv"&&isNew&&(serFirst(t,x.plant,fyOf(x.date||today()))||isRole("Admin"))?`<label class="f">${SD[t].name} No. ${esc(serL(x.plant)+"/"+SER[t].tag)}…/${esc(fyOf(x.date||today()))} ${serFirst(t,x.plant,fyOf(x.date||today()))?"(first of this plant and year: next number filled in, change it to match your old records)":"(Admin can change it)"}<input id="sd-nofirst" inputmode="numeric" value="${esc(serNum(x.no))}"></label>`:"")+(t==="inv"&&isNew&&(invFirst(fyOf(x.date||today()),x.plant)||isRole("Admin"))?`<label class="f">Invoice No. ${invFirst(fyOf(x.date||today()),x.plant)?`(first ${esc(invPreOf(x.plant))}…/${esc(fyOf(x.date||today()))}: next number filled in, change it to match your old records)`:"(Admin can change it)"}<input id="sd-no" data-sf="no" inputmode="numeric" value="${esc(x.no??"")}"></label>`:"")+head0;
   const showDone=link&&x.lines.some(l=>l.ord!=null);
   const lines=`<div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th>${showDone?`<th class="num">Ordered</th><th class="num">${t==="dc"?"Sent before":"Billed before"}</th>`:""}<th class="num">Qty</th><th>Unit</th><th class="num">Rate ₹</th>${t==="inv"?`<th class="num">Dis%</th><th class="num">Tax%</th>`:""}<th class="num">Amount ₹</th><th></th></tr></thead><tbody>${x.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td>${t==="inv"?`<textarea id="sl${i}d" data-sl="desc" rows="2" style="min-width:240px">${esc(l.desc)}</textarea>`:`<input id="sl${i}d" data-sl="desc" value="${esc(l.desc)}" list="itemnames" style="min-width:220px"${link&&l.i!=null?" readonly":""}>`}</td><td><input id="sl${i}h" data-sl="hsn" value="${esc(l.hsn)}" style="width:90px"></td>${showDone?`<td class="num">${l.ord!=null?fmt0(l.ord):""}</td><td class="num">${l.done!=null?fmt0(l.done):""}</td>`:""}<td class="num"><input id="sl${i}q" class="qty" data-sl="qty" type="number" step="any" value="${l.qty??""}"></td><td><input id="sl${i}u" data-sl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="sl${i}r" class="rate" data-sl="rate" type="number" step="any" value="${l.rate??""}"></td>${t==="inv"?`<td class="num"><input id="sl${i}x" class="qty" data-sl="dis" type="number" step="any" value="${l.dis??""}" style="width:56px"></td><td class="num"><input id="sl${i}t" class="qty" data-sl="tax" type="number" step="any" value="${l.tax??""}" placeholder="${+x.gst}" style="width:56px"></td>`:""}<td class="num" data-amt>${fmt(lnAmt(l))}</td><td>${ro?"":`<button class="x" type="button" data-sldel="${i}" aria-label="Remove line ${i+1}">×</button>`}</td></tr>`).join("")||`<tr><td colspan="10" class="empty">No lines.</td></tr>`}</tbody></table></div>`;
   const sdT=t==="dc"?sdSub(x):invCalc(x).grand;
   const so=t==="so"&&!isNew?x:null,st=so?soStatus(so):"";
   F.innerHTML=`<div class="row"><h2 class="sec">${SD[t].name} · ${esc(sdNo(t,x))}</h2>${st?`<span class="chip sugg">${st}</span>`:""}<span style="flex:1"></span>
     ${!isNew&&t==="so"&&x.job&&can("prod")?`<button class="btn" type="button" id="sd-job">Job card</button>`:""}${!isNew&&t==="so"&&!ro?`${has("dc.create")?`<button class="btn" type="button" id="sd-mkdc">Make challan</button>`:""}${has("inv.create")?`<button class="btn" type="button" id="sd-mkinv">Make invoice</button>`:""}`:""}${!isNew&&t==="dc"&&!ro?`<button class="btn" type="button" id="sd-mkinv">${x.inv?"Open invoice":"Make invoice"}</button>`:""}
-    ${!isNew&&t==="inv"&&!x.irn?`<button class="btn" type="button" id="sd-json">E-invoice JSON</button>`:""}${!isNew&&t==="inv"&&has("cn.create")?`<button class="btn" type="button" id="sd-mkcn">Credit note</button>`:""}${!isNew&&t==="inv"&&!x.eway&&!x.cancelled&&ewbGoods(x)&&!(GST&&GST.ready&&x.irn)?`<button class="btn" type="button" id="sd-ewb">E-way bill JSON</button>`:""}${isNew?"":`<button class="btn" type="button" id="sd-pdf">PDF</button>`}${!isNew&&has(t+".delete")?`<button class="btn" type="button" id="sd-del">Delete</button>`:""}<button class="btn" type="button" id="sd-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="sd-save">${isNew?"Save":"Save changes"}</button>`}</div>
+    ${!isNew&&t==="inv"&&!x.irn&&!x.old?`<button class="btn" type="button" id="sd-json">E-invoice JSON</button>`:""}${!isNew&&t==="inv"&&has("cn.create")?`<button class="btn" type="button" id="sd-mkcn">Credit note</button>`:""}${!isNew&&t==="inv"&&!x.eway&&!x.cancelled&&ewbGoods(x)&&!(GST&&GST.ready&&x.irn)?`<button class="btn" type="button" id="sd-ewb">E-way bill JSON</button>`:""}${isNew?"":`<button class="btn" type="button" id="sd-pdf">PDF</button>`}${!isNew&&has(t+".delete")?`<button class="btn" type="button" id="sd-del">Delete</button>`:""}<button class="btn" type="button" id="sd-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="sd-save">${isNew?"Save":"Save changes"}</button>`}</div>
   ${t==="so"&&!ro?scanBar("so","Read customer PO"):""}
   <div class="grid-fields">${head}</div>${lines}
   <div class="row">${ro||link?"":`<button class="btn" type="button" id="sd-addline">+ Add line</button>`}${t!=="dc"?`<label class="f" style="flex-direction:row;align-items:center;gap:6px">GST %<select id="sd-gst" data-sf="gst" style="width:auto">${[18,12,5,28,0].map(g=>`<option${+x.gst===g?" selected":""}>${g}</option>`).join("")}</select></label>`:""}<span style="flex:1"></span>
@@ -3716,7 +3749,7 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   ${t!=="dc"?`<label class="f">Terms printed on the ${t==="so"?"order":"invoice"}<textarea id="sd-terms" data-sf="terms" rows="3">${esc(x.terms)}</textarea></label>`:""}
   ${t==="inv"&&!isNew?`<h3 class="sec" style="font-size:15px">Payments received</h3><div class="tablebox"><table class="mt" style="min-width:520px"><thead><tr><th>Date</th><th class="num">Amount ₹</th><th>Cheque / UTR ref.</th><th></th></tr></thead><tbody>${(x.rcpts=rcptsOf(x)).map((r,i)=>`<tr><td><input type="date" data-rc="${i}" data-rf="date" value="${esc(r.date||"")}"></td><td><input type="number" step="any" data-rc="${i}" data-rf="amt" value="${esc(r.amt)}" style="text-align:right"></td><td><input data-rc="${i}" data-rf="ref" value="${esc(r.ref||"")}"></td><td><button class="btn" type="button" data-rcdel="${i}" aria-label="Remove payment">✕</button></td></tr>`).join("")||`<tr><td colspan="4" class="note">No payment recorded yet.</td></tr>`}</tbody></table></div><div class="row"><button class="btn" type="button" id="sd-rc-add">+ Add payment</button><span style="flex:1"></span><span>Received <b>₹ ${fmt(recdOf(x))}</b> · Still to collect <b id="sd-baldue">₹ ${fmt(invDue(x))}</b></span></div>
   ${gstSection("inv",x)}
-  <details${x.irn&&!x.irnMode?" open":""}><summary class="note" style="cursor:pointer">Enter IRN by hand (made on the portal)</summary><div class="note">Press "E-invoice JSON", upload the file on the e-invoice portal, then import the portal's result file on the invoice list, or paste the details here. The IRN and QR code then print on the invoice.</div>
+  <details${x.irn&&!x.irnMode?" open":""}><summary class="note" style="cursor:pointer">Enter IRN by hand (made on the portal)</summary><div class="note">Press "E-invoice JSON", upload the file on the e-invoice portal, then import the portal's result file on the invoice list, or paste the details here. You can also paste the portal's whole response (JSON) into the IRN box and all four fill in. Once saved, Ack No., Ack date, IRN and the QR code print under the GSTIN line of the invoice PDF.</div>
   <div class="grid-fields"><label class="f">IRN<input id="sd-irn" data-sf="irn" value="${esc(x.irn)}" style="font-family:var(--mono)"></label><label class="f">Ack No.<input id="sd-ackNo" data-sf="ackNo" value="${esc(x.ackNo)}"></label><label class="f">Ack date<input id="sd-ackDt" data-sf="ackDt" value="${esc(x.ackDt)}"></label></div><label class="f">Signed QR code<textarea id="sd-qr" data-sf="qr" rows="2" style="font-family:var(--mono);font-size:11px">${esc(x.qr)}</textarea></label></details>`:""}`;
   if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>el.disabled=true);
   else if(t==="inv"&&!isNew&&x.irn){F.querySelectorAll("input,select,textarea").forEach(el=>{if(el.dataset.rc==null&&(x.irnMode||!["sd-irn","sd-ackNo","sd-ackDt","sd-qr"].includes(el.id)))el.disabled=true});F.querySelectorAll("table.est button,#sd-addline").forEach(el=>el.hidden=true);
@@ -3724,9 +3757,17 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   if(t==="inv"&&!isNew&&!GST)gstInit().then(()=>{if(sdCur&&sdCur.t==="inv")renderSDForm()});
   if(t==="so")scanMark(x,"so")}
 function sdTotUpd(){const x=sdCur.rec,t=sdCur.t;$("#sd-tot").textContent=fmt(t==="dc"?sdSub(x):invCalc(x).grand)}
+/* paste the portal's whole IRN response (JSON) into the IRN or QR box: Ack No., Ack date, IRN and signed QR all fill in */
+function einvPaste(e,pre){const txt=(e.clipboardData||window.clipboardData).getData("text");if(!/^\s*[\[{]/.test(txt||""))return;
+  let o;try{o=JSON.parse(txt)}catch(err){return}const find=(v,d=0)=>{if(!v||typeof v!=="object"||d>4)return null;if(Array.isArray(v))return v.map(i=>find(i,d+1)).find(Boolean)||null;const k=Object.keys(v).find(k=>k.toLowerCase()==="irn");if(k&&String(v[k]).length>=60)return v;return Object.values(v).map(i=>find(i,d+1)).find(Boolean)||null};
+  const r=find(o);if(!r)return;e.preventDefault();const g=(...n)=>{const k=Object.keys(r).find(k=>n.includes(k.toLowerCase().replace(/[^a-z]/g,"")));return k?String(r[k]):""};
+  const set=(id,v)=>{const f=document.getElementById(pre+"-"+id);if(f&&v){f.value=v;f.dispatchEvent(new Event("input",{bubbles:true}))}};
+  set("irn",g("irn"));set("ackNo",g("ackno","acknowledgementno","acknowledgementnumber"));set("ackDt",g("ackdt","ackdate","acknowledgementdate"));set("qr",g("signedqrcode","signedqr","qrcode"));toast("IRN, Ack No., Ack date and QR filled from the pasted text. Save to keep them.")}
+document.addEventListener("paste",e=>{const id=e.target&&e.target.id||"";if(/^sd-(irn|qr)$/.test(id))einvPaste(e,"sd");else if(/^nt-(irn|qr)$/.test(id))einvPaste(e,"nt")});
 ["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);
   F.addEventListener("input",e=>{if(!sdCur)return;const el=e.target,x=sdCur.rec;
-    if(el.dataset.sf==="plant"){x.plant=el.value;if(sdCur.t==="inv"&&sdCur.isNew){x.fy=fyOf(x.date);x.no=nextInvNo(x.fy,x.plant)}renderSDForm();return}
+    if(el.id==="sd-nofirst"){if(okNo(el.value))x.no=serFmt(sdCur.t,x.plant,fyOf(x.date||today()),+el.value);return}
+    if(el.dataset.sf==="plant"){x.plant=el.value;if(sdCur.t==="inv"&&sdCur.isNew){x.fy=fyOf(x.date);x.no=nextInvNo(x.fy,x.plant)}else if(sdCur.isNew)x.no=serNext(sdCur.t,x.plant,fyOf(x.date||today()));renderSDForm();return}
     if(el.dataset.sf){x[el.dataset.sf]=el.type==="checkbox"?el.checked:el.value;if(["gst","freight"].includes(el.dataset.sf))sdTotUpd();return}
     if(el.dataset.rc!=null){const r=x.rcpts[+el.dataset.rc];r[el.dataset.rf]=el.dataset.rf==="amt"?(el.value===""?"":+el.value):el.value;const d=$("#sd-baldue");if(d)d.textContent="₹ "+fmt(invDue(x));return}
     const f=el.dataset.sl;if(!f)return;const tr=el.closest("tr"),l=x.lines[+tr.dataset.i];l[f]=["qty","rate","dis","tax"].includes(f)?(el.value===""?"":+el.value):el.value;tr.querySelector("[data-amt]").textContent=fmt(lnAmt(l));sdTotUpd()});
@@ -3756,9 +3797,10 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
     if(over&&!confirm(`${over.desc}: this is more than the quantity left on SO-${s.no}. Save anyway?`))return}}
   x.lines.forEach(l=>{l.qty=+l.qty;l.rate=l.rate===""?"":+l.rate;delete l.ord;delete l.done});x.gst=+x.gst||0;
   if(!custByName(x.cust)){customers.push({id:itId(),name:x.cust,contact:"",phone:"",email:"",city:"",gstin:"",addr:""});saveCusts()}
-  if(t==="inv"&&isNew&&invFirst(fyOf(x.date),x.plant)&&!okNo(x.no)){toast("Type the first invoice number in digits, e.g. 1");const n=$("#sd-no");if(n)n.focus();return}
+  if(t!=="inv"&&isNew){const nf=$("#sd-nofirst");if(nf&&!okNo(nf.value)){toast("Type the number in digits, e.g. 1");nf.focus();return}if(nf){const n=serFmt(t,x.plant,fyOf(x.date||today()),+nf.value);if(SD[t].arr().some(r=>String(r.no)===n)){toast(`${SD[t].name} ${n} already exists. Pick another number.`);nf.focus();return}x.no=n}if(!nf&&SD[t].arr().some(r=>String(r.no)===String(x.no)))x.no=serNext(t,x.plant,fyOf(x.date||today()))}
+  if(t==="inv"&&isNew&&(invFirst(fyOf(x.date),x.plant)||isRole("Admin"))){const n=$("#sd-no");if(!okNo(x.no)){toast("Type the invoice number in digits, e.g. 1");if(n)n.focus();return}if(invoices.some(r=>r.fy===fyOf(x.date)&&(r.plant||"P1")===(x.plant||"P1")&&+r.no===+x.no)){toast(`Invoice ${invPreOf(x.plant)}${x.no}/${fyOf(x.date)} already exists. Pick another number.`);if(n)n.focus();return}}
   const A=SD[t].arr();x.updatedAt=new Date().toISOString();
-  if(isNew){if(t==="inv"){x.fy=fyOf(x.date);x.no=invFirst(x.fy,x.plant)&&okNo(x.no)?+x.no:nextInvNo(x.fy,x.plant);x.pre=invPreOf(x.plant)}x.createdAt=x.updatedAt;A.unshift(x)}else{const o=A.find(r=>sdId(t,r)===sdId(t,x));Object.assign(o,x)}
+  if(isNew){if(t==="inv"){x.fy=fyOf(x.date);x.no=(invFirst(x.fy,x.plant)||isRole("Admin"))&&okNo(x.no)?+x.no:nextInvNo(x.fy,x.plant);x.pre=invPreOf(x.plant)}x.createdAt=x.updatedAt;A.unshift(x)}else{const o=A.find(r=>sdId(t,r)===sdId(t,x));Object.assign(o,x)}
   if(t==="inv"&&isNew&&x.dc)x.dc.forEach(n=>{const d=dchallans.find(r=>String(r.no)===String(n));if(d)d.inv=sdId("inv",x)});
   if(t==="so"&&isNew&&x.deal){const d=dealBy(x.deal);if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
   sdSave(t);if(t==="inv")sdSave("dc");const saved=A.find(r=>sdId(t,r)===sdId(t,x));sdCur={t,rec:JSON.parse(JSON.stringify(saved)),isNew:false};renderSD(t);
@@ -3766,8 +3808,8 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
 function sdDoc(t,x){if(t==="inv")return docTaxInvoice(x);const c=custByName(x.cust)||{name:x.cust},cfg=salesCfg(),intra=isIntra(x.cust);
   const to=`<div><b>${t==="inv"?"Bill to":"To"},</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${t==="inv"?`<br>Place of supply: ${c.gstin&&/^\d\d/.test(c.gstin)?c.gstin.slice(0,2):"27"}${intra?" Maharashtra":""}`:""}</div>`;
   const kv={so:[["Order No.",sdNo(t,x)],["Date",dmy(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dmy(x.custPODate):"-"],["Job No.",x.job||"-"],["Delivery",x.due?dmy(x.due):"-"]],
-    dc:[["Challan No.",sdNo(t,x)],["Date",dmy(x.date)],["Our order",x.so?"SO-"+x.so:"-"],["Vehicle No.",x.vehicle||"-"],["Transporter",x.transporter||"-"],["LR No.",x.lr||"-"]],
-    inv:[["Invoice No.",sdNo(t,x)],["Date",dmy(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dmy(x.custPODate):"-"],["Challan No.",x.dc&&x.dc.length?"DC-"+x.dc.join(", DC-"):"-"],["Vehicle / E-way",[x.vehicle,x.eway].filter(Boolean).join(" / ")||"-"]]}[t];
+    dc:[["Challan No.",sdNo(t,x)],["Date",dmy(x.date)],["Our order",x.so?soLbl(x.so):"-"],["Vehicle No.",x.vehicle||"-"],["Transporter",x.transporter||"-"],["LR No.",x.lr||"-"]],
+    inv:[["Invoice No.",sdNo(t,x)],["Date",dmy(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dmy(x.custPODate):"-"],["Challan No.",x.dc&&x.dc.length?x.dc.map(dcLbl).join(", "):"-"],["Vehicle / E-way",[x.vehicle,x.eway].filter(Boolean).join(" / ")||"-"]]}[t];
   const sub=sdSub(x),fr=t==="inv"?(+x.freight||0):0,tx=(sub+fr),g=+x.gst||0,gst=tx*g/100,tot=t==="dc"?sub:tx+gst;
   const tax=t==="dc"?"":(fr?`<tr><td>Freight / packing</td><td class="amt">${fmt(fr)}</td></tr>`:"")+(g?(intra?`<tr><td>C-GST ${g/2}% On Amt : ${fmt(tx)}</td><td class="amt">${fmt(gst/2)}</td></tr><tr><td>S-GST ${g/2}% On Amt : ${fmt(tx)}</td><td class="amt">${fmt(gst/2)}</td></tr>`:`<tr><td>I-GST ${g}% On Amt : ${fmt(tx)}</td><td class="amt">${fmt(gst)}</td></tr>`):"");
   const terms=String(x.terms||"").split("\n").map(s=>s.trim()).filter(Boolean);
@@ -3896,7 +3938,8 @@ function gstSection(kind,x){const pre=kind==="inv"?"sd":"nt",g=GST||{},test=gstT
       ${test&&!cnl?`<span style="color:var(--danger)"><b>Test IRN, not valid for GST.</b> It prints as TEST on the PDF. Clear it before the real one.</span>`:""}
       <span style="font-family:var(--mono);font-size:12px;word-break:break-all">${esc(x.irn)}</span><span class="note">Ack No. ${esc(x.ackNo||"-")} · ${esc(x.ackDt||"")}${!cnl&&x.ackDt&&gstIn24(x.ackDt)?" · "+gstLeft(x.ackDt):""}</span></div>`}
   if(kind==="inv"&&x.eway)s+=`<div class="banner ${ewbCnl?"back":""}" style="display:flex;flex-direction:column;gap:4px"><b>E-way bill ${esc(x.eway)}${ewbCnl?" · cancelled "+esc(ewbCnl.dt):""}</b><span class="note">${x.ewbDt?"Made "+esc(x.ewbDt):""}${x.ewbValidTill?" · valid till "+esc(x.ewbValidTill):""}${x.vehicle?" · vehicle "+esc(x.vehicle):""}${x.ewbMode&&gstTest(x.ewbMode)?" · TEST":""}${!ewbCnl&&x.ewbDt&&gstIn24(x.ewbDt)?" · "+gstLeft(x.ewbDt):""}</span></div>`;
-  const B=[];if(g.ready&&!x.cancelled){
+  if(x.old&&!x.irn)s+=`<div class="note">Made in the old ERP. If it has an IRN there, add it with Masters &gt; Import old data &gt; Old sales invoices (IRN, Ack No, Ack Date, Signed QR Code columns), or paste it below. The IRN block and QR then print on this invoice.</div>`;
+  const B=[];if(g.ready&&!x.cancelled&&!x.old){
     if(!x.irn&&reg)B.push(`<button class="btn primary" type="button" id="${pre}-irn-gen">Generate IRN now</button>`);
     if(x.irn&&!cnl&&x.ackDt&&gstIn24(x.ackDt)&&(!x.eway||ewbCnl))B.push(`<button class="btn" type="button" id="${pre}-irn-cnl">Cancel IRN</button>`);
     if(kind==="inv"&&x.irn&&!cnl&&(!x.eway||ewbCnl)&&ewbGoods(x))B.push(`<button class="btn primary" type="button" id="sd-ewb-irn">Make e-way bill</button>`);
@@ -3955,6 +3998,10 @@ async function gstCancelEwb(btn){const v=gstCurRec("inv");if(!v||!v.eway)return;
   catch(e){gstBusy(btn,false);if(e.auth)return;alert("Could not cancel the e-way bill:\n\n"+e.message)}}
 function gstPdfMark(x){return x.irnCnl?`<div style="color:#b00020;font-weight:700;font-size:13px">IRN CANCELLED ON ${esc(x.irnCnl.dt)}</div>`:gstTest(x.irnMode)?`<div style="color:#b00020;font-weight:700;font-size:13px">TEST IRN · NOT VALID FOR GST</div>`:""}
 function qrURL(s){try{const q=qrcode(0,"L");q.addData(String(s));q.make();return q.createDataURL(4,0)}catch(e){return""}}
+/* E-invoice block under the GSTIN line (same layout as the old ERP): Ack No., Ack Date, IRN on the left, signed QR on the right. Hidden until the document has an IRN. */
+const ackDmy=s=>{const m=String(s||"").match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}:\d{2}(?::\d{2})?))?/);return m?`${m[3]}/${m[2]}/${m[1]}${m[4]?" "+m[4]:""}`:String(s||"")};
+function einvRow(x,cols){if(!x||!String(x.irn||"").trim())return"";const qr=x.qr?qrURL(x.qr):"";
+  return`<tr class="einv"><td colspan="${cols-1}" style="border-right:none;vertical-align:middle">${gstPdfMark(x)}<table class="ti0 einvt"><tr><td><b>Ack. No.</b></td><td>${esc(x.ackNo||"")}</td></tr><tr><td><b>Ack. Date.</b></td><td>${esc(ackDmy(x.ackDt))}</td></tr><tr><td><b>IRN No.</b></td><td style="word-break:break-all">${esc(x.irn)}</td></tr>${x.eway&&!x.ewbCnl&&x.ewbDt?`<tr><td><b>E-way Bill</b></td><td>${esc(x.eway)} &nbsp; Dt. ${esc(ackDmy(x.ewbDt))}${x.ewbValidTill?` &nbsp; Valid till ${esc(ackDmy(x.ewbValidTill))}`:""}</td></tr>`:""}</table></td><td style="border-left:none;text-align:right;vertical-align:middle;width:30mm">${qr?`<img src="${qr}" style="width:24mm;height:24mm;display:inline-block" alt="e-invoice QR code">`:""}</td></tr>`}
 function docTaxInvoice(x){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.cust},sh=(x.consignee&&custByName(x.consignee))||c,k=invCalc(x);
   const party=(p,lab)=>`<b>${lab} : ${esc(p.name)}</b><br>${esc(String(p.addr||"").replace(/\s*\n\s*/g," "))}${p.city&&!(p.addr||"").toUpperCase().includes(String(p.city).toUpperCase())?"<br>"+esc(p.city):""}${p.pin?" - "+esc(p.pin):""}<br>${STATES[stOf(p)]||""}<br>INDIA`;
   const pg=p=>`<table class="ti0"><tr><td><b>GST. No. :</b> ${esc(p.gstin||"Unregistered")}</td><td><b>PAN No. :</b> ${esc(panOf(p.gstin))}</td></tr><tr><td colspan="2"><b>Reg.Type :</b> ${p.gstin?"Registered":"Unregistered"}</td></tr><tr><td><b>State Code :</b> ${stOf(p)} ${STATES[stOf(p)]||""}</td><td style="text-align:right">${k.intra?"SC-GST (Local)":"IGST (Inter-state)"}</td></tr></table>`;
@@ -3964,8 +4011,8 @@ function docTaxInvoice(x){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.c
   const iss=x.createdAt?new Date(x.createdAt):new Date();
   return`<div class="co"><img class="cologo" src="${window.ZT_LOGO}" alt="${COMPANY.name}"><p class="coname">${COMPANY.name}</p><p class="ln">${esc(cfg.sAddr1)}${cfg.sAddr2?",":""}</p><p class="ln">${esc(cfg.sAddr2)}${cfg.sAddr2?", ":""}${esc(cfg.sLoc)} - ${esc(cfg.sPin)}</p><p class="ln">Mob: ${esc(cfg.sPh)}</p><p class="ln">Email: ${esc(cfg.sEm)}</p></div>
   <div class="tihead"><b>ORIGINAL FOR RECIPIENT</b><span>(U/s 31 of CGST Act &amp; SGST Act R.W. Sec. 20 of IGST Act)</span><b class="tibox">GST Tax Invoice</b></div>
-  ${x.irn?`<table class="ti"><tr><td style="width:75%">${gstPdfMark(x)}<b>IRN :</b> <span style="word-break:break-all">${esc(x.irn)}</span><br><b>Ack No. :</b> ${esc(x.ackNo||"")} &nbsp; <b>Ack Date :</b> ${esc(x.ackDt||"")}${x.eway&&!x.ewbCnl?`<br><b>E-way Bill No. :</b> ${esc(x.eway)}${x.ewbDt?` &nbsp; <b>Date :</b> ${esc(x.ewbDt)}`:""}${x.ewbValidTill?` &nbsp; <b>Valid till :</b> ${esc(x.ewbValidTill)}`:""}`:""}</td><td style="text-align:center">${qr?`<img src="${qr}" style="width:26mm;height:26mm" alt="e-invoice QR code">`:""}</td></tr></table>`:""}
   <table class="ti"><tr><td><b>GSTIN :</b> ${COMPANY.gstin}</td><td><b>W.E.F.</b> 01/07/2017</td><td><b>State Code :</b> 27 Maharashtra</td><td><b>PAN No.</b> ${COMPANY.pan}</td></tr>
+  ${einvRow(x,4)}
   <tr><td colspan="2"><b>Invoice No. :</b> ${esc(invNo(x))} &nbsp;&nbsp; <b>Date :</b> ${dmy(x.date)}</td><td colspan="2"><b>Challan No. :</b> ${esc(dcs.map(d=>d.no).join(", ")||"-")} &nbsp;&nbsp; <b>Date :</b> ${dcs[0]?dmy(dcs[0].date):""}</td></tr>
   <tr><td colspan="2"><b>P.O. No. :</b> ${esc(x.custPO||"")} &nbsp;&nbsp; <b>Date :</b> ${x.custPODate?dmy(x.custPODate):""}<br><b>Your Challan No. :</b> ${esc(x.custDC||"")} &nbsp;&nbsp; <b>Date :</b> ${x.custDCDate?dmy(x.custDCDate):""}<br><b>Delivery :</b> ${esc(x.delivery||"")}</td>
   <td colspan="2"><b>Pay. Terms :</b> ${+x.payDays||0} Days &nbsp; Due On : ${dmy(due)}<br>${x.vehicle||x.eway?`<b>Vehicle :</b> ${esc(x.vehicle||"")} &nbsp; <b>E-way Bill :</b> ${esc(x.eway||"")}<br>`:""}<b>Kind Attn :</b> ${esc(x.attn||[c.contact,c.phone?"Mob.No."+c.phone:""].filter(Boolean).join(" "))}</td></tr>
@@ -4041,9 +4088,9 @@ function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"
       toast(`${ntNo(t,sv)} saved`);savePDF(docNote(t,sv),pdfName(NT[t].name.replace(/ /g,"-"),ntNo(t,sv),sv.party))}})});
 function docNote(t,x){const k=ntCalc(t,x),p=t==="dn"?(suppliers.find(s=>key(s.name)===key(x.party))||{name:x.party}):(custByName(x.party)||{name:x.party});
   const ref=t==="dn"?(x.grn?(()=>{const g=grns.find(r=>String(r.no)===String(x.grn));return g?[["Our GRN",`${g.no} · ${dmy(g.date)}`],["Your invoice",`${g.inv||"-"}${g.invDate?" · "+dmy(g.invDate):""}`],["Our PO",String(g.poNo)]]:[]})():[]):(x.inv?(()=>{const v=invoices.find(r=>ntInvId(r)===x.inv);return v?[["Against invoice",`${invNo(v)} · ${dmy(v.date)}`]]:[]})():[]);
-  const qr=t==="cn"&&x.qr?qrURL(x.qr):"";
+
   const taxRows=k.groups.map(g=>k.intra?`<tr><td>C-GST ${g.rt/2}% On Amt : ${fmt(g.base)}</td><td class="amt">${fmt(g.tax/2)}</td></tr><tr><td>S-GST ${g.rt/2}% On Amt : ${fmt(g.base)}</td><td class="amt">${fmt(g.tax/2)}</td></tr>`:`<tr><td>I-GST ${g.rt}% On Amt : ${fmt(g.base)}</td><td class="amt">${fmt(g.tax)}</td></tr>`).join("");
-  return docHead(NT[t].title)+(x.irn?`<table class="ti"><tr><td style="width:75%">${gstPdfMark(x)}<b>IRN :</b> <span style="word-break:break-all">${esc(x.irn)}</span><br><b>Ack No. :</b> ${esc(x.ackNo||"")} &nbsp; <b>Ack Date :</b> ${esc(x.ackDt||"")}</td><td style="text-align:center">${qr?`<img src="${qr}" style="width:24mm;height:24mm" alt="QR code">`:""}</td></tr></table>`:"")+`<div class="two"><div><b>To,</b><br><b>${esc(p.name)}</b><br>${esc(String(p.addr||p.city||"").replace(/\s*\n\s*/g," "))}${p.gstin?`<br>GSTIN: ${esc(p.gstin)}`:""}</div><div class="kv"><b>${t==="dn"?"Debit":"Credit"} note No.</b><span>${esc(ntNo(t,x))}</span><b>Date</b><span>${dmy(x.date)}</span>${ref.map(([a,b])=>`<b>${a}</b><span>${esc(b)}</span>`).join("")}<b>Reason</b><span>${esc(x.reason)}</span></div></div>
+  return docHead(NT[t].title)+(x.irn?`<table class="ti">${einvRow(x,2)}</table>`:"")+`<div class="two"><div><b>To,</b><br><b>${esc(p.name)}</b><br>${esc(String(p.addr||p.city||"").replace(/\s*\n\s*/g," "))}${p.gstin?`<br>GSTIN: ${esc(p.gstin)}`:""}</div><div class="kv"><b>${t==="dn"?"Debit":"Credit"} note No.</b><span>${esc(ntNo(t,x))}</span><b>Date</b><span>${dmy(x.date)}</span>${ref.map(([a,b])=>`<b>${a}</b><span>${esc(b)}</span>`).join("")}<b>Reason</b><span>${esc(x.reason)}</span></div></div>
   <p style="margin:6px 0">${t==="dn"?"We have debited your account as below:":"We have credited your account as below:"}</p>
   <table><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Tax%</th><th>Amount</th></tr></thead><tbody>${x.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn||"")}</td><td class="r">${fmt0(+l.qty)}</td><td>${esc(l.unit||"")}</td><td class="r">${fmt(+l.rate)}</td><td class="r">${+l.tax||0}</td><td class="r">${fmt(lnAmt(l))}</td></tr>`).join("")}</tbody></table>
   <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(k.ass)}</td></tr>${taxRows}<tr><td>Rounding (+/-)</td><td class="amt">${k.rnd.toFixed(2)}</td></tr><tr><td><b>Total</b></td><td class="amt"><b>${fmt(k.grand)}</b></td></tr></tbody></table>
@@ -4116,9 +4163,9 @@ $("#ownerPanel").addEventListener("click",e=>{const b=e.target.closest("[data-go
 /* plant on printed documents, header selector, plant settings */
 [["docRequest",a=>a[0]],["docEstimate",a=>a[0]],["docPO",a=>a[0]],["docQuote",a=>a[0]],["sdDoc",a=>a[1]],["docNote",a=>a[1]],["docJobCard",a=>a[0]],["docQC",a=>a[0]],["docSlip",a=>a[0]],["docChallan",a=>a[0]]].forEach(([n,pick])=>{const f=window[n];if(typeof f!=="function")return;
   window[n]=function(...a){const o=pick(a);DOCPLANT=o&&o.plant||null;try{return f.apply(this,a)}finally{DOCPLANT=null}}});
-function fillPlantSels(){const ps=$("#plantSel");if(ps){ps.innerHTML=`<option value="">All plants</option>`+plants().map(p=>`<option value="${p.id}"${p.id===curPlant?" selected":""}>${esc(p.name)}</option>`).join("")}
+function fillPlantSels(){const lp=lockedPlant();if(lp)curPlant=lp;const ps=$("#plantSel");if(ps&&lp){ps.innerHTML=`<option value="${lp}" selected>${esc(plantName(lp))}</option>`;ps.disabled=true;ps.title="Admin has set you to see your own plant only"}else if(ps){ps.disabled=false;ps.title="";ps.innerHTML=`<option value="">All plants</option>`+plants().map(p=>`<option value="${p.id}"${p.id===curPlant?" selected":""}>${esc(p.name)}</option>`).join("")}
   document.querySelectorAll("select.plantsel").forEach(el=>{const v=el.value;el.innerHTML=plantOpts(v||defPlant());if(v)el.value=v})}
-$("#plantSel").onchange=e=>{curPlant=e.target.value;try{localStorage.setItem("zpo:curPlant",curPlant)}catch(err){}const v=views.find(x=>!$("#view-"+x).hidden);if(v)show(v);toast(curPlant?`Showing ${plantName(curPlant)} only. New documents start in this plant.`:"Showing both plants")};
+$("#plantSel").onchange=e=>{if(lockedPlant()){fillPlantSels();return}curPlant=e.target.value;try{localStorage.setItem("zpo:curPlant",curPlant)}catch(err){}const v=views.find(x=>!$("#view-"+x).hidden);if(v)show(v);toast(curPlant?`Showing ${plantName(curPlant)} only. New documents start in this plant.`:"Showing both plants")};
 function renderPlants(){const P=$("#plantPanel");if(!P)return;const L=plants(),ad=isRole("Admin");
   P.innerHTML=`<h2 class="sec">Plants</h2><div class="note">Each purchase and sales document belongs to one plant. The plant's address prints on the document, and tax invoices and quotations are numbered separately per plant, each with its own prefix (both plants share one GSTIN). Invoice numbers start again each financial year and continue after the highest old-ERP invoice imported for that plant (or the last number typed here, if higher). A new user starts in their own plant (Users and rights); the plant can still be changed on the form until the document is saved. Changing a prefix here applies to new documents only; saved ones keep the number they were given.</div>
   ${(()=>{const dup=(f,n)=>{const v=L.map(p=>String(p[f]||"").trim().toUpperCase());return v.length>1&&new Set(v).size<v.length?n:""};const w=[dup("pre","invoice"),dup("qpre","quotation")].filter(Boolean);return w.length?`<div class="note" style="color:var(--danger)">Both plants have the same ${w.join(" and ")} prefix, so their numbers would look alike. Give each plant its own prefix.</div>`:""})()}
@@ -4425,7 +4472,11 @@ const OINV_FIELDS=[["no","Invoice No",["invoiceno","invno","invoicenumber","bill
   ["cust","Customer",["customer","customername","partyname","party","buyer","billto"]],["gstin","Customer GSTIN",["customergstin","gstin","gstno"]],
   ["custPO","Customer PO No",["customerpono","pono","ponumber","buyerpono"]],["custPODate","Customer PO date",["customerpodate","podate"]],["so","Our SO No",["oursono","sono","salesorderno"]],["job","Job No",["jobno","projectno","projectjobno","project"]],
   ["desc","Item",["item","itemdescription","description","itemname","particulars"]],["hsn","HSN / SAC",["hsnsac","hsn","hsncode","sac"]],
-  ["qty","Qty",["qty","quantity"]],["unit","Unit",["unit","uom","units"]],["rate","Rate",["rate","unitrate","price"]],["dis","Discount %",["discount","discountpercent","disc"]],["gst","GST %",["gst","gstpercent","gstrate","taxrate"]]];
+  ["qty","Qty",["qty","quantity"]],["unit","Unit",["unit","uom","units"]],["rate","Rate",["rate","unitrate","price"]],["dis","Discount %",["discount","discountpercent","disc"]],["gst","GST %",["gst","gstpercent","gstrate","taxrate"]],
+  ["irn","IRN",["irn","irnno","irnnumber","invoicereferencenumber"]],["ackNo","Ack No",["ackno","acknowledgementno","acknowledgementnumber","acknumber","ackn"]],["ackDt","Ack Date",["ackdate","ackdt","acknowledgementdate","ackdatetime"]],["qr","Signed QR Code",["signedqrcode","signedqr","qrcode","qr"]]];
+/* Ack date from the old ERP or portal (Excel date, 24/11/2026 12:51:00, 2026-11-24 12:51:00) is kept as "YYYY-MM-DD HH:MM:SS" like a generated IRN */
+const ohAckDt=v=>{if(v==null||v==="")return"";const p2=n=>String(n).padStart(2,"0");if(typeof v==="number"&&v>20000){const d=new Date(Math.round((v-25569)*864e5));return d.toISOString().replace("T"," ").slice(0,19)}if(v instanceof Date&&!isNaN(v))return`${v.getFullYear()}-${p2(v.getMonth()+1)}-${p2(v.getDate())} ${p2(v.getHours())}:${p2(v.getMinutes())}:${p2(v.getSeconds())}`;
+  const t=String(v).trim(),m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AaPp][Mm])?)?$/);if(m){let h=+(m[4]||0);if(m[7]){h=h%12+(/p/i.test(m[7])?12:0)}return`${m[3]}-${p2(m[2])}-${p2(m[1])} ${p2(h)}:${m[5]||"00"}:${m[6]||"00"}`}return t};
 let ohPv=null;
 const ohGst=v=>{const t=String(v??"").trim();if(t==="")return 18;const n=Math.abs(obNum(t));return n>0&&n<1?Math.round(n*100):n};
 /* plant of an old-ERP record: numbers starting with Z are Plant 1 (Talwade), with J Plant 2 (Jadhavwadi); otherwise the Plant column, then the plant's invoice prefix */
@@ -4449,6 +4500,11 @@ async function ohImport(f,kind){if(!window.XLSX){toast("Excel tools did not load
     wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],F),sc=Object.keys(m).length;
       if(m.no!=null&&m.desc!=null&&m.qty!=null&&sc>=5&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
     if(!best){toast(`Could not find the columns. The sheet needs ${kind==="ogrn"?"GRN No":"Invoice No"}, Item and Qty columns. Download the template to see the layout.`);return}
+    /* old invoices: IRN, Ack No, Ack date and signed QR may sit on a separate one-row-per-invoice sheet ("Invoices"); collect them by invoice No. from every sheet */
+    const irnMap=new Map(),irnSheets=new Set();if(kind==="oinv")wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});
+      for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],OINV_FIELDS);if(m.no==null||m.irn==null)continue;
+        rows.slice(r+1).forEach(x=>{const no=String(x[m.no]??"").trim(),irn=String(x[m.irn]??"").trim();if(!no||irn.length<60||irnMap.has(key(no)))return;
+          irnMap.set(key(no),{irn,ackNo:m.ackNo!=null?String(x[m.ackNo]??"").trim():"",ackDt:m.ackDt!=null?ohAckDt(x[m.ackDt]):"",qr:m.qr!=null?String(x[m.qr]??"").replace(/\s+/g,""):""});irnSheets.add(sn)});break}});
     const M=best.map,G=new Map(),bad=[];let lastNo="";
     best.rows.slice(best.hr+1).forEach((r,i)=>{const g=k=>M[k]==null?"":r[M[k]],row=i+best.hr+2;
       const no=String(g("no")??"").trim()||lastNo,desc=String(g("desc")??"").replace(/\s+/g," ").trim();
@@ -4459,33 +4515,36 @@ async function ohImport(f,kind){if(!window.XLSX){toast("Excel tools did not load
       if(!(qty>0)&&kind==="ogrn")qty=Math.abs(obNum(g("acc")))||Math.abs(obNum(g("recv")));
       if(!(qty>0)){if(rate>0)qty=1;else{bad.push(`Row ${row} (${no}): no qty`);return}}
       let H=G.get(key(no));if(!H){H={no,lines:[]};G.set(key(no),H)}
-      ["date","plant","gstin","inv","invDate","po","job","custPO","custPODate","so",who].forEach(k=>{if(M[k]==null||H[k])return;const v=g(k);if(String(v??"").trim()==="")return;H[k]=/date/i.test(k)||k==="date"?obDate(v):String(v).replace(/\s+/g," ").trim()});
+      ["date","plant","gstin","inv","invDate","po","job","custPO","custPODate","so",who,"irn","ackNo","ackDt","qr"].forEach(k=>{if(M[k]==null||H[k])return;const v=g(k);if(String(v??"").trim()==="")return;H[k]=k==="ackDt"?ohAckDt(v):k==="qr"?String(v).replace(/\s+/g,""):/date/i.test(k)||k==="date"?obDate(v):String(v).replace(/\s+/g," ").trim()});
       const L={desc,hsn:String(g("hsn")??"").trim(),qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||"NOS",rate,dis:Math.abs(obNum(g("dis"))),tax:ohGst(g("gst"))};
       if(kind==="ogrn"){const rc=String(g("recv")).trim(),ac=String(g("acc")).trim(),rj=Math.abs(obNum(g("rej")));const nt=[];if(rc!==""&&Math.abs(obNum(rc)-qty)>0.0001)nt.push("received "+obNum(rc));if(ac!==""&&Math.abs(obNum(ac)-qty)>0.0001)nt.push("accepted "+obNum(ac));if(rj>0)nt.push("rejected "+rj);L.remark=nt.length?"Old ERP: "+nt.join(", "):""}
       H.lines.push(L)});
-    const have=new Set(kind==="ogrn"?grns.map(x=>key(x.no)):invoices.flatMap(x=>[(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)),...(x.oldNo?["old|"+key(x.oldNo)]:[])])),out=[],dup=[];
+    if(irnMap.size)G.forEach(H=>{const e=irnMap.get(key(H.no));if(e&&!H.irn)Object.assign(H,e)});
+    const have=new Set(kind==="ogrn"?grns.map(x=>key(x.no)):invoices.flatMap(x=>[(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)),...(x.oldNo?["old|"+key(x.oldNo)]:[])])),out=[],dup=[],irnUpd=[];
     G.forEach(H=>{if(!H.date){bad.push(`${H.no}: date missing or not readable`);return}if(!H[who]){bad.push(`${H.no}: no ${kind==="ogrn"?"supplier":"customer"}`);return}
       H.plant=ohPlant(H.plant,H.no);
       if(kind==="oinv"){const m=String(H.no).match(/^[A-Za-z]*\s*\/?\s*(\d+)\s*(?:\/\s*(\d{2}-\d{2}))?$/);if(!m){bad.push(`${H.no}: invoice number not understood (expected like Z0001/26-27)`);return}H.num=m[1];H.fy=m[2]||fyOf(H.date);
-        if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))||have.has("old|"+key(H.no))){dup.push(H.no);return}}
+        if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))||have.has("old|"+key(H.no))){const v=H.irn&&ohInvOf(H);if(v&&v.old&&v.irn!==H.irn)irnUpd.push(H);else dup.push(H.no);return}}
       else if(have.has(key(H.no))){dup.push(H.no);return}
       const sub=H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100),0);H.total=Math.round(sub+H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100)*l.tax/100,0));
       out.push(H)});
     out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true}));
     const known=kind==="ogrn"?n=>!!supOf(n):n=>!!custByName(n),unk=[...new Set(out.filter(H=>!known(H[who])).map(H=>H[who]))];
     let poLinked=0;if(kind==="ogrn"){const P=new Set(saved.map(x=>key(x.no)));poLinked=out.filter(H=>H.po&&P.has(key(H.po))).length}
-    ohPv={kind,fname:f.name,sn:best.sn,map:M,recs:out,bad,dup,unk,poLinked};renderOh();const el=$("#ohPrev");if(el)el.scrollIntoView({block:"start"})}
+    ohPv={kind,fname:f.name,sn:best.sn,map:M,recs:out,bad,dup,unk,poLinked,irnUpd,irnSheets:[...irnSheets]};renderOh();const el=$("#ohPrev");if(el)el.scrollIntoView({block:"start"})}
   catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
+/* the invoice already in the app for an old-ERP row (by old number, else plant + year + number) */
+function ohInvOf(H){return invoices.find(x=>x.oldNo&&key(x.oldNo)===key(H.no))||invoices.find(x=>(x.plant||"P1")===H.plant&&x.fy===H.fy&&+x.no===+H.num)||null}
 function renderOh(){const P=$("#ohPrev");if(!P)return;if(!ohPv){P.innerHTML="";return}const g=ohPv.kind==="ogrn",R=ohPv.recs,F=g?OGRN_FIELDS:OINV_FIELDS,lab=g?"GRNs":"invoices";
   P.innerHTML=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c);margin-top:12px"><h3 class="rg" style="margin:0">Check before importing: old ${g?"GRNs":"sales invoices"} from ${esc(ohPv.fname)}</h3>
-  <div class="note">Sheet "${esc(ohPv.sn)}". Columns found: ${F.filter(([f])=>ohPv.map[f]!=null).map(([,l])=>l).join(", ")}.</div>
-  <div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip calc">${R.length} ${lab}, ${R.reduce((a,x)=>a+x.lines.length,0)} lines</span><span class="chip">₹ ${fmt(R.reduce((a,x)=>a+x.total,0))} incl. GST</span>${g?`<span class="chip sugg">${ohPv.poLinked} linked to a PO already in the app</span>`:""}${ohPv.dup.length?`<span class="chip">${ohPv.dup.length} already in the app, skipped</span>`:""}${ohPv.bad.length?`<span class="chip st-Draft">${ohPv.bad.length} problems, skipped</span>`:""}</div>
-  <div class="note">${g?"These come in as history: they show in the GRN list, purchase figures and the purchase register, but they do not add stock, do not add to vendor dues, and do not change the received qty of POs (the old-PO file already carries it). Set stock with Opening stock and vendor dues with Suppliers' unpaid bills.":"These come in as history: they show in the invoice list, sales figures and the sales register, but not in amounts to collect (use Customers' unpaid bills for that), not in stock, and they are never sent for e-invoice or e-way bill. New invoice numbers continue after the highest imported number for each plant and year."}</div>
+  <div class="note">Sheet "${esc(ohPv.sn)}". Columns found: ${F.filter(([f])=>ohPv.map[f]!=null).map(([,l])=>l).join(", ")}.${(ohPv.irnSheets||[]).filter(n=>n!==ohPv.sn).length?` IRN, Ack No, Ack date and QR taken from sheet "${ohPv.irnSheets.filter(n=>n!==ohPv.sn).map(esc).join('", "')}".`:""}</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip calc">${R.length} ${lab}, ${R.reduce((a,x)=>a+x.lines.length,0)} lines</span><span class="chip">₹ ${fmt(R.reduce((a,x)=>a+x.total,0))} incl. GST</span>${g?`<span class="chip sugg">${ohPv.poLinked} linked to a PO already in the app</span>`:""}${(ohPv.irnUpd||[]).length?`<span class="chip calc">${ohPv.irnUpd.length} already in the app get their IRN</span>`:""}${ohPv.dup.length?`<span class="chip">${ohPv.dup.length} already in the app, skipped</span>`:""}${!g?`<span class="chip ${R.filter(x=>x.irn).length?"calc":""}">${R.filter(x=>x.irn).length} of ${R.length} with IRN</span>`:""}${ohPv.bad.length?`<span class="chip st-Draft">${ohPv.bad.length} problems, skipped</span>`:""}</div>
+  <div class="note">${g?"These come in as history: they show in the GRN list, purchase figures and the purchase register, but they do not add stock, do not add to vendor dues, and do not change the received qty of POs (the old-PO file already carries it). Set stock with Opening stock and vendor dues with Suppliers' unpaid bills.":"These come in as history: they show in the invoice list, sales figures and the sales register, but not in amounts to collect (use Customers' unpaid bills for that), not in stock, and they are never sent for e-invoice or e-way bill. If the file has IRN, Ack No, Ack Date and Signed QR Code columns, those invoices come in as e-invoiced and print the IRN block and QR; invoices imported earlier get their IRN from the same file. New invoice numbers continue after the highest imported number for each plant and year."}</div>
   ${ohPv.bad.length?`<div class="note" style="color:var(--danger)">${ohPv.bad.slice(0,8).map(esc).join("<br>")}${ohPv.bad.length>8?"<br>…":""}</div>`:""}
   ${ohPv.unk.length?`<div class="note">${ohPv.unk.length} ${g?"supplier":"customer"}${ohPv.unk.length===1?" is":"s are"} not in the master and will be added with the name and GSTIN in the file: ${ohPv.unk.slice(0,6).map(esc).join("; ")}${ohPv.unk.length>6?" …":""}</div>`:""}
   ${R.length?`<div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th>${g?"GRN":"Invoice"}</th><th>Date</th><th>${g?"Supplier":"Customer"}</th><th>${g?"PO":"Customer PO"}</th><th>Plant</th><th class="num">Lines</th><th class="num">Total ₹</th></tr></thead><tbody>${R.slice(0,100).map(x=>`<tr><td style="font-family:var(--mono)">${esc(x.no)}</td><td>${dmy(x.date)}</td><td>${esc(g?x.sup:x.cust)}</td><td>${esc((g?x.po:x.custPO)||"")}</td><td>${esc(x.plant)}</td><td class="num">${x.lines.length}</td><td class="num">${fmt(x.total)}</td></tr>`).join("")}</tbody></table></div>${R.length>100?`<div class="note">Showing the first 100 of ${R.length}.</div>`:""}`:""}
-  <div class="row"><span style="flex:1"></span><button class="btn" type="button" data-imp="oh-cancel">Cancel</button>${R.length?`<button class="btn primary" type="button" data-imp="oh-go">Import ${R.length} ${lab}</button>`:""}</div></div>`}
-function ohSave(){if(!ohPv)return;const g=ohPv.kind==="ogrn",at=new Date().toISOString();let n=0,addS=0,addC=0;
+  <div class="row"><span style="flex:1"></span><button class="btn" type="button" data-imp="oh-cancel">Cancel</button>${R.length||(ohPv.irnUpd||[]).length?`<button class="btn primary" type="button" data-imp="oh-go">${R.length?`Import ${R.length} ${lab}`:""}${R.length&&(ohPv.irnUpd||[]).length?" and ":""}${(ohPv.irnUpd||[]).length?`${R.length?"add":"Add"} IRN to ${ohPv.irnUpd.length}`:""}</button>`:""}</div></div>`}
+function ohSave(){if(!ohPv)return;const g=ohPv.kind==="ogrn",at=new Date().toISOString();let n=0,addS=0,addC=0,nIrn=0;
   if(g){const have=new Set(grns.map(x=>key(x.no))),PO=new Map(saved.map(p=>[key(p.no),p]));
     ohPv.recs.forEach(H=>{if(have.has(key(H.no)))return;let sp=supOf(H.sup);if(!sp){sp={name:H.sup,addr:"",gstin:H.gstin||"",state:(H.gstin||"").slice(0,2)||"27"};suppliers.push(sp);addS++}
       const p=H.po&&PO.get(key(H.po)),used=new Set();
@@ -4498,9 +4557,10 @@ function ohSave(){if(!ohPv)return;const g=ohPv.kind==="ogrn",at=new Date().toISO
   else{const have=new Set(invoices.flatMap(x=>[(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)),...(x.oldNo?["old|"+key(x.oldNo)]:[])]));
     ohPv.recs.forEach(H=>{if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))||have.has("old|"+key(H.no)))return;let c=custByName(H.cust);if(!c){c={id:itId(),name:H.cust,gstin:H.gstin||""};customers.push(c);addC++}
       invoices.push({fy:H.fy,no:H.num,oldNo:H.no,date:H.date,cust:c.name,so:"",oldSO:H.so||"",job:H.job||"",dc:[],custPO:H.custPO||"",custPODate:H.custPODate||"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:"",
-        lines:H.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:l.qty,unit:l.unit,rate:l.rate,dis:l.dis,tax:l.tax})),rcpts:[],irn:"",ackNo:"",ackDt:"",qr:"",by:me.name,plant:H.plant,old:true,importedAt:at,importFile:ohPv.fname});n++});
+        lines:H.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:l.qty,unit:l.unit,rate:l.rate,dis:l.dis,tax:l.tax})),rcpts:[],irn:H.irn||"",ackNo:H.ackNo||"",ackDt:H.ackDt||"",qr:H.qr||"",by:me.name,plant:H.plant,old:true,importedAt:at,importFile:ohPv.fname});n++});
+    (ohPv.irnUpd||[]).forEach(H=>{const v=ohInvOf(H);if(!v||!v.old)return;Object.assign(v,{irn:H.irn,ackNo:H.ackNo||v.ackNo||"",ackDt:H.ackDt||v.ackDt||"",qr:H.qr||v.qr||""});delete v.irnMode;nIrn++});
     sdSave("inv");if(addC)saveCusts()}
-  bindHeader();toast(`${n} old ${g?"GRNs":"invoices"} imported${addS?`, ${addS} suppliers added`:""}${addC?`, ${addC} customers added`:""}.`);ohPv=null;renderOh()}
+  bindHeader();toast(`${n} old ${g?"GRNs":"invoices"} imported${nIrn?`, IRN added to ${nIrn} imported earlier`:""}${addS?`, ${addS} suppliers added`:""}${addC?`, ${addC} customers added`:""}.`);ohPv=null;renderOh()}
 /* ---------- old purchase orders from the old ERP (Excel / CSV / PDF), one row per PO line ---------- */
 const OPO_FIELDS=[["po","PO No",["pono","ponumber","purchaseorderno","purchaseordernumber","orderno","ordernumber","voucherno","vchno","po","no"]],
   ["date","PO date",["podate","orderdate","purchaseorderdate","voucherdate","vchdate","date"]],
@@ -4651,7 +4711,7 @@ $("#btn-job-new").onclick=()=>{if(!has("prod.create")){toast("You can view produ
 function renderJobForm(){const F=$("#jobForm");if(!jobCur){F.hidden=true;F.innerHTML="";return}F.hidden=false;const j=jobCur.rec,isNew=jobCur.isNew,ro=jobCur.isNew?!has("prod.create"):!has("prod.edit"),MS=machines();
   const lab=jobLabour(j),pc=projCost().find(r=>key(r.job)===key(j.no))||{po:0,iss:0,ret:0};
   F.innerHTML=`<div class="row"><h2 class="sec">Job card · ${esc(j.no||"new")}</h2><span class="chip sugg">${esc(j.status)}</span><span class="note">${jobPct(j)}% done</span><span style="flex:1"></span>${isNew?"":`<button class="btn" type="button" id="jb-pdf">Job card PDF</button>`}<button class="btn" type="button" id="jb-close">Close</button>${ro?"":`<button class="btn primary" type="button" id="jb-save">Save</button>`}</div>
-  <div class="grid-fields"><label class="f">Job No.<input id="jb-no" data-jf="no" value="${esc(j.no)}" list="projects" ${isNew?"":"disabled"} placeholder="e.g. ZT2350"></label><label class="f">Customer<input id="jb-cust" data-jf="cust" value="${esc(j.cust)}" list="custnames"></label><label class="f">Mould / part<input id="jb-desc" data-jf="desc" value="${esc(j.desc)}"></label><label class="f">Sales order<input value="${j.so?"SO-"+esc(j.so):"-"}" disabled></label><label class="f">Start date<input id="jb-start" data-jf="start" type="date" value="${esc(j.start)}"></label><label class="f">Due date<input id="jb-due" data-jf="due" type="date" value="${esc(j.due)}"></label><label class="f">Status<select id="jb-status" data-jf="status">${JOB_ST.map(s=>`<option${s===j.status?" selected":""}>${s}</option>`).join("")}</select></label></div>
+  <div class="grid-fields"><label class="f">Job No.<input id="jb-no" data-jf="no" value="${esc(j.no)}" list="projects" ${isNew?"":"disabled"} placeholder="e.g. ZT2350"></label><label class="f">Customer<input id="jb-cust" data-jf="cust" value="${esc(j.cust)}" list="custnames"></label><label class="f">Mould / part<input id="jb-desc" data-jf="desc" value="${esc(j.desc)}"></label><label class="f">Sales order<input value="${j.so?esc(soLbl(j.so)):"-"}" disabled></label><label class="f">Start date<input id="jb-start" data-jf="start" type="date" value="${esc(j.start)}"></label><label class="f">Due date<input id="jb-due" data-jf="due" type="date" value="${esc(j.due)}"></label><label class="f">Status<select id="jb-status" data-jf="status">${JOB_ST.map(s=>`<option${s===j.status?" selected":""}>${s}</option>`).join("")}</select></label></div>
   <div class="row"><h3 class="rg" style="margin:0">Operations</h3><span style="flex:1"></span>${ro?"":`<button class="btn" type="button" id="jb-route">Add standard mould route</button><button class="btn" type="button" id="jb-addop">+ Add operation</button>`}</div>
   <div class="tablebox"><table class="est" style="min-width:1300px"><thead><tr><th>Sr</th><th>Operation</th><th>Machine</th><th>Operator</th><th class="num">Plan hrs</th><th class="num">Actual hrs</th><th>Status</th><th>Start</th><th>Done</th><th>Remark</th><th></th></tr></thead><tbody>${(j.ops||[]).map((o,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input id="jo${i}o" data-jo="op" value="${esc(o.op)}" list="opnames" style="min-width:190px"></td><td><select id="jo${i}m" data-jo="machine" style="min-width:165px"><option value="">-</option>${MS.map(m=>`<option${m.name===o.machine?" selected":""}>${esc(m.name)}</option>`).join("")}</select></td><td><input id="jo${i}w" data-jo="who" value="${esc(o.who)}" list="allusers" style="width:110px"></td><td class="num"><input id="jo${i}p" class="qty" data-jo="plan" type="number" step="any" value="${o.plan??""}"></td><td class="num"><input id="jo${i}a" class="qty" data-jo="act" type="number" step="any" value="${o.act??""}"></td><td><select id="jo${i}s" data-jo="status" style="min-width:110px">${OP_ST.map(s=>`<option${s===o.status?" selected":""}>${s}</option>`).join("")}</select></td><td><input id="jo${i}b" data-jo="start" type="date" value="${esc(o.start)}" style="width:135px"></td><td><input id="jo${i}e" data-jo="end" type="date" value="${esc(o.end)}" style="width:135px"></td><td><input id="jo${i}r" data-jo="remark" value="${esc(o.remark)}"></td><td>${ro?"":`<button class="x" type="button" data-jodel="${i}" aria-label="Remove operation ${i+1}">×</button>`}</td></tr>`).join("")||`<tr><td colspan="11" class="empty">No operations yet. Add the standard mould route and edit it, or add operations one by one.</td></tr>`}</tbody></table></div>
   <div class="note">Labour at machine-hour rates so far: <b>₹ ${fmt0(Math.round(lab))}</b> · Material POs for this job: <b>₹ ${fmt0(Math.round(pc.po))}</b> · Store issued: <b>₹ ${fmt0(Math.round(pc.iss-pc.ret))}</b>. Machine-hour rates are set in Masters.</div>
@@ -4684,7 +4744,7 @@ function saveJob(quiet){const j=jobCur.rec;j.no=String(j.no||"").trim().toUpperC
   j.updatedAt=new Date().toISOString();const o=jobs.find(x=>key(x.no)===key(j.no));if(o)Object.assign(o,j);else{j.createdAt=j.updatedAt;jobs.unshift(j)}
   saveJobs();jobCur={rec:JSON.parse(JSON.stringify(jobs.find(x=>key(x.no)===key(j.no)))),isNew:false};renderProd();toast(quiet?"Report added":`Job card ${j.no} saved`)}
 function docJobCard(j){const so=j.so?sorders.find(s=>String(s.no)===String(j.so)):null;
-  return docHead("JOB CARD")+`<div class="two"><div><b>Job No.:</b> ${esc(j.no)}<br><b>Customer:</b> ${esc(j.cust||"-")}<br><b>Mould / part:</b> ${esc(j.desc||"-")}</div><div class="kv"><b>Sales order</b><span>${so?"SO-"+so.no+(so.custPO?" · PO "+esc(so.custPO):""):"-"}</span><b>Start</b><span>${dmy(j.start)||"-"}</span><b>Due</b><span>${dmy(j.due)||"-"}</span><b>Status</b><span>${esc(j.status)}</span></div></div>
+  return docHead("JOB CARD")+`<div class="two"><div><b>Job No.:</b> ${esc(j.no)}<br><b>Customer:</b> ${esc(j.cust||"-")}<br><b>Mould / part:</b> ${esc(j.desc||"-")}</div><div class="kv"><b>Sales order</b><span>${so?esc(soLbl(so.no))+(so.custPO?" · PO "+esc(so.custPO):""):"-"}</span><b>Start</b><span>${dmy(j.start)||"-"}</span><b>Due</b><span>${dmy(j.due)||"-"}</span><b>Status</b><span>${esc(j.status)}</span></div></div>
   <table><thead><tr><th>Sr</th><th>Operation</th><th>Machine</th><th>Operator</th><th>Plan hrs</th><th>Actual hrs</th><th>Start</th><th>Done</th><th>Sign</th></tr></thead><tbody>${(j.ops||[]).map((o,i)=>`<tr><td>${i+1}</td><td>${esc(o.op)}${o.remark?`<br><span class="small">${esc(o.remark)}</span>`:""}</td><td>${esc(o.machine||"")}</td><td>${esc(o.who||"")}</td><td class="r">${o.plan||""}</td><td class="r">${o.act||""}</td><td>${dmy(o.start)}</td><td>${dmy(o.end)}</td><td style="width:60px"></td></tr>`).join("")}</tbody></table>
   <div class="row small" style="justify-content:space-between;margin-top:40px"><span>Prepared by: ${esc(me.name)}</span><span>Production in-charge</span><b>Quality</b></div>`}
 function docQC(j,r){const P=String(r.pts||"").split("\n").map(s=>s.trim()).filter(Boolean).map(s=>{const c=s.split(/\s*,\s*/);return c.length>=3?c:[s,"","",""]});
@@ -4758,7 +4818,7 @@ const moneyTxt=v=>"₹ "+shortL(v);
 const niceMax=v=>{if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p};
 
 /* charts: plain HTML/CSS so labels stay readable on phones */
-function vBars(MS,series,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=niceMax(Math.max(o.money?1000:2,...series.flatMap(s=>s.vals)));const n=series.length;
+function vBars(MS,series,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=o.max||niceMax(Math.max(o.money?1000:2,...series.flatMap(s=>s.vals)));const n=series.length;
   const cols=MS.map((k,i)=>{const tip=`<b>${esc(monLbl(k))} ${k.slice(0,4)}</b>`+series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.name)}: ${f(s.vals[i])}</span>`).join("");
     return`<div class="vb-col" tabindex="0" data-tip="${esc(tip)}"><div class="vb-bars">${series.map(s=>`<i style="height:${s.vals[i]>0?Math.max(1.5,s.vals[i]/mx*100):0}%;background:${s.c}"></i>`).join("")}</div></div>`}).join("");
   const step=Math.ceil(MS.length/8);
@@ -4879,6 +4939,18 @@ function dashMine(U){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today(),c
   return`<h2 class="sec dsec">${self?"My work":esc(U)+"'s work"}<span class="note"> · ${esc(u.role||"")}${u.dept?" · "+esc(u.dept):""}</span></h2>${h}<div class="dgrid">${charts.join("")}</div>${sec.join("")}`}
 
 /* ---------- company overview ---------- */
+/* company money figures for the plant picked in the header (all plants when none) */
+function dashMoney(MS){const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
+  const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]),purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
+  const R=[];invoices.filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.filter(inPlant).forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
+  const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s)));
+  return{sales,purch,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:INV.reduce((a,v)=>a+invDue(v),0),payb:plantDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
+function dashPlants(MS){const PL=plants(),X=PL.map(p=>({p,d:withPlant(p.id,()=>dashMoney(MS))}));
+  const rows=[["Sales","inv",x=>sum(x.sales)],["Purchases","acct",x=>sum(x.purch)],["Collected","inv",x=>sum(x.coll)],["To collect now","inv",x=>x.recv],["To pay now","acct",x=>x.payb],["Orders to dispatch","so",x=>x.soVal]].filter(r=>can(r[1]));
+  const mx=niceMax(Math.max(1000,...X.flatMap(x=>x.d.sales.concat(x.d.purch))));
+  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period, incl. GST. To collect / to pay are as of today. Opening bills from the old ERP have no plant, so they count only in the totals above.</div>
+    <div class="tablebox"><table class="est dplant"><thead><tr><th></th>${X.map(x=>`<th class="num">${esc(x.p.name)}</th>`).join("")}<th class="num">Both plants</th></tr></thead><tbody>${rows.map(([l,,f])=>{const v=X.map(x=>f(x.d));return`<tr><td>${esc(l)}</td>${v.map(n=>`<td class="num">${moneyTxt(n)}</td>`).join("")}<td class="num"><b>${moneyTxt(sum(v))}</b></td></tr>`}).join("")}</tbody></table></div></div>`,
+    charts:X.map(x=>chartBox(`Sales and purchases · ${x.p.name}`,"Same scale for both plants, incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:x.d.sales},{name:"Purchases",c:"var(--s2)",vals:x.d.purch}],{money:true,max:mx})))}}
 function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
   const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
   const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]);
@@ -4890,7 +4962,7 @@ function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today()
   const go=v=>can(v)?v:"";
   let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales","Invoices less credit notes",false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases","Booked GRNs",false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
     ${tile(moneyTxt(recv),"To collect now","All open invoices",recv>0,go("inv"))}${tile(moneyTxt(payb),"To pay now","Booked, not yet paid",false,go("acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
-  const ch=[];
+  const ch=[],BP=splitPlants()?dashPlants(MS):null;if(BP){h+=BP.table;ch.push(...BP.charts)}else
   ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
   ch.push(chartBox("Money in and out by month","Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true})));
   const A=custAgeing(),B=[0,1,2,3].map(i=>sum(A.map(r=>r.b[i])));
@@ -4954,7 +5026,7 @@ const last12=()=>{const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),o=[];for(let i
 const prevMon=()=>{const t=today();return new Date(Date.UTC(+t.slice(0,4),+t.slice(5,7)-2,1)).toISOString().slice(0,7)};
 const weekMon=()=>{const t=new Date(today()+"T00:00:00Z"),d=(t.getUTCDay()+6)%7;return addDays(today(),-d)};
 /* a tile: label, figure, line under it; tone "warn" = red edge and figure, "ok" = green */
-const kpi=(t,n,d,o)=>{o=o||{};const go=o.go&&can(o.go)?o.go:"";return`<${go?`button type="button" data-go="${esc(go)}"`:"div"} class="kpi${o.tone?" "+o.tone:""}"><span class="t">${esc(t)}</span><span class="n">${n}</span><span class="d">${d}</span></${go?"button":"div"}>`};
+const kpi=(t,n,d,o)=>{o=o||{};const go=o.go&&can(o.go)?o.go:"";return`<${go?`button type="button" data-go="${esc(go)}"`:"div"} class="kpi${o.tone?" "+o.tone:""}"><span class="t">${esc(t)}</span><span class="n">${n}</span><span class="d">${d}</span>${o.split?`<span class="ksplit">${o.split.map(([l,v])=>`<span><i>${esc(l)}</i><b>${v}</b></span>`).join("")}</span>`:""}</${go?"button":"div"}>`};
 const trendTxt=(a,b)=>{if(!b)return a?`<b class="up">new</b> vs last month`:"nothing last month";const p=Math.round((a-b)/b*100);return`<b class="${p>=0?"up":"down"}">${p>=0?"▲":"▼"} ${Math.abs(p)}%</b> vs last month`};
 function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS=last12();
   const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
@@ -4967,7 +5039,7 @@ function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS
   const wk=weekMon(),J=jobs.filter(j=>j.status!=="Completed"),OPS=jobs.flatMap(j=>(j.ops||[]).filter(o=>o.status==="Done"&&d10(o.end)>=wk));
   return{t,cm,pm,fs,MS,INV,GR,sales12,purch12,
     salesM:salesIn(d=>m7(d)===cm),salesPM:salesIn(d=>m7(d)===pm),salesFY:salesIn(d=>d>=fs&&d<=t),purFY:sum(GR.filter(g=>gd(g)>=fs).map(pOf)),purM:sum(GR.filter(g=>m7(gd(g))===cm).map(pOf)),
-    recv,old,payb,alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
+    recv,recvP:INV.reduce((a,v)=>a+invDue(v),0),old,payb,paybP:plantDue(),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
 function homeTabs(){return[["ov","🏢","Overview",true],["sal","📈","Sales",["sales","so","dc","inv","cn"].some(can)],["pur","🛒","Purchase",["req","buy","po","saved","appr"].some(can)],["store","📦","Store",["grn","stock"].some(can)],["prod","🏭","Production",can("prod")]].filter(x=>x[3])}
 const HQA=[["inv","🧾","New sales invoice","From a customer order","inv"],["prod","🏭","Production","Job cards, log what's made"],["stock","📊","Stock entry","Opening, issue, return"],["inv","💰","Payment received","From a customer"],["so","📥","New sales order","From a customer PO","so"],
   ["grn","📦","Receive material","GRN against a PO"],["req","📝","New request","Ask for material or a service"],["appr","✅","Approve POs","Review and sign"],["po","🛒","Purchase order","From a pre-estimate"],["acct","💳","Bills & payments","Book bills, pay vendors"],["sales","💬","Quotation","RFQ and quote a customer"],["mast","➕","New product","Item code is automatic"]];
@@ -4978,20 +5050,25 @@ function renderHome(){
   $("#homeTabs").hidden=TB.length<2;$("#homeTabs").innerHTML=TB.map(([k,ic,l])=>`<button type="button" role="tab" data-htab="${k}" aria-selected="${k===homeTab}"><span aria-hidden="true">${ic}</span>${esc(l)}</button>`).join("");
   $("#homeOv").hidden=homeTab!=="ov";$("#homeTabBody").hidden=homeTab==="ov";
   const D=homeData();
+  const PL=plants();$("#homePlant").hidden=PL.length<2||!!lockedPlant();$("#homePlant").innerHTML=[["","Both plants"]].concat(PL.map(p=>[p.id,p.short||p.name])).map(([id,l])=>`<button type="button" data-hpl="${id}" aria-pressed="${id===curPlant}">${esc(l)}</button>`).join("");
+  HP=splitPlants()?PL.map(p=>({p,D:withPlant(p.id,homeData)})):null;
   if(homeTab!=="ov"){$("#homeTabBody").innerHTML=homeTabHtml(homeTab,D);return}
   const seen=new Set(),QA=HQA.filter(([v,,t])=>{if(!can(v)||seen.has(t))return false;seen.add(t);return true}).slice(0,7);
   $("#homeQuick").innerHTML=QA.map(([v,ic,t,d,nw],i)=>`<button type="button" class="qact" data-qa="${i}" data-go="${v}"${nw?` data-new="${nw}"`:""}><b><i aria-hidden="true">${ic}</i>${esc(t)}</b><span>${esc(d)}</span></button>`).join("");
   const K=[];
-  if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv"}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv"}));
-    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days`:"from customers",{go:"inv",tone:D.recv>0.5?"warn":""}))}
-  if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),"to vendors",{go:"acct"}));
-  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved"}));
+  if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",split:hSplit("salesFY")}));
+    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days`:"from customers",{go:"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
+  if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),"to vendors",{go:"acct",split:hSplit("paybP",D.payb)}));
+  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
   if(can("stock"))K.push(kpi("Stock alerts",fmt0(D.alerts),"items at zero or below minimum",{go:"stock",tone:D.alerts?"warn":""}));
   if(can("prod"))K.push(kpi("Production this week",D.ops.length?fmt0(Math.round(D.hrs*10)/10)+" h":"—",D.ops.length?`${D.ops.length} operation${D.ops.length>1?"s":""} done · ${D.J.length} jobs open`:D.J.length?`${D.J.length} jobs open, nothing logged yet`:"no job cards yet",{go:"prod",tone:D.late.length?"warn":""}));
   $("#homeKpi").innerHTML=K.join("");$("#homeKpi").hidden=!K.length;
   const showChart=can("inv")||can("acct");$("#homeChart").hidden=!showChart;
-  if(showChart){const S=[];if(can("inv"))S.push({name:"Sales",c:"var(--s1)",vals:D.sales12});if(can("acct")||can("saved"))S.push({name:"Purchases",c:"var(--s4)",vals:D.purch12});
-    $("#homeChart").innerHTML=`<h3>${S.length>1?"Sales vs purchases":S[0].name}, last 12 months</h3><div class="note">Before GST${curPlant?" · "+esc(plantName(curPlant))+" only":""}. Sales are invoices less credit notes; purchases are booked GRNs.</div>`+vBars(D.MS,S,{money:true})}
+  if(showChart){const ser=X=>{const S=[];if(can("inv"))S.push({name:"Sales",c:"var(--s1)",vals:X.sales12});if(can("acct")||can("saved"))S.push({name:"Purchases",c:"var(--s4)",vals:X.purch12});return S};
+    const S=ser(D),ttl=`${S.length>1?"Sales vs purchases":S[0].name}, last 12 months`,nt=`Before GST. Sales are invoices less credit notes; purchases are booked GRNs.`;
+    if(HP){const mx=niceMax(Math.max(1000,...HP.flatMap(x=>ser(x.D).flatMap(s=>s.vals))));
+      $("#homeChart").innerHTML=`<h3>${ttl}, by plant</h3><div class="note">${nt} Both plants on the same scale.</div><div class="hpcharts">${HP.map(x=>`<div class="hpchart"><b>${esc(x.p.name)}</b>${vBars(D.MS,ser(x.D),{money:true,max:mx})}</div>`).join("")}</div>`}
+    else $("#homeChart").innerHTML=`<h3>${ttl}</h3><div class="note">${nt.slice(0,-1)}${curPlant?" · "+esc(plantName(curPlant))+" only":""}.</div>`+vBars(D.MS,S,{money:true})}
   const W0=workItems(),W=W0.filter(w=>!(w.n===0||w.zero||/^₹\s?0$/.test(String(w.n))));$("#homeCardsH").hidden=!W0.length;
   $("#homeCards").innerHTML=W.length?W.map(w=>`<button class="card${w.warn&&w.n&&w.n!==0?" warn":""}${w.zero||w.n===0?" zero":""}" data-go="${w.v}"><span class="n">${w.n}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></button>`).join(""):W0.length?`<div class="panel empty">Nothing is waiting for you right now.</div>`:(K.length?"":`<div class="panel empty">No tasks for your role. Ask the admin to give you rights on the Users &amp; rights page.</div>`);
   const st=s=>reqs.filter(r=>r.status===s).length;
@@ -4999,24 +5076,30 @@ function renderHome(){
   $("#flowBox").innerHTML=[["Requests with checker",st("Submitted")],["Requests with approver",st("Checked")],["Approved requests",st("Approved")+st("Estimated")],["POs for approval",saved.filter(p=>p.status==="Pending approval").length],["Approved POs open",saved.filter(p=>p.status==="Approved"&&!p.closed).length],["GRNs to book",grns.filter(g=>g.status==="With accounts").length],["GRNs unpaid",grns.filter(g=>["Booked","Part paid"].includes(g.status)).length],["POs closed",saved.filter(p=>p.closed).length]].map(([t,n])=>`<div><b>${n}</b><span>${t}</span></div>`).join("");
 }
 /* a short table for a home tab */
+/* both plants: per-plant figures under a tile, and one series per plant on the single-measure charts */
+let HP=null;
+const hSplit=(k,tot)=>{if(!HP)return null;const R=HP.map(x=>[x.p.short||x.p.name,+x.D[k]||0]);if(tot!=null){const r=tot-sum(R.map(x=>x[1]));if(r>0.5)R.push(["Opening bills",r])}return R.map(([l,v])=>[l,kpiL(v)])};
+const PLC=["var(--s1)","var(--s7)","var(--s3)"],PLC2=["var(--s4)","var(--s2)","var(--s5)"];
+const hBars12=(k,name,c,D)=>HP?vBars(D.MS,HP.map((x,i)=>({name:x.p.short||x.p.name,c:(k==="sales12"?PLC:PLC2)[i%3],vals:x.D[k]})),{money:true}):vBars(D.MS,[{name,c,vals:D[k]}],{money:true});
+$("#homePlant").addEventListener("click",e=>{const b=e.target.closest("[data-hpl]");if(!b)return;const sel=$("#plantSel");if(sel){sel.value=b.dataset.hpl;sel.onchange({target:sel})}});
 const homeList=(title,cols,rows,empty,go)=>`<div class="panel stack"><div class="row"><h2 class="sec">${esc(title)}</h2><span style="flex:1"></span>${go&&can(go)?`<button type="button" class="linkbtn" data-go="${go}">Open all</button>`:""}</div>${rows.length?`<div class="tablebox"><table class="est hlist"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${esc(c[0])}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${cols[i][1]?` class="${cols[i][1]}"`:""}>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:`<div class="empty">${esc(empty)}</div>`}</div>`;
 function homeTabHtml(k,D){const t=today(),K=[];let h="";
   if(k==="sal"){const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),D2=deals.filter(d=>inPlant(d)&&!["Won","Lost"].includes(d.stage));
-    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv"}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv"}),kpi("To collect",kpiL(D.recv),"all open invoices",{go:"inv",tone:D.recv>0.5?"warn":""}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":""}))}
+    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv",split:hSplit("salesFY")}),kpi("To collect",kpiL(D.recv),"all open invoices",{go:"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":"",split:hSplit("old")}))}
     if(can("so"))K.push(kpi("Orders to dispatch",fmt0(openSO.length),kpiL(sum(openSO.map(sdSub)))+" order value",{go:"so"}));
     if(can("sales"))K.push(kpi("Open enquiries",fmt0(D2.length),kpiL(sum(D2.map(dealVal))),{go:"sales"}));
     h+=`<div class="kpis">${K.join("")}</div>`;
-    if(can("inv"))h+=`<div class="panel dchart"><h3>Sales, last 12 months</h3><div class="note">Invoices less credit notes, before GST</div>${vBars(D.MS,[{name:"Sales",c:"var(--s1)",vals:D.sales12}],{money:true})}</div>`;
-    if(can("so"))h+=homeList("Orders to dispatch",[["SO"],["Customer"],["Date","dt"],["Value","num"],["Status"]],openSO.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).slice(0,8).map(s=>[esc(SD.so.pre+s.no),esc(s.cust||""),dmy(s.date),fmt0(Math.round(sdSub(s))),stChip(soStatus(s))]),"No open sales orders.","so");
+    if(can("inv"))h+=`<div class="panel dchart"><h3>Sales, last 12 months</h3><div class="note">Invoices less credit notes, before GST</div>${hBars12("sales12","Sales","var(--s1)",D)}</div>`;
+    if(can("so"))h+=homeList("Orders to dispatch",[["SO"],["Customer"],["Date","dt"],["Value","num"],["Status"]],openSO.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).slice(0,8).map(s=>[esc(soLbl(s.no)),esc(s.cust||""),dmy(s.date),fmt0(Math.round(sdSub(s))),stChip(soStatus(s))]),"No open sales orders.","so");
     if(can("inv")){const A=custAgeing().map(r=>({c:r.cust,d:r.tot})).filter(r=>r.d>0.5).sort((a,b)=>b.d-a.d).slice(0,8);
       h+=homeList("Biggest amounts to collect",[["Customer"],["To collect","num"]],A.map(r=>[esc(r.c||""),fmt0(Math.round(r.d))]),"Nothing to collect.","inv")}}
   if(k==="pur"){const st=s=>reqs.filter(r=>inPlant(r)&&r.status===s).length,P=saved.filter(inPlant);
     K.push(kpi("Requests waiting",fmt0(st("Submitted")+st("Checked")),"with department head or approver",{go:"req"}),kpi("Lines to buy",fmt0(pendToOrder().length),"approved, not on a PO yet",{go:can("buy")?"buy":"req",tone:pendToOrder().length?"warn":""}),
       kpi("POs for approval",fmt0(P.filter(p=>p.status==="Pending approval").length),"waiting to be signed",{go:can("appr")?"appr":"saved"}),kpi("Material due",fmt0(P.filter(p=>p.status==="Approved"&&!p.closed).length),"approved POs still open",{go:"saved"}),
       kpi("Late from supplier",fmt0(P.filter(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved").length),"past the required date",{go:"saved",tone:P.some(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved")?"warn":""}));
-    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),"booked GRNs, before GST",{go:can("acct")?"acct":"saved"}),kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved"}));
+    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),"booked GRNs, before GST",{go:can("acct")?"acct":"saved",split:hSplit("purM")}),kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
     h+=`<div class="kpis">${K.join("")}</div>`;
-    if(can("acct")||can("saved"))h+=`<div class="panel dchart"><h3>Purchases, last 12 months</h3><div class="note">Booked GRNs, before GST</div>${vBars(D.MS,[{name:"Purchases",c:"var(--s4)",vals:D.purch12}],{money:true})}</div>`;
+    if(can("acct")||can("saved"))h+=`<div class="panel dchart"><h3>Purchases, last 12 months</h3><div class="note">Booked GRNs, before GST</div>${hBars12("purch12","Purchases","var(--s4)",D)}</div>`;
     h+=homeList("POs waiting for approval",[["PO"],["Supplier"],["Date","dt"],["Value","num"]],P.filter(p=>p.status==="Pending approval").slice(0,8).map(p=>[esc(p.no),esc(p.sup||""),dmy(p.date),fmt0(Math.round(+p.total||0))]),"Nothing is waiting for approval.",can("appr")?"appr":"saved")}
   if(k==="store"){const due=saved.filter(p=>inPlant(p)&&p.status==="Approved"&&!p.closed&&pendingLines(p).length),G=grns.filter(inPlant),L=lowStock();
     K.push(kpi("POs waiting for material",fmt0(due.length),"create a GRN when it arrives",{go:"grn"}),kpi("GRNs this month",fmt0(G.filter(g=>m7(g.date)===D.cm).length),`${G.filter(g=>g.date===t).length} today`,{go:"grn"}),kpi("GRNs with accounts",fmt0(G.filter(g=>g.status==="With accounts").length),"not yet booked",{go:"grn"}));
