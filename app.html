@@ -877,7 +877,7 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||v==="dash"||(v==="imp"?isRole("Admin")||has("acct.book"):false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(v==="imp"?(()=>{try{return impRows().length>0}catch(e){return isRole("Admin")}})():false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
@@ -3852,11 +3852,11 @@ async function readBook(f,F,xlOpts){const pdf=/\.pdf$/i.test(f.name||"")||/pdf/i
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"PDF");return wb}
 /* admin: one place to bring in old data */
 const IMP_LIST=[
-  ["party","Customers and suppliers","Party or ledger list: name, GSTIN, address, city, PIN, contact. A Group column (Sundry Debtors / Creditors) splits customers from suppliers.","Excel (.xlsx, .xls), CSV, PDF","Admin"],
-  ["items","Items and services","Item and Service Master: name, HSN, GST %, unit, rate. An opening stock column sets opening stock.","Excel (.xlsx, .xls), CSV, PDF","Admin"],
+  ["party","Customers and suppliers","Party or ledger list: name, GSTIN, address, city, PIN, contact. A Group column (Sundry Debtors / Creditors) splits customers from suppliers.","Excel (.xlsx, .xls), CSV, PDF","Mast"],
+  ["items","Items and services","Item and Service Master: name, HSN, GST %, unit, rate. An opening stock column sets opening stock.","Excel (.xlsx, .xls), CSV, PDF","Mast"],
   ["obc","Customers' unpaid bills","Outstanding receivables on the start date: party, bill no., date, amount, received, credit days.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
   ["obs","Suppliers' unpaid bills","Outstanding payables on the start date, same columns as customers' bills.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
-  ["opo","Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN.","Excel (.xlsx, .xls), CSV, PDF","Admin"],
+  ["opo","Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["bank","Bank statement","Statement downloaded from net banking. Lines are matched to the bills above in Accounts.","Excel (.xlsx), CSV","Acct"],
   ["restore","Full backup","A ZT-ERP LITE backup file (Home > Backup). Replaces everything.","Backup file (.xlsx)","Admin"]];
 const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN","PAN","Address","City","PIN","State code","Contact person","Phone","Email"],["ABC Engineering Pvt Ltd","Sundry Debtors","27ABCDE1234F1Z5","ABCDE1234F","Plot 12, MIDC","Pune","411019","27","Mr. Patil","9800000000","accounts@abc.in"],["Shree Steels","Sundry Creditors","27AAAAA0000A1Z5","","Bhosari","Pune","411026","27","","",""]]),
@@ -3866,8 +3866,10 @@ async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((h,k)=>({wch:Math.max(10,...rows.map(r=>String(r[k]||"").length))+2}));XLSX.utils.book_append_sheet(wb,ws,"Sheet1");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
-function renderImportHub(){const P=$("#importPanel");if(!P)return;const ad=isRole("Admin"),ac=ad||has("acct.book");
-  const L=IMP_LIST.filter(x=>x[4]==="Admin"?ad:ac);
+/* who may use each import: Admin all; Masters editors parties and items; Admin and Director old POs; Accounts bills and bank */
+function impRows(){const ad=isRole("Admin"),ok={Admin:ad,Mast:ad||has("mast.edit"),PO:ad||isRole("Director"),Acct:ad||has("acct.book")};return IMP_LIST.filter(x=>ok[x[4]])}
+function renderImportHub(){const P=$("#importPanel");if(!P)return;
+  const L=impRows();
   P.innerHTML=`<div class="row"><h2 class="sec">Import old data</h2></div>
   <div class="note">Bring in data from the old ERP or from your own sheets. Every import shows a preview before anything is saved, and skips records that are already in, so importing the same file again is safe. Excel or CSV is the most reliable. A PDF works if it is the report as printed by the old ERP, with column headings.</div>
   <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th style="width:34px">#</th><th>What to import</th><th>What the file should have</th><th>Formats accepted</th><th></th></tr></thead><tbody>
