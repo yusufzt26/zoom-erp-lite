@@ -1258,7 +1258,11 @@ function parseBOM(wb){
 }
 
 /* ---------- PO ---------- */
-function nextPONo(){return Math.max(2055,...saved.map(s=>+s.no||0),...store.get("deletedPOs",[]).map(d=>+d.no||0))+1}
+/* the first document of a series (PO, GRN, invoice per plant and year) can get a typed starting number; every next number is automatic.
+   firstNo marks that typed start, so the default base (2055 for POs, 1000 for GRNs) no longer applies after it. */
+function okNo(v){return /^\d{1,7}$/.test(String(v??"").trim())&&+v>0}
+function poFirst(){return !saved.length&&!store.get("deletedPOs",[]).length}
+function nextPONo(){const D=store.get("deletedPOs",[]);return Math.max(saved.some(s=>s.firstNo)||D.some(d=>d.firstNo)?0:2055,...saved.map(s=>+s.no||0),...D.map(d=>+d.no||0))+1}
 $("#btn-convert").onclick=()=>{
   const lines=est.lines.filter(l=>l.item&&lineAmt(l)>0);
   if(!lines.length){toast("Add at least one line with a rate and qty");return}
@@ -1292,7 +1296,7 @@ function renderPO(){
   <h3>PURCHASE ORDER</h3>
   <div class="two">
     <div>${inp("sup","100%",'style="font-weight:700;width:100%" list="suppliers" placeholder="Supplier name"')}<textarea id="po-supAddr" data-pk="supAddr" rows="4" style="width:100%;resize:vertical">${esc(po.supAddr)}</textarea></div>
-    <div class="kv"><b>P.O. No.</b><div>${inp("no","70px")} &nbsp;<b>Date</b> ${inp("date","120px",'type="date"')}</div>
+    <div class="kv"><b>P.O. No.</b><div>${poFirst()?inp("no","70px",'inputmode="numeric" title="First PO: type the starting number. After this, PO numbers are automatic."'):inp("no","70px",'readonly title="PO numbers are automatic"')} &nbsp;<b>Date</b> ${inp("date","120px",'type="date"')}</div>
       <b>Plant</b><select id="po-plant" data-pk="plant" style="width:100%">${plantOpts(po.plant)}</select>
       <b>Delivery</b><textarea id="po-deliv" data-pk="deliv" rows="2" style="width:100%;resize:vertical">${esc(po.deliv)}</textarea>
       <b>Pay. Terms</b>${inp("terms","100%")}<b>Validity</b>${inp("validity","100%")}</div>
@@ -1407,6 +1411,7 @@ $("#btn-pv-wa").onclick=()=>{let ph=$("#pv-phone").value.replace(/\D/g,"");if(ph
 $("#btn-pv-mark").onclick=()=>poSent("");
 function recordPO(status,action,comment){
   po.status=status;po.history=(po.history||[]).concat([{by:me.name,action,at:new Date().toISOString(),comment:comment||""}]);
+  if(poFirst()){po.no=okNo(po.no)?+po.no:nextPONo();po.firstNo=true}
   const c=poCalc();const rec=JSON.parse(JSON.stringify(po));rec.total=c.total;rec.savedAt=new Date().toISOString();
   const i=saved.findIndex(s=>String(s.no)===String(po.no));if(i>=0)saved[i]=rec;else saved.unshift(rec);store.set("saved",saved);store.set("po",po);
 }
@@ -1428,7 +1433,7 @@ $("#btn-del-cancel").onclick=()=>{$("#poDelete").hidden=true};
 $("#btn-del-ok").onclick=()=>{
   if(!po||!has("po.delete"))return;if(grns.some(g=>String(g.poNo)===String(po.no))){toast("Material has been received against this PO, so it cannot be deleted");return}
   const why=$("#po-del-reason").value.trim();if(!why&&!canBulkDel()){toast("Give a reason for deleting");$("#po-del-reason").focus();return}
-  const del=store.get("deletedPOs",[]);del.unshift({no:po.no,sup:po.sup,status:po.status,total:poCalc().total,by:me.name,at:new Date().toISOString(),reason:why});store.set("deletedPOs",del);
+  const del=store.get("deletedPOs",[]);del.unshift({no:po.no,firstNo:po.firstNo,sup:po.sup,status:po.status,total:poCalc().total,by:me.name,at:new Date().toISOString(),reason:why});store.set("deletedPOs",del);
   saved=saved.filter(x=>String(x.no)!==String(po.no));store.set("saved",saved);
   poReqs(po).forEach(r=>{const o=reqPOs(r);if(!o.length){r.status="Approved";delete r.poNo}else r.poNo=o[o.length-1].no});saveReqs();
   const n=po.no;po=null;store.set("po",null);$("#poDelete").hidden=true;toast(`PO ${n} deleted`);renderPO()};
@@ -1520,7 +1525,7 @@ $("#btn-saved-yes").onclick=()=>{
   $("#savedDelAsk").hidden=true;if(!canBulkDel())return;const L=delOk().filter(s=>delSel.has(String(s.no)));if(!L.length)return;
   if(!CLOUD)try{rpSnap("auto",`Before ${me.name} deleted ${L.length} PO${L.length>1?"s":""} (${L.map(s=>s.no).join(", ")})`)}catch(e){}
   const why=$("#saved-del-reason").value.trim(),at=new Date().toISOString(),gone=new Set(L.map(s=>String(s.no)));
-  const del=store.get("deletedPOs",[]);L.forEach(s=>del.unshift({no:s.no,sup:s.sup,status:s.status,total:s.total,by:me.name,at,reason:why||"Deleted with other POs in one go"}));store.set("deletedPOs",del);
+  const del=store.get("deletedPOs",[]);L.forEach(s=>del.unshift({no:s.no,firstNo:s.firstNo,sup:s.sup,status:s.status,total:s.total,by:me.name,at,reason:why||"Deleted with other POs in one go"}));store.set("deletedPOs",del);
   const rs=new Set();L.forEach(s=>poReqs(s).forEach(r=>rs.add(r)));
   saved=saved.filter(x=>!gone.has(String(x.no)));store.set("saved",saved);
   rs.forEach(r=>{const o=reqPOs(r);if(!o.length){r.status="Approved";delete r.poNo}else r.poNo=o[o.length-1].no});if(rs.size)saveReqs();
@@ -1726,7 +1731,8 @@ const saveGRNs=()=>store.set("grns",grns);
 const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
 function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;return o+grns.filter(g=>!g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
 function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
-function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
+function grnFirst(){return !grns.length}
+function nextGRN(){return Math.max(grns.some(g=>g.firstNo)?0:1000,...grns.map(g=>+g.no||0))+1}
 /* ---------- pending balance: request -> PO -> received ---------- */
 /* A request can be split over several POs (part now, part later, or different suppliers). Each PO line made from a request
    remembers its request line (rq). Older POs without that link are matched to request lines by item name. */
@@ -2055,7 +2061,7 @@ function renderGRNForm(){
   const f=(k,lab,type="text")=>`<label class="f">${lab}<input id="g-${k}" data-gk="${k}" type="${type}" value="${esc(grn[k])}"></label>`;
   F.innerHTML=`<div class="row"><h2 class="sec">GRN ${grn.no} · PO ${esc(grn.poNo)}</h2><span class="note">${esc(grn.sup)}</span><span style="flex:1"></span><button class="btn" id="btn-g-cancel">Cancel</button></div>
   ${scanBar("grn","Read supplier invoice")}
-  <div class="grid-fields">${f("date","GRN date","date")}${f("dc","Delivery challan no.")}${f("dcDate","Challan date","date")}${f("inv","Supplier invoice no.")}${f("invDate","Invoice date","date")}${f("vehicle","Vehicle / transport")}</div>
+  <div class="grid-fields">${grnFirst()?`<label class="f">GRN No. (first GRN: type the starting number)<input id="g-no" data-gk="no" inputmode="numeric" value="${esc(grn.no)}"></label>`:""}${f("date","GRN date","date")}${f("dc","Delivery challan no.")}${f("dcDate","Challan date","date")}${f("inv","Supplier invoice no.")}${f("invDate","Invoice date","date")}${f("vehicle","Vehicle / transport")}</div>
   <div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sn</th><th>Description</th><th>Unit</th><th class="num">Ordered</th><th class="num">Already accepted</th><th class="num">Received now</th><th class="num">Rejected</th><th class="num">Accepted</th><th>Remark</th></tr></thead>
   <tbody id="grnBody">${grn.lines.map((l,j)=>`<tr data-j="${j}"><td>${l.i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.unit)}</td><td class="num">${fmt0(l.ordered)}</td><td class="num">${fmt0(l.prev)}</td>
     <td class="num"><input id="g${j}-recv" class="qty" data-lk="recv" type="number" step="any" min="0" value="${l.recv}"></td>
@@ -2079,6 +2085,7 @@ $("#grnForm").addEventListener("click",e=>{
   if(grn.lines.some(l=>(+l.rej||0)>(+l.recv||0)||(+l.recv||0)<0)){toast("Rejected qty cannot be more than received");return}
   if(grn.lines.some(l=>(+l.recv||0)-(+l.rej||0)>l.ordered-l.prev+0.0001)){toast("Accepted qty is more than the PO balance. Check the quantities.");return}
   grn.lines=grn.lines.filter(l=>(+l.recv||0)>0);if(!grn.lines.length){toast("Enter the received qty for at least one line");renderGRNForm();return}
+  if(grnFirst()){if(!okNo(grn.no)){toast("Type the GRN number in digits, e.g. 1001");$("#g-no").focus();return}grn.no=+grn.no;grn.firstNo=true}
   grn.status="With accounts";grn.createdAt=new Date().toISOString();grns.unshift(grn);saveGRNs();
   const p=saved.find(x=>String(x.no)===String(grn.poNo));
   if(p){if(pendingLines(p).length){p.recv="Partly received"}else{p.recv="Closed";p.closed=true;p.closedAt=grns.filter(g=>String(g.poNo)===String(p.no)).map(g=>g.date).sort().pop();
@@ -3575,6 +3582,7 @@ const nextInvNo=(fy,pl)=>{pl=pl||"P1";const P=plantBy(pl)||{};const base=fy===fy
 const invKey=x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no;
 const sellerCfg=x=>{const c=salesCfg(),p=x&&x.plant&&plantBy(x.plant);return p?Object.assign({},c,{sAddr1:p.addr1,sAddr2:p.addr2,sLoc:p.loc,sPin:p.pin,sPh:p.ph||c.sPh}):c};
 const salesCfg=()=>Object.assign({pre:"Z",lastNo:"",sAddr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",sAddr2:"Jyotiba Nagar, Talwade",sLoc:"PUNE",sPin:"412114",sPh:"7030953792",sEm:"sales@zoomtechnologies.net",bank:"Name: Kotak Mahindra Bank\nAccount Name: Zoom Technologies\nBranch: Bhosari\nAccount No.: 0212771835 ( Current )\nIFSC: KKBK0001774",invTerms:"Payment to be made by A/c. Payee Cheque Only.\nInterest @18% will be charged on bill not paid within due date.",soTerms:"Delivery as per the date above, subject to approval of drawings.\nPayment as agreed in our quotation."},M.salesCfg||{});
+function invFirst(fy,pl){pl=pl||"P1";const P=plantBy(pl)||{};const ln=fy===fyOf(today())?(P.lastNo!==""&&P.lastNo!=null?P.lastNo:(pl==="P1"?salesCfg().lastNo:"")):"";return !(+ln)&&!invoices.some(x=>x&&x.fy===fy&&(x.plant||"P1")===pl)}
 const invPreOf=pl=>pl?(plantBy(pl)||{}).pre||"":salesCfg().pre;
 const invNo=x=>x.oldNo?x.oldNo:`${x.pre!=null?x.pre:invPreOf(x.plant)}${x.no}/${x.fy}`;
 /* invoices made before the prefix was stored: keep the prefix they were printed with (Plant 1 default was "ZT" then) */
@@ -3652,7 +3660,7 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   const plS=`<label class="f">Plant<select id="sd-plant" data-sf="plant"${t==="inv"&&!isNew?" disabled title=\"Invoice number already given for this plant\"":""}>${plantOpts(x.plant)}</select></label>`;
   const head0={so:fld("cust","Customer","",` list="custnames"`)+fld("date","Order date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("job","Job No.","",` list="projects"`)+fld("due","Delivery date","date"),
     dc:fld("cust","Customer","",` list="custnames"`)+fld("date","Challan date","date")+`<label class="f">Sales order<input value="${x.so?"SO-"+esc(x.so):"Direct, no order"}" disabled></label>`+fld("job","Job No.","",` list="projects"`)+fld("vehicle","Vehicle No.")+fld("transporter","Transporter")+fld("lr","LR / docket No.")+fld("remark","Remark"),
-    inv:fld("cust","Customer","",` list="custnames"`)+fld("date","Invoice date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("custDC","Your challan No.")+fld("custDCDate","Your challan date","date")+fld("job","Job No.","",` list="projects"`)+fld("attn","Kind Attn.","",` placeholder="From customer contact"`)+fld("delivery","Delivery")+fld("payDays","Pay terms (days)","number")+fld("vehicle","Vehicle No.")+fld("eway","E-way bill No.")+`<label class="f">Challan / order<input value="${esc([x.dc&&x.dc.length?"DC-"+x.dc.join(", DC-"):"",x.so?"SO-"+x.so:"",x.jw?"Job work JW-"+x.jw:""].filter(Boolean).join(" · ")||"Direct")}" disabled></label>`}[t];const head=plS+head0;
+    inv:fld("cust","Customer","",` list="custnames"`)+fld("date","Invoice date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("custDC","Your challan No.")+fld("custDCDate","Your challan date","date")+fld("job","Job No.","",` list="projects"`)+fld("attn","Kind Attn.","",` placeholder="From customer contact"`)+fld("delivery","Delivery")+fld("payDays","Pay terms (days)","number")+fld("vehicle","Vehicle No.")+fld("eway","E-way bill No.")+`<label class="f">Challan / order<input value="${esc([x.dc&&x.dc.length?"DC-"+x.dc.join(", DC-"):"",x.so?"SO-"+x.so:"",x.jw?"Job work JW-"+x.jw:""].filter(Boolean).join(" · ")||"Direct")}" disabled></label>`}[t];const head=plS+(t==="inv"&&isNew&&invFirst(fyOf(x.date||today()),x.plant)?`<label class="f">Invoice No. (first ${esc(invPreOf(x.plant))}…/${esc(fyOf(x.date||today()))}: type the starting number)<input id="sd-no" data-sf="no" inputmode="numeric" value="${esc(x.no??"")}"></label>`:"")+head0;
   const showDone=link&&x.lines.some(l=>l.ord!=null);
   const lines=`<div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th>${showDone?`<th class="num">Ordered</th><th class="num">${t==="dc"?"Sent before":"Billed before"}</th>`:""}<th class="num">Qty</th><th>Unit</th><th class="num">Rate ₹</th>${t==="inv"?`<th class="num">Dis%</th><th class="num">Tax%</th>`:""}<th class="num">Amount ₹</th><th></th></tr></thead><tbody>${x.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td>${t==="inv"?`<textarea id="sl${i}d" data-sl="desc" rows="2" style="min-width:240px">${esc(l.desc)}</textarea>`:`<input id="sl${i}d" data-sl="desc" value="${esc(l.desc)}" list="itemnames" style="min-width:220px"${link&&l.i!=null?" readonly":""}>`}</td><td><input id="sl${i}h" data-sl="hsn" value="${esc(l.hsn)}" style="width:90px"></td>${showDone?`<td class="num">${l.ord!=null?fmt0(l.ord):""}</td><td class="num">${l.done!=null?fmt0(l.done):""}</td>`:""}<td class="num"><input id="sl${i}q" class="qty" data-sl="qty" type="number" step="any" value="${l.qty??""}"></td><td><input id="sl${i}u" data-sl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="sl${i}r" class="rate" data-sl="rate" type="number" step="any" value="${l.rate??""}"></td>${t==="inv"?`<td class="num"><input id="sl${i}x" class="qty" data-sl="dis" type="number" step="any" value="${l.dis??""}" style="width:56px"></td><td class="num"><input id="sl${i}t" class="qty" data-sl="tax" type="number" step="any" value="${l.tax??""}" placeholder="${+x.gst}" style="width:56px"></td>`:""}<td class="num" data-amt>${fmt(lnAmt(l))}</td><td>${ro?"":`<button class="x" type="button" data-sldel="${i}" aria-label="Remove line ${i+1}">×</button>`}</td></tr>`).join("")||`<tr><td colspan="10" class="empty">No lines.</td></tr>`}</tbody></table></div>`;
   const sdT=t==="dc"?sdSub(x):invCalc(x).grand;
@@ -3708,8 +3716,9 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
     if(over&&!confirm(`${over.desc}: this is more than the quantity left on SO-${s.no}. Save anyway?`))return}}
   x.lines.forEach(l=>{l.qty=+l.qty;l.rate=l.rate===""?"":+l.rate;delete l.ord;delete l.done});x.gst=+x.gst||0;
   if(!custByName(x.cust)){customers.push({id:itId(),name:x.cust,contact:"",phone:"",email:"",city:"",gstin:"",addr:""});saveCusts()}
+  if(t==="inv"&&isNew&&invFirst(fyOf(x.date),x.plant)&&!okNo(x.no)){toast("Type the first invoice number in digits, e.g. 1");const n=$("#sd-no");if(n)n.focus();return}
   const A=SD[t].arr();x.updatedAt=new Date().toISOString();
-  if(isNew){if(t==="inv"){x.fy=fyOf(x.date);x.no=nextInvNo(x.fy,x.plant);x.pre=invPreOf(x.plant)}x.createdAt=x.updatedAt;A.unshift(x)}else{const o=A.find(r=>sdId(t,r)===sdId(t,x));Object.assign(o,x)}
+  if(isNew){if(t==="inv"){x.fy=fyOf(x.date);x.no=invFirst(x.fy,x.plant)&&okNo(x.no)?+x.no:nextInvNo(x.fy,x.plant);x.pre=invPreOf(x.plant)}x.createdAt=x.updatedAt;A.unshift(x)}else{const o=A.find(r=>sdId(t,r)===sdId(t,x));Object.assign(o,x)}
   if(t==="inv"&&isNew&&x.dc)x.dc.forEach(n=>{const d=dchallans.find(r=>String(r.no)===String(n));if(d)d.inv=sdId("inv",x)});
   if(t==="so"&&isNew&&x.deal){const d=dealBy(x.deal);if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
   sdSave(t);if(t==="inv")sdSave("dc");const saved=A.find(r=>sdId(t,r)===sdId(t,x));sdCur={t,rec:JSON.parse(JSON.stringify(saved)),isNew:false};renderSD(t);
