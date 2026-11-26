@@ -167,7 +167,7 @@ async function restoreApi(me, m, url, req) {
   const c = await pool().connect();
   try {
     await c.query("BEGIN"); await c.query("SELECT pg_advisory_xact_lock(hashtext('restore'))");
-    const when = target.label || new Date(target.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const when = new Date(target.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const undo = (await c.query("INSERT INTO restore_points(rev,kind,label,by_name) VALUES($1,'before-restore',$2,$3) RETURNING pid", [await topRev(c), `Before ${me} restored data to ${when}`.slice(0, 300), me])).rows[0];
     const rows = (await c.query(DIFF, [target.rev, colls])).rows;
     const plain = rows.filter((x) => x.coll !== "masters"); const ms = rows.find((x) => x.coll === "masters");
