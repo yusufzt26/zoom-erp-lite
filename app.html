@@ -250,6 +250,15 @@ thead th{cursor:default}.tablebox thead th{user-select:none}.cellsel{outline:2px
 body.can-install .installbtn{display:inline-flex}body.can-install .gatebox .installbtn{display:flex;justify-content:center}
 body.is-app .install-help{display:none}.hdr-install{font-size:12px;white-space:nowrap}body.can-install .hdr-install{display:none}.gatebox .brand{margin-bottom:6px}
 body.gated header.bar,body.gated main{display:none}
+/* while the app starts (login check, data download) show a loading screen, never the empty shell */
+body:not(.ready) header.bar,body:not(.ready) main{display:none}
+#boot{position:fixed;inset:0;z-index:29;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);padding:16px;text-align:center}
+body.ready #boot,body.gated #boot{display:none}
+#boot img{width:min(260px,70vw);background:#fff;border-radius:8px;padding:6px}
+#boot b{font-size:18px;letter-spacing:.02em}
+#boot .spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:#1f66a8;border-radius:50%;animation:bootspin .9s linear infinite}
+@keyframes bootspin{to{transform:rotate(360deg)}}
+#boot .slow{max-width:340px}
 .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
 @media (max-width:640px){table.est input:not(.qty):not(.rate):not([type=number]){min-width:150px}table.est input,table.est select{border:1px solid var(--line)!important;border-radius:4px;background:var(--panel)}}
 @media (pointer:coarse){.xlhint{display:none}}
@@ -430,6 +439,9 @@ table.hlist{min-width:0}table.hlist td{padding:7px 6px}
     <button id="tab-cn" data-view="cn">Credit notes</button>
 </nav><div class="menuback" id="menuBack"></div></header>
 
+<div id="boot" role="status" aria-live="polite"><img id="bootLogo" alt="Zoom Technologies"><b>ZT-ERP LITE</b><div class="spin" aria-hidden="true"></div><span class="note" id="bootMsg">Loading your data…</span><div class="slow stack" id="bootSlow" hidden><span class="note">This is taking longer than usual. Check the internet connection.</span><button type="button" class="btn primary" onclick="location.reload()">Reload</button></div></div>
+<script>(function(){try{var L=document.getElementById("bootLogo"),B=document.getElementById("brandLogo");if(window.ZT_LOGO){L.src=window.ZT_LOGO;if(B)B.src=window.ZT_LOGO}}catch(e){}
+setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&!b.classList.contains("gated")){var x=document.getElementById("bootSlow");if(x)x.hidden=false}},20000)})();</script>
 <div id="gate" hidden></div>
 <main class="wrap">
 
@@ -5000,7 +5012,8 @@ bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
   const DEF_MASTERS={users:[],depts:[{name:"Design",hod:""},{name:"Tool Room",hod:""},{name:"Purchase",hod:""},{name:"Store",hod:""},{name:"Accounts",hod:""}],
     projects:["ZT2329","ZT2335","ZT2347","ZT2348","ZT2349"].map(no=>({no,desc:"",cust:"",status:"Active"}))};
   async function getSync(t){const r=await fetch("/api/sync?since=0",{headers:{authorization:"Bearer "+t},cache:"no-store"});if(!r.ok)return null;return r.json()}
-  function start(t,d){$("#gate").hidden=true;document.body.classList.remove("gated");zpoMain({token:t,me:d.me,data:d})}
+  function runMain(b){try{zpoMain(b)}finally{document.body.classList.add("ready")}}
+  function start(t,d){$("#gate").hidden=true;document.body.classList.remove("gated");runMain({token:t,me:d.me,data:d})}
   function gate(setup,msg){const G=$("#gate");G.hidden=false;document.body.classList.add("gated");
     G.innerHTML=`<form class="panel stack gatebox" autocomplete="on"><img class="gatelogo" src="${window.ZT_LOGO}" alt="Zoom Technologies"><div class="brand" style="justify-content:center">ZT-ERP LITE</div>
     <h2 class="sec">${setup?"First-time setup: create the Admin login":"Log in"}</h2>${msg?`<div class="banner back">${msg}</div>`:""}
@@ -5040,7 +5053,7 @@ bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
         gate(false,"Password changed. Log in with the new password.");$("#g-name").value=n;$("#g-pass").focus()}
       catch(err){forgot(n,"No connection to the server. Check the internet and try again.",sent)}}}
   (async()=>{let st=null;try{const r=await fetch("/api/status",{cache:"no-store"});if(r.ok&&(r.headers.get("content-type")||"").includes("json"))st=await r.json()}catch(e){}
-    if(!st||!st.ok){zpoMain(null);return}
+    if(!st||!st.ok){runMain(null);return}
     let t=null;try{t=localStorage.getItem("zpo:token")}catch(e){}
     if(t){try{const d=await getSync(t);if(d){start(t,d);return}}catch(e){gate(false,"No connection to the server. Check the internet and try again.");return}}
     gate(st.needsSetup)})();
