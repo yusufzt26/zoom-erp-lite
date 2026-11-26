@@ -337,10 +337,10 @@ body.gated header.bar,body.gated main{display:none}
   </div>
 </div>
 <nav class="subnav" id="subnav-pur" aria-label="Purchase department" hidden><span class="subnav-t">Purchase department</span>
-    <button id="tab-buy" data-view="buy"><span class="step">2</span>Buy sheet</button>
+    <button id="tab-buy" data-view="buy"><span class="step">2</span>Pre-estimate</button>
     <button id="tab-po" data-view="po"><span class="step">3</span>Purchase order</button>
     <button id="tab-saved" data-view="saved">PO list</button>
-    <button id="tab-est" data-view="est">Pre-estimate</button>
+    <button id="tab-est" data-view="est" style="display:none">Old pre-estimate</button>
     <button id="tab-rmast" data-view="rmast">Rates &amp; costing</button>
     <button id="tab-rates" data-view="rates">Rate list</button>
 </nav>
@@ -411,7 +411,7 @@ body.gated header.bar,body.gated main{display:none}
       <button class="btn" id="btn-q-back" hidden>Send back to maker</button>
       <button class="btn primary" id="btn-q-approve" hidden>Approve</button>
       <button class="btn" id="btn-q-pdf">Download PDF</button>
-      <button class="btn primary" id="btn-q-estimate" hidden>Open in Buy sheet</button>
+      <button class="btn primary" id="btn-q-estimate" hidden>Open in Pre-estimate</button>
       <button class="btn" id="btn-q-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete request</button></div>
     <div id="reqDelete" class="panel stack" style="border-color:var(--danger)" hidden></div>
   </div>
@@ -501,7 +501,7 @@ body.gated header.bar,body.gated main{display:none}
 <!-- BUY SHEET: approved request lines not yet on a PO, one tab per purchase type; one PO per supplier -->
 <section id="view-buy" class="stack" hidden>
   <div class="panel stack">
-    <div class="row"><h2 class="sec">Buy sheet</h2><span class="note" id="buy-n"></span><span style="flex:1"></span><input id="buy-q" placeholder="Search request, job, item or supplier" style="max-width:300px"></div>
+    <div class="row"><h2 class="sec">Pre-estimate</h2><span class="note" id="buy-n"></span><span style="flex:1"></span><input id="buy-q" placeholder="Search request, job, item or supplier" style="max-width:300px"></div>
     <div class="dseg" style="flex-wrap:wrap;align-self:flex-start" id="buyTabs" role="group" aria-label="Purchase type"></div>
     <div id="buyDone" class="banner" hidden></div>
     <div class="row"><label style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="buy-all" style="width:auto;margin:0"> Tick all lines in this tab</label></div>
@@ -514,7 +514,7 @@ body.gated header.bar,body.gated main{display:none}
 <!-- RATES & COSTING: purchaser's master of rates, price lists and calculation sheets -->
 <section id="view-rmast" class="stack" hidden>
   <div class="panel stack">
-    <div class="row"><h2 class="sec">Rates &amp; costing</h2><span class="note">Used by the Buy sheet to work out raw sizes, weights, estimates and prices. Keep it up to date; a change applies from the next PO number.</span></div>
+    <div class="row"><h2 class="sec">Rates &amp; costing</h2><span class="note">Used by the Pre-estimate to work out raw sizes, weights, estimates and prices. Keep it up to date; a change applies from the next PO number.</span></div>
     <div class="dseg" style="flex-wrap:wrap;align-self:flex-start" id="costTabs" role="group" aria-label="Rate lists"></div>
     <div id="costBody" class="stack"></div>
   </div>
@@ -855,7 +855,7 @@ function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;co
 /* ---------- views ---------- */
 const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users"];
 const RIGHTS=[
- ["Pages","page.req","Purchase request"],["Pages","page.est","Pre-estimate"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
+ ["Pages","page.req","Purchase request"],["Pages","page.est","Old pre-estimate (direct PO)"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
  ["Actions","po.create","Create POs and send for approval","Includes pre-estimate and direct PO"],["Actions","po.approve","Approve and sign POs","Their signature goes on the PO"],["Actions","po.delete","Delete POs","Including approved POs, if no material received yet"],
  ["Actions","grn.create","Create GRN","Receive material against approved POs"],["Actions","acct.book","Book and mark GRNs paid","Voucher and payment reference"],["Actions","rgp.manage","Returnable challans","Send material out and receive it back"],["Actions","stock.issue","Issue and return material","Issue slips, returns to store, opening stock, bin locations"],["Actions","sales.edit","Manage enquiries, quotations and customers","Add and update the sales pipeline and follow-ups"],["Actions","prod.edit","Update job cards and inspection reports","Operations, hours, status, trial reports"],["Actions","sales.all","See all salespeople's enquiries","Otherwise only their own"]];
@@ -889,12 +889,12 @@ const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
 function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);window.scrollTo(0,0)}
-const GROUPS={pur:["buy","po","saved","est","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
+const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
 function setHdrCur(v){const el=$("#hdrCur"),b=$("#tab-"+v);if(el)el.textContent=b?[...b.childNodes].filter(n=>!(n.classList&&(n.classList.contains("step")||n.classList.contains("badge")))).map(n=>n.textContent).join("").trim():""}
 const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
-  ["Purchase",[["req","📝","Purchase request"],["buy","🧾","Buy sheet"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["est","🧮","Pre-estimate"],["rmast","📐","Rates & costing"],["rates","🏷️","Rate list"],["appr","✅","PO approvals"]]],
+  ["Purchase",[["req","📝","Purchase request"],["buy","🧾","Pre-estimate"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["rmast","📐","Rates & costing"],["rates","🏷️","Rate list"],["appr","✅","PO approvals"]]],
   ["Store & production",[["grn","📦","Store / GRN"],["stock","🗃️","Stock & issue"],["prod","⚙️","Production"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Tax invoices"],["cn","↩️","Credit notes"]]],
   ["Accounts & reports",[["acct","💰","Accounts"],["rep","📈","Reports"]]],
@@ -982,7 +982,7 @@ $("#quickForm").onsubmit=e=>{
 };
 function newDirect(){est={job:"",plant:defPlant(),sup:"",date:today(),unit:"NOS",lines:[],direct:true};isExample=false;saveEst();bindHeader();renderEst();renderEstReq();$("#e-job").focus()}
 $("#btn-new").onclick=newDirect;
-$("#btn-direct").onclick=()=>{show("est");newDirect()};
+$("#btn-direct").onclick=()=>{const pl=defPlant();po={no:nextPONo(),date:today(),sup:"",supAddr:"",ref:"",refDate:today(),attn:"",venCode:"",terms:"60 Days",transport:"",validity:"",reqNo:"",needBy:"",plant:pl,deliv:plantAddr(pl),gstmode:"intra",remark:"",xcols:[],lines:[{desc:"",item:"",spec:"",hsn:"84801000",tax:18,qty:1,unit:"NOS",rate:0,dis:0}]};store.set("po",po);show("po")};
 
 /* BOM import */
 $("#btn-import").onclick=()=>$("#file-bom").click();
@@ -1164,7 +1164,7 @@ function poControls(){
   const review=!!po&&st==="Pending approval"&&has("po.approve");
   $("#btn-save").hidden=!editable;$("#btn-send").hidden=!editable||st==="Pending approval";$("#btn-save").textContent=st==="Pending approval"?"Save changes":"Save draft";
   const inList=!!po&&saved.some(x=>String(x.no)===String(po.no));const hasGrn=!!po&&grns.some(g=>String(g.poNo)===String(po.no));
-  $("#btn-po-del").hidden=!(inList&&has("po.delete"));$("#btn-po-del").disabled=hasGrn;$("#btn-po-del").title=hasGrn?"Material has been received against this PO, so it cannot be deleted":"";if($("#btn-po-del").hidden)$("#poDelete").hidden=true;$("#btn-back").hidden=!has("po.create")||!can("est")||!po;$("#btn-direct").hidden=!(has("po.create")&&can("est"));
+  $("#btn-po-del").hidden=!(inList&&has("po.delete"));$("#btn-po-del").disabled=hasGrn;$("#btn-po-del").title=hasGrn?"Material has been received against this PO, so it cannot be deleted":"";if($("#btn-po-del").hidden)$("#poDelete").hidden=true;$("#btn-back").hidden=true;$("#btn-direct").hidden=!has("po.create");
   $("#btn-send").textContent=st==="Sent back"?"Resend for approval":"Send for approval";
   $("#p-gstmode").disabled=!editable;$("#p-sup").disabled=!editable;$("#poReview").hidden=!review;
   if(review){$("#sigNote").textContent=me.sig?`Your signature will be printed on the PO.`:`No signature uploaded for ${me.name}. Ask the admin to add it in Masters.`}
@@ -1358,7 +1358,7 @@ function renderReq(){
   fillReqSelects();$("#q-dept-req").hidden=!!r.job;
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   $("#q-cat").innerHTML=`<option value="">Choose type</option>`+REQ_CATS.map(c=>`<option${r.cat===c?" selected":""}>${esc(c)}</option>`).join("");$("#q-cat").disabled=locked;
-  {const n=locked&&!r.cat?"Type not set: this request goes to Others on the Buy sheet.":"";$("#q-cat-note").textContent=n;$("#q-cat-note").hidden=!n}
+  {const n=locked&&!r.cat?"Type not set: this request goes to Others on the Pre-estimate.":"";$("#q-cat-note").textContent=n;$("#q-cat-note").hidden=!n}
   fillGradeList();const xc=rqShow(r),cc=catCols(r);
   $("#reqHead").innerHTML=`<tr><th style="width:34px">Sr</th><th>Description</th>${xc.map((c,k)=>`<th style="min-width:90px;white-space:nowrap">${esc(rqColLabel(r,c))}${locked||cc.includes(c)?"":` <button class="x" data-xdel="${k}" title="Remove the ${esc(c)} column" aria-label="Remove column ${esc(c)}" style="font-size:11px;padding:0 3px">×</button>`}</th>`).join("")}<th>${rqSpecHead(r)}</th><th class="num" style="width:80px">Qty</th><th style="width:70px">Unit</th><th>Remark</th><th style="width:32px"></th></tr>`;
   $("#reqBody").innerHTML=r.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td>
@@ -1533,7 +1533,7 @@ function renderReqBal(r){const P=$("#reqBal");const pos=reqPOs(r);
   <div class="note">${toO?`<b style="color:var(--danger)">${toO} item${toO>1?"s are":" is"} not on a PO yet.</b> `:r.balClosed?`Balance closed by ${esc(r.balBy||"")} on ${dmy(r.balAt)}: the rest is not needed. `:"Every item is on a PO. "}${toR?`${toR} item${toR>1?"s are":" is"} still to be received.`:"Nothing left to receive."}</div>
   <div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th style="width:34px">Sr</th><th>Item</th><th class="num">Requested</th><th class="num">On PO</th><th class="num">Received</th><th class="num">Not on PO yet</th><th class="num">Not received yet</th></tr></thead><tbody>
   ${B.map((x,k)=>`<tr><td>${x.i+1}</td><td>${esc(x.name)}${x.pos.length?`<br><span class="note">PO ${x.pos.map(esc).join(", ")}</span>`:""}</td><td class="num">${q3(x.qty)} ${esc(x.unit)}</td><td class="num">${q3(x.onPO)}</td><td class="num">${q3(x.recv)}</td><td class="num">${x.toOrder>0.0001?`<b style="color:var(--danger)">${q3(x.toOrder)}</b>`:"-"}</td><td class="num">${x.toRecv>0.0001?`<b>${q3(x.toRecv)}</b>`:"-"}</td></tr>`).join("")}</tbody></table></div>
-  ${pur?`<div class="row">${toO?`<button class="btn primary" type="button" id="btn-q-bal-est">Order the ${toO} pending item${toO>1?"s":""} on the Buy sheet</button>`:""}${toO?`<button class="btn" type="button" id="btn-q-bal-close" title="Use when the rest of this request is no longer needed">Rest not needed</button>`:""}${r.balClosed?`<button class="btn" type="button" id="btn-q-bal-open">Reopen balance</button>`:""}</div>`:""}`;
+  ${pur?`<div class="row">${toO?`<button class="btn primary" type="button" id="btn-q-bal-est">Order the ${toO} pending item${toO>1?"s":""} on the Pre-estimate</button>`:""}${toO?`<button class="btn" type="button" id="btn-q-bal-close" title="Use when the rest of this request is no longer needed">Rest not needed</button>`:""}${r.balClosed?`<button class="btn" type="button" id="btn-q-bal-open">Reopen balance</button>`:""}</div>`:""}`;
   const be=$("#btn-q-bal-est");if(be)be.onclick=()=>openBuy(r);
   const bc=$("#btn-q-bal-close");if(bc)bc.onclick=()=>{if(!bc.dataset.sure){bc.dataset.sure="1";bc.textContent="Click again: close the balance";bc.style.color="#b42318";setTimeout(()=>{if(bc.isConnected){delete bc.dataset.sure;bc.textContent="Rest not needed";bc.style.color=""}},5000);return}
     r.balClosed=true;r.balBy=me.name;r.balAt=today();if(reqDone(r)){r.status="Closed";r.closedAt=today()}saveReqs();renderReq();toast(`Request ${r.no}: the rest is marked not needed`)};
@@ -1724,7 +1724,7 @@ $("#btn-buy-make").onclick=()=>{
         if(cat==="Raw material"){const l=Object.assign(base,{item:"",spec:x.name,fin:c.fin,raw:c.raw,rawAuto:false,grade:c.grade,rawOn:true,pcs:c.qty,qty:Math.round(c.wpc*c.qty*100)/100,unit:"KG",rate:+c.rate,rq:x.i,hsn:"72269990"});poSetDesc(l);return l}
         const it=itemByName(x.name),sz=[lineX(x.l,"Size"),lineX(x.l,"L")].filter(Boolean).join(" x "),spec=cat==="BOP"||cat==="Tools & cutters"?[sz,x.l.spec].filter(Boolean).join(" · "):b.spec,full=[x.name,spec].filter(Boolean).join(" - ");
         return Object.assign(base,{desc:full,item:it?it.name:"",spec:it?spec:full,hsn:(it&&it.hsn)||base.hsn,tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:+c.qty,unit:x.unit||(it&&it.unit)||"NOS",rate:+c.rate,rq:x.i})})};
-    recordPO("Pending approval","Made on the Buy sheet and sent for approval");learnFromPO();
+    recordPO("Pending approval","Made on the Pre-estimate and sent for approval");learnFromPO();
     poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});made.push(po)});
   on.forEach(b=>{delete buyDraft[b.k];buyOpen.delete(b.k)});
   saveReqs();saveBuy();po=made[made.length-1];store.set("po",po);
@@ -1796,7 +1796,7 @@ function renderPend(){const P=$("#homePend");P.hidden=!(has("po.create")||has("r
   document.querySelectorAll("#pendTabs [data-ptab]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.ptab===pendTab?"true":"false"));
   const t=today();
   if(pendTab==="order"){const L=A.filter(x=>!q||key([x.r.no,x.name,x.r.job,x.r.by,x.r.dept].join(" ")).includes(q));
-    $("#pendNote").textContent="Approved request items with quantity not yet on any PO. Order them from the Buy sheet.";
+    $("#pendNote").textContent="Approved request items with quantity not yet on any PO. Order them from the Pre-estimate.";
     $("#pendBody").innerHTML=L.length?`<div class="tablebox"><table class="est" style="min-width:680px"><thead><tr><th>Request</th><th>Item</th><th>Need by</th><th class="num">Requested</th><th class="num">On PO</th><th class="num">Pending</th><th></th></tr></thead><tbody>${L.map(x=>{const late=x.r.need&&x.r.need<t;return`<tr><td><b style="font-family:var(--mono)">${esc(x.r.no)}</b><br><span class="note">${esc(x.r.job||x.r.dept||"")}${x.r.by?" · "+esc(x.r.by):""}</span></td><td>${esc(x.name)}</td><td style="${late?"color:var(--danger);font-weight:600":""}">${dmy(x.r.need)||"-"}${late?" (late)":""}</td><td class="num">${q3(x.qty)} ${esc(x.unit)}</td><td class="num">${x.onPO?q3(x.onPO):"-"}</td><td class="num"><b style="color:var(--danger)">${q3(x.toOrder)}</b></td><td><button class="btn" type="button" data-preq="${esc(x.r.no)}">Open</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">${q?"Nothing matches that search.":"Nothing pending. Every approved request item is on a PO."}</div>`}
   else{const L=Bv.filter(x=>!q||key([x.p.no,x.p.sup,x.name,x.p.reqNo,x.p.ref].join(" ")).includes(q));
     $("#pendNote").textContent="PO items not yet received in full, from requests and direct POs. They leave this list when the store makes the GRN.";
@@ -2518,7 +2518,7 @@ function workItems(){
     add(reqs.filter(r=>r.by===me.name&&["Submitted","Checked","Approved","Estimated","PO raised"].includes(r.status)).length,"My open requests","Waiting with your department head or Purchase","req")}
   if(has("req.check")||reqs.some(r=>canCheckReq(r)))add(reqs.filter(r=>canCheckReq(r)).length,"Requests to approve","From your department, then they go to Purchase","req",true);
   if(!REQ_DIRECT&&has("req.approve"))add(reqs.filter(r=>canApproveReq(r)).length,"Requests to approve","Checked, waiting for you as approver","req",true);
-  if(has("po.create")){add(new Set(pendToOrder().map(x=>x.r.no)).size,"Lines to buy","Approved request lines not on a PO yet: open the Buy sheet","buy",true);
+  if(has("po.create")){add(new Set(pendToOrder().map(x=>x.r.no)).size,"Lines to buy","Approved request lines not on a PO yet: open the Pre-estimate","buy",true);
     add(saved.filter(p=>p.status==="Sent back").length,"POs sent back","Correct and resend","saved",true);
     add(saved.filter(p=>p.status==="Draft").length,"Draft POs","Not yet sent for approval","saved");
     add(saved.filter(p=>p.status==="Approved"&&!p.sentAt&&!p.closed&&!p.recv).length,"Approved POs to send","Send to the vendor by email or WhatsApp","saved",true);
