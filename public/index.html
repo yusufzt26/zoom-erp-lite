@@ -1013,7 +1013,10 @@ const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","D
 const ltD=iso=>{const x=sortDay(iso);if(!/^\d{4}-\d\d-\d\d/.test(x))return"-";return`${+x.slice(8,10)} ${MON3[+x.slice(5,7)-1]} ${x.slice(0,4)}`};
 const ltDT=iso=>{const x=String(iso||"");if(x.length<=10)return ltD(x);const d=new Date(x);if(isNaN(d))return ltD(x);const h=d.getHours(),m=String(d.getMinutes()).padStart(2,"0");return`${d.getDate()} ${MON3[d.getMonth()]} ${d.getFullYear()}, ${String(h%12||12).padStart(2,"0")}:${m} ${h<12?"am":"pm"}`};
 const oldRefNote=x=>x&&x.oldRef?`<br><span class="note" title="From the old ERP's Project / Job No field">${esc(x.oldRef)}</span>`:"";
-const ltPrj=j=>j?`<span class="prj" title="${esc(j)}">${esc(j)}</span>`:`<span class="note">-</span>`;
+const isJobNo=t=>/^ZT\d{2,6}$/.test(key(t).replace(/[\s_\-]+/g,""));
+const jobRest=t=>String(t||"").toUpperCase().replace(/ZT[\s_\-]*\d{2,6}/g," ").replace(/\b(TO|AND)\b/g," ").replace(/[\d\s&,\/.\-_+;:()]+/g,"");
+const ltPrj=j=>{if(!j)return`<span class="note">-</span>`;const J=jobsOf(j);if(!J.length)return`<span class="note">-</span><br><span class="note" title="Not a project number">${esc(j)}</span>`;
+  return jobRest(j)?`<span class="prj" title="${esc(j)}">${esc(J.join(", "))}</span><br><span class="note">${esc(j)}</span>`:`<span class="prj" title="${esc(j)}">${esc(j)}</span>`};
 const ltAmt=n=>"₹"+fmt(n);
 const ltActs=(...b)=>`<span class="acts">${b.filter(Boolean).join("")}</span>`;
 const poBy=s=>((s.history||[]).find(h=>h.action==="Sent for approval")||(s.history||[])[0]||{}).by||s.by||"";
@@ -1027,7 +1030,7 @@ const sortDay=v=>{if(v==null||v==="")return"";const t=String(v);if(/^\d{4}-\d{2}
 const cmpNew=(a,b,d=x=>x.date,n=x=>x.no)=>sortDay(d(b)).localeCompare(sortDay(d(a)))||docNum(n(b))-docNum(n(a))||String(b.savedAt||b.createdAt||"").localeCompare(String(a.savedAt||a.createdAt||""));
 const byNew=(L,d,n)=>L.slice().sort((a,b)=>cmpNew(a,b,d,n));
 const lfNone=`<div class="empty">Nothing matches the search, project or period. Clear them to see everything.</div>`;
-function fillPrj(k,jobs){fillPlDep(k);const el=$("#prj-"+k);if(!el)return;const v=el.value,L=[...new Set(M.projects.map(p=>p.no).concat(jobs.flatMap(j=>{const t=String(j||"").trim();return M.projects.some(p=>key(p.no)===key(t))?[t]:jobsOf(t)})).map(x=>String(x||"").trim()).filter(Boolean))].sort();
+function fillPrj(k,jobs){fillPlDep(k);const el=$("#prj-"+k);if(!el)return;const v=el.value,L=[...new Set(M.projects.map(p=>p.no).filter(isJobNo).concat(jobs.flatMap(j=>jobsOf(j))).map(x=>String(x||"").trim()).filter(Boolean))].sort();
   const h=`<option value="">All projects</option>`+L.map(j=>`<option${j===v?" selected":""}>${esc(j)}</option>`).join("");if(el.innerHTML!==h)el.innerHTML=h;if(v&&!L.includes(v))el.value=""}
 /* plant and department pickers beside the project picker (department only on purchase lists) */
 const LF_DEPT=["req","saved","appr","gpo","grn"];
@@ -1122,7 +1125,7 @@ const can=v=>v==="home"||v==="dash"||(v==="undo"?canUndo():false)||(v==="imp"?((
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
 const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
@@ -1723,7 +1726,7 @@ function opts(list,val,ph){const vals=[...list];if(val&&!vals.includes(val))vals
 function fillReqSelects(){
   $("#q-by").innerHTML=opts(M.users.map(u=>u.name),cur.by,"Choose user");
   $("#q-dept").innerHTML=opts(M.depts.map(d=>d.name),cur.dept,"Choose department");
-  $("#q-job").innerHTML=opts(M.projects.filter(p=>p.status==="Active").map(p=>p.no),cur.job,"Choose project");
+  $("#q-job").innerHTML=opts(M.projects.filter(p=>p.status==="Active"&&isJobNo(p.no)).map(p=>p.no),cur.job,"Choose project");
   $("#btn-q-approve").textContent=cur.status==="Checked"?"Approve (director)":"Approve (department head)";
 }
 const attList=a=>Array.isArray(a)?a:(a?[a]:[]);
@@ -3180,7 +3183,7 @@ function renderMasters(){
   const pjE=projCan("edit"),pjD=projCan("delete"),pjRO=pjE?"":" disabled";$("#m-proj-form").hidden=!projCan("create");
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input${pjRO} id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input${pjRO} id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input${pjRO} id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select${pjRO} id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td>${pjD?`<button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
   refreshWho();if(!$("#view-users").hidden)renderRights();
-  $("#projects").innerHTML=M.projects.filter(p=>p.status==="Active").map(p=>`<option value="${esc(p.no)}">${esc(p.desc)}</option>`).join("");
+  $("#projects").innerHTML=M.projects.filter(p=>p.status==="Active"&&isJobNo(p.no)).map(p=>`<option value="${esc(p.no)}">${esc(p.desc)}</option>`).join("");
 }
 ["#m-users","#m-depts","#m-projs"].forEach(id=>{
   $(id).addEventListener("change",e=>{const tr=e.target.closest("tr");const f=e.target.dataset.f;if(!tr||!f)return;const rec=M[tr.dataset.t][+tr.dataset.i];
@@ -3242,7 +3245,7 @@ function jobWarn(u){const j=deptJob(u.dept);return u.role==="Staff"&&j?`<div cla
 $("#mu-dept").addEventListener("change",()=>{const j=deptJob($("#mu-dept").value);if(j&&$("#mu-role").value==="Staff")$("#mu-role").value=j});
 $("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,email:$("#mu-email").value.trim(),dept:$("#mu-dept").value,plant:$("#mu-plant").value,plants:$("#mu-plants").value,role:$("#mu-role").value},n)){$("#mu-name").value="";$("#mu-email").value="";$("#mu-plant").value="";$("#mu-plants").value=""}};
 $("#m-dept-form").onsubmit=e=>{e.preventDefault();const n=$("#md-name").value.trim();if(addM("depts",{name:n,hod:$("#md-hod").value},n))$("#md-name").value=""};
-$("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim().toUpperCase();if(addM("projects",{no:n,desc:$("#mp-desc").value.trim(),cust:$("#mp-cust").value.trim(),status:"Active"},n)){$("#mp-no").value="";$("#mp-desc").value="";$("#mp-cust").value=""}};
+$("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim().toUpperCase().replace(/^ZT[\s_\-]+/,"ZT");if(!isJobNo(n)){toast("A project number is ZT followed by digits, for example ZT2036");return}if(addM("projects",{no:n,desc:$("#mp-desc").value.trim(),cust:$("#mp-cust").value.trim(),status:"Active"},n)){$("#mp-no").value="";$("#mp-desc").value="";$("#mp-cust").value=""}};
 
 /* ---------- item master ---------- */
 const IT_FIELDS=[
@@ -4563,8 +4566,8 @@ function oldPoRecalc(){let n=0;saved.forEach(p=>{if(!p||!p.old||p.closed||p.stat
     if(L.every(([q,a])=>a>=q-0.0001)){p.closed=true;p.recv="Closed";p.closedAt=p.closedAt||p.date;n++}else{const r=L.some(([,a])=>a>0.0001)?"Partly received":"";if((p.recv||"")!==r){p.recv=r;n++}}});
   if(n)store.set("saved",saved);return n}
 /* the old ERP's "Project / Job No" also held item groups and departments (CUTTERS, OFFICE EXP, STORE STOCK ...): only job numbers stay as the project, the rest is kept as "Old ERP ref" */
-function oldJob(v){const t=String(v??"").replace(/\s+/g," ").trim();if(!t)return{job:"",oldRef:""};if(jobsOf(t).length||M.projects.some(p=>key(p.no)===key(t)))return{job:t,oldRef:""};return{job:"",oldRef:t}}
-function oldJobFix(){let a=0,b=0,c=0;const fx=(x,f)=>{if(!x||!x.old||!x[f])return false;const r=oldJob(x[f]);if(!r.oldRef)return false;x[f]="";x.oldRef=r.oldRef;return true};
+function oldJob(v){const t=String(v??"").replace(/\s+/g," ").trim();if(!t)return{job:"",oldRef:""};const J=jobsOf(t);if(!J.length)return{job:"",oldRef:t};return jobRest(t)?{job:J.join(", "),oldRef:t}:{job:t,oldRef:""}}
+function oldJobFix(){let a=0,b=0,c=0;const fx=(x,f)=>{if(!x||!x.old||!x[f])return false;const r=oldJob(x[f]);if(!r.oldRef)return false;x[f]=r.job;x.oldRef=r.oldRef;return true};
   saved.forEach(x=>{if(fx(x,"ref"))a++});grns.forEach(x=>{if(fx(x,"job"))b++});invoices.forEach(x=>{if(fx(x,"job"))c++});
   if(a)store.set("saved",saved);if(b)saveGRNs();if(c)sdSave("inv");return a+b+c?{po:a,grn:b,inv:c}:null}
 /* records already imported with the wrong plant are put right: old POs, GRNs and invoices take the plant from their number */
