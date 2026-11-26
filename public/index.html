@@ -1350,7 +1350,7 @@ function serFmt(k,pl,fy,n){return `${serL(pl)}/${SER[k].tag}${String(n).padStart
 function serFirst(k,pl,fy){return serMax(k,pl||"P1",fy||fyOf(today()))==null}
 function serNext(k,pl,fy){pl=pl||"P1";fy=fy||fyOf(today());return serFmt(k,pl,fy,(serMax(k,pl,fy)||0)+1)}
 function serNum(no){const m=String(no??"").match(/(\d+)\s*\/\s*\d{2}-\d{2}$/);return m?+m[1]:""}
-const soLbl=n=>/\//.test(String(n??""))?String(n):"SO-"+n,dcLbl=n=>/\//.test(String(n??""))?String(n):"DC-"+n;
+const soLbl=n=>/\//.test(String(n??""))?String(n):"SO-"+n,dcLbl=n=>{const s=String(n??"").trim(),m=s.match(/^[A-Za-z]*\s*\/\s*DC\s*\/\s*(\d+)\s*\/\s*\d{2}-\d{2}$/i);return m?pad4(m[1]):/^\d+$/.test(s)?pad4(s):s};
 function nextPONo(pl,fy){return serNext("po",pl||defPlant(),fy)}
 function poNew(){return !!po&&!saved.some(x=>String(x.no)===String(po.no))}
 $("#btn-convert").onclick=()=>{
@@ -3743,7 +3743,16 @@ const sellerCfg=x=>{const c=salesCfg(),p=x&&x.plant&&plantBy(x.plant);return p?O
 const salesCfg=()=>Object.assign({pre:"Z",lastNo:"",sAddr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",sAddr2:"Jyotiba Nagar, Talwade",sLoc:"PUNE",sPin:"412114",sPh:"7030953792",sEm:"sales@zoomtechnologies.net",bank:"Name: Kotak Mahindra Bank\nAccount Name: Zoom Technologies\nBranch: Bhosari\nAccount No.: 0212771835 ( Current )\nIFSC: KKBK0001774",invTerms:"Payment to be made by A/c. Payee Cheque Only.\nInterest @18% will be charged on bill not paid within due date.",soTerms:"Delivery as per the date above, subject to approval of drawings.\nPayment as agreed in our quotation."},M.salesCfg||{});
 function invFirst(fy,pl){pl=pl||"P1";const P=plantBy(pl)||{};const ln=fy===fyOf(today())?(P.lastNo!==""&&P.lastNo!=null?P.lastNo:(pl==="P1"?salesCfg().lastNo:"")):"";return !(+ln)&&!invoices.some(x=>x&&x.fy===fy&&(x.plant||"P1")===pl)}
 const invPreOf=pl=>pl?(plantBy(pl)||{}).pre||"":salesCfg().pre;
-const invNo=x=>x.oldNo?x.oldNo:`${x.pre!=null?x.pre:invPreOf(x.plant)}${x.no}/${x.fy}`;
+/* invoice and challan numbers are written like the old ERP and Tally: invoice J0304 (plant letter + 4 digits, no year), challan 0304.
+   The record keeps its plant, year and number, so the same number in another year stays a separate invoice.
+   An invoice registered for e-invoice keeps the number the portal has (irnNo); ones registered before this change keep their old form. */
+const pad4=n=>{const s=String(n??"").trim();return /^\d+$/.test(s)?s.padStart(4,"0"):s};
+const invPre=x=>x.pre!=null?x.pre:invPreOf(x.plant);
+const invStd=x=>{if(x.oldNo){const m=String(x.oldNo).trim().match(/^([A-Za-z]*)\s*\/?\s*(\d+)\s*(?:\/\s*\d{2}-\d{2})?$/);return m?m[1].toUpperCase()+pad4(m[2]):String(x.oldNo)}return invPre(x)+pad4(x.no)};
+const invLegacy=x=>x.oldNo?String(x.oldNo):`${invPre(x)}${x.no}/${x.fy}`;
+const invNo=x=>x.irnNo?x.irnNo:x.irn&&!x.old?invLegacy(x):invStd(x);
+/* every way an invoice number may have been written (search, matching uploaded e-invoice files) */
+const invNos=x=>[...new Set([invNo(x),invStd(x),invLegacy(x)])];
 /* invoices made before the prefix was stored: keep the prefix they were printed with (Plant 1 default was "ZT" then) */
 {let ch=0;const OLDP={P1:"ZT",P2:"J"};invoices.forEach(x=>{if(!x||x.oldNo||x.pre!=null)return;const m=((M.plants||[]).find(p=>p.id===x.plant)||{});x.pre=!x.plant?salesCfg().pre:m.pre!=null?String(m.pre):(OLDP[x.plant]??"");ch++});if(ch)store.set("invoices",invoices)}
 const sdNo=(t,x)=>t==="inv"?invNo(x):t==="so"?soLbl(x.no):dcLbl(x.no);
@@ -3800,7 +3809,7 @@ function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.n
 function sdFromDC(d){if(d.inv){const v=invoices.find(x=>sdId("inv",x)===d.inv);if(v){sdOpen("inv",v,false);toast(`Already billed on ${invNo(v)}`);return}}
   const s=sorders.find(x=>String(x.no)===String(d.so));
   sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,so:d.so||"",dc:[d.no],job:s?s.job||"":"",custPO:s?s.custPO:"",custPODate:s?s.custPODate:"",vehicle:d.vehicle,gst:s?s.gst:18,lines:d.lines.map(l=>({i:l.i,desc:l.desc,hsn:l.hsn,qty:+l.qty,unit:l.unit,rate:s&&l.i!=null&&s.lines[l.i]?s.lines[l.i].rate:l.rate}))}),true)}
-function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A0=(fillPrj(t,SD[t].arr().map(x=>x.job)),SD[t].arr()),A=byNew(A0.filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>lfOk(t,x.job,[sdNo(t,x),pcx(x.cust),x.custPO,x.job,x.so?"SO "+x.so:"",lineTxt(x.lines)],x)));
+function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A0=(fillPrj(t,SD[t].arr().map(x=>x.job)),SD[t].arr()),A=byNew(A0.filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>lfOk(t,x.job,[sdNo(t,x),...(t==="inv"?invNos(x).concat((x.dc||[]).map(dcLbl)):t==="dc"?[String(x.no)]:[]),pcx(x.cust),x.custPO,x.job,x.so?"SO "+x.so:"",lineTxt(x.lines)],x)));
   if(t==="inv"){const due=invoices.reduce((a,x)=>a+invDue(x),0),mo=today().slice(0,7),thisM=invoices.filter(x=>x.date.slice(0,7)===mo).reduce((a,x)=>a+invTot(x),0),od=invoices.filter(x=>invDue(x)>0.5&&x.date<addDays(today(),-60)).reduce((a,x)=>a+invDue(x),0);
     $("#inv-tiles").innerHTML=[{n:fmtL(thisM),t:"Billed this month",d:"Including GST"},{n:fmtL(due),t:"To collect",d:"Invoices not fully paid",zero:!due},{n:fmtL(od),t:"Over 60 days",d:"Follow up for payment",warn:od>0,zero:!od}].map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("")}
   const no=x=>`${t==="inv"?invNo(x):sdNo(t,x)}<small>${esc(plantName(x.plant))}</small>`,acts=x=>ltActs(`<button class="btn" type="button" data-sdopen="${esc(sdId(t,x))}">View</button>`,`<button class="btn pdf" type="button" data-sdpdf="${esc(sdId(t,x))}">PDF</button>`);
@@ -3895,7 +3904,7 @@ function sdDoc(t,x){if(t==="inv")return docTaxInvoice(x);const c=custByName(x.cu
   const to=`<div><b>${t==="inv"?"Bill to":"To"},</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${t==="inv"?`<br>Place of supply: ${c.gstin&&/^\d\d/.test(c.gstin)?c.gstin.slice(0,2):"27"}${intra?" Maharashtra":""}`:""}</div>`;
   const kv={so:[["Order No.",sdNo(t,x)],["Date",dmy(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dmy(x.custPODate):"-"],["Job No.",x.job||"-"],["Delivery",x.due?dmy(x.due):"-"]],
     dc:[["Challan No.",sdNo(t,x)],["Date",dmy(x.date)],["Our order",x.so?soLbl(x.so):"-"],["Vehicle No.",x.vehicle||"-"],["Transporter",x.transporter||"-"],["LR No.",x.lr||"-"]],
-    inv:[["Invoice No.",sdNo(t,x)],["Date",dmy(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dmy(x.custPODate):"-"],["Challan No.",x.dc&&x.dc.length?x.dc.map(dcLbl).join(", "):"-"],["Vehicle / E-way",[x.vehicle,x.eway].filter(Boolean).join(" / ")||"-"]]}[t];
+    inv:[["Invoice No.",sdNo(t,x)],["Date",dmy(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dmy(x.custPODate):"-"],["Challan No.",invChNo(x)],["Vehicle / E-way",[x.vehicle,x.eway].filter(Boolean).join(" / ")||"-"]]}[t];
   const sub=sdSub(x),fr=t==="inv"?(+x.freight||0):0,tx=(sub+fr),g=+x.gst||0,gst=tx*g/100,tot=t==="dc"?sub:tx+gst;
   const tax=t==="dc"?"":(fr?`<tr><td>Freight / packing</td><td class="amt">${fmt(fr)}</td></tr>`:"")+(g?(intra?`<tr><td>C-GST ${g/2}% On Amt : ${fmt(tx)}</td><td class="amt">${fmt(gst/2)}</td></tr><tr><td>S-GST ${g/2}% On Amt : ${fmt(tx)}</td><td class="amt">${fmt(gst/2)}</td></tr>`:`<tr><td>I-GST ${g}% On Amt : ${fmt(tx)}</td><td class="amt">${fmt(gst)}</td></tr>`):"");
   const terms=String(x.terms||"").split("\n").map(s=>s.trim()).filter(Boolean);
@@ -3990,7 +3999,7 @@ $("#irn-file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if
     const irn=g("irn"),no=g("docno","documentno","documentnumber","invoiceno","invoicenumber","docnum")||(o.DocDtls&&o.DocDtls.No)||"";if(irn&&String(irn).length>=60)found.push({no:String(no),irn:String(irn),ack:String(g("ackno","acknowledgementno","acknowledgementnumber")),ackDt:String(g("ackdt","ackdate","acknowledgementdate")),qr:String(g("signedqrcode","qrcode","signedqr"))})};
   const walk=v=>{if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==="object"){take(v);Object.values(v).forEach(x=>{if(x&&typeof x==="object")walk(x)})}};
   try{if(/\.json$/i.test(f.name))walk(JSON.parse(await f.text()));else{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});wb.SheetNames.forEach(sn=>walk(XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:"",raw:false})))}}catch(err){toast("Could not read that file");return}
-  let n=0;const miss=[];found.forEach(r=>{const v=invoices.find(x=>key(invNo(x))===key(r.no))||cnotes.find(x=>key(ntNo("cn",x))===key(r.no));if(!v){miss.push(r.no||"(no number)");return}v.irn=r.irn;if(r.ack)v.ackNo=r.ack;if(r.ackDt)v.ackDt=r.ackDt;if(r.qr)v.qr=r.qr;n++});
+  let n=0;const miss=[];found.forEach(r=>{const iv=invoices.find(x=>key(invNo(x))===key(r.no))||invoices.find(x=>invNos(x).some(n=>key(n)===key(r.no))),v=iv||cnotes.find(x=>key(ntNo("cn",x))===key(r.no));if(!v){miss.push(r.no||"(no number)");return}if(iv&&!iv.old&&r.no)iv.irnNo=String(r.no).trim();v.irn=r.irn;if(r.ack)v.ackNo=r.ack;if(r.ackDt)v.ackDt=r.ackDt;if(r.qr)v.qr=r.qr;n++});
   if(n){sdSave("inv");store.set("cnotes",cnotes)}renderSD("inv");toast(n?`IRN saved on ${n} invoice${n===1?"":"s"}${miss.length?`, ${miss.length} not matched`:""}`:found.length?`No invoice matched (${miss.slice(0,3).join(", ")})`:"No IRN found in that file")};
 /* ---------- e-invoice and e-way bill straight from the ERP (GSP API through /api/gst) ---------- */
 let GST=null;const GST_MODE_TXT={production:"Live GST portal",sandbox:"GST sandbox (test)",mock:"Built-in test (no portal)",preview:"Preview test (no portal)"};
@@ -4045,7 +4054,7 @@ async function gstGenIRN(kind,btn){const v=gstCurRec(kind);if(!v){toast("Save fi
   const g=await gstInit(),test=gstTest(g.mode);
   if(!confirm(`Register ${no} on the ${test?"TEST ":""}e-invoice system (${GST_MODE_TXT[g.mode]||g.mode})?\n\nAfter this the ${kind==="inv"?"invoice":"credit note"} is locked. It can be cancelled only within 24 hours${kind==="inv"?"; after that, use a credit note":""}.`))return;
   gstBusy(btn,true);try{const r=await gstApi("irn",{payload:kind==="inv"?einvJSON(v):einvNoteJSON(v)});
-    Object.assign(v,{irn:r.irn,ackNo:r.ackNo,ackDt:r.ackDt,qr:r.qr,irnMode:r.mode,irnBy:me.name});delete v.irnCnl;
+    Object.assign(v,{irn:r.irn,ackNo:r.ackNo,ackDt:r.ackDt,qr:r.qr,irnMode:r.mode,irnBy:me.name});if(kind==="inv")v.irnNo=no;delete v.irnCnl;
     if(r.ewbNo)Object.assign(v,{eway:r.ewbNo,ewbDt:r.ewbDt,ewbValidTill:r.ewbValidTill,ewbMode:r.mode});
     gstSaved(kind,v);toast(r.duplicate?`${no} already had an IRN on the portal; it is now saved here`:`IRN generated for ${no}`)}
   catch(e){gstBusy(btn,false);if(e.auth)return;alert(`Could not generate the IRN for ${no}:\n\n${e.message}`)}}
@@ -4060,7 +4069,7 @@ async function gstCancelIRN(kind,btn){const v=gstCurRec(kind);if(!v||!v.irn)retu
   catch(e){gstBusy(btn,false);if(e.auth)return;alert("Could not cancel the IRN:\n\n"+e.message)}}
 function gstClear(kind){const v=gstCurRec(kind);if(!v||!gstTest(v.irnMode))return;
   if(!confirm("Clear this TEST IRN (and any test e-way bill) so the document can be edited and registered for real?"))return;
-  if(v.irnCnl)delete v.cancelled;["irn","ackNo","ackDt","qr","irnMode","irnBy","irnCnl"].forEach(k=>delete v[k]);
+  if(v.irnCnl)delete v.cancelled;["irn","irnNo","ackNo","ackDt","qr","irnMode","irnBy","irnCnl"].forEach(k=>delete v[k]);
   if(gstTest(v.ewbMode)||v.ewbCnl)["eway","ewbDt","ewbValidTill","ewbMode","ewbCnl"].forEach(k=>delete v[k]);gstSaved(kind,v);toast("Test IRN cleared")}
 function gstEwbDlg(btn){const v=gstCurRec("inv");if(!v||!v.irn)return;if(gstDirty("inv",v)){toast("Save your changes first");return}
   const d=document.createElement("div");d.className="modal";
@@ -4099,7 +4108,7 @@ function docTaxInvoice(x){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.c
   <div class="tihead"><b>ORIGINAL FOR RECIPIENT</b><span>(U/s 31 of CGST Act &amp; SGST Act R.W. Sec. 20 of IGST Act)</span><b class="tibox">GST Tax Invoice</b></div>
   <table class="ti"><tr><td><b>GSTIN :</b> ${COMPANY.gstin}</td><td><b>W.E.F.</b> 01/07/2017</td><td><b>State Code :</b> 27 Maharashtra</td><td><b>PAN No.</b> ${COMPANY.pan}</td></tr>
   ${einvRow(x,4)}
-  <tr><td colspan="2"><b>Invoice No. :</b> ${esc(invNo(x))} &nbsp;&nbsp; <b>Date :</b> ${dmy(x.date)}</td><td colspan="2"><b>Challan No. :</b> ${esc(dcs.map(d=>d.no).join(", ")||"-")} &nbsp;&nbsp; <b>Date :</b> ${dcs[0]?dmy(dcs[0].date):""}</td></tr>
+  <tr><td colspan="2"><b>Invoice No. :</b> ${esc(invNo(x))} &nbsp;&nbsp; <b>Date :</b> ${dmy(x.date)}</td><td colspan="2"><b>Challan No. :</b> ${esc(invChNo(x,dcs))} &nbsp;&nbsp; <b>Date :</b> ${dmy(dcs[0]?dcs[0].date:x.date)}</td></tr>
   <tr><td colspan="2"><b>P.O. No. :</b> ${esc(x.custPO||"")} &nbsp;&nbsp; <b>Date :</b> ${x.custPODate?dmy(x.custPODate):""}<br><b>Your Challan No. :</b> ${esc(x.custDC||"")} &nbsp;&nbsp; <b>Date :</b> ${x.custDCDate?dmy(x.custDCDate):""}<br><b>Delivery :</b> ${esc(x.delivery||"")}</td>
   <td colspan="2"><b>Pay. Terms :</b> ${+x.payDays||0} Days &nbsp; Due On : ${dmy(due)}<br>${x.vehicle||x.eway?`<b>Vehicle :</b> ${esc(x.vehicle||"")} &nbsp; <b>E-way Bill :</b> ${esc(x.eway||"")}<br>`:""}<b>Kind Attn :</b> ${esc(x.attn||[c.contact,c.phone?"Mob.No."+c.phone:""].filter(Boolean).join(" "))}</td></tr>
   <tr><td colspan="2">${party(c,"Buyer")}</td><td colspan="2">${party(sh,"Consignee")}</td></tr>
@@ -4117,6 +4126,9 @@ const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().sli
 let dnotes=store.get("dnotes",[]),cnotes=store.get("cnotes",[]);
 const DN_WHY=["Rejected at GRN","Returned after acceptance","Rate difference","Short supply","Other"],CN_WHY=["Sales return","Rate difference","Discount after sale","Short supply","Other"];
 const NT={dn:{coll:"dnotes",arr:()=>dnotes,title:"DEBIT NOTE",name:"Debit note"},cn:{coll:"cnotes",arr:()=>cnotes,title:"CREDIT NOTE",name:"Credit note"}};
+/* challan No. printed on an invoice: its delivery challans, or (no challan made, as in the old ERP) the invoice's own 4-digit number */
+const invChNo=(x,dcs)=>{dcs=dcs||(x.dc||[]).map(n=>dchallans.find(d=>String(d.no)===String(n))).filter(Boolean);return dcs.length?dcs.map(d=>dcLbl(d.no)).join(", "):x.dc&&x.dc.length?x.dc.map(dcLbl).join(", "):invChOwn(x)};
+const invChOwn=x=>{const m=invStd(x).match(/(\d+)$/);return m?m[1]:"-"};
 const ntNo=(t,x)=>t==="dn"?`DN-${x.no}`:`CN${x.no}/${x.fy}`;
 const ntId=(t,x)=>t==="dn"?String(x.no):x.fy+"-"+x.no;
 const ntIntra=(t,x)=>t==="cn"?isIntra(x.party):((suppliers.find(s=>key(s.name)===key(x.party))||{}).state||"27")==="27";
@@ -4256,7 +4268,7 @@ function renderPlants(){const P=$("#plantPanel");if(!P)return;const L=plants(),a
   P.innerHTML=`<h2 class="sec">Plants</h2><div class="note">Each purchase and sales document belongs to one plant. The plant's address prints on the document, and tax invoices and quotations are numbered separately per plant, each with its own prefix (both plants share one GSTIN). Invoice numbers start again each financial year and continue after the highest old-ERP invoice imported for that plant (or the last number typed here, if higher). A new user starts in their own plant (Users and rights); the plant can still be changed on the form until the document is saved. Changing a prefix here applies to new documents only; saved ones keep the number they were given.</div>
   ${(()=>{const dup=(f,n)=>{const v=L.map(p=>String(p[f]||"").trim().toUpperCase());return v.length>1&&new Set(v).size<v.length?n:""};const w=[dup("pre","invoice"),dup("qpre","quotation")].filter(Boolean);return w.length?`<div class="note" style="color:var(--danger)">Both plants have the same ${w.join(" and ")} prefix, so their numbers would look alike. Give each plant its own prefix.</div>`:""})()}
   <div class="tablebox"><table class="mt" style="min-width:1300px"><thead><tr><th>Plant</th><th>Short name</th><th>Invoice prefix</th><th>Last invoice No. (this year, old ERP)</th><th>Next invoice</th><th>Quotation prefix</th><th>Last quotation No. (old ERP)</th><th>Next quotation</th><th>Address line 1</th><th>Address line 2</th><th>City</th><th>PIN</th></tr></thead><tbody>${L.map(p=>{const inp=([f,w])=>`<td><input id="pl-${p.id}-${f}" data-pl="${p.id}" data-pf="${f}" value="${esc(p[f]??"")}" style="width:${w}px"${ad?"":" disabled"}></td>`;
-    return`<tr>${[["name",200],["short",110],["pre",70],["lastNo",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(invPreOf(p.id))}${nextInvNo(fyOf(today()),p.id)}/${fyOf(today())}</td>${[["qpre",70],["qLast",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(qtPreOf(p.id))}${nextDealNo(p.id)}</td>${[["addr1",260],["addr2",180],["loc",80],["pin",80]].map(inp).join("")}</tr>`}).join("")}</tbody></table></div>`}
+    return`<tr>${[["name",200],["short",110],["pre",70],["lastNo",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(invPreOf(p.id)+pad4(nextInvNo(fyOf(today()),p.id)))}</td>${[["qpre",70],["qLast",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(qtPreOf(p.id))}${nextDealNo(p.id)}</td>${[["addr1",260],["addr2",180],["loc",80],["pin",80]].map(inp).join("")}</tr>`}).join("")}</tbody></table></div>`}
 $("#plantPanel").addEventListener("change",e=>{const id=e.target.dataset.pl,f=e.target.dataset.pf;if(!id||!f)return;const m=(M.plants||[]).slice();let o=m.find(x=>x.id===id);if(!o){o={id};m.push(o)}o[f]=e.target.value.trim();M.plants=m;saveM();renderPlants();fillPlantSels();toast("Saved")});
 /* ---------- opening bills from the old ERP (unpaid on the start date) ---------- */
 const OB_FIELDS=[["party","Party",["partyname","partysname","customername","suppliername","vendorname","ledgername","nameofledger","accountname","name","party","customer","supplier","vendor","account","particulars"]],
@@ -4507,7 +4519,7 @@ const IMP_LIST=[
   ["obs","Suppliers' unpaid bills","Outstanding payables on the start date, same columns as customers' bills.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
   ["opo","Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["ogrn","Old GRNs","One row per GRN line: GRN no., date, supplier, supplier invoice no., PO no., item, qty, unit, rate, GST %. Kept as history: they do not add stock, do not add to vendor dues, and do not change PO received qty.","Excel (.xlsx, .xls), CSV, PDF","PO"],
-  ["oinv","Old sales invoices","One row per invoice line: invoice no. (e.g. Z0001/26-27), date, customer, customer PO, item, HSN, qty, unit, rate, discount %, GST %. Kept as history: they show in invoice lists, sales figures and registers, not in amounts to collect.","Excel (.xlsx, .xls), CSV, PDF","PO"],
+  ["oinv","Old sales invoices","One row per invoice line: invoice no. (e.g. Z0001 or Z0001/26-27), date, customer, customer PO, item, HSN, qty, unit, rate, discount %, GST %. Kept as history: they show in invoice lists, sales figures and registers, not in amounts to collect.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["bank","Bank statement","Statement downloaded from net banking. Lines are matched to the bills above in Accounts.","Excel (.xlsx), CSV","Acct"],
   ["restore","Full backup","A ZT-ERP LITE backup file (Home > Backup). Replaces everything.","Backup file (.xlsx)","Admin"]];
 const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN","PAN","Address","City","PIN","State code","Contact person","Phone","Email"],["ABC Engineering Pvt Ltd","Sundry Debtors","27ABCDE1234F1Z5","ABCDE1234F","Plot 12, MIDC","Pune","411019","27","Mr. Patil","9800000000","accounts@abc.in"],["Shree Steels","Sundry Creditors","27AAAAA0000A1Z5","","Bhosari","Pune","411026","27","","",""]]),
