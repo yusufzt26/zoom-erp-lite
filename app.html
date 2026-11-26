@@ -519,7 +519,10 @@ body.gated header.bar,body.gated main{display:none}
 
 <!-- APPROVALS -->
 <section id="view-appr" class="stack" hidden>
-  <div class="panel stack"><h2 class="sec">Waiting for your approval</h2><div id="apprList"></div></div>
+  <div class="panel stack"><h2 class="sec">Waiting for your approval</h2>
+    <div class="row" id="apprBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="appr-all" style="width:18px;height:18px"> Select all</label><span class="note" id="appr-seln">Tick POs to approve them together.</span><span style="flex:1"></span><button class="btn primary" id="btn-appr-bulk" disabled>Approve selected</button></div>
+    <div class="banner stack" id="apprBulkAsk" hidden><b id="appr-ask-t"></b><span class="note" id="appr-ask-n"></span><div class="row"><span style="flex:1"></span><button class="btn" id="btn-appr-no">Cancel</button><button class="btn primary" id="btn-appr-yes">Yes, approve and sign</button></div></div>
+    <div id="apprList"></div></div>
   <div class="panel stack"><h2 class="sec">Recently decided</h2><div id="apprDone"></div></div>
 </section>
 
@@ -1278,9 +1281,39 @@ function renderSaved(){
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
   const pend=saved.filter(s=>s.status==="Pending approval"),done=saved.filter(s=>["Approved","Sent back"].includes(s.status)).slice(0,10);
-  $("#apprList").innerHTML=pend.length?pend.map(apprRow).join(""):`<div class="empty">Nothing is waiting for approval.</div>`;
+  const bulk=canBulkAppr()&&pend.length>0;$("#apprBulk").hidden=!bulk;
+  $("#apprList").innerHTML=pend.length?pend.map(s=>bulk?apprRow(s).replace(`<b style="font-family:var(--mono)">`,`<b style="font-family:var(--mono)"><label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-bsel="${esc(s.no)}" style="width:18px;height:18px"${apprSel.has(String(s.no))?" checked":""}>`).replace(`</b>`,`</label></b>`):apprRow(s)).join(""):`<div class="empty">Nothing is waiting for approval.</div>`;
+  apprSelSync();
   $("#apprDone").innerHTML=done.length?done.map(apprRow).join(""):`<div class="empty">No decisions yet.</div>`;
 }
+/* bulk approval: Director and Admin can tick several pending POs and approve them in one go */
+const apprSel=new Set();
+const canBulkAppr=()=>isRole("Director","Approver","Admin")&&has("po.approve");
+function apprPend(){return saved.filter(s=>s.status==="Pending approval")}
+function apprSelSync(){
+  const P=apprPend(),ids=new Set(P.map(s=>String(s.no)));[...apprSel].forEach(n=>{if(!ids.has(n))apprSel.delete(n)});
+  const n=apprSel.size,tot=P.filter(s=>apprSel.has(String(s.no))).reduce((a,s)=>a+(+s.total||0),0);
+  $("#appr-all").checked=n>0&&n===P.length;$("#appr-all").indeterminate=n>0&&n<P.length;
+  $("#appr-seln").textContent=n?`${n} of ${P.length} selected · ₹ ${fmt(tot)}`:"Tick POs to approve them together.";
+  $("#btn-appr-bulk").disabled=!n;if(!n)$("#apprBulkAsk").hidden=true;$("#btn-appr-bulk").textContent=n?`Approve selected (${n})`:"Approve selected";
+}
+$("#apprList").addEventListener("change",e=>{const n=e.target.dataset.bsel;if(n==null)return;if(e.target.checked)apprSel.add(n);else apprSel.delete(n);apprSelSync()});
+$("#appr-all").addEventListener("change",e=>{apprSel.clear();if(e.target.checked)apprPend().forEach(s=>apprSel.add(String(s.no)));renderAppr()});
+$("#btn-appr-bulk").onclick=()=>{
+  if(!canBulkAppr())return;const L=apprPend().filter(s=>apprSel.has(String(s.no)));if(!L.length){toast("Tick at least one PO first");return}
+  const tot=L.reduce((a,s)=>a+(+s.total||0),0);
+  $("#appr-ask-t").textContent=`Approve and sign ${L.length} PO${L.length>1?"s":""} (₹ ${fmt(tot)})?`;
+  $("#appr-ask-n").textContent=`PO ${L.map(s=>s.no).join(", ")}.`+(me.sig?"":` No signature is uploaded for ${me.name}, so these POs will print without a signature.`);
+  $("#apprBulkAsk").hidden=false;$("#btn-appr-yes").focus()};
+$("#btn-appr-no").onclick=()=>{$("#apprBulkAsk").hidden=true};
+$("#btn-appr-yes").onclick=()=>{
+  $("#apprBulkAsk").hidden=true;if(!canBulkAppr())return;const L=apprPend().filter(s=>apprSel.has(String(s.no)));if(!L.length)return;
+  const keep=po;let reqsTouched=false;
+  L.forEach(s=>{po=JSON.parse(JSON.stringify(s));po.approvedBy=me.name;po.approvedAt=today();po.sig=me.sig||"";recordPO("Approved","Approved","Approved with other POs in one go");
+    if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO approved";reqsTouched=true}}});
+  if(reqsTouched)saveReqs();
+  po=keep&&L.some(x=>String(x.no)===String(keep.no))?JSON.parse(JSON.stringify(saved.find(x=>String(x.no)===String(keep.no)))):keep;store.set("po",po);
+  apprSel.clear();renderAppr();renderBadges();toast(`${L.length} PO${L.length>1?"s":""} approved and signed`)};
 ["#apprList","#apprDone"].forEach(id=>$(id).addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}}));
 $("#saved-q").addEventListener("input",renderSaved);
 $("#savedList").addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}});
