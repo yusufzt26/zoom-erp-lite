@@ -868,7 +868,7 @@ function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.r
     rs.forEach(r=>cloud.shadow[k][r.id]=JSON.stringify(r.data))})}
 cloud.get=(k,d)=>{const v=cloud.cache[k];if(v!=null)return v;const S=SYNC[k];const e=S.doc?d:S.map?{}:[];cloud.cache[k]=e;return e};
 cloud.set=(k,v)=>{cloud.cache[k]=v;const f=cloudFlat(k,v),sh=cloud.shadow[k]||(cloud.shadow[k]={});
-  Object.keys(f).forEach(id=>{const s=JSON.stringify(f[id]);if(sh[id]!==s){cloud.pending.set(k+"\u0001"+id,{coll:k,id,data:f[id],isNew:SYNC[k].renum&&!(id in sh)});sh[id]=s}});
+  Object.keys(f).forEach(id=>{const s=JSON.stringify(f[id]);if(sh[id]!==s){cloud.pending.set(k+"\u0001"+id,{coll:k,id,data:f[id],isNew:SYNC[k].renum&&!(id in sh)&&!(f[id]&&f[id].old)});sh[id]=s}});
   Object.keys(sh).forEach(id=>{if(!(id in f)){cloud.pending.set(k+"\u0001"+id,{coll:k,id,deleted:true});delete sh[id]}});
   if(cloud.pending.size)cloudSoon(400)};
 function cloudSoon(ms){clearTimeout(cloud.timer);cloud.timer=setTimeout(cloudFlush,ms)}
@@ -877,7 +877,7 @@ async function api(path,opts={}){const r=await fetch("/api/"+path,{method:opts.m
   if(r.status===401){cloudExpired();throw Object.assign(new Error("auth"),{auth:true})}const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||"Server error"),{status:r.status});return j}
 function cloudExpired(){if(cloudExpired.done)return;cloudExpired.done=true;try{localStorage.removeItem("zpo:token")}catch(e){}alert("Your login has expired. Please log in again.");location.reload()}
 async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pending.size){cloudBadge("ok");return}
-  cloud.busy=true;cloudBadge("saving");const batch=[...cloud.pending.values()].slice(0,500);batch.forEach(c=>cloud.pending.delete(c.coll+"\u0001"+c.id));
+  cloud.busy=true;cloudBadge("saving");if(cloud.pending.size>500){const el=$("#syncState");if(el)el.textContent=`Saving… ${cloud.pending.size} left, keep this page open`}const batch=[...cloud.pending.values()].slice(0,500);batch.forEach(c=>cloud.pending.delete(c.coll+"\u0001"+c.id));
   try{const res=await api("sync",{method:"POST",body:{changes:batch}});const confl=[],errs=[];
     res.results.forEach((x,i)=>{if(x.conflict)confl.push(batch[i]);else if(x.error)errs.push(x.error)});
     if(errs.length)toast(errs[0]);
