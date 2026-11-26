@@ -5,8 +5,9 @@ import nodemailer from "nodemailer";
 import Anthropic from "@anthropic-ai/sdk";
 import { gstCall, gstStatus } from "../gst/gsp.mjs";
 import { allotPartyCodes } from "../codes.mjs";
+import { tallyRecords, tallyDiff } from "../tally.mjs";
 
-const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "costing", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins"]);
+const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "costing", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins", "tallymap"]);
 const SESSION_DAYS = 30;
 let db;
 const pool = () => (db = db || getDatabase(process.env.ZPO_DB_URL ? { connectionString: process.env.ZPO_DB_URL } : {})).pool;
@@ -126,7 +127,7 @@ async function scanDoc(b) {
 async function body(req) { try { return await req.json(); } catch { return {}; } }
 
 // ---------- Restore to an earlier date (Admin and Director) ----------
-const COLL_WORDS = { reqs: "purchase requests", saved: "POs", grns: "GRNs", pays: "payments", rgps: "returnable challans", slips: "issue slips", deletedPOs: "deleted-PO log", suppliers: "suppliers", rates: "rates", bins: "stock bins", masters: "masters and settings", costing: "rates and costing", items: "items", customers: "customers", deals: "RFQs and quotations", fups: "follow-ups", sorders: "sales orders", dchallans: "delivery challans", invoices: "sales invoices", jobs: "jobs", dnotes: "debit notes", cnotes: "credit notes", obills: "opening bills", bank: "bank statement lines", jwins: "job work inward" };
+const COLL_WORDS = { reqs: "purchase requests", saved: "POs", grns: "GRNs", pays: "payments", rgps: "returnable challans", slips: "issue slips", deletedPOs: "deleted-PO log", suppliers: "suppliers", rates: "rates", bins: "stock bins", masters: "masters and settings", costing: "rates and costing", items: "items", customers: "customers", deals: "RFQs and quotations", fups: "follow-ups", sorders: "sales orders", dchallans: "delivery challans", invoices: "sales invoices", jobs: "jobs", dnotes: "debit notes", cnotes: "credit notes", obills: "opening bills", bank: "bank statement lines", jwins: "job work inward" , tallymap: "Tally ledger links"};
 async function canRestore(me) { if (await isAdmin(me)) return true; const u = await profile(me); return !!u && ["Director", "Approver"].includes(u.role); }
 const topRev = async (c = { query: (t, p) => pool().query(t, p) }) => Number((await c.query("SELECT COALESCE(MAX(rev),0)::bigint AS r FROM records")).rows[0].r);
 async function startRev() { const r = await q("SELECT rev FROM restore_points WHERE kind='start' ORDER BY pid LIMIT 1"); return r[0] ? Number(r[0].rev) : 0; }
@@ -197,6 +198,52 @@ async function restoreApi(me, m, url, req) {
   } catch (e) { await c.query("ROLLBACK").catch(() => {}); throw e; } finally { c.release(); }
 }
 
+
+// ---------- Tally sync (read-only copy of Tally, sent by the sync program on the accounts PC) ----------
+async function syncKey(req) {
+  const k = String(req.headers.get("x-sync-key") || "").trim(); if (!k || k.length > 200) return null;
+  const r = await q("UPDATE sync_keys SET last_used_at=NOW(), last_pc=$2 WHERE key_hash=$1 AND NOT revoked RETURNING id,label", [sha(k), String(req.headers.get("x-sync-pc") || "").slice(0, 80)]);
+  return r[0] || null;
+}
+async function tallyPush(b, label) {
+  const { status, recs, okCos } = tallyRecords(b, label);
+  const c = await pool().connect();
+  try {
+    await c.query("BEGIN"); await c.query("SELECT pg_advisory_xact_lock(hashtext('tally'))");
+    const ex = (await c.query("SELECT id,data FROM records WHERE coll='tally' AND NOT deleted")).rows;
+    const { write, del } = tallyDiff(ex, recs, okCos);
+    const by = "Tally sync" + (status.pc ? " (" + status.pc + ")" : "");
+    for (let i = 0; i < write.length; i += 2000) {
+      await c.query(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by)
+        SELECT 'tally',x.id,x.data,FALSE,nextval('rev_seq'),currval('rev_seq'),$2 FROM jsonb_to_recordset($1::jsonb) AS x(id text,data jsonb)
+        ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by`), [JSON.stringify(write.slice(i, i + 2000)), by]);
+    }
+    for (let i = 0; i < del.length; i += 2000) {
+      await c.query(HIST("UPDATE records SET data=NULL,deleted=TRUE,rev=nextval('rev_seq'),updated_at=NOW(),updated_by=$2 WHERE coll='tally' AND id=ANY($1::text[])"), [del.slice(i, i + 2000), by]);
+    }
+    status.changed = write.length; status.removed = del.length;
+    await c.query(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by) VALUES('tally','status',$1,FALSE,nextval('rev_seq'),currval('rev_seq'),$2)
+      ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by`), [JSON.stringify(status), by]);
+    await c.query("COMMIT");
+    return { ok: true, changed: write.length, removed: del.length, at: status.at };
+  } catch (e) { await c.query("ROLLBACK").catch(() => {}); throw e; } finally { c.release(); }
+}
+async function tallyKeyApi(me, m, req) {
+  if (!(await isAdmin(me))) return json({ error: "Only the Admin can make or stop Tally sync keys" }, 403);
+  const list = async () => (await q("SELECT id,label,created_by,created_at,last_used_at,last_pc,revoked FROM sync_keys ORDER BY id DESC LIMIT 50")).map((r) => ({ ...r, id: Number(r.id) }));
+  if (m === "GET") return json({ keys: await list() });
+  const b = await body(req); const action = String(b.action || "");
+  if (action === "new") {
+    const n = await q("SELECT COUNT(*)::int AS n FROM sync_keys WHERE NOT revoked"); if (n[0].n >= 5) return json({ error: "There are already 5 working keys. Stop one you do not use first." }, 400);
+    const label = String(b.label || "").trim().slice(0, 80) || "Accounts PC";
+    const secret = randomBytes(24).toString("base64url");
+    await q("INSERT INTO sync_keys(key_hash,label,created_by) VALUES($1,$2,$3)", [sha(secret), label, me]);
+    return json({ ok: true, secret, keys: await list() });
+  }
+  if (action === "revoke") { await q("UPDATE sync_keys SET revoked=TRUE WHERE id=$1", [Number(b.id) || 0]); return json({ ok: true, keys: await list() }); }
+  return json({ error: "Unknown action" }, 400);
+}
+
 export default async (req) => {
   const url = new URL(req.url); const path = url.pathname.replace(/^\/api\/?/, "").replace(/\/$/, ""); const m = req.method;
   try {
@@ -250,6 +297,15 @@ export default async (req) => {
       const r = await q("SELECT name,pass_hash,active FROM logins WHERE lower(name)=lower($1)", [n]);
       if (!r[0] || !r[0].active || !checkPass(String(password || ""), r[0].pass_hash)) { await new Promise((s) => setTimeout(s, 600)); return json({ error: "Wrong name or password" }, 401); }
       return json({ token: await newSession(r[0].name), name: r[0].name });
+    }
+
+    // Tally sync program (accounts PC): signs in with its own sync key, not a user login. It can only write the read-only Tally copy.
+    if ((path === "tally/push" || path === "tally/ping") && m === "POST") {
+      const k = await syncKey(req);
+      if (!k) { await new Promise((s) => setTimeout(s, 600)); return json({ error: "This sync key is not valid (wrong, or stopped by the Admin). Make a new key in ZT-ERP LITE > Tally sync > Setup." }, 401); }
+      if (path === "tally/ping") return json({ ok: true, label: k.label });
+      const b = await body(req); if (!b || !Array.isArray(b.companies)) return json({ error: "Bad request" }, 400);
+      return json(await tallyPush(b, k.label));
     }
 
     const me = await auth(req);
@@ -379,6 +435,8 @@ export default async (req) => {
         return json({ error: e.status ? e.message : "GST portal: " + (e.name === "TimeoutError" ? "no answer in time. Try again in a minute." : e.message), code: e.code || "", noSetup: !!e.noSetup }, st);
       }
     }
+
+    if (path === "tally/key" && (m === "GET" || m === "POST")) return await tallyKeyApi(me, m, req);
 
     if (path === "restore" && (m === "GET" || m === "POST")) {
       try { return await restoreApi(me, m, url, req); } catch (e) { if (e.status) return json({ error: e.message }, e.status); throw e; }
