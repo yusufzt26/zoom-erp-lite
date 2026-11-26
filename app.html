@@ -933,7 +933,7 @@ function perRange(v){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),p=n=>String
   const mon=addDays(t,-((new Date(t+"T00:00:00Z").getUTCDay()+6)%7));
   return{d1:[t,t],wk:[mon,addDays(mon,6)],w1:[addDays(t,-6),t],m1:[addDays(t,-29),t],tm:[t.slice(0,7)+"-01",t],lm:(()=>{const ly=m===1?y-1:y,lmm=m===1?12:m-1;return[`${ly}-${p(lmm)}-01`,`${ly}-${p(lmm)}-31`]})(),fy:[`${fy}-04-01`,`${fy+1}-03-31`],ly:[`${fy-1}-04-01`,`${fy}-03-31`]}[v]}
 const perOf=k=>{const el=$("#per-"+k);return el?el.value:"all"};
-const inPer=(d,k)=>{const v=perOf(k);if(v==="all")return true;const r=perRange(v),x=String(d||"").slice(0,10);return!!x&&x>=r[0]&&x<=r[1]};
+const inPer=(d,k)=>{const v=perOf(k);if(v==="all")return true;const r=perRange(v),x=sortDay(d);return!!x&&x>=r[0]&&x<=r[1]};
 document.querySelectorAll("select.per").forEach(el=>{el.innerHTML=PERIODS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");el.addEventListener("change",()=>{const k=el.id.slice(4);
   ({saved:renderSaved,so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv"),cn:()=>renderNotes("cn"),dn:()=>renderNotes("dn"),req:renderReqList,grn:renderGRN,gpo:renderGRN,appr:renderAppr})[k]()})});
 /* search box and project picker on document lists: every typed word must appear somewhere (3 letters is usually enough) */
@@ -1021,7 +1021,7 @@ function fillPlDep(k){const opt=(el,all,L)=>{if(!el)return;const v=el.value,h=`<
 document.querySelectorAll("select.prj").forEach(el=>{const k=el.id.slice(4);el.insertAdjacentHTML("afterend",`<select class="pl" id="pl-${k}" aria-label="Plant" style="width:auto"></select>`+(LF_DEPT.includes(k)?`<select class="dep" id="dep-${k}" aria-label="Department" style="width:auto"></select>`:""))});
 const LF_RENDER={req:()=>renderReqList(),saved:()=>renderSaved(),appr:()=>renderAppr(),gpo:()=>renderGRN(),grn:()=>renderGRN(),so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv")};
 Object.entries(LF_RENDER).forEach(([k,f])=>{const q=$("#"+k+"-q");if(q&&q.classList.contains("lq"))q.addEventListener("input",f);["prj","pl","dep"].forEach(x=>{const el=$(`#${x}-${k}`);if(el)el.addEventListener("change",f)})});
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>{const d=new Date(),p=n=>String(n).padStart(2,"0");return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`};
 const dmy=iso=>{if(!iso)return"";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2200)}
@@ -2965,7 +2965,7 @@ function vendSummary(){const m={};grns.filter(g=>g.status!=="With accounts"&&!g.
   const d=dueDate(g);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});
   [...new Set(pays.filter(p=>p.adv).map(p=>String(p.po)))].forEach(po=>{const p=pays.find(x=>x.adv&&String(x.po)===po),left=poAdvLeft(po);if(left<=0.004)return;const v=m[p.sup]||(m[p.sup]={sup:p.sup,booked:0,paid:0,overdue:0,due7:0});v.paid+=left});
   obills.filter(o=>o.kind==="sup").forEach(o=>{const v=m[o.party]||(m[o.party]={sup:o.party,booked:0,paid:0,overdue:0,due7:0});const b=obBal(o);v.booked+=+o.amt||0;v.paid+=obPaid(o);const d=obDue(o);if(b>0&&d){if(d<today())v.overdue+=b;else if(d<=addDays(today(),7))v.due7+=b}});return Object.values(m)}
-function addDays(iso,n){const t=new Date(iso);t.setDate(t.getDate()+n);return t.toISOString().slice(0,10)}
+function addDays(iso,n){const t=new Date(String(iso).slice(0,10)+"T00:00:00Z");if(isNaN(t))return"";t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)}
 function payChip(p){const gs=grns.filter(g=>String(g.poNo)===String(p.no)&&g.status!=="With accounts");if(!gs.length)return"";const bal=gs.reduce((a,g)=>a+grnBal(g),0),tot=gs.reduce((a,g)=>a+grnCalc(g).total,0);
   return" "+(bal<=0.004?`<span class="chip st-PO">Paid</span>`:bal<tot-0.004?`<span class="chip st-Submitted">Part paid</span>`:`<span class="chip st-Draft">Unpaid</span>`)}
 function closePOs(){saved.forEach(p=>{if(p.status==="Approved"&&p.recv==="Fully received"){const gs=grns.filter(g=>String(g.poNo)===String(p.no));if(gs.length&&gs.every(g=>g.status==="Paid")){p.closed=true;p.recv="Closed";poReqs(p).forEach(r=>{if(reqDone(r)){r.status="Closed";saveReqs()}})}}});store.set("saved",saved)}
@@ -4865,7 +4865,7 @@ const DASH_PER=[["3","Last 3 months"],["6","Last 6 months"],["12","Last 12 month
 let dashPer=(()=>{try{return localStorage.getItem("zpo:dashPer")||"6"}catch(e){return"6"}})(),dashUser="",dashTab="";
 const isBoss=()=>isRole("Admin")||isRole("Director")||has("users.edit");
 const hasU=(u,r)=>{const s=rightsOf(u);return s.includes(r)||(ALIAS[r]||[]).some(x=>s.includes(x))};
-const d10=s=>String(s||"").slice(0,10),m7=s=>String(s||"").slice(0,7);
+const d10=s=>sortDay(s),m7=s=>sortDay(s).slice(0,7);
 const sameName=(a,b)=>!!a&&!!b&&key(String(a).replace(/\s*\(.*\)$/,""))===key(b);
 function dashMonths(){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7);let n=+dashPer||6;if(dashPer==="fy"){const fs=m>=4?y:y-1;n=(y-fs)*12+m-3}
   const out=[];for(let i=n-1;i>=0;i--)out.push(new Date(Date.UTC(y,m-1-i,1)).toISOString().slice(0,7));return out}
