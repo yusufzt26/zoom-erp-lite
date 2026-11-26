@@ -775,8 +775,8 @@ function zpoMain(BOOT){
 try{document.getElementById("brandLogo").src=window.ZT_LOGO}catch(e){}
 const COMPANY={name:"ZOOM TECHNOLOGIES",addr:"Gat No 669 and 670, Industrial Estate, Wadacha Mala, Jadhavwadi, Chikhali - Pune - 411062",contact:"Mob: 70309 53792 / 9967023983   Email: sales@zoomtechnologies.net",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala,",addr2:"Jadhavwadi, Chikhali, Pune - 411062",mob:"Mob: 70309 53792 / 99670 23983",email:"Email: sales@zoomtechnologies.net",gstin:"27AMAPD1813A1Z0",state:"State Code : 27 Maharashtra",pan:"AMAPD1813A"};
 /* plants */
-const PLANT_DEF=[{id:"P1",name:"Plant 1 - Talwade",short:"Talwade",pre:"ZT",lastNo:"",addr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",addr2:"Jyotiba Nagar, Talwade",loc:"PUNE",pin:"412114",ph:"7030953792"},
-  {id:"P2",name:"Plant 2 - Jadhavwadi",short:"Jadhavwadi",pre:"J",lastNo:"",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala",addr2:"Jadhavwadi, Chikhali",loc:"PUNE",pin:"411062",ph:"7030953792"}];
+const PLANT_DEF=[{id:"P1",name:"Plant 1 - Talwade",short:"Talwade",pre:"Z",lastNo:"",qpre:"QT-",qLast:"",addr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",addr2:"Jyotiba Nagar, Talwade",loc:"PUNE",pin:"412114",ph:"7030953792"},
+  {id:"P2",name:"Plant 2 - Jadhavwadi",short:"Jadhavwadi",pre:"J",lastNo:"",qpre:"JQT-",qLast:"",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala",addr2:"Jadhavwadi, Chikhali",loc:"PUNE",pin:"411062",ph:"7030953792"}];
 const plants=()=>{let m=[];try{m=(M&&M.plants)||[]}catch(e){}return PLANT_DEF.map(d=>Object.assign({},d,m.find(x=>x.id===d.id)||{}))};
 const plantBy=id=>plants().find(p=>p.id===id)||null;
 const plantName=id=>(plantBy(id||"P1")||{}).short||"";
@@ -797,7 +797,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},jwins:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},costing:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},costing:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>d.ps&&d.plant&&d.plant!=="P1"?d.plant+"-"+d.no:String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -824,9 +824,9 @@ async function cloudFlush(){if(cloud.busy){cloudSoon(500);return}if(!cloud.pendi
     await cloudPull();cloudBadge(cloud.pending.size?"saving":errs.length?"error":"ok");if(cloud.pending.size)cloudSoon(200);
   }catch(e){cloud.busy=false;if(e.auth)return;batch.forEach(c=>{const kk=c.coll+"\u0001"+c.id;if(!cloud.pending.has(kk))cloud.pending.set(kk,c)});cloudBadge("offline");cloudSoon(15000)}}
 async function cloudRenumber(list){
-  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,jwins:()=>nextJW(),pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>nextDealNo(),sorders:()=>nextSO(),dchallans:()=>nextDC(),dnotes:()=>nextDN()};
+  const nexts={saved:()=>nextPONo(),reqs:()=>nextReqNo(),grns:()=>nextGRN(),rgps:()=>Math.max(300,...rgps.map(c=>+c.no||0))+1,jwins:()=>nextJW(),pays:()=>Math.max(500,...pays.map(p=>+p.no||0))+1,deals:()=>0,sorders:()=>nextSO(),dchallans:()=>nextDC(),dnotes:()=>nextDN()};
   for(const c of list){const k=c.coll,arr=cloud.cache[k];const obj=arr.find(r=>SYNC[k].id(r)===c.id);if(!obj)continue;const old=obj.no;
-    delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):k==="invoices"?nextInvNo(obj.fy,obj.plant):k==="cnotes"?nextCN(obj.fy):nexts[k]();
+    delete cloud.shadow[k][c.id];obj.no=k==="slips"?nextSlip(obj.type):k==="invoices"?nextInvNo(obj.fy,obj.plant):k==="cnotes"?nextCN(obj.fy):k==="deals"?nextDealNo(obj.plant):nexts[k]();
     if(k==="saved"&&po&&String(po.no)===String(old)){po.no=obj.no;store.set("po",po)}
     if(k==="reqs"&&est&&est.reqNo===old){est.reqNo=obj.no;saveEst()}
     if(k==="sorders"){[dchallans,invoices].forEach(A=>A.forEach(r=>{if(String(r.so)===String(old))r.so=obj.no}));deals.forEach(d=>{if(String(d.so)===String(old))d.so=obj.no});store.set("dchallans",dchallans);store.set("invoices",invoices);saveDeals()}
@@ -834,7 +834,7 @@ async function cloudRenumber(list){
     if(k==="dchallans"){invoices.forEach(v=>{if(v.dc)v.dc=v.dc.map(n=>String(n)===String(old)?obj.no:n)});store.set("invoices",invoices)}
     if(k==="invoices"){cnotes.forEach(n=>{if(n.inv===c.id)n.inv=invKey(obj)});store.set("cnotes",cnotes);dchallans.forEach(d=>{if(d.inv===c.id)d.inv=invKey(obj)});store.set("dchallans",dchallans)}
     if(sdCur&&SD[sdCur.t].coll===k&&String(sdCur.rec.no)===String(old)){sdCur.rec.no=obj.no;renderSDForm()}
-    if(k==="deals"){fups.forEach(f=>{if(String(f.deal)===String(old))f.deal=obj.no});saveFups();if(dealCur&&String(dealCur.no)===String(old)){dealCur.no=obj.no;renderDealForm()}}
+    if(k==="deals"){const nk=dealKey(obj);fups.forEach(f=>{if(String(f.deal)===c.id)f.deal=nk});saveFups();sorders.forEach(r=>{if(String(r.deal)===c.id)r.deal=nk});store.set("sorders",sorders);if(dealCur&&dealKey(dealCur)===c.id){dealCur.no=obj.no;renderDealForm()}}
     cloud.set(k,arr);toast(`Number ${old} was just used by another user, so this was saved as ${obj.no}`)}
 }
 function cloudApply(r){const k=r.coll,S=SYNC[k];if(!S)return false;const kk=k+"\u0001"+r.id;if(cloud.pending.has(kk))return false;
@@ -2568,7 +2568,7 @@ function backupBook(){
   add("Payments",pays.map(x=>({No:x.no,Date:dmy(x.date),Supplier:x.sup,Mode:x.mode,Ref:x.ref,Amount:x.amount,"Against GRN":x.adv?"Advance, PO "+x.po:(x.alloc||[]).map(a=>a.ob?obBill(a.ob):a.grn).join(", ")})));
   add("Items",items.map(x=>({"Item code":x.code||"","Item name":x.name,Category:x.cat||"",Unit:x.unit||"",HSN:x.hsn||"","GST %":x.gst??"",Rate:x.rate??"","Min stock":x.min??""})));
   add("Customers",customers.map(c=>({Customer:c.name,"Contact person":c.contact||"",Mobile:c.phone||"",Email:c.email||"",City:c.city||"",GSTIN:c.gstin||"",Address:c.addr||""})));
-  add("Enquiries",deals.map(d=>({"QT No":"QT-"+d.no,Date:d.date,Customer:d.cust,"Enquiry for":d.title,Stage:d.stage,Salesperson:d.owner||"",Value:Math.round(dealVal(d)),"Customer PO":d.custPO||"","Job No":d.job||"","Lost reason":d.lostWhy||""})));
+  add("Enquiries",deals.map(d=>({"QT No":qtNo(d),Plant:plantName(d.plant),Date:d.date,Customer:d.cust,"Enquiry for":d.title,Stage:d.stage,Salesperson:d.owner||"",Value:Math.round(dealVal(d)),"Customer PO":d.custPO||"","Job No":d.job||"","Lost reason":d.lostWhy||""})));
   add("Sales orders",sorders.map(x=>({"SO No":"SO-"+x.no,Date:x.date,Customer:x.cust,"Customer PO":x.custPO||"","Job No":x.job||"",Status:soStatus(x),Value:Math.round(sdSub(x))})));
   add("Invoices",invoices.map(x=>({"Invoice No":invNo(x),Date:x.date,Customer:x.cust,"Before GST":Math.round(sdSub(x)+(+x.freight||0)),Total:Math.round(invTot(x)),Received:recdOf(x),"To collect":Math.round(invDue(x))})));
   add("Jobs",jobs.map(j=>({"Job No":j.no,Customer:j.cust||"",Part:j.desc||"",Status:j.status,"% done":jobPct(j),Due:j.due||"","Actual hours":(j.ops||[]).reduce((a,o)=>a+(+o.act||0),0),"Labour ₹":Math.round(jobLabour(j))})));
@@ -3194,7 +3194,14 @@ const QT_TERMS="Prices: Ex-works Pune\nGST: Extra as applicable\nPayment: 40% ad
 let customers=store.get("customers",[]);const saveCusts=()=>{store.set("customers",customers);codesSoon("cust")};
 let deals=store.get("deals",[]);const saveDeals=()=>store.set("deals",deals);
 let fups=store.get("fups",[]);const saveFups=()=>store.set("fups",fups);
-const nextDealNo=()=>Math.max(1000,...deals.map(d=>+d.no||0))+1;
+/* quotations are numbered per plant: Plant 1 keeps the old series (QT-1001 ...), other plants start their own (JQT-1001 ...).
+   ps marks a quotation numbered in its plant's series; older ones (no ps) keep their number and key. */
+const dealKey=d=>SYNC.deals.id(d);
+const dealBy=k=>deals.find(x=>dealKey(x)===String(k));
+const qtPreOf=pl=>{const P=plantBy(pl||"P1")||{};return P.qpre!=null?String(P.qpre):"QT-"};
+const qtNo=d=>(d.pre!=null?d.pre:d.ps?qtPreOf(d.plant):"QT-")+d.no;
+const nextDealNo=pl=>{pl=pl||"P1";const P=plantBy(pl)||{};return Math.max(1000,+P.qLast||0,...deals.filter(d=>(d.plant||"P1")===pl||(pl==="P1"&&!d.ps)).map(d=>+d.no||0))+1};
+const newDeal=()=>{const pl=defPlant();return{_new:true,ps:1,no:nextDealNo(pl),plant:pl,date:today(),cust:"",title:"",stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:QT_TERMS,log:[]}};
 const dealVal=d=>{const L=(d.lines||[]).filter(l=>+l.qty&&+l.rate);return L.length?L.reduce((a,l)=>a+(+l.qty)*(+l.rate),0):(+d.value||0)};
 const fmtL=v=>v>=100000?"₹ "+(v/100000).toFixed(v>=1e7?0:1)+" L":"₹ "+fmt0(Math.round(v));
 const seeAllSales=()=>has("sales.all");
@@ -3219,21 +3226,21 @@ function renderSales(){{const b=$("#btn-deal-new");if(b)b.hidden=!has("sales.cre
   const os=$("#sb-owner"),ov=os.value;os.hidden=!seeAllSales();
   os.innerHTML=`<option value="">All salespeople</option>`+[...new Set([...salesOwners(),...deals.map(d=>d.owner).filter(Boolean)])].map(n=>`<option${n===ov?" selected":""}>${esc(n)}</option>`).join("");
   const q=key($("#sb-q").value),own=os.value,d90=addDays(today(),-90),t=today();
-  const D=deals.filter(myDeal).filter(d=>(!own||d.owner===own)&&(!q||key(pcx(d.cust)+" "+d.title+" QT "+d.no).includes(q)));
-  const nextF=no=>fups.filter(f=>!f.done&&String(f.deal)===String(no)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
+  const D=deals.filter(myDeal).filter(d=>(!own||d.owner===own)&&(!q||key(pcx(d.cust)+" "+d.title+" QT "+d.no+" "+qtNo(d)).includes(q)));
+  const nextF=k=>fups.filter(f=>!f.done&&String(f.deal)===String(k)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
   $("#sb-board").innerHTML=STAGES.map(s=>{let L=D.filter(d=>d.stage===s);if(s==="Won"||s==="Lost")L=L.filter(d=>(d.closedAt||d.date)>=d90).sort((a,b)=>(b.closedAt||"").localeCompare(a.closedAt||""));
     const v=L.reduce((a,d)=>a+dealVal(d),0);
-    return`<div class="sb-col"><h3><span>${s} · ${L.length}</span><span>${v?fmtL(v):""}</span></h3>${L.map(d=>{const f=nextF(d.no);
+    return`<div class="sb-col"><h3><span>${s} · ${L.length}</span><span>${v?fmtL(v):""}</span></h3>${L.map(d=>{const f=nextF(dealKey(d));
       const chip=s==="Won"?(d.job?`<span class="chip calc">Job ${esc(d.job)}</span>`:`<span class="chip sugg">Job No. needed</span>`):s==="Lost"?`<span class="chip st-Back">${esc(d.lostWhy||"Lost")}</span>`:f?`<span class="chip ${f.date<t?"st-Back":f.date===t?"sugg":"calc"}">${f.date<t?"Overdue":f.date===t?"Follow up today":"Next "+dmy(f.date).slice(0,5)}</span>`:"";
-      return`<button type="button" class="sb-card" data-deal="${esc(d.no)}"><b>${esc(d.cust)}</b><span class="m">${s==="Enquiry"?"RFQ":"QT"}-${esc(d.no)} · ${esc(d.title)}</span><span class="v">${dealVal(d)?fmtL(dealVal(d)):"Value not set"}</span>${chip?`<span>${chip}</span>`:""}${seeAllSales()&&d.owner?`<span class="m">${esc(d.owner)}</span>`:""}</button>`}).join("")||`<div class="sb-empty">None</div>`}</div>`}).join("");
+      return`<button type="button" class="sb-card" data-deal="${esc(dealKey(d))}"><b>${esc(d.cust)}</b><span class="m">${s==="Enquiry"?"RFQ ":""}${esc(qtNo(d))} · ${esc(d.title)}</span><span class="v">${dealVal(d)?fmtL(dealVal(d)):"Value not set"}</span>${chip?`<span>${chip}</span>`:""}${seeAllSales()&&d.owner?`<span class="m">${esc(d.owner)}</span>`:""}</button>`}).join("")||`<div class="sb-empty">None</div>`}</div>`}).join("");
   renderFups();renderSalesCharts();renderCusts();renderDealForm();
   $("#custnames").innerHTML=partyOpts(customers);
 }
 $("#sb-owner").onchange=()=>renderSales();$("#sb-q").oninput=()=>renderSales();
 $("#sb-board").addEventListener("click",e=>{const b=e.target.closest("[data-deal]");if(!b)return;openDeal(b.dataset.deal)});
-function openDeal(no){const d=deals.find(x=>String(x.no)===String(no));if(!d)return;dealCur=JSON.parse(JSON.stringify(d));dealCur._new=false;renderDealForm();$("#dealForm").scrollIntoView({block:"start"})}
+function openDeal(k){const d=dealBy(k);if(!d)return;dealCur=JSON.parse(JSON.stringify(d));dealCur._new=false;renderDealForm();$("#dealForm").scrollIntoView({block:"start"})}
 $("#btn-deal-new").onclick=()=>{if(!has("sales.create")){toast("You can view sales but not add enquiries");return}
-  dealCur={_new:true,no:nextDealNo(),plant:defPlant(),date:today(),cust:"",title:"",stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:QT_TERMS,log:[]};renderDealForm();$("#dealForm").scrollIntoView({block:"start"});$("#dl-cust").focus()};
+  dealCur=newDeal();renderDealForm();$("#dealForm").scrollIntoView({block:"start"});$("#dl-cust").focus()};
 /* Mould Estimator: read-only fetch of selected fields (estimate No., customer, part, mould No., status, price before GST). Nothing is sent back. */
 let mouldEst=null,mouldQ="",mouldAll=false,mouldSel=new Set();
 const dealEsts=d=>Array.isArray(d.ests)?d.ests:d.est?[d.est]:[];
@@ -3254,9 +3261,9 @@ function renderMouldPick(){const P=$("#mouldPick");if(P.hidden)return;
   if(hasQ&&!mouldAll)L=L.filter(x=>x.m.n>0);
   L.sort((a,b)=>b.m.n-a.m.n||b.m.fit-a.m.fit||(b.e.updatedAt||0)-(a.e.updatedAt||0)||String(b.e.date).localeCompare(String(a.e.date)));
   const msg=!hasQ?"Type the customer name to list the best-matching estimates first.":L.length?`Estimates whose customer name matches the most words of “${esc(mouldQ)}” are listed first.`:"";
-  P.innerHTML=head+(mouldEst.note?`<div class="note">${esc(mouldEst.note)}</div>`:"")+(msg?`<div class="note">${msg}</div>`:"")+(L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th></th>${hasQ?"<th>Match</th>":""}<th>Estimate</th><th>Date</th><th>Customer</th><th>Part</th><th>Mould No.</th><th>Status</th><th class="num">Price before GST</th><th></th></tr></thead><tbody>${L.map(({e,m})=>{const u=used(e.id),other=u&&!(dealCur&&String(dealCur.no)===String(u.no));return `<tr><td><input type="checkbox" style="width:auto" data-mp-sel="${esc(e.id)}"${mouldSel.has(e.id)?" checked":""}${other?" disabled title=\"Already used in RFQ-"+esc(u.no)+"\"":""}></td>${hasQ?`<td>${m.n?`<span class="chip ${m.n===m.of?"st-PO":"sugg"}">${m.n} of ${m.of} words</span>`:"—"}</td>`:""}<td>${esc(e.no||"—")}</td><td>${esc(e.date)}</td><td>${esc(e.customer)}</td><td>${esc(e.part)}</td><td>${esc(e.mouldNo)}</td><td>${esc(e.status)}</td><td class="num">${e.price==null?"Open and save it in Mould Estimator":"₹ "+fmt(e.price)}</td><td>${other?`<button class="btn" type="button" data-mp-open="${esc(u.no)}">Open RFQ-${esc(u.no)}</button>`:`<button class="btn primary" type="button" data-mp-use="${esc(e.id)}">Use</button>`}</td></tr>`}).join("")}</tbody></table></div>`:`<div class="note">${hasQ?`No estimate has a customer matching “${esc(mouldQ)}”. Tick Show all estimates to see every one.`:"No estimates found."}</div>`)+`<div class="note">Only the estimate No., customer, part, mould No., status and price before GST come across. Nothing is changed in Mould Estimator.</div>`}
+  P.innerHTML=head+(mouldEst.note?`<div class="note">${esc(mouldEst.note)}</div>`:"")+(msg?`<div class="note">${msg}</div>`:"")+(L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th></th>${hasQ?"<th>Match</th>":""}<th>Estimate</th><th>Date</th><th>Customer</th><th>Part</th><th>Mould No.</th><th>Status</th><th class="num">Price before GST</th><th></th></tr></thead><tbody>${L.map(({e,m})=>{const u=used(e.id),other=u&&!(dealCur&&!dealCur._new&&dealKey(dealCur)===dealKey(u));return `<tr><td><input type="checkbox" style="width:auto" data-mp-sel="${esc(e.id)}"${mouldSel.has(e.id)?" checked":""}${other?" disabled title=\"Already used in "+esc(qtNo(u))+"\"":""}></td>${hasQ?`<td>${m.n?`<span class="chip ${m.n===m.of?"st-PO":"sugg"}">${m.n} of ${m.of} words</span>`:"—"}</td>`:""}<td>${esc(e.no||"—")}</td><td>${esc(e.date)}</td><td>${esc(e.customer)}</td><td>${esc(e.part)}</td><td>${esc(e.mouldNo)}</td><td>${esc(e.status)}</td><td class="num">${e.price==null?"Open and save it in Mould Estimator":"₹ "+fmt(e.price)}</td><td>${other?`<button class="btn" type="button" data-mp-open="${esc(dealKey(u))}">Open ${esc(qtNo(u))}</button>`:`<button class="btn primary" type="button" data-mp-use="${esc(e.id)}">Use</button>`}</td></tr>`}).join("")}</tbody></table></div>`:`<div class="note">${hasQ?`No estimate has a customer matching “${esc(mouldQ)}”. Tick Show all estimates to see every one.`:"No estimates found."}</div>`)+`<div class="note">Only the estimate No., customer, part, mould No., status and price before GST come across. Nothing is changed in Mould Estimator.</div>`}
 function useMouldEst(list){if(!list.length)return;
-  if(!dealCur)dealCur={_new:true,no:nextDealNo(),plant:defPlant(),date:today(),cust:"",title:"",stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:QT_TERMS,log:[]};
+  if(!dealCur)dealCur=newDeal();
   const d=dealCur,e0=list[0],at=new Date().toISOString(),c=e0.customer&&custByName(e0.customer);
   if(!String(d.cust||"").trim())d.cust=c?c.name:String(e0.customer||"").trim();
   const parts=[...new Set(list.map(e=>String(e.part||"").trim()).filter(Boolean))];
@@ -3281,14 +3288,14 @@ $("#mouldPick").addEventListener("click",e=>{const t=e.target.closest("button");
   if(t.id==="mp-add"){const L=(mouldEst&&mouldEst.list||[]).filter(y=>mouldSel.has(y.id));if(!L.length){toast("Tick one or more estimates first");return}useMouldEst(L)}});
 function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.innerHTML="";return}F.hidden=false;const d=dealCur,ro=d._new?!has("sales.create"):!has("sales.edit");
   const owners=[...new Set([...salesOwners(),d.owner].filter(Boolean))];const tot=(d.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0);
-  const my=fups.filter(f=>String(f.deal)===String(d.no)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-  F.innerHTML=`<div class="row"><h2 class="sec">${d._new?"New RFQ / enquiry":"RFQ"} RFQ-${esc(d.no)} · Quotation QT-${esc(d.no)}${+d.rev?" R"+d.rev:""}</h2>${d._new?"":`<span class="chip ${d.stage==="Won"?"st-PO":d.stage==="Lost"?"st-Back":"sugg"}">${esc(d.stage)}</span>`}${dealEsts(d).length?`<span class="chip" title="Filled from Mould Estimator">Estimate ${dealEsts(d).map(x=>esc(x.no||"")).join(", ")}</span>`:""}<span style="flex:1"></span>
+  const my=d._new?[]:fups.filter(f=>String(f.deal)===dealKey(d)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  F.innerHTML=`<div class="row"><h2 class="sec">${d._new?"New RFQ / enquiry":"RFQ / quotation"} ${esc(qtNo(d))}${+d.rev?" R"+d.rev:""}</h2>${d._new?"":`<span class="chip ${d.stage==="Won"?"st-PO":d.stage==="Lost"?"st-Back":"sugg"}">${esc(d.stage)}</span>`}${dealEsts(d).length?`<span class="chip" title="Filled from Mould Estimator">Estimate ${dealEsts(d).map(x=>esc(x.no||"")).join(", ")}</span>`:""}<span style="flex:1"></span>
     ${d._new?"":`<button class="btn" id="dl-pdf" type="button">Quotation PDF</button>`}${!d._new&&(d.so?has("so.view"):has("so.create"))?`<button class="btn" id="dl-so" type="button">${d.so?"Open sales order":"Make sales order"}</button>`:""}${!d._new&&has("sales.delete")?`<button class="btn" id="dl-del" type="button">Delete</button>`:""}${ro?"":`<button class="btn" id="dl-est" type="button" title="Pick an estimate from Mould Estimator for this customer">Fetch estimate</button>`}<button class="btn" id="dl-close" type="button">Close</button>${ro?"":`<button class="btn primary" id="dl-save" type="button">Save</button>`}</div>
   <div class="grid-fields">
     <label class="f">Customer<input id="dl-cust" list="custnames" value="${esc(d.cust)}" placeholder="Type or pick a customer"></label>
     <label class="f">Enquiry for<input id="dl-title" value="${esc(d.title)}" placeholder="e.g. Door trim mould, 2 cavity"></label>
     <label class="f">Enquiry date<input id="dl-date" type="date" value="${esc(d.date)}"></label>
-    <label class="f">Plant<select id="dl-plant">${plantOpts(d.plant)}</select></label>
+    <label class="f">Plant<select id="dl-plant"${!d._new&&d.ps?" disabled title=\"Quotation number already given for this plant\"":""}>${plantOpts(d.plant)}</select></label>
     <label class="f">Stage<select id="dl-stage">${STAGES.map(s=>`<option${s===d.stage?" selected":""}>${s}</option>`).join("")}</select></label>
     <label class="f">Salesperson<select id="dl-owner">${owners.map(o=>`<option${o===d.owner?" selected":""}>${esc(o)}</option>`).join("")}</select></label>
     <label class="f">Expected order date<input id="dl-expClose" type="date" value="${esc(d.expClose)}"></label>
@@ -3313,7 +3320,7 @@ function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.in
 }
 const DL_FIELDS=["plant","cust","title","date","stage","owner","expClose","src","ref","value","custPO","custPODate","job","lostWhy","lostNote","gst","rev","terms"];
 $("#dealForm").addEventListener("input",e=>{if(!dealCur)return;const t=e.target;
-  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-stage")renderDealForm();return}
+  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-plant"&&dealCur._new&&dealCur.ps){dealCur.no=nextDealNo(dealCur.plant);renderDealForm()}if(t.id==="dl-stage")renderDealForm();return}
   const q=t.dataset.q;if(!q)return;const tr=t.closest("tr"),l=dealCur.lines[+tr.dataset.i];l[q]=["qty","rate"].includes(q)?(t.value===""?"":+t.value):t.value;
   tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0));$("#dl-tot").textContent=fmt(dealCur.lines.reduce((a,x)=>a+(+x.qty||0)*(+x.rate||0),0))});
 $("#dealForm").addEventListener("change",e=>{if(!dealCur)return;const t=e.target;
@@ -3326,36 +3333,37 @@ $("#dealForm").addEventListener("click",e=>{if(!dealCur)return;const id=e.target
   if(id==="dl-addline"){d.lines.push({desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""});renderDealForm();const n=d.lines.length-1;$(`#dq${n}-desc`).focus();return}
   if(e.target.dataset.qldel!=null){d.lines.splice(+e.target.dataset.qldel,1);renderDealForm();return}
   if(id==="dl-addnote"){const v=$("#dl-note").value.trim();if(!v)return;d.log=d.log||[];d.log.push({at:new Date().toISOString(),by:me.name,text:v});
-    if(!d._new){const o=deals.find(x=>String(x.no)===String(d.no));if(o){o.log=(o.log||[]).concat([d.log[d.log.length-1]]);saveDeals()}}renderDealForm();toast("Note added");return}
+    if(!d._new){const o=dealBy(dealKey(d));if(o){o.log=(o.log||[]).concat([d.log[d.log.length-1]]);saveDeals()}}renderDealForm();toast("Note added");return}
   if(id==="dlf-add"){const w=$("#dlf-what").value.trim();if(!w){toast("Write what the follow-up is");return}
-    fups.push({id:itId(),date:$("#dlf-date").value||today(),time:$("#dlf-time").value,deal:d.no,cust:d.cust,what:w,by:d.owner||me.name,done:false});saveFups();renderSales();toast("Follow-up added");return}
-  if(id==="dl-so"){const o=deals.find(x=>String(x.no)===String(d.no));if(o)sdFromDeal(o);return}
-  if(id==="dl-pdf"){const o=deals.find(x=>String(x.no)===String(d.no));savePDF(docQuote({...o,...d}),`Quotation-QT-${d.no}${+d.rev?"-R"+d.rev:""}.pdf`);return}
-  if(id==="dl-del"){if(!confirm(`Delete enquiry QT-${d.no} for ${d.cust}? This cannot be undone.`))return;deals=deals.filter(x=>String(x.no)!==String(d.no));fups=fups.filter(f=>String(f.deal)!==String(d.no));saveDeals();saveFups();dealCur=null;renderSales();toast(`QT-${d.no} deleted`);return}
+    fups.push({id:itId(),date:$("#dlf-date").value||today(),time:$("#dlf-time").value,deal:dealKey(d),cust:d.cust,what:w,by:d.owner||me.name,done:false});saveFups();renderSales();toast("Follow-up added");return}
+  if(id==="dl-so"){const o=dealBy(dealKey(d));if(o)sdFromDeal(o);return}
+  if(id==="dl-pdf"){const o=dealBy(dealKey(d));savePDF(docQuote({...o,...d}),`Quotation-${qtNo(d).replace(/[\\/:*?"<>|]+/g,"-")}${+d.rev?"-R"+d.rev:""}.pdf`);return}
+  if(id==="dl-del"){const dk=dealKey(d),qn=qtNo(d);if(!confirm(`Delete enquiry ${qn} for ${d.cust}? This cannot be undone.`))return;deals=deals.filter(x=>dealKey(x)!==dk);fups=fups.filter(f=>String(f.deal)!==dk);saveDeals();saveFups();dealCur=null;renderSales();toast(`${qn} deleted`);return}
   if(id==="dl-save")saveDeal()});
 function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=String(d.title||"").trim();
   if(!d.cust){toast("Fill in the customer");$("#dl-cust").focus();return}if(!d.title){toast("Fill in what the enquiry is for");$("#dl-title").focus();return}
   if(d.stage==="Lost"&&!d.lostWhy){toast("Choose why it was lost");return}
   d.lines=(d.lines||[]).filter(l=>String(l.desc||"").trim()||+l.rate);d.gst=+d.gst;d.rev=+d.rev||0;d.value=d.value===""?"":+d.value;d.job=String(d.job||"").trim().toUpperCase();
   if(!custByName(d.cust)){customers.push({id:itId(),name:d.cust,contact:"",phone:"",email:"",city:"",gstin:"",addr:""});saveCusts();toast(`${d.cust} added to customers`)}
-  const old=deals.find(x=>String(x.no)===String(d.no));const prev=old?old.stage:null;
+  if(d._new&&d.ps&&dealBy(dealKey(d)))d.no=nextDealNo(d.plant);if(d.ps&&d.pre==null)d.pre=qtPreOf(d.plant);
+  const old=d._new?null:dealBy(dealKey(d));const prev=old?old.stage:null;
   if(prev!==d.stage){d.log=d.log||[];d.log.push({at:new Date().toISOString(),by:me.name,text:prev?`Stage changed from ${prev} to ${d.stage}`:`Enquiry created (${d.stage})`})}
   if(["Won","Lost"].includes(d.stage)){if(!["Won","Lost"].includes(prev)||!d.closedAt)d.closedAt=today()}else delete d.closedAt;
   if(d.stage==="Won"&&d.job&&!M.projects.some(p=>key(p.no)===key(d.job))){if(isRole("Admin")){M.projects.push({no:d.job,desc:d.title,cust:d.cust,status:"Active"});saveM();toast(`Job ${d.job} added to Projects`)}else toast(`Ask the admin to add Job ${d.job} in Masters, Projects`)}
   const {_new,...rec}=d;rec.updatedAt=new Date().toISOString();
   if(old)Object.assign(old,rec);else{rec.createdAt=rec.updatedAt;deals.unshift(rec)}
-  saveDeals();dealCur=JSON.parse(JSON.stringify(rec));dealCur._new=false;renderSales();toast(`QT-${rec.no} saved`)}
+  saveDeals();dealCur=JSON.parse(JSON.stringify(rec));dealCur._new=false;renderSales();toast(`${qtNo(rec)} saved`)}
 function renderFups(){const t=today();const L=fups.filter(f=>!f.done&&myFup(f)).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
   $("#fu-date").value=$("#fu-date").value||t;
-  $("#fupList").innerHTML=L.slice(0,40).map(f=>{const d=f.deal?deals.find(x=>String(x.no)===String(f.deal)):null;
-    return`<div class="fu${f.date<t?" late":""}"><div class="when"><b>${f.date<t?"Overdue":f.date===t?"Today":f.date===addDays(t,1)?"Tomorrow":dmy(f.date).slice(0,5)}</b>${f.time?"<br>"+esc(f.time):f.date<t?"<br>"+dmy(f.date).slice(0,5):""}</div><div><b>${esc(f.what)}</b><br><span class="note">${esc(f.cust||"")}${d?` · <a href="#" data-fdeal="${esc(d.no)}">QT-${esc(d.no)}</a>`:""}${seeAllSales()?" · "+esc(f.by):""}</span></div><button class="btn" type="button" data-fdone="${esc(f.id)}">Done</button></div>`}).join("")||`<div class="empty">No follow-ups pending.</div>`}
+  $("#fupList").innerHTML=L.slice(0,40).map(f=>{const d=f.deal?dealBy(f.deal):null;
+    return`<div class="fu${f.date<t?" late":""}"><div class="when"><b>${f.date<t?"Overdue":f.date===t?"Today":f.date===addDays(t,1)?"Tomorrow":dmy(f.date).slice(0,5)}</b>${f.time?"<br>"+esc(f.time):f.date<t?"<br>"+dmy(f.date).slice(0,5):""}</div><div><b>${esc(f.what)}</b><br><span class="note">${esc(f.cust||"")}${d?` · <a href="#" data-fdeal="${esc(dealKey(d))}">${esc(qtNo(d))}</a>`:""}${seeAllSales()?" · "+esc(f.by):""}</span></div><button class="btn" type="button" data-fdone="${esc(f.id)}">Done</button></div>`}).join("")||`<div class="empty">No follow-ups pending.</div>`}
 $("#fupList").addEventListener("click",e=>{const id=e.target.dataset.fdone,dl=e.target.dataset.fdeal;
   if(dl!=null){e.preventDefault();openDeal(dl);return}if(id==null)return;const f=fups.find(x=>x.id===id);if(!f)return;f.done=true;f.doneAt=new Date().toISOString();f.doneBy=me.name;
-  const d=f.deal&&deals.find(x=>String(x.no)===String(f.deal));if(d){d.log=d.log||[];d.log.push({at:f.doneAt,by:me.name,text:"Follow-up done: "+f.what});saveDeals()}
+  const d=f.deal&&dealBy(f.deal);if(d){d.log=d.log||[];d.log.push({at:f.doneAt,by:me.name,text:"Follow-up done: "+f.what});saveDeals()}
   saveFups();renderSales();toast("Marked done")});
 $("#fu-form").onsubmit=e=>{e.preventDefault();const w=$("#fu-what").value.trim(),c=$("#fu-cust").value.trim();if(!w){toast("Write what the follow-up is");return}
   const open=c?deals.find(d=>key(d.cust)===key(c)&&!["Won","Lost"].includes(d.stage)):null;
-  fups.push({id:itId(),date:$("#fu-date").value||today(),time:$("#fu-time").value,deal:open?open.no:"",cust:(custByName(c)||{}).name||c,what:w,by:me.name,done:false});saveFups();
+  fups.push({id:itId(),date:$("#fu-date").value||today(),time:$("#fu-time").value,deal:open?dealKey(open):"",cust:(custByName(c)||{}).name||c,what:w,by:me.name,done:false});saveFups();
   $("#fu-what").value="";$("#fu-time").value="";$("#fu-cust").value="";renderSales();toast("Follow-up added")};
 function renderSalesCharts(){const d90=addDays(today(),-90),m={};
   deals.filter(myDeal).filter(d=>d.stage!=="Lost"&&d.date>=d90).forEach(d=>{m[d.cust]=(m[d.cust]||0)+dealVal(d)});
@@ -3437,7 +3445,7 @@ function docQuote(d){const c=custByName(d.cust)||{name:d.cust};const L=(d.lines|
   const sub=L.reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0),0)||(+d.value||0),g=+d.gst||0,gst=sub*g/100,tot=sub+gst;const intra=!c.gstin||c.gstin.startsWith("27");
   const tax=g?(intra?`<tr><td>C-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr><tr><td>S-GST ${g/2}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst/2)}</td></tr>`:`<tr><td>I-GST ${g}% On Amt : ${fmt(sub)}</td><td class="amt">${fmt(gst)}</td></tr>`):"";
   const terms=String(d.terms||"").split("\n").map(s=>s.trim()).filter(Boolean);
-  return docHead("QUOTATION")+`<div class="two"><div><b>To,</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${c.contact?`<br><b>Kind Attn.:</b> ${esc(c.contact)}${c.phone?" · "+esc(c.phone):""}`:""}</div><div class="kv"><b>Quotation No.</b><span>QT-${esc(d.no)}${+d.rev?" R"+d.rev:""}</span><b>Date</b><span>${dmy(d.qtDate||today())}</span><b>Your Ref.</b><span>${esc(d.ref||"-")}</span><b>Subject</b><span>${esc(d.title)}</span></div></div>
+  return docHead("QUOTATION")+`<div class="two"><div><b>To,</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${c.contact?`<br><b>Kind Attn.:</b> ${esc(c.contact)}${c.phone?" · "+esc(c.phone):""}`:""}</div><div class="kv"><b>Quotation No.</b><span>${esc(qtNo(d))}${+d.rev?" R"+d.rev:""}</span><b>Date</b><span>${dmy(d.qtDate||today())}</span><b>Your Ref.</b><span>${esc(d.ref||"-")}</span><b>Subject</b><span>${esc(d.title)}</span></div></div>
   <p style="margin:8px 0">Dear Sir / Madam,<br>Thank you for your enquiry. We are pleased to quote as below.</p>
   <table><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Amount</th></tr></thead><tbody>${(L.length?L:[{desc:d.title,hsn:"",qty:1,unit:"SET",rate:d.value}]).map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.hsn||"")}</td><td class="r">${fmt0(+l.qty||0)}</td><td>${esc(l.unit||"")}</td><td class="r">${fmt(+l.rate||0)}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0))}</td></tr>`).join("")}</tbody></table>
   <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(sub)}</td></tr>${tax}<tr><td><b>Total</b></td><td class="amt"><b>${fmt(tot)}</b></td></tr></tbody></table>
@@ -3457,7 +3465,10 @@ const nextInvNo=(fy,pl)=>{pl=pl||"P1";const P=plantBy(pl)||{};const base=fy===fy
 const invKey=x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no;
 const sellerCfg=x=>{const c=salesCfg(),p=x&&x.plant&&plantBy(x.plant);return p?Object.assign({},c,{sAddr1:p.addr1,sAddr2:p.addr2,sLoc:p.loc,sPin:p.pin,sPh:p.ph||c.sPh}):c};
 const salesCfg=()=>Object.assign({pre:"Z",lastNo:"",sAddr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",sAddr2:"Jyotiba Nagar, Talwade",sLoc:"PUNE",sPin:"412114",sPh:"7030953792",sEm:"sales@zoomtechnologies.net",bank:"Name: Kotak Mahindra Bank\nAccount Name: Zoom Technologies\nBranch: Bhosari\nAccount No.: 0212771835 ( Current )\nIFSC: KKBK0001774",invTerms:"Payment to be made by A/c. Payee Cheque Only.\nInterest @18% will be charged on bill not paid within due date.",soTerms:"Delivery as per the date above, subject to approval of drawings.\nPayment as agreed in our quotation."},M.salesCfg||{});
-const invNo=x=>x.oldNo?x.oldNo:`${x.plant?(plantBy(x.plant)||{}).pre||"":salesCfg().pre}${x.no}/${x.fy}`;
+const invPreOf=pl=>pl?(plantBy(pl)||{}).pre||"":salesCfg().pre;
+const invNo=x=>x.oldNo?x.oldNo:`${x.pre!=null?x.pre:invPreOf(x.plant)}${x.no}/${x.fy}`;
+/* invoices made before the prefix was stored: keep the prefix they were printed with (Plant 1 default was "ZT" then) */
+{let ch=0;const OLDP={P1:"ZT",P2:"J"};invoices.forEach(x=>{if(!x||x.oldNo||x.pre!=null)return;const m=((M.plants||[]).find(p=>p.id===x.plant)||{});x.pre=!x.plant?salesCfg().pre:m.pre!=null?String(m.pre):(OLDP[x.plant]??"");ch++});if(ch)store.set("invoices",invoices)}
 const sdNo=(t,x)=>t==="inv"?invNo(x):SD[t].pre+x.no;
 const sdId=(t,x)=>t==="inv"?invKey(x):String(x.no);
 const isIntra=c=>stOf(custByName(c)||{})==="27";
@@ -3480,7 +3491,7 @@ document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has(b.da
 function invStart(){const blank=()=>sdOpen("inv",sdNew("inv",{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true);
   const SO=sorders.filter(s=>inPlant(s)&&!["Billed","Closed"].includes(soStatus(s))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const PO=[...SO.filter(s=>s.custPO).map(s=>({k:"s"+s.no,po:s.custPO,pd:s.custPODate,cust:s.cust,via:sdNo("so",s),go:()=>sdFromSO("inv",s)})),
-    ...deals.filter(d=>d.stage==="Won"&&d.custPO&&inPlant(d)&&!sorders.some(s=>String(s.deal)===String(d.no))).map(d=>({k:"d"+d.no,po:d.custPO,pd:d.custPODate,cust:d.cust,via:"QT "+d.no,go:()=>invViaSO(d)}))];
+    ...deals.filter(d=>d.stage==="Won"&&d.custPO&&inPlant(d)&&!sorders.some(s=>String(s.deal)===dealKey(d))).map(d=>({k:"d"+dealKey(d),po:d.custPO,pd:d.custPODate,cust:d.cust,via:qtNo(d),go:()=>invViaSO(d)}))];
   const JW=jwins.filter(c=>inPlant(c)&&jwStatus(c)!=="Billed");
   const d=document.createElement("div");d.className="modal";
   const opt=(v,lab,sub,n)=>`<label class="row" style="gap:10px;flex-wrap:nowrap;align-items:flex-start;cursor:pointer;padding:10px;border:1px solid var(--line,#ddd);border-radius:8px"><input type="radio" name="inv-src" value="${v}"${n===0?" disabled":""} style="width:auto;margin-top:3px"><span><b>${lab}</b><br><span class="note" style="margin:0">${sub}</span></span></label>`;
@@ -3500,12 +3511,12 @@ function invStart(){const blank=()=>sdOpen("inv",sdNew("inv",{lines:[{desc:"",hs
     if(v==="so"){const s=SO.find(x=>String(x.no)===q("#inv-so").value);if(s)sdFromSO("inv",s)}
     else if(v==="po"){const x=PO.find(x=>x.k===q("#inv-po").value);if(x)x.go()}
     else if(v==="jw"){const c=JW.find(x=>String(x.no)===q("#inv-jw").value);if(c)invFromJW(c)}else blank()}}
-function invViaSO(d){if(!has("so.create")){invFromDeal(d);return}const x=sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:d.no,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))});
+function invViaSO(d){if(!has("so.create")){invFromDeal(d);return}const x=sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:dealKey(d),custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))});
   x.updatedAt=x.createdAt=new Date().toISOString();x.by=me.name;sorders.unshift(x);store.set("sorders",sorders);d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made for customer PO "+(d.custPO||"")});saveDeals();
   toast(`Sales order ${sdNo("so",x)} made for PO ${d.custPO}, so billed quantities are tracked`);sdFromSO("inv",x)}
 function invFromDeal(d){sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
-function sdFromDeal(d){const o=sorders.find(s=>String(s.deal)===String(d.no));if(o){sdOpen("so",o,false);toast(`${sdNo("so",o)} already made for this quotation`);return}
-  sdOpen("so",sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:d.no,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
+function sdFromDeal(d){const o=sorders.find(s=>String(s.deal)===dealKey(d));if(o){sdOpen("so",o,false);toast(`${sdNo("so",o)} already made for this quotation`);return}
+  sdOpen("so",sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:dealKey(d),custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
 function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.no,i):billQ(s.no,i);const q=+((+l.qty||0)-done).toFixed(3);return{i,desc:l.desc,hsn:l.hsn,qty:q>0?q:0,unit:l.unit,rate:l.rate,ord:+l.qty||0,done}}).filter(l=>l.qty>0);
   if(!L.length){toast(t==="dc"?"Everything on this order has been dispatched":"Everything on this order has been billed");return}
   sdOpen(t,sdNew(t,{plant:s.plant||defPlant(),cust:s.cust,so:s.no,job:s.job,custPO:s.custPO,custPODate:s.custPODate,gst:s.gst,lines:L}),true)}
@@ -3588,9 +3599,9 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
   x.lines.forEach(l=>{l.qty=+l.qty;l.rate=l.rate===""?"":+l.rate;delete l.ord;delete l.done});x.gst=+x.gst||0;
   if(!custByName(x.cust)){customers.push({id:itId(),name:x.cust,contact:"",phone:"",email:"",city:"",gstin:"",addr:""});saveCusts()}
   const A=SD[t].arr();x.updatedAt=new Date().toISOString();
-  if(isNew){if(t==="inv"){x.fy=fyOf(x.date);x.no=nextInvNo(x.fy,x.plant)}x.createdAt=x.updatedAt;A.unshift(x)}else{const o=A.find(r=>sdId(t,r)===sdId(t,x));Object.assign(o,x)}
+  if(isNew){if(t==="inv"){x.fy=fyOf(x.date);x.no=nextInvNo(x.fy,x.plant);x.pre=invPreOf(x.plant)}x.createdAt=x.updatedAt;A.unshift(x)}else{const o=A.find(r=>sdId(t,r)===sdId(t,x));Object.assign(o,x)}
   if(t==="inv"&&isNew&&x.dc)x.dc.forEach(n=>{const d=dchallans.find(r=>String(r.no)===String(n));if(d)d.inv=sdId("inv",x)});
-  if(t==="so"&&isNew&&x.deal){const d=deals.find(r=>String(r.no)===String(x.deal));if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
+  if(t==="so"&&isNew&&x.deal){const d=dealBy(x.deal);if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
   sdSave(t);if(t==="inv")sdSave("dc");const saved=A.find(r=>sdId(t,r)===sdId(t,x));sdCur={t,rec:JSON.parse(JSON.stringify(saved)),isNew:false};renderSD(t);
   toast(`${sdNo(t,saved)} saved`);if(isNew&&t!=="so")savePDF(sdDoc(t,saved),`${SD[t].name.replace(/ /g,"-")}-${sdNo(t,saved).replace(/\//g,"-")}.pdf`)}
 function sdDoc(t,x){if(t==="inv")return docTaxInvoice(x);const c=custByName(x.cust)||{name:x.cust},cfg=salesCfg(),intra=isIntra(x.cust);
@@ -3950,8 +3961,10 @@ function fillPlantSels(){const ps=$("#plantSel");if(ps){ps.innerHTML=`<option va
   document.querySelectorAll("select.plantsel").forEach(el=>{const v=el.value;el.innerHTML=plantOpts(v||defPlant());if(v)el.value=v})}
 $("#plantSel").onchange=e=>{curPlant=e.target.value;try{localStorage.setItem("zpo:curPlant",curPlant)}catch(err){}const v=views.find(x=>!$("#view-"+x).hidden);if(v)show(v);toast(curPlant?`Showing ${plantName(curPlant)} only. New documents start in this plant.`:"Showing both plants")};
 function renderPlants(){const P=$("#plantPanel");if(!P)return;const L=plants(),ad=isRole("Admin");
-  P.innerHTML=`<h2 class="sec">Plants</h2><div class="note">Each purchase and sales document belongs to one plant. The plant's address prints on the document, and tax invoices are numbered separately per plant with its own prefix (both plants share one GSTIN). Pick the plant you work at in the header bar; new documents start in that plant and lists show only that plant.</div>
-  <div class="tablebox"><table class="mt" style="min-width:1000px"><thead><tr><th>Plant</th><th>Short name</th><th>Invoice prefix</th><th>Last invoice No. (this year, old ERP)</th><th>Address line 1</th><th>Address line 2</th><th>City</th><th>PIN</th><th>Next invoice</th></tr></thead><tbody>${L.map(p=>`<tr>${[["name",200],["short",110],["pre",70],["lastNo",90],["addr1",260],["addr2",180],["loc",80],["pin",80]].map(([f,w])=>`<td><input id="pl-${p.id}-${f}" data-pl="${p.id}" data-pf="${f}" value="${esc(p[f]??"")}" style="width:${w}px"${ad?"":" disabled"}></td>`).join("")}<td style="font-family:var(--mono)">${esc(p.pre)}${nextInvNo(fyOf(today()),p.id)}/${fyOf(today())}</td></tr>`).join("")}</tbody></table></div>`}
+  P.innerHTML=`<h2 class="sec">Plants</h2><div class="note">Each purchase and sales document belongs to one plant. The plant's address prints on the document, and tax invoices and quotations are numbered separately per plant, each with its own prefix (both plants share one GSTIN). Invoice numbers start again each financial year and continue after the highest old-ERP invoice imported for that plant (or the last number typed here, if higher). A new user starts in their own plant (Users and rights); the plant can still be changed on the form until the document is saved. Changing a prefix here applies to new documents only; saved ones keep the number they were given.</div>
+  ${(()=>{const dup=(f,n)=>{const v=L.map(p=>String(p[f]||"").trim().toUpperCase());return v.length>1&&new Set(v).size<v.length?n:""};const w=[dup("pre","invoice"),dup("qpre","quotation")].filter(Boolean);return w.length?`<div class="note" style="color:var(--danger)">Both plants have the same ${w.join(" and ")} prefix, so their numbers would look alike. Give each plant its own prefix.</div>`:""})()}
+  <div class="tablebox"><table class="mt" style="min-width:1300px"><thead><tr><th>Plant</th><th>Short name</th><th>Invoice prefix</th><th>Last invoice No. (this year, old ERP)</th><th>Next invoice</th><th>Quotation prefix</th><th>Last quotation No. (old ERP)</th><th>Next quotation</th><th>Address line 1</th><th>Address line 2</th><th>City</th><th>PIN</th></tr></thead><tbody>${L.map(p=>{const inp=([f,w])=>`<td><input id="pl-${p.id}-${f}" data-pl="${p.id}" data-pf="${f}" value="${esc(p[f]??"")}" style="width:${w}px"${ad?"":" disabled"}></td>`;
+    return`<tr>${[["name",200],["short",110],["pre",70],["lastNo",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(invPreOf(p.id))}${nextInvNo(fyOf(today()),p.id)}/${fyOf(today())}</td>${[["qpre",70],["qLast",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(qtPreOf(p.id))}${nextDealNo(p.id)}</td>${[["addr1",260],["addr2",180],["loc",80],["pin",80]].map(inp).join("")}</tr>`}).join("")}</tbody></table></div>`}
 $("#plantPanel").addEventListener("change",e=>{const id=e.target.dataset.pl,f=e.target.dataset.pf;if(!id||!f)return;const m=(M.plants||[]).slice();let o=m.find(x=>x.id===id);if(!o){o={id};m.push(o)}o[f]=e.target.value.trim();M.plants=m;saveM();renderPlants();fillPlantSels();toast("Saved")});
 /* ---------- opening bills from the old ERP (unpaid on the start date) ---------- */
 const OB_FIELDS=[["party","Party",["partyname","customername","suppliername","vendorname","ledgername","nameofledger","accountname","name","party","customer","supplier","vendor","account","particulars"]],
