@@ -104,6 +104,21 @@ input.auto,select.auto,textarea.auto,table.est input.auto,table.est textarea.aut
 .paper .small{font-size:10px}
 .paper .foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
 .paper .sign{text-align:right;margin-top:26px}
+.ltbar{display:flex;justify-content:flex-end;margin-bottom:-4px}
+table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+table.lt th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg);font-weight:600;white-space:nowrap}
+table.lt td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.lt th.num,table.lt td.num{text-align:right}table.lt td.num{font-weight:700;white-space:nowrap}
+table.lt td.no{font-family:var(--mono);font-weight:700;white-space:nowrap}table.lt td.no small{display:block;font-family:inherit;font-weight:400;color:var(--muted);font-size:11.5px}
+table.lt .prj{font-family:var(--mono);font-size:12px;text-decoration:underline;text-underline-offset:3px;color:var(--ink,inherit);white-space:nowrap}
+table.lt td.dt{white-space:nowrap}table.lt td.upd{color:var(--muted);font-size:12.5px;min-width:96px}
+table.lt .chip{text-transform:none;letter-spacing:0;font-size:12.5px;padding:4px 10px 4px 9px;margin:1px 0}table.lt .chip::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:2px}
+table.lt td.act{text-align:right}table.lt td.act .acts{display:inline-flex;flex-direction:column;gap:6px;align-items:stretch}table.lt td.act .btn{white-space:nowrap}
+table.lt .btn.pdf{background:#2e6b45;border-color:#2e6b45;color:#fff}
+table.lt tr[data-ri]{cursor:pointer}table.lt tr[aria-selected="true"] td{background:var(--sugg-bg)}
+@media (max-width:640px){table.lt thead{display:none}table.lt,table.lt tbody{display:block}table.lt tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+table.lt td{display:block;padding:0;border:0}table.lt td[data-l]::before{content:attr(data-l);display:block;font-family:"IBM Plex Sans",system-ui,sans-serif;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+table.lt td.num{text-align:left}table.lt td.act{grid-column:1/-1;text-align:left}table.lt td.act .acts{flex-direction:row}table.lt td.act::before{display:none}}
 .listrow{display:grid;grid-template-columns:110px 1fr 120px 110px minmax(max-content,auto);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 @media (max-width:640px){.listrow{grid-template-columns:1fr 1fr}.listrow .wide{grid-column:1/-1}}
 .chip.st-Submitted{background:var(--sugg-bg);color:var(--sugg)}
@@ -407,7 +422,7 @@ body.gated header.bar,body.gated main{display:none}
   </div>
   <div class="panel stack" id="reqBal" hidden></div>
   <div class="panel stack">
-    <div class="row"><h2 class="sec">All requests</h2><select class="per" id="per-req" aria-label="Period" style="width:auto"></select></div>
+    <div class="row"><h2 class="sec">All requests</h2><input class="lq" id="req-q" placeholder="Search request, item, person" style="max-width:240px"><select class="prj" id="prj-req" aria-label="Project" style="width:auto"></select><select class="per" id="per-req" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><span class="note" id="req-n"></span></div>
     <div id="reqList"></div>
   </div>
 </section>
@@ -513,12 +528,13 @@ body.gated header.bar,body.gated main{display:none}
 
 <!-- SAVED -->
 <section id="view-saved" class="panel stack" hidden>
-  <div class="row"><h2 class="sec">Purchase orders</h2><input id="saved-q" placeholder="Search PO No., supplier, Job No." style="max-width:280px"><select class="per" id="per-saved" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><span class="note" id="saved-n"></span></div>
+  <div class="row"><h2 class="sec">Purchase orders</h2><input id="saved-q" placeholder="Search PO, supplier, item, job" style="max-width:280px"><select class="prj" id="prj-saved" aria-label="Project" style="width:auto"></select><select class="per" id="per-saved" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><span class="note" id="saved-n"></span></div>
   <div id="savedList"></div>
 </section>
 
 <!-- APPROVALS -->
 <section id="view-appr" class="stack" hidden>
+  <div class="panel row"><input class="lq" id="appr-q" placeholder="Search PO, supplier, item, job" style="max-width:240px"><select class="prj" id="prj-appr" aria-label="Project" style="width:auto"></select><select class="per" id="per-appr" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><span class="note">Filters both lists below</span></div>
   <div class="panel stack"><h2 class="sec">Waiting for your approval</h2>
     <div class="row" id="apprBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="appr-all" style="width:18px;height:18px"> Select all</label><span class="note" id="appr-seln">Tick POs to approve them together.</span><span style="flex:1"></span><button class="btn primary" id="btn-appr-bulk" disabled>Approve selected</button></div>
     <div class="banner stack" id="apprBulkAsk" hidden><b id="appr-ask-t"></b><span class="note" id="appr-ask-n"></span><div class="row"><span style="flex:1"></span><button class="btn" id="btn-appr-no">Cancel</button><button class="btn primary" id="btn-appr-yes">Yes, approve and sign</button></div></div>
@@ -528,11 +544,11 @@ body.gated header.bar,body.gated main{display:none}
 
 <!-- STORE / GRN -->
 <section id="view-grn" class="stack" hidden>
-  <div class="panel stack"><h2 class="sec">Approved POs waiting for material</h2>
+  <div class="panel stack"><div class="row"><h2 class="sec">Approved POs waiting for material</h2><input class="lq" id="gpo-q" placeholder="Search PO, supplier, item, job" style="max-width:240px"><select class="prj" id="prj-gpo" aria-label="Project" style="width:auto"></select><select class="per" id="per-gpo" aria-label="Period" style="width:auto"></select></div>
     <div class="note">Select a PO when material arrives. The GRN is filled in from the PO lines; enter what was actually received and any rejections.</div>
     <div id="grnPOs"></div></div>
   <div class="panel stack" id="grnForm" hidden></div>
-  <div class="panel stack"><div class="row"><h2 class="sec">GRNs created</h2><select class="per" id="per-grn" aria-label="Period" style="width:auto"></select></div><div id="grnList"></div></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">GRNs created</h2><input class="lq" id="grn-q" placeholder="Search GRN, PO, supplier, invoice" style="max-width:240px"><select class="prj" id="prj-grn" aria-label="Project" style="width:auto"></select><select class="per" id="per-grn" aria-label="Period" style="width:auto"></select></div><div id="grnList"></div></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Returnable challans</h2><span class="note">Material sent out for job work, repair or trial. Stays open until all of it is received back.</span><span style="flex:1"></span><button class="btn primary" id="btn-rgp-new">New returnable challan</button></div>
     <div id="rgpList"></div></div>
   <div class="panel stack" id="rgpForm" hidden></div>
@@ -634,9 +650,9 @@ body.gated header.bar,body.gated main{display:none}
 </section>
 
 <!-- SALES DOCUMENTS -->
-<section id="view-so" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Sales orders</h2><input id="so-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-so" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="so">+ New sales order</button></div><div class="note">Make a sales order from a won quotation (open it on the Sales page), or start one here. Challans and invoices are made from the order, so you can see what is still to dispatch and bill.</div><div id="so-list"></div></div><div class="panel stack" id="so-form" hidden></div></section>
-<section id="view-dc" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Delivery challans</h2><input id="dc-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-dc" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="dc">+ New challan</button></div><div class="note">Open a sales order and press "Make challan" to send part or all of it. Pending quantity is tracked per line.</div><div id="dc-list"></div></div><div class="panel stack" id="dc-form" hidden></div></section>
-<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search" style="max-width:220px"><select class="per" id="per-inv" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><button class="btn" type="button" id="btn-ewb">Generate e-way bill</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Start a new invoice from a sales order, a customer PO, job work on customer material, or direct. You can also make one from a challan. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div><div class="panel stack" id="agePanel"></div></section>
+<section id="view-so" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Sales orders</h2><input id="so-q" placeholder="Search (type a few letters)" style="max-width:220px"><select class="prj" id="prj-so" aria-label="Project" style="width:auto"></select><select class="per" id="per-so" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="so">+ New sales order</button></div><div class="note">Make a sales order from a won quotation (open it on the Sales page), or start one here. Challans and invoices are made from the order, so you can see what is still to dispatch and bill.</div><div id="so-list"></div></div><div class="panel stack" id="so-form" hidden></div></section>
+<section id="view-dc" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Delivery challans</h2><input id="dc-q" placeholder="Search (type a few letters)" style="max-width:220px"><select class="prj" id="prj-dc" aria-label="Project" style="width:auto"></select><select class="per" id="per-dc" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" data-sdnew="dc">+ New challan</button></div><div class="note">Open a sales order and press "Make challan" to send part or all of it. Pending quantity is tracked per line.</div><div id="dc-list"></div></div><div class="panel stack" id="dc-form" hidden></div></section>
+<section id="view-inv" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Tax invoices</h2><input id="inv-q" placeholder="Search (type a few letters)" style="max-width:220px"><select class="prj" id="prj-inv" aria-label="Project" style="width:auto"></select><select class="per" id="per-inv" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn" type="button" id="btn-einv-bulk">Export e-invoice JSON</button><button class="btn" type="button" id="btn-irn-imp">Import IRN from portal</button><button class="btn" type="button" id="btn-ewb">Generate e-way bill</button><input type="file" id="irn-file" accept=".json,.xlsx,.xls,.csv" hidden><button class="btn primary" type="button" data-sdnew="inv">+ New invoice</button></div><div class="note">Start a new invoice from a sales order, a customer PO, job work on customer material, or direct. You can also make one from a challan. GST is CGST + SGST for Maharashtra customers (GSTIN starting 27) and IGST for others. Record payments received to track what is still to collect.</div><div class="cards" id="inv-tiles" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))"></div><div id="inv-list"></div></div><div class="panel stack" id="inv-form" hidden></div><div class="panel stack" id="agePanel"></div></section>
 
 <!-- PRODUCTION -->
 <section id="view-prod" class="stack" hidden>
@@ -790,13 +806,80 @@ const fmt=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{minimumFracti
 const fmt0=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{maximumFractionDigits:2});
 const key=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
 /* period filter on document lists */
-const PERIODS=[["all","All dates"],["d1","Today"],["w1","Last 7 days"],["m1","Last 30 days"],["tm","This month"],["lm","Last month"],["fy","This year (Apr-Mar)"],["ly","Last year (Apr-Mar)"]];
+const PERIODS=[["all","All"],["d1","Today"],["wk","This week"],["tm","This month"],["lm","Last month"],["fy","This year (Apr-Mar)"],["ly","Last year (Apr-Mar)"]];
 function perRange(v){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),p=n=>String(n).padStart(2,"0"),fy=m>=4?y:y-1;
-  return{d1:[t,t],w1:[addDays(t,-6),t],m1:[addDays(t,-29),t],tm:[t.slice(0,7)+"-01",t],lm:(()=>{const ly=m===1?y-1:y,lmm=m===1?12:m-1;return[`${ly}-${p(lmm)}-01`,`${ly}-${p(lmm)}-31`]})(),fy:[`${fy}-04-01`,`${fy+1}-03-31`],ly:[`${fy-1}-04-01`,`${fy}-03-31`]}[v]}
+  const mon=addDays(t,-((new Date(t+"T00:00:00Z").getUTCDay()+6)%7));
+  return{d1:[t,t],wk:[mon,addDays(mon,6)],w1:[addDays(t,-6),t],m1:[addDays(t,-29),t],tm:[t.slice(0,7)+"-01",t],lm:(()=>{const ly=m===1?y-1:y,lmm=m===1?12:m-1;return[`${ly}-${p(lmm)}-01`,`${ly}-${p(lmm)}-31`]})(),fy:[`${fy}-04-01`,`${fy+1}-03-31`],ly:[`${fy-1}-04-01`,`${fy}-03-31`]}[v]}
 const perOf=k=>{const el=$("#per-"+k);return el?el.value:"all"};
 const inPer=(d,k)=>{const v=perOf(k);if(v==="all")return true;const r=perRange(v),x=String(d||"").slice(0,10);return!!x&&x>=r[0]&&x<=r[1]};
 document.querySelectorAll("select.per").forEach(el=>{el.innerHTML=PERIODS.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");el.addEventListener("change",()=>{const k=el.id.slice(4);
-  ({saved:renderSaved,so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv"),cn:()=>renderNotes("cn"),dn:()=>renderNotes("dn"),req:renderReqList,grn:renderGRN})[k]()})});
+  ({saved:renderSaved,so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv"),cn:()=>renderNotes("cn"),dn:()=>renderNotes("dn"),req:renderReqList,grn:renderGRN,gpo:renderGRN,appr:renderAppr})[k]()})});
+/* search box and project picker on document lists: every typed word must appear somewhere (3 letters is usually enough) */
+const lineTxt=L=>(L||[]).map(l=>[l.item,l.desc,l.spec,l.hsn].filter(Boolean).join(" ")).join(" ");
+const reqDept=no=>no?((reqs.find(r=>r.no===no)||{}).dept||""):"";
+const poDept=s=>s.dept||reqDept(s.reqNo);
+const recDept=(k,x)=>!x?"":k==="req"?x.dept||"":k==="grn"?(x.dept||reqDept(x.reqNo)||poDept(saved.find(p=>String(p.no)===String(x.poNo))||{})):poDept(x);
+const lfOk=(k,job,parts,x)=>{const pe=$("#prj-"+k),p=pe?pe.value:"";if(p&&key(job)!==key(p))return false;
+  const pl=($("#pl-"+k)||{}).value;if(pl&&x&&(x.plant||"P1")!==pl)return false;const dp=($("#dep-"+k)||{}).value;if(dp&&recDept(k,x)!==dp)return false;
+  const q=key(($("#"+k+"-q")||{}).value||"");if(!q)return true;const t=" "+key(parts.filter(x=>x!=null&&x!=="").join(" "));return q.split(" ").every(w=>t.includes(w))};
+/* document lists shown as tables: cols [label, class], rows {c:[cells], a:" attrs"} */
+const ltT=(cols,rows)=>`<div class="ltbar"><button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+/* Export to Excel: takes the table under the button exactly as shown (filters applied), without the Actions column */
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-ltx]");if(!b)return;const T=b.parentElement.nextElementSibling?.querySelector("table.lt");if(!T)return;
+  if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const ths=[...T.querySelectorAll("thead th")],keep=ths.map(th=>!th.classList.contains("act"));
+  const cell=td=>{const t=td.innerText.replace(/\s*\n+\s*/g," · ").trim();if(td.classList.contains("num")){const n=parseFloat(t.replace(/[₹,\s]/g,""));if(/^₹?[\d,.\s-]+$/.test(t)&&!isNaN(n))return n}
+    const m=t.match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$/);if(m&&MON3.includes(m[2]))return new Date(Date.UTC(+m[3],MON3.indexOf(m[2]),+m[1]));return t==="-"?"":t};
+  const aoa=[ths.filter((_,i)=>keep[i]).map(th=>th.textContent.trim()),...[...T.querySelectorAll("tbody tr")].map(tr=>[...tr.children].filter((_,i)=>keep[i]).map(cell))];
+  const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd-mmm-yyyy"});ws["!cols"]=aoa[0].map((h,i)=>({wch:Math.min(40,Math.max(h.length+2,...aoa.slice(1).map(r=>String(r[i] instanceof Date?"00-Mmm-0000":r[i]??"").length+1)))}));
+  const nm=((b.closest(".panel,section")||document).querySelector("h2.sec")?.textContent||"List").trim(),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,nm.slice(0,31).replace(/[\\/?*[\]:]/g," "));
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(await deliver(blob,`${nm.replace(/[^A-Za-z0-9]+/g,"-")}-${today()}.xlsx`))toast(`Saved ${aoa.length-1} row${aoa.length===2?"":"s"} to Excel`)});
+/* Export to Excel on every other list (masters, reports, notes, challans, slips ...): a button is added above each list table or row list as it appears */
+const XL_SKIP='#view-po,#view-est,[id$="Form"],[id$="-form"],.ltbar,.tablebox:has(#estBody,#poBody,#poTot,#reqBody,#grnBody,#dl-lines,#v-alloc)';
+const xlName=el=>((el.closest(".panel,section,.stack")||document).querySelector("h2.sec,h2,h3")?.textContent||"List").trim().replace(/\s+/g," ");
+function xlTargets(){const T=[];document.querySelectorAll(".tablebox:not(:has(table.lt))").forEach(b=>{const t=b.querySelector("table");if(t&&t.tBodies[0]&&t.tBodies[0].rows.length)T.push(b)});
+  new Set([...document.querySelectorAll(".listrow")].map(r=>r.parentElement)).forEach(c=>T.push(c));return T.filter(x=>!x.closest(XL_SKIP))}
+function xlEnsure(){xlTargets().forEach(t=>{const pv=t.previousElementSibling;if(pv&&pv.classList.contains("xlbar"))return;t.insertAdjacentHTML("beforebegin",`<div class="ltbar xlbar"><button class="btn" type="button" data-xlx title="Download this list as shown as an Excel file">Export to Excel</button></div>`)});
+  document.querySelectorAll(".xlbar").forEach(b=>{const n=b.nextElementSibling;if(!n||!xlTargets().includes(n))b.remove()})}
+{let xt=0;new MutationObserver(()=>{clearTimeout(xt);xt=setTimeout(xlEnsure,120)}).observe(document.body,{childList:true,subtree:true})}
+const xlCell=el=>{const f=[...el.querySelectorAll("input:not([type=checkbox]):not([type=button]):not([type=file]),select,textarea")];
+  const t=f.length?f.map(x=>x.tagName==="SELECT"?(x.selectedOptions[0]?.textContent||""):x.value).filter(Boolean).join(" · "):[...el.childNodes].length?el.innerText:"";
+  const v=String(t).replace(/\s*\n+\s*/g," · ").trim(),n=v.replace(/[₹,\s]/g,"");if(/^₹?\s?-?[\d,]+(\.\d+)?$/.test(v)&&!isNaN(+n)&&n.length<15&&!/^0\d/.test(n))return+n;
+  const m=v.match(/^(\d\d)\/(\d\d)\/(\d{4})$/);if(m)return new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));return v==="-"?"":v};
+const onlyBtn=el=>{if(el.querySelector("input:not([type=checkbox]):not([type=button]):not([type=file]),select,textarea"))return false;const w=x=>String(x||"").replace(/\s+/g,"");return w(el.textContent)===w([...el.querySelectorAll("button,a.btn,.x")].map(b=>b.textContent).join(""))};
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-xlx]");if(!b)return;const t=b.parentElement.nextElementSibling;if(!t)return;
+  if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  let aoa;const tb=t.querySelector("table");
+  if(tb){const H=[...(tb.tHead?.rows[0]?.cells||[])].map(c=>c.innerText.trim());const R=[...tb.tBodies].flatMap(x=>[...x.rows]).filter(r=>!r.hidden&&!(r.cells.length===1&&r.cells[0].colSpan>1));
+    const n=Math.max(H.length,...R.map(r=>r.cells.length)),keep=[...Array(n).keys()].filter(i=>H[i]||R.some(r=>r.cells[i]&&!onlyBtn(r.cells[i])));
+    aoa=[keep.map(i=>H[i]||""),...R.map(r=>keep.map(i=>r.cells[i]?xlCell(r.cells[i]):""))]}
+  else{const R=[...t.children].filter(x=>x.classList.contains("listrow")).map(r=>[...r.children].filter(c=>!onlyBtn(c)).map(xlCell));const n=Math.max(...R.map(r=>r.length));aoa=[[...Array(n).keys()].map(i=>i===0?"No.":"Column "+(i+1)),...R]}
+  const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd-mmm-yyyy"});ws["!cols"]=aoa[0].map((h,i)=>({wch:Math.min(50,Math.max(String(h).length+2,...aoa.slice(1).map(r=>String(r[i] instanceof Date?"00-Mmm-0000":r[i]??"").length+1)))}));
+  const nm=xlName(t),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,nm.slice(0,31).replace(/[\\/?*[\]:]/g," ")||"List");
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(await deliver(blob,`${nm.replace(/[^A-Za-z0-9]+/g,"-")}-${today()}.xlsx`))toast(`Saved ${aoa.length-1} row${aoa.length===2?"":"s"} to Excel`)});
+const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const ltD=iso=>{const x=String(iso||"");if(!/^\d{4}-\d\d-\d\d/.test(x))return"-";return`${+x.slice(8,10)} ${MON3[+x.slice(5,7)-1]} ${x.slice(0,4)}`};
+const ltDT=iso=>{const x=String(iso||"");if(x.length<=10)return ltD(x);const d=new Date(x);if(isNaN(d))return ltD(x);const h=d.getHours(),m=String(d.getMinutes()).padStart(2,"0");return`${d.getDate()} ${MON3[d.getMonth()]} ${d.getFullYear()}, ${String(h%12||12).padStart(2,"0")}:${m} ${h<12?"am":"pm"}`};
+const ltPrj=j=>j?`<span class="prj">${esc(j)}</span>`:`<span class="note">-</span>`;
+const ltAmt=n=>"₹"+fmt(n);
+const ltActs=(...b)=>`<span class="acts">${b.filter(Boolean).join("")}</span>`;
+const poBy=s=>((s.history||[]).find(h=>h.action==="Sent for approval")||(s.history||[])[0]||{}).by||s.by||"";
+const poUpd=s=>s.savedAt||((s.history||[]).slice(-1)[0]||{}).at||s.approvedAt||s.date;
+const PO_COLS=[["PO number","no"],["Project"],["Vendor"],["PO date","dt"],["Amount","num"],["Purchaser"],["Status"],["Updated","upd"],["Actions","act"]];
+const poPdfBtn=i=>{const s=saved[i];return`<button class="btn${s.status==="Approved"?" pdf":""}" type="button" data-pdf="${i}">${s.status==="Approved"?"Signed PDF":"PDF"}</button>`};
+const lfNone=`<div class="empty">Nothing matches the search, project or period. Clear them to see everything.</div>`;
+function fillPrj(k,jobs){fillPlDep(k);const el=$("#prj-"+k);if(!el)return;const v=el.value,L=[...new Set(M.projects.map(p=>p.no).concat(jobs).map(x=>String(x||"").trim()).filter(Boolean))].sort();
+  const h=`<option value="">All projects</option>`+L.map(j=>`<option${j===v?" selected":""}>${esc(j)}</option>`).join("");if(el.innerHTML!==h)el.innerHTML=h;if(v&&!L.includes(v))el.value=""}
+/* plant and department pickers beside the project picker (department only on purchase lists) */
+const LF_DEPT=["req","saved","appr","gpo","grn"];
+function fillPlDep(k){const opt=(el,all,L)=>{if(!el)return;const v=el.value,h=`<option value="">${all}</option>`+L.map(([id,t])=>`<option value="${esc(id)}"${id===v?" selected":""}>${esc(t)}</option>`).join("");if(el.innerHTML!==h)el.innerHTML=h;if(v&&!L.some(x=>x[0]===v))el.value=""};
+  opt($("#pl-"+k),"All plants",plants().map(p=>[p.id,p.short||p.name]));
+  if(LF_DEPT.includes(k))opt($("#dep-"+k),"All departments",[...new Set(M.depts.map(d=>d.name).concat(reqs.map(r=>r.dept)).filter(Boolean))].sort().map(d=>[d,d]))}
+document.querySelectorAll("select.prj").forEach(el=>{const k=el.id.slice(4);el.insertAdjacentHTML("afterend",`<select class="pl" id="pl-${k}" aria-label="Plant" style="width:auto"></select>`+(LF_DEPT.includes(k)?`<select class="dep" id="dep-${k}" aria-label="Department" style="width:auto"></select>`:""))});
+const LF_RENDER={req:()=>renderReqList(),saved:()=>renderSaved(),appr:()=>renderAppr(),gpo:()=>renderGRN(),grn:()=>renderGRN(),so:()=>renderSDList("so"),dc:()=>renderSDList("dc"),inv:()=>renderSDList("inv")};
+Object.entries(LF_RENDER).forEach(([k,f])=>{const q=$("#"+k+"-q");if(q&&q.classList.contains("lq"))q.addEventListener("input",f);["prj","pl","dep"].forEach(x=>{const el=$(`#${x}-${k}`);if(el)el.addEventListener("change",f)})});
 const today=()=>new Date().toISOString().slice(0,10);
 const dmy=iso=>{if(!iso)return"";const[y,m,d]=iso.split("-");return`${d}/${m}/${y}`};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1275,21 +1358,25 @@ $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
 function renderSaved(){
   const L=$("#savedList");
   if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
-  const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&(!q||key([s.no,pcx(s.sup),s.ref,s.reqNo,s.status].join(" ")).includes(q))).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
-  L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}<br><span class="note">${esc(plantName(s.plant))}</span></b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
+  const q=key($("#saved-q").value||"");fillPrj("saved",saved.map(s=>s.ref));const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&lfOk("saved",s.ref,[s.no,pcx(s.sup),s.ref,s.reqNo,s.status,lineTxt(s.lines)],s)).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
+  L.innerHTML=S.length?ltT(PO_COLS,S.map(([s,i])=>({c:[`${esc(s.no)}<small>${esc(plantName(s.plant))}</small>`,ltPrj(s.ref),`${esc(s.sup||"No supplier")}<br><span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span>`,ltD(s.date),ltAmt(s.total),esc(poBy(s)),`${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}`,ltDT(poUpd(s)),ltActs(`<button class="btn" type="button" data-open="${i}">View</button>`,poPdfBtn(i))]}))):lfNone;
 }
+function poPdfClick(e){const b=e.target.closest("[data-pdf]");if(!b)return;const p=saved[+b.dataset.pdf];if(p)savePDF(docPO(p),`PO-${p.no}${p.status==="Approved"?"":"-"+String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase()}.pdf`)}
+const apprTbl=(L,bulk)=>ltT(PO_COLS,L.map(s=>{const i=saved.indexOf(s);return{c:[bulk?`<label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-bsel="${esc(s.no)}" style="width:18px;height:18px"${apprSel.has(String(s.no))?" checked":""}>${esc(s.no)}</label>`:esc(s.no),ltPrj(s.ref),esc(s.sup||"No supplier"),ltD(s.date),ltAmt(s.total),esc(poBy(s)),stChip(s.status),ltDT(poUpd(s)),ltActs(`<button class="btn${s.status==="Pending approval"?" primary":""}" type="button" data-open="${i}">${s.status==="Pending approval"?"Review":"View"}</button>`,poPdfBtn(i))]}}));
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
-  const pend=saved.filter(s=>s.status==="Pending approval"),done=saved.filter(s=>["Approved","Sent back"].includes(s.status)).slice(0,10);
+  fillPrj("appr",saved.map(s=>s.ref));
+  const pend=apprPend(),done=saved.filter(s=>["Approved","Sent back"].includes(s.status)&&apprOk(s)).slice(0,10);
   const bulk=canBulkAppr()&&pend.length>0;$("#apprBulk").hidden=!bulk;
-  $("#apprList").innerHTML=pend.length?pend.map(s=>bulk?apprRow(s).replace(`<b style="font-family:var(--mono)">`,`<b style="font-family:var(--mono)"><label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-bsel="${esc(s.no)}" style="width:18px;height:18px"${apprSel.has(String(s.no))?" checked":""}>`).replace(`</b>`,`</label></b>`):apprRow(s)).join(""):`<div class="empty">Nothing is waiting for approval.</div>`;
+  $("#apprList").innerHTML=pend.length?apprTbl(pend,bulk):`<div class="empty">Nothing is waiting for approval${saved.some(s=>s.status==="Pending approval")?" that matches the filters":""}.</div>`;
   apprSelSync();
-  $("#apprDone").innerHTML=done.length?done.map(apprRow).join(""):`<div class="empty">No decisions yet.</div>`;
+  $("#apprDone").innerHTML=done.length?apprTbl(done):saved.some(s=>["Approved","Sent back"].includes(s.status))?lfNone:`<div class="empty">No decisions yet.</div>`;
 }
 /* bulk approval: Director and Admin can tick several pending POs and approve them in one go */
 const apprSel=new Set();
 const canBulkAppr=()=>isRole("Director","Approver","Admin")&&has("po.approve");
-function apprPend(){return saved.filter(s=>s.status==="Pending approval")}
+const apprOk=s=>inPer(s.date,"appr")&&lfOk("appr",s.ref,[s.no,pcx(s.sup),s.ref,s.reqNo,lineTxt(s.lines)],s);
+function apprPend(){return saved.filter(s=>s.status==="Pending approval"&&apprOk(s))}
 function apprSelSync(){
   const P=apprPend(),ids=new Set(P.map(s=>String(s.no)));[...apprSel].forEach(n=>{if(!ids.has(n))apprSel.delete(n)});
   const n=apprSel.size,tot=P.filter(s=>apprSel.has(String(s.no))).reduce((a,s)=>a+(+s.total||0),0);
@@ -1314,9 +1401,9 @@ $("#btn-appr-yes").onclick=()=>{
   if(reqsTouched)saveReqs();
   po=keep&&L.some(x=>String(x.no)===String(keep.no))?JSON.parse(JSON.stringify(saved.find(x=>String(x.no)===String(keep.no)))):keep;store.set("po",po);
   apprSel.clear();renderAppr();renderBadges();toast(`${L.length} PO${L.length>1?"s":""} approved and signed`)};
-["#apprList","#apprDone"].forEach(id=>$(id).addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}}));
+["#apprList","#apprDone"].forEach(id=>$(id).addEventListener("click",e=>{poPdfClick(e);const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}}));
 $("#saved-q").addEventListener("input",renderSaved);
-$("#savedList").addEventListener("click",e=>{const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}});
+$("#savedList").addEventListener("click",e=>{poPdfClick(e);const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}});
 function renderRates(){
   const list=Object.entries(rates).sort((a,b)=>a[1].name.localeCompare(b[1].name));
   $("#rateBody").innerHTML=list.length?list.map(([k,r])=>`<tr><td>${esc(r.name)}</td><td class="num" style="font-family:var(--mono)">${fmt0(r.rate)}</td><td>${dmy(r.date)}</td><td class="note">${esc(r.src)}</td><td><button class="x" data-rdel="${esc(k)}" aria-label="Remove ${esc(r.name)}">×</button></td></tr>`).join(""):`<tr><td colspan="5" class="empty">No rates yet.</td></tr>`;
@@ -1426,11 +1513,11 @@ function renderAttach(box,a,rm){const L=attList(a);
     return x.type==="image"?`<figure><img src="${x.data}" alt="Attached request: ${esc(x.name)}"><figcaption>${esc(x.name)}${del}</figcaption></figure>`:`<span class="filechip">${x.type==="pdf"?"PDF":"Excel"} · ${x.data&&x.type==="xlsx"?`<a href="${esc(x.data)}" download="${esc(x.name)}">${esc(x.name)}</a>`:esc(x.name)}${x.note?` · ${esc(x.note)}`:""}${x.filled?` · ${x.filled} lines copied`:""}${rm&&x.type==="xlsx"&&x.data&&!x.filled?` <button class="linkbtn" type="button" data-afill="${i}">Copy lines from it</button>`:""}${del}</span>`}).join("");
 }
 function renderReqList(){
-  const vis=visibleReqs().filter(r=>inPer(r.date,"req")&&inPlant(r));
-  $("#reqList").innerHTML=vis.length?vis.map(r=>`<div class="reqrow" data-ri="${reqs.indexOf(r)}" aria-selected="${r===cur}" tabindex="0"><b style="font-family:var(--mono)">${esc(r.no)}</b><span>${r.cat?`<span class="cattype">${esc(r.cat)}</span> `:""}${esc(r.job||"No job")} · ${r.lines.length} items${r.by?" · "+esc(r.by):""}</span><span class="hide-sm">${dmy(r.date)}</span><span class="hide-sm note">${r.need?"Need by "+dmy(r.need):""}</span><span>${stChip(r.status)}${reqPendChip(r)}</span></div>`).join(""):`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
+  const all=visibleReqs();fillPrj("req",all.map(r=>r.job));const vis=all.filter(r=>inPer(r.date,"req")&&inPlant(r)&&lfOk("req",r.job,[r.no,r.cat,r.job,r.by,r.dept,r.status,r.poNo,lineTxt(r.lines)],r));$("#req-n").textContent=all.length?`${vis.length} of ${all.length}`:"";
+  $("#reqList").innerHTML=vis.length?ltT([["Request No.","no"],["Project"],["Requested by"],["Request date","dt"],["Need by","dt"],["Items","num"],["Status"],["Updated","upd"],["Actions","act"]],vis.map(r=>{const ri=reqs.indexOf(r);return{a:` data-ri="${ri}" aria-selected="${r===cur}" tabindex="0"`,c:[esc(r.no)+(r.cat?`<small>${esc(r.cat)}</small>`:""),ltPrj(r.job),`${esc(r.by||"-")}${r.dept?`<br><span class="note">${esc(r.dept)}</span>`:""}`,ltD(r.date),r.need?ltD(r.need):"-",r.lines.length,stChip(r.status)+reqPendChip(r),ltD([r.apprAt,r.chkAt,r.subAt,r.date].filter(Boolean).sort().pop()),ltActs(`<button class="btn" type="button">View</button>`,`<button class="btn${["Approved","Estimated","PO raised","PO approved"].includes(r.status)?" pdf":""}" type="button" data-rpdf="${ri}">PDF</button>`)]}})):all.length?lfNone:`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
 }
-$("#reqList").addEventListener("click",e=>{const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
-$("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
+$("#reqList").addEventListener("click",e=>{const pb=e.target.closest("[data-rpdf]");if(pb){const r=reqs[+pb.dataset.rpdf];if(r)savePDF(docRequest(r),`Purchase-request-${r.no}.pdf`);return}const row=e.target.closest("[data-ri]");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
+$("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest("[data-ri]");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
 ["no","date","by","dept","job","need","plant"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;if(k==="job")$("#q-dept-req").hidden=!!cur.job;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
 $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
@@ -1834,9 +1921,9 @@ $("#pendBody").addEventListener("click",e=>{const r=e.target.dataset.preq,p=e.ta
 function grnCalc(g){const sub=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l),0);const tax=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l)*(+l.tax||0)/100,0);return{sub,tax,total:Math.round(sub+tax)}}
 let grn=null;
 function renderGRN(){
-  const open=saved.filter(p=>p.status==="Approved"&&pendingLines(p).length);
-  $("#grnPOs").innerHTML=open.length?open.map(p=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(p.no)}</b><span class="wide">${esc(p.sup)} · ${esc(p.ref||"")} · <span class="note">${pendingLines(p).length} of ${p.lines.length} lines pending</span>${p.needBy?` · <span style="${p.needBy<today()?"color:var(--danger);font-weight:600":""}">need by ${dmy(p.needBy)}${p.needBy<today()?" (late)":""}</span>`:""}</span><span>${p.recv?stChip(p.recv):stChip("Approved")}</span><span class="note">${dmy(p.approvedAt)}</span>${has("grn.create")?`<button class="btn primary" data-grnpo="${esc(p.no)}">Receive</button>`:`<span class="note">View only</span>`}</div>`).join(""):`<div class="empty">No approved POs are waiting for material.</div>`;
-  const GL=grns.filter(g=>inPer(g.date,"grn")&&inPlant(g));$("#grnList").innerHTML=GL.length?GL.map(g=>`<div class="listrow"><b style="font-family:var(--mono)">GRN ${g.no}</b><span class="wide">PO ${esc(g.poNo)} · ${esc(g.sup)} · <span class="note">DC ${esc(g.dc||"-")} · Inv ${esc(g.inv||"-")}</span></span><span>${stChip(g.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(grnCalc(g).total)}</span><span class="note">${dmy(g.date)}</span></div>`).join(""):`<div class="empty">No GRNs yet.</div>`;
+  const open0=saved.filter(p=>p.status==="Approved"&&pendingLines(p).length);fillPrj("gpo",open0.map(p=>p.ref));const open=open0.filter(p=>inPer(p.approvedAt||p.date,"gpo")&&lfOk("gpo",p.ref,[p.no,p.sup,p.ref,p.reqNo,lineTxt(p.lines)],p));
+  $("#grnPOs").innerHTML=open.length?ltT([["PO number","no"],["Project"],["Vendor"],["Approved on","dt"],["Need by","dt"],["Lines pending","num"],["Amount","num"],["Status"],["Actions","act"]],open.map(p=>({c:[esc(p.no),ltPrj(p.ref),esc(p.sup),ltD(p.approvedAt),p.needBy?`<span style="${p.needBy<today()?"color:var(--danger);font-weight:600":""}">${ltD(p.needBy)}${p.needBy<today()?" (late)":""}</span>`:"-",`${pendingLines(p).length} of ${p.lines.length}`,ltAmt(p.total),p.recv?stChip(p.recv):stChip("Approved"),ltActs(has("grn.create")?`<button class="btn primary" type="button" data-grnpo="${esc(p.no)}">Receive</button>`:"",`<button class="btn pdf" type="button" data-pdf="${saved.indexOf(p)}">Signed PDF</button>`)]}))):open0.length?lfNone:`<div class="empty">No approved POs are waiting for material.</div>`;
+  fillPrj("grn",grns.map(g=>g.job));const GL=grns.filter(g=>inPer(g.date,"grn")&&inPlant(g)&&lfOk("grn",g.job,["GRN "+g.no,g.no,"PO "+g.poNo,g.sup,g.dc,g.inv,g.job,g.status,lineTxt(g.lines)],g));$("#grnList").innerHTML=GL.length?ltT([["GRN No.","no"],["Project"],["Vendor"],["GRN date","dt"],["PO No."],["Supplier DC / Invoice"],["Amount","num"],["Received by"],["Status"],["Actions","act"]],GL.map(g=>{const pi=saved.findIndex(x=>String(x.no)===String(g.poNo));return{c:[esc(g.no),ltPrj(g.job),esc(g.sup),ltD(g.date),esc(g.poNo),`DC ${esc(g.dc||"-")}<br><span class="note">Inv ${esc(g.inv||"-")}${g.invDate?" · "+ltD(g.invDate):""}</span>`,ltAmt(grnCalc(g).total),esc(g.by||"-"),stChip(g.status),pi>=0?ltActs(`<button class="btn" type="button" data-pdf="${pi}">PO PDF</button>`):""]}})):grns.length?lfNone:`<div class="empty">No GRNs yet.</div>`;
   renderGRNForm();
 }
 function renderGRNForm(){
@@ -1854,7 +1941,8 @@ function renderGRNForm(){
   <div class="totalbar"><div class="total"><span>Accepted value incl. GST</span><b id="grnTotal">${fmt(grnCalc(grn).total)}</b></div><button class="btn primary" id="btn-g-save">Create GRN and send to Accounts</button></div>`;
   scanMark(grn,"grn");
 }
-$("#grnPOs").addEventListener("click",e=>{const n=e.target.dataset.grnpo;if(n==null)return;const p=saved.find(x=>String(x.no)===n);
+$("#grnList").addEventListener("click",poPdfClick);
+$("#grnPOs").addEventListener("click",e=>{poPdfClick(e);const n=e.target.dataset.grnpo;if(n==null)return;const p=saved.find(x=>String(x.no)===n);
   grn={no:nextGRN(),date:today(),poNo:p.no,plant:p.plant||"",sup:p.sup,job:p.ref||"",reqNo:p.reqNo||"",terms:p.terms||"",gstmode:p.gstmode,dc:"",dcDate:today(),inv:"",invDate:"",vehicle:"",by:me.name,
     lines:pendingLines(p).map(({l,i,acc})=>({i,desc:l.desc,unit:l.unit,rate:l.rate,dis:l.dis||0,tax:l.tax,hsn:l.hsn,ordered:+l.qty,prev:acc,recv:+((+l.qty)-acc).toFixed(3),rej:0,remark:""}))};
   scanState.rec=null;renderGRNForm();$("#grnForm").scrollIntoView({block:"start"})});
@@ -3250,13 +3338,15 @@ function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.n
 function sdFromDC(d){if(d.inv){const v=invoices.find(x=>sdId("inv",x)===d.inv);if(v){sdOpen("inv",v,false);toast(`Already billed on ${invNo(v)}`);return}}
   const s=sorders.find(x=>String(x.no)===String(d.so));
   sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,so:d.so||"",dc:[d.no],job:s?s.job||"":"",custPO:s?s.custPO:"",custPODate:s?s.custPODate:"",vehicle:d.vehicle,gst:s?s.gst:18,lines:d.lines.map(l=>({i:l.i,desc:l.desc,hsn:l.hsn,qty:+l.qty,unit:l.unit,rate:s&&l.i!=null&&s.lines[l.i]?s.lines[l.i].rate:l.rate}))}),true)}
-function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>!q||key(sdNo(t,x)+" "+pcx(x.cust)+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
+function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A0=(fillPrj(t,SD[t].arr().map(x=>x.job)),SD[t].arr()),A=A0.filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>lfOk(t,x.job,[sdNo(t,x),pcx(x.cust),x.custPO,x.job,x.so?"SO "+x.so:"",lineTxt(x.lines)],x));
   if(t==="inv"){const due=invoices.reduce((a,x)=>a+invDue(x),0),mo=today().slice(0,7),thisM=invoices.filter(x=>x.date.slice(0,7)===mo).reduce((a,x)=>a+invTot(x),0),od=invoices.filter(x=>invDue(x)>0.5&&x.date<addDays(today(),-60)).reduce((a,x)=>a+invDue(x),0);
     $("#inv-tiles").innerHTML=[{n:fmtL(thisM),t:"Billed this month",d:"Including GST"},{n:fmtL(due),t:"To collect",d:"Invoices not fully paid",zero:!due},{n:fmtL(od),t:"Over 60 days",d:"Follow up for payment",warn:od>0,zero:!od}].map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("")}
-  const row=x=>{if(t==="so"){const st=soStatus(x);return`<b style="font-family:var(--mono)">${sdNo(t,x)}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.cust)}${x.custPO?" · PO "+esc(x.custPO):""}${x.job?" · Job "+esc(x.job):""}<br><span class="note">${dmy(x.date)}${x.due?" · Delivery "+dmy(x.due):""}</span></span><span><span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span></span><span class="num">₹ ${fmt0(sdSub(x))}</span>`}
-    if(t==="dc")return`<b style="font-family:var(--mono)">${sdNo(t,x)}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.cust)}${x.so?" · SO-"+esc(x.so):""}${x.vehicle?" · "+esc(x.vehicle):""}<br><span class="note">${dmy(x.date)} · ${x.lines.length} item${x.lines.length===1?"":"s"}</span></span><span>${x.inv?`<span class="chip calc">Billed</span>`:`<span class="chip sugg">Not billed</span>`}</span><span class="num">₹ ${fmt0(sdSub(x))}</span>`;
-    const d=invDue(x);return`<b style="font-family:var(--mono)">${invNo(x)}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.cust)}${x.dc&&x.dc.length?" · DC-"+x.dc.join(", DC-"):""}<br><span class="note">${dmy(x.date)}${x.custPO?" · PO "+esc(x.custPO):""}</span></span><span>${d<0.5?`<span class="chip calc">Paid</span>`:recdOf(x)?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irnCnl?` <span class="chip st-Back">IRN cancelled</span>`:x.irn?` <span class="chip ${gstTest(x.irnMode)?"sugg":"calc"}">${gstTest(x.irnMode)?"Test IRN":"IRN"}</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}${x.eway&&!x.ewbCnl?` <span class="chip calc">EWB</span>`:""}</span><span class="num">₹ ${fmt0(invTot(x))}</span>`};
-  $(`#${t}-list`).innerHTML=A.slice(0,200).map(x=>`<div class="listrow">${row(x)}<span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" type="button" data-sdopen="${esc(sdId(t,x))}">Open</button><button class="btn" type="button" data-sdpdf="${esc(sdId(t,x))}">PDF</button></span></div>`).join("")||`<div class="empty">None yet.</div>`}
+  const no=x=>`${t==="inv"?invNo(x):sdNo(t,x)}<small>${esc(plantName(x.plant))}</small>`,acts=x=>ltActs(`<button class="btn" type="button" data-sdopen="${esc(sdId(t,x))}">View</button>`,`<button class="btn pdf" type="button" data-sdpdf="${esc(sdId(t,x))}">PDF</button>`);
+  const COLS={so:[["SO No.","no"],["Project"],["Customer"],["SO date","dt"],["Customer PO"],["Delivery","dt"],["Amount","num"],["Status"],["Actions","act"]],dc:[["Challan No.","no"],["Project"],["Customer"],["Challan date","dt"],["Sales order"],["Vehicle"],["Amount","num"],["Status"],["Actions","act"]],inv:[["Invoice No.","no"],["Project"],["Customer"],["Invoice date","dt"],["Customer PO"],["Challan"],["Amount","num"],["Status"],["Actions","act"]]}[t];
+  const row=x=>{if(t==="so"){const st=soStatus(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.due?ltD(x.due):"-",ltAmt(sdSub(x)),`<span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span>`,acts(x)]}
+    if(t==="dc")return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),x.so?"SO-"+esc(x.so):"-",esc(x.vehicle||"-"),ltAmt(sdSub(x)),x.inv?`<span class="chip calc">Billed</span>`:`<span class="chip sugg">Not billed</span>`,acts(x)];
+    const d=invDue(x);return[no(x),ltPrj(x.job),esc(x.cust),ltD(x.date),esc(x.custPO||"-"),x.dc&&x.dc.length?"DC-"+x.dc.map(esc).join(", DC-"):"-",ltAmt(invTot(x)),`${d<0.5?`<span class="chip calc">Paid</span>`:recdOf(x)?`<span class="chip sugg">Part paid</span>`:`<span class="chip st-Back">Unpaid</span>`}${x.irnCnl?` <span class="chip st-Back">IRN cancelled</span>`:x.irn?` <span class="chip ${gstTest(x.irnMode)?"sugg":"calc"}">${gstTest(x.irnMode)?"Test IRN":"IRN"}</span>`:(custByName(x.cust)||{}).gstin?` <span class="chip sugg">IRN pending</span>`:""}${x.eway&&!x.ewbCnl?` <span class="chip calc">EWB</span>`:""}`,acts(x)]};
+  $(`#${t}-list`).innerHTML=A.length?ltT(COLS,A.slice(0,200).map(x=>({c:row(x)}))):(A0.length?lfNone:`<div class="empty">None yet.</div>`)}
 ["so","dc","inv"].forEach(t=>{$(`#${t}-q`).oninput=()=>renderSDList(t);
   $(`#${t}-list`).addEventListener("click",e=>{const o=e.target.dataset.sdopen,p=e.target.dataset.sdpdf;const x=SD[t].arr().find(r=>sdId(t,r)===(o||p));if(!x)return;
     if(o){sdOpen(t,x,false)}else savePDF(sdDoc(t,x),`${SD[t].name.replace(/ /g,"-")}-${sdNo(t,x).replace(/\//g,"-")}.pdf`)})});
