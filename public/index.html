@@ -825,8 +825,8 @@ function zpoMain(BOOT){
 try{document.getElementById("brandLogo").src=window.ZT_LOGO}catch(e){}
 const COMPANY={name:"ZOOM TECHNOLOGIES",addr:"Gat No 669 and 670, Industrial Estate, Wadacha Mala, Jadhavwadi, Chikhali - Pune - 411062",contact:"Mob: 70309 53792 / 9967023983   Email: sales@zoomtechnologies.net",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala,",addr2:"Jadhavwadi, Chikhali, Pune - 411062",mob:"Mob: 70309 53792 / 99670 23983",email:"Email: sales@zoomtechnologies.net",gstin:"27AMAPD1813A1Z0",state:"State Code : 27 Maharashtra",pan:"AMAPD1813A"};
 /* plants */
-const PLANT_DEF=[{id:"P1",name:"Plant 1 - Talwade",short:"Talwade",pre:"Z",lastNo:"",qpre:"QT-",qLast:"",addr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",addr2:"Jyotiba Nagar, Talwade",loc:"PUNE",pin:"412114",ph:"7030953792"},
-  {id:"P2",name:"Plant 2 - Jadhavwadi",short:"Jadhavwadi",pre:"J",lastNo:"",qpre:"JQT-",qLast:"",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala",addr2:"Jadhavwadi, Chikhali",loc:"PUNE",pin:"411062",ph:"7030953792"}];
+const PLANT_DEF=[{id:"P1",name:"Plant 1 - Talwade",short:"Talwade",pre:"Z",lastNo:"",qpre:"ZQ-",qLast:"",addr1:"Plot No.C1, Gat No.100, Behind Zunka Hotel",addr2:"Jyotiba Nagar, Talwade",loc:"PUNE",pin:"412114",ph:"7030953792"},
+  {id:"P2",name:"Plant 2 - Jadhavwadi",short:"Jadhavwadi",pre:"J",lastNo:"",qpre:"JQ-",qLast:"",addr1:"Gat No 669 and 670, Industrial Estate, Wadacha Mala",addr2:"Jadhavwadi, Chikhali",loc:"PUNE",pin:"411062",ph:"7030953792"}];
 const plants=()=>{let m=[];try{m=(M&&M.plants)||[]}catch(e){}return PLANT_DEF.map(d=>Object.assign({},d,m.find(x=>x.id===d.id)||{}))};
 const plantBy=id=>plants().find(p=>p.id===id)||null;
 const plantName=id=>(plantBy(id||"P1")||{}).short||"";
@@ -3355,7 +3355,7 @@ const QT_TERMS="Prices: Ex-works Pune\nGST: Extra as applicable\nPayment: 40% ad
 let customers=store.get("customers",[]);const saveCusts=()=>{store.set("customers",customers);codesSoon("cust")};
 let deals=store.get("deals",[]);const saveDeals=()=>store.set("deals",deals);
 let fups=store.get("fups",[]);const saveFups=()=>store.set("fups",fups);
-/* quotations are numbered per plant: Plant 1 keeps the old series (QT-1001 ...), other plants start their own (JQT-1001 ...).
+/* quotations are numbered per plant with the plant letter: Plant 1 ZQ-, Plant 2 JQ- (each continues its own numbers; older ones keep the QT-/JQT- they were saved with).
    ps marks a quotation numbered in its plant's series; older ones (no ps) keep their number and key. */
 const dealKey=d=>SYNC.deals.id(d);
 const dealBy=k=>deals.find(x=>dealKey(x)===String(k));
