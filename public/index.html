@@ -2077,7 +2077,9 @@ function acDescList(){const c=cur&&cur.cat,pri=c==="BOP"?costing.bop.map(x=>x.ty
 function acSource(el){const a=el.dataset.ac||"";let L=[];
   if(a.startsWith("list:")){const d=document.getElementById(a.slice(5));L=d?[...d.options].map(o=>o.value||o.textContent):[]}
   else if(a==="desc")L=acDescList();
-  const P=a==="desc"&&acDescList.pri||new Set(),seen=new Set(),out=[];L.forEach(v=>{v=String(v||"").trim();const k=key(v);if(!k||seen.has(k))return;seen.add(k);out.push({v,k,p:P.has(k)})});return out}
+  const P=a==="desc"&&acDescList.pri||new Set(),seen=new Set(),out=[];L.forEach(v=>{v=String(v||"").trim();const k=key(v);if(!k||seen.has(k))return;seen.add(k);out.push({v,k,p:P.has(k)})});
+  if(a.startsWith("list:")){const d=document.getElementById(a.slice(5)),CM=new Map(d?[...d.options].filter(o=>o.label&&o.label!==o.value).map(o=>[key(o.value),o.label]):[]);out.forEach(o=>{const c=CM.get(o.k);if(c){o.k+=" "+key(c);o.c=c}})}
+  return out}
 function acHide(){if(AC.box)AC.box.hidden=true;AC.hits=[];AC.i=-1}
 function acShow(){const el=AC.el;if(!el||!el.isConnected||el.disabled||el.readOnly){acHide();return}
   const K=key(el.value);if(!K){acHide();return}
@@ -2087,7 +2089,7 @@ function acShow(){const el=AC.el;if(!el||!el.isConnected||el.disabled||el.readOn
     AC.box.addEventListener("mousedown",e=>{e.preventDefault();const o=e.target.closest("[data-aci]");if(o)acPick(+o.dataset.aci)})}
   AC.hits=H;AC.i=-1;const qs=String(el.value).trim().split(/\s+/).filter(Boolean).map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
   const re=qs.length?new RegExp("("+qs.join("|")+")","ig"):null;
-  AC.box.innerHTML=H.map((c,i)=>`<div class="acopt" role="option" data-aci="${i}">${re?esc(c.v).replace(re,"<b>$1</b>"):esc(c.v)}</div>`).join("");
+  AC.box.innerHTML=H.map((c,i)=>`<div class="acopt" role="option" data-aci="${i}">${re?esc(c.v).replace(re,"<b>$1</b>"):esc(c.v)}${c.c?` <span class="note" style="font-family:var(--mono)">${esc(c.c)}</span>`:""}</div>`).join("");
   const r=el.getBoundingClientRect();AC.box.style.left=Math.max(4,Math.min(r.left,innerWidth-260))+"px";AC.box.style.top=(r.bottom+2)+"px";AC.box.style.minWidth=Math.max(r.width,220)+"px";AC.box.hidden=false}
 function acPick(i){const c=AC.hits[i],el=AC.el;if(!c||!el)return;el.value=c.v;acHide();el.dispatchEvent(new Event("input",{bubbles:true}));el.dispatchEvent(new Event("change",{bubbles:true}))}
 function acMark(){if(!AC.box)return;AC.box.querySelectorAll(".acopt").forEach((o,i)=>o.setAttribute("aria-selected",i===AC.i?"true":"false"));const o=AC.box.querySelector('[aria-selected="true"]');if(o)o.scrollIntoView({block:"nearest"})}
