@@ -385,6 +385,11 @@ button.kpi{cursor:pointer}button.kpi:hover{background:#f7fafd}
 .kpi .d b.up{color:#16794a}.kpi .d b.down{color:var(--danger)}
 .kpi.warn{border-left-color:var(--danger)}.kpi.warn .n{color:var(--danger)}
 #homeChart .vb{height:240px}
+.hplant{margin-top:6px;align-self:flex-start}
+.ksplit{display:flex;flex-direction:column;gap:2px;margin-top:2px;padding-top:6px;border-top:1px dashed var(--line);font-size:12.5px}
+.ksplit span{display:flex;justify-content:space-between;gap:8px}.ksplit i{font-style:normal;color:var(--muted)}.ksplit i{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ksplit b{white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+.hpcharts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}.hpchart{display:flex;flex-direction:column;gap:6px;min-width:0}.hpchart>b{font-size:13px}
+.hpcharts .vb{height:200px}
 table.hlist{min-width:0}table.hlist td{padding:7px 6px}
 /* PC and tablet: the grouped menu stays open as a left sidebar */
 @media (min-width:761px){
@@ -459,7 +464,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 <!-- PURCHASE REQUEST -->
 <!-- HOME -->
 <section id="view-home" class="stack">
-  <div class="hhead"><div class="hhello"><h1 id="homeHello">Welcome</h1><span class="note" id="homeDate"></span></div><div class="htabs" id="homeTabs" role="tablist" aria-label="Home"></div></div>
+  <div class="hhead"><div class="hhello"><h1 id="homeHello">Welcome</h1><span class="note" id="homeDate"></span><span class="dseg hplant" id="homePlant" role="group" aria-label="Plant" hidden></span></div><div class="htabs" id="homeTabs" role="tablist" aria-label="Home"></div></div>
   <div class="stack" id="homeOv">
   <div class="qacts" id="homeQuick" aria-label="Quick actions"></div>
   <div class="kpis" id="homeKpi"></div>
@@ -721,10 +726,10 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 <!-- USERS & RIGHTS -->
 <section id="view-users" class="stack" hidden>
   <div class="masters">
-    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Users</h2><div class="note">Add each person with their <b>department</b> and <b>job</b>. That is all: the job gives them the right screens. Pick a <b>plant</b> to have it filled in on every new request, PO, challan, invoice and other document they make; they can still change it on the document.</div>
+    <div class="panel stack" style="grid-column:1/-1"><h2 class="sec">Users</h2><div class="note">Add each person with their <b>department</b> and <b>job</b>. That is all: the job gives them the right screens. Pick a <b>plant</b> to have it filled in on every new request, PO, challan, invoice and other document they make; they can still change it on the document. <b>Can see</b> decides whether they see only their own plant or both plants. Admin and Director always see both; Accounts, Purchase and HR see both unless you change it; everyone else sees their own plant.</div>
       <div class="note" style="line-height:1.6"><b>Staff</b>: only asks for material (their request goes to their department head). · <b>Department head</b>: approves requests from their department. · <b>Purchase</b>: the buyer. Gets approved requests, makes pre-estimates and POs, sends POs to vendors. · <b>Store</b>: receives material, issues stock. · <b>Accounts</b>: books bills and payments. · <b>Sales</b>: enquiries, quotations, orders, invoices. · <b>Production</b>: job cards. · <b>Director</b>: approves and signs POs, sees everything. · <b>Admin</b>: sets up the app.</div>
-      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-plant" aria-label="Plant" title="Plant filled in on this person's new documents"></select><select id="mu-role" aria-label="Job"><option>Staff</option><option>Department head</option><option>Purchase</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Director</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
-      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Plant</th><th>Job</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
+      <form class="addrow" id="m-user-form"><input id="mu-name" placeholder="Name"><input id="mu-email" type="email" placeholder="Email (optional)" style="max-width:200px"><select id="mu-dept"></select><select id="mu-plant" aria-label="Plant" title="Plant filled in on this person's new documents"></select><select id="mu-plants" aria-label="Plants they can see" title="Admin and Director always see both plants"><option value="">Plants: usual for the job</option><option value="own">Own plant only</option><option value="both">Both plants</option></select><select id="mu-role" aria-label="Job"><option>Staff</option><option>Department head</option><option>Purchase</option><option>Store</option><option>Accounts</option><option>Sales</option><option>Production</option><option>Director</option><option>Admin</option></select><button class="btn primary" type="submit">Add</button></form>
+      <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Email (for password reset)</th><th>Department</th><th>Plant</th><th>Can see</th><th>Job</th><th>Signature</th><th></th></tr></thead><tbody id="m-users"></tbody></table></div>
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
@@ -835,8 +840,18 @@ const plantLines=p=>[p.addr1+",",`${p.addr2}, ${p.loc.charAt(0)+p.loc.slice(1).t
 const plantAddr=id=>{const p=plantBy(id);return p?plantLines(p).join(" "):COMPANY.addr};
 let curPlant="";try{curPlant=localStorage.getItem("zpo:curPlant")||""}catch(e){}
 const userPlant=()=>{try{return me&&me.plant&&plantBy(me.plant)?me.plant:""}catch(e){return""}};
+/* a user kept to their own plant only sees that plant. Admin and Director always see both;
+   Accounts, Purchase and HR see both unless Admin changes it; everyone else sees their own plant unless Admin allows both */
+const plantsDef=u=>["Accounts","Purchase"].includes(u.role)||/^(hr|human resources?)$/i.test(String(u.dept||"").trim())?"both":"own";
+const plantsOf=u=>u.plants||plantsDef(u);
+const seesBoth=u=>!u||["Admin","Director"].includes(u.role)||plantsOf(u)==="both"||!(u.plant&&plantBy(u.plant));
+const lockedPlant=()=>{try{return me&&!seesBoth(me)?me.plant:""}catch(e){return""}};
 const defPlant=()=>curPlant||userPlant()||"P1";
 const inPlant=x=>!curPlant||(x.plant||"P1")===curPlant;
+/* run fn as if one plant were picked in the header (for side-by-side plant figures) */
+const withPlant=(id,fn)=>{const k=curPlant;curPlant=id;try{return fn()}finally{curPlant=k}};
+const splitPlants=()=>!curPlant&&plants().length>1;
+const plantDue=()=>grns.filter(g=>inPlant(g)&&g.status!=="With accounts"&&!g.old).reduce((a,g)=>a+Math.max(0,grnBal(g)),0);
 const plantOpts=v=>plants().map(p=>`<option value="${p.id}"${p.id===(v||"P1")?" selected":""}>${esc(p.name)}</option>`).join("");
 const plantChip=x=>`<span class="chip" style="margin-left:6px">${esc(plantName(x.plant))}</span>`;
 let DOCPLANT=null;
@@ -3094,9 +3109,10 @@ function renderMasters(){
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   {const mp=$("#mu-plant"),v=mp.value;mp.innerHTML=`<option value="">Plant (optional)</option>`+plants().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");mp.value=v}
+  const uSee=(u,i)=>["Admin","Director"].includes(u.role)?`<span class="note">Both plants (${esc(u.role)})</span>`:!(u.plant&&plantBy(u.plant))?`<span class="note" title="Set a plant first to keep this person to one plant">Both plants (no plant set)</span>`:`<select id="mu${i}-s" data-f="plants" aria-label="Plants ${esc(u.name)} can see">${[["own","Own plant only"],["both","Both plants"]].map(([v,l])=>`<option value="${v}"${plantsOf(u)===v?" selected":""}>${l}${plantsDef(u)===v?" (usual)":""}</option>`).join("")}</select>`;
   const uPl=u=>`<option value=""${u.plant?"":" selected"}>Not set (${esc(plantName("P1"))})</option>`+plants().map(p=>`<option value="${p.id}"${p.id===u.plant?" selected":""}>${esc(p.name)}</option>`).join("");
   $("#md-hod").innerHTML=opts(hods,"","Department head (optional)");
-  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-p" data-f="plant" title="Filled in on new documents. They can still pick another plant.">${uPl(u)}</select></td><td><select id="mu${i}-r" data-f="role">${["Staff","Department head","Purchase","Store","Accounts","Sales","Production","Director","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select>${jobWarn(u)}</td><td>${(rightsOf(u).includes("po.approve")||u.role==="Department head")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No users yet.</td></tr>`;
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-p" data-f="plant" title="Filled in on new documents. They can still pick another plant.">${uPl(u)}</select></td><td>${uSee(u,i)}</td><td><select id="mu${i}-r" data-f="role">${["Staff","Department head","Purchase","Store","Accounts","Sales","Production","Director","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select>${jobWarn(u)}</td><td>${(rightsOf(u).includes("po.approve")||u.role==="Department head")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">No users yet.</td></tr>`;
   $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
   const pjE=projCan("edit"),pjD=projCan("delete"),pjRO=pjE?"":" disabled";$("#m-proj-form").hidden=!projCan("create");
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input${pjRO} id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input${pjRO} id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input${pjRO} id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select${pjRO} id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td>${pjD?`<button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
@@ -3111,6 +3127,7 @@ function renderMasters(){
     if(tr.dataset.t==="users"&&f==="checker"&&rec.checker)toast(`${rec.checker} now checks and approves ${rec.name}'s purchase requests`);
     if(tr.dataset.t==="users"&&f==="dept"&&rec.role==="Staff"&&deptJob(rec.dept)){rec.role=deptJob(rec.dept);if(rec.rights)delete rec.rights;toast(`${rec.name}'s job set to ${rec.role}, to match the ${rec.dept} department`)}
     if(tr.dataset.t==="users"&&f==="plant")toast(rec.plant?`New documents by ${rec.name} will start with ${plantName(rec.plant)}`:`${rec.name} has no plant set: new documents start with ${plantName("P1")}`);
+    if(tr.dataset.t==="users"&&f==="plants")toast(rec.plants==="both"?`${rec.name} can now see both plants`:`${rec.name} now sees ${plantName(rec.plant)} only`);
     if(tr.dataset.t==="users"&&f==="role"&&rec.rights){delete rec.rights;toast(`${rec.name} now has the standard ${rec.role} rights`)}
     saveM();renderMasters()});
   $(id).addEventListener("click",e=>{if(e.target.dataset.mdel===undefined)return;const tr=e.target.closest("tr");M[tr.dataset.t].splice(+tr.dataset.i,1);saveM();renderMasters()});
@@ -3160,7 +3177,7 @@ const JOBDEPT={purchase:"Purchase",store:"Store",stores:"Store",accounts:"Accoun
 const deptJob=d=>JOBDEPT[String(d||"").trim().toLowerCase()]||"";
 function jobWarn(u){const j=deptJob(u.dept);return u.role==="Staff"&&j?`<div class="note" style="color:var(--danger);white-space:normal;max-width:240px;margin-top:3px">Staff can only ask for material. To do ${esc(u.dept)} work, set the job to ${j}.</div>`:""}
 $("#mu-dept").addEventListener("change",()=>{const j=deptJob($("#mu-dept").value);if(j&&$("#mu-role").value==="Staff")$("#mu-role").value=j});
-$("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,email:$("#mu-email").value.trim(),dept:$("#mu-dept").value,plant:$("#mu-plant").value,role:$("#mu-role").value},n)){$("#mu-name").value="";$("#mu-email").value="";$("#mu-plant").value=""}};
+$("#m-user-form").onsubmit=e=>{e.preventDefault();const n=$("#mu-name").value.trim();if(addM("users",{name:n,email:$("#mu-email").value.trim(),dept:$("#mu-dept").value,plant:$("#mu-plant").value,plants:$("#mu-plants").value,role:$("#mu-role").value},n)){$("#mu-name").value="";$("#mu-email").value="";$("#mu-plant").value="";$("#mu-plants").value=""}};
 $("#m-dept-form").onsubmit=e=>{e.preventDefault();const n=$("#md-name").value.trim();if(addM("depts",{name:n,hod:$("#md-hod").value},n))$("#md-name").value=""};
 $("#m-proj-form").onsubmit=e=>{e.preventDefault();const n=$("#mp-no").value.trim().toUpperCase();if(addM("projects",{no:n,desc:$("#mp-desc").value.trim(),cust:$("#mp-cust").value.trim(),status:"Active"},n)){$("#mp-no").value="";$("#mp-desc").value="";$("#mp-cust").value=""}};
 
@@ -4156,9 +4173,9 @@ $("#ownerPanel").addEventListener("click",e=>{const b=e.target.closest("[data-go
 /* plant on printed documents, header selector, plant settings */
 [["docRequest",a=>a[0]],["docEstimate",a=>a[0]],["docPO",a=>a[0]],["docQuote",a=>a[0]],["sdDoc",a=>a[1]],["docNote",a=>a[1]],["docJobCard",a=>a[0]],["docQC",a=>a[0]],["docSlip",a=>a[0]],["docChallan",a=>a[0]]].forEach(([n,pick])=>{const f=window[n];if(typeof f!=="function")return;
   window[n]=function(...a){const o=pick(a);DOCPLANT=o&&o.plant||null;try{return f.apply(this,a)}finally{DOCPLANT=null}}});
-function fillPlantSels(){const ps=$("#plantSel");if(ps){ps.innerHTML=`<option value="">All plants</option>`+plants().map(p=>`<option value="${p.id}"${p.id===curPlant?" selected":""}>${esc(p.name)}</option>`).join("")}
+function fillPlantSels(){const lp=lockedPlant();if(lp)curPlant=lp;const ps=$("#plantSel");if(ps&&lp){ps.innerHTML=`<option value="${lp}" selected>${esc(plantName(lp))}</option>`;ps.disabled=true;ps.title="Admin has set you to see your own plant only"}else if(ps){ps.disabled=false;ps.title="";ps.innerHTML=`<option value="">All plants</option>`+plants().map(p=>`<option value="${p.id}"${p.id===curPlant?" selected":""}>${esc(p.name)}</option>`).join("")}
   document.querySelectorAll("select.plantsel").forEach(el=>{const v=el.value;el.innerHTML=plantOpts(v||defPlant());if(v)el.value=v})}
-$("#plantSel").onchange=e=>{curPlant=e.target.value;try{localStorage.setItem("zpo:curPlant",curPlant)}catch(err){}const v=views.find(x=>!$("#view-"+x).hidden);if(v)show(v);toast(curPlant?`Showing ${plantName(curPlant)} only. New documents start in this plant.`:"Showing both plants")};
+$("#plantSel").onchange=e=>{if(lockedPlant()){fillPlantSels();return}curPlant=e.target.value;try{localStorage.setItem("zpo:curPlant",curPlant)}catch(err){}const v=views.find(x=>!$("#view-"+x).hidden);if(v)show(v);toast(curPlant?`Showing ${plantName(curPlant)} only. New documents start in this plant.`:"Showing both plants")};
 function renderPlants(){const P=$("#plantPanel");if(!P)return;const L=plants(),ad=isRole("Admin");
   P.innerHTML=`<h2 class="sec">Plants</h2><div class="note">Each purchase and sales document belongs to one plant. The plant's address prints on the document, and tax invoices and quotations are numbered separately per plant, each with its own prefix (both plants share one GSTIN). Invoice numbers start again each financial year and continue after the highest old-ERP invoice imported for that plant (or the last number typed here, if higher). A new user starts in their own plant (Users and rights); the plant can still be changed on the form until the document is saved. Changing a prefix here applies to new documents only; saved ones keep the number they were given.</div>
   ${(()=>{const dup=(f,n)=>{const v=L.map(p=>String(p[f]||"").trim().toUpperCase());return v.length>1&&new Set(v).size<v.length?n:""};const w=[dup("pre","invoice"),dup("qpre","quotation")].filter(Boolean);return w.length?`<div class="note" style="color:var(--danger)">Both plants have the same ${w.join(" and ")} prefix, so their numbers would look alike. Give each plant its own prefix.</div>`:""})()}
@@ -4811,7 +4828,7 @@ const moneyTxt=v=>"₹ "+shortL(v);
 const niceMax=v=>{if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p};
 
 /* charts: plain HTML/CSS so labels stay readable on phones */
-function vBars(MS,series,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=niceMax(Math.max(o.money?1000:2,...series.flatMap(s=>s.vals)));const n=series.length;
+function vBars(MS,series,o){o=o||{};const f=o.money?moneyTxt:(v=>fmt0(v));const mx=o.max||niceMax(Math.max(o.money?1000:2,...series.flatMap(s=>s.vals)));const n=series.length;
   const cols=MS.map((k,i)=>{const tip=`<b>${esc(monLbl(k))} ${k.slice(0,4)}</b>`+series.map(s=>`<span><i style="background:${s.c}"></i>${esc(s.name)}: ${f(s.vals[i])}</span>`).join("");
     return`<div class="vb-col" tabindex="0" data-tip="${esc(tip)}"><div class="vb-bars">${series.map(s=>`<i style="height:${s.vals[i]>0?Math.max(1.5,s.vals[i]/mx*100):0}%;background:${s.c}"></i>`).join("")}</div></div>`}).join("");
   const step=Math.ceil(MS.length/8);
@@ -4932,6 +4949,18 @@ function dashMine(U){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today(),c
   return`<h2 class="sec dsec">${self?"My work":esc(U)+"'s work"}<span class="note"> · ${esc(u.role||"")}${u.dept?" · "+esc(u.dept):""}</span></h2>${h}<div class="dgrid">${charts.join("")}</div>${sec.join("")}`}
 
 /* ---------- company overview ---------- */
+/* company money figures for the plant picked in the header (all plants when none) */
+function dashMoney(MS){const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
+  const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]),purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
+  const R=[];invoices.filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.filter(inPlant).forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
+  const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s)));
+  return{sales,purch,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:INV.reduce((a,v)=>a+invDue(v),0),payb:plantDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
+function dashPlants(MS){const PL=plants(),X=PL.map(p=>({p,d:withPlant(p.id,()=>dashMoney(MS))}));
+  const rows=[["Sales","inv",x=>sum(x.sales)],["Purchases","acct",x=>sum(x.purch)],["Collected","inv",x=>sum(x.coll)],["To collect now","inv",x=>x.recv],["To pay now","acct",x=>x.payb],["Orders to dispatch","so",x=>x.soVal]].filter(r=>can(r[1]));
+  const mx=niceMax(Math.max(1000,...X.flatMap(x=>x.d.sales.concat(x.d.purch))));
+  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period, incl. GST. To collect / to pay are as of today. Opening bills from the old ERP have no plant, so they count only in the totals above.</div>
+    <div class="tablebox"><table class="est dplant"><thead><tr><th></th>${X.map(x=>`<th class="num">${esc(x.p.name)}</th>`).join("")}<th class="num">Both plants</th></tr></thead><tbody>${rows.map(([l,,f])=>{const v=X.map(x=>f(x.d));return`<tr><td>${esc(l)}</td>${v.map(n=>`<td class="num">${moneyTxt(n)}</td>`).join("")}<td class="num"><b>${moneyTxt(sum(v))}</b></td></tr>`}).join("")}</tbody></table></div></div>`,
+    charts:X.map(x=>chartBox(`Sales and purchases · ${x.p.name}`,"Same scale for both plants, incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:x.d.sales},{name:"Purchases",c:"var(--s2)",vals:x.d.purch}],{money:true,max:mx})))}}
 function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
   const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
   const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]);
@@ -4943,7 +4972,7 @@ function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today()
   const go=v=>can(v)?v:"";
   let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales","Invoices less credit notes",false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases","Booked GRNs",false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
     ${tile(moneyTxt(recv),"To collect now","All open invoices",recv>0,go("inv"))}${tile(moneyTxt(payb),"To pay now","Booked, not yet paid",false,go("acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
-  const ch=[];
+  const ch=[],BP=splitPlants()?dashPlants(MS):null;if(BP){h+=BP.table;ch.push(...BP.charts)}else
   ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
   ch.push(chartBox("Money in and out by month","Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true})));
   const A=custAgeing(),B=[0,1,2,3].map(i=>sum(A.map(r=>r.b[i])));
@@ -5007,7 +5036,7 @@ const last12=()=>{const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),o=[];for(let i
 const prevMon=()=>{const t=today();return new Date(Date.UTC(+t.slice(0,4),+t.slice(5,7)-2,1)).toISOString().slice(0,7)};
 const weekMon=()=>{const t=new Date(today()+"T00:00:00Z"),d=(t.getUTCDay()+6)%7;return addDays(today(),-d)};
 /* a tile: label, figure, line under it; tone "warn" = red edge and figure, "ok" = green */
-const kpi=(t,n,d,o)=>{o=o||{};const go=o.go&&can(o.go)?o.go:"";return`<${go?`button type="button" data-go="${esc(go)}"`:"div"} class="kpi${o.tone?" "+o.tone:""}"><span class="t">${esc(t)}</span><span class="n">${n}</span><span class="d">${d}</span></${go?"button":"div"}>`};
+const kpi=(t,n,d,o)=>{o=o||{};const go=o.go&&can(o.go)?o.go:"";return`<${go?`button type="button" data-go="${esc(go)}"`:"div"} class="kpi${o.tone?" "+o.tone:""}"><span class="t">${esc(t)}</span><span class="n">${n}</span><span class="d">${d}</span>${o.split?`<span class="ksplit">${o.split.map(([l,v])=>`<span><i>${esc(l)}</i><b>${v}</b></span>`).join("")}</span>`:""}</${go?"button":"div"}>`};
 const trendTxt=(a,b)=>{if(!b)return a?`<b class="up">new</b> vs last month`:"nothing last month";const p=Math.round((a-b)/b*100);return`<b class="${p>=0?"up":"down"}">${p>=0?"▲":"▼"} ${Math.abs(p)}%</b> vs last month`};
 function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS=last12();
   const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
@@ -5020,7 +5049,7 @@ function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS
   const wk=weekMon(),J=jobs.filter(j=>j.status!=="Completed"),OPS=jobs.flatMap(j=>(j.ops||[]).filter(o=>o.status==="Done"&&d10(o.end)>=wk));
   return{t,cm,pm,fs,MS,INV,GR,sales12,purch12,
     salesM:salesIn(d=>m7(d)===cm),salesPM:salesIn(d=>m7(d)===pm),salesFY:salesIn(d=>d>=fs&&d<=t),purFY:sum(GR.filter(g=>gd(g)>=fs).map(pOf)),purM:sum(GR.filter(g=>m7(gd(g))===cm).map(pOf)),
-    recv,old,payb,alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
+    recv,recvP:INV.reduce((a,v)=>a+invDue(v),0),old,payb,paybP:plantDue(),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
 function homeTabs(){return[["ov","🏢","Overview",true],["sal","📈","Sales",["sales","so","dc","inv","cn"].some(can)],["pur","🛒","Purchase",["req","buy","po","saved","appr"].some(can)],["store","📦","Store",["grn","stock"].some(can)],["prod","🏭","Production",can("prod")]].filter(x=>x[3])}
 const HQA=[["inv","🧾","New sales invoice","From a customer order","inv"],["prod","🏭","Production","Job cards, log what's made"],["stock","📊","Stock entry","Opening, issue, return"],["inv","💰","Payment received","From a customer"],["so","📥","New sales order","From a customer PO","so"],
   ["grn","📦","Receive material","GRN against a PO"],["req","📝","New request","Ask for material or a service"],["appr","✅","Approve POs","Review and sign"],["po","🛒","Purchase order","From a pre-estimate"],["acct","💳","Bills & payments","Book bills, pay vendors"],["sales","💬","Quotation","RFQ and quote a customer"],["mast","➕","New product","Item code is automatic"]];
@@ -5031,20 +5060,25 @@ function renderHome(){
   $("#homeTabs").hidden=TB.length<2;$("#homeTabs").innerHTML=TB.map(([k,ic,l])=>`<button type="button" role="tab" data-htab="${k}" aria-selected="${k===homeTab}"><span aria-hidden="true">${ic}</span>${esc(l)}</button>`).join("");
   $("#homeOv").hidden=homeTab!=="ov";$("#homeTabBody").hidden=homeTab==="ov";
   const D=homeData();
+  const PL=plants();$("#homePlant").hidden=PL.length<2||!!lockedPlant();$("#homePlant").innerHTML=[["","Both plants"]].concat(PL.map(p=>[p.id,p.short||p.name])).map(([id,l])=>`<button type="button" data-hpl="${id}" aria-pressed="${id===curPlant}">${esc(l)}</button>`).join("");
+  HP=splitPlants()?PL.map(p=>({p,D:withPlant(p.id,homeData)})):null;
   if(homeTab!=="ov"){$("#homeTabBody").innerHTML=homeTabHtml(homeTab,D);return}
   const seen=new Set(),QA=HQA.filter(([v,,t])=>{if(!can(v)||seen.has(t))return false;seen.add(t);return true}).slice(0,7);
   $("#homeQuick").innerHTML=QA.map(([v,ic,t,d,nw],i)=>`<button type="button" class="qact" data-qa="${i}" data-go="${v}"${nw?` data-new="${nw}"`:""}><b><i aria-hidden="true">${ic}</i>${esc(t)}</b><span>${esc(d)}</span></button>`).join("");
   const K=[];
-  if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv"}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv"}));
-    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days`:"from customers",{go:"inv",tone:D.recv>0.5?"warn":""}))}
-  if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),"to vendors",{go:"acct"}));
-  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved"}));
+  if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",split:hSplit("salesFY")}));
+    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days`:"from customers",{go:"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
+  if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),"to vendors",{go:"acct",split:hSplit("paybP",D.payb)}));
+  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
   if(can("stock"))K.push(kpi("Stock alerts",fmt0(D.alerts),"items at zero or below minimum",{go:"stock",tone:D.alerts?"warn":""}));
   if(can("prod"))K.push(kpi("Production this week",D.ops.length?fmt0(Math.round(D.hrs*10)/10)+" h":"—",D.ops.length?`${D.ops.length} operation${D.ops.length>1?"s":""} done · ${D.J.length} jobs open`:D.J.length?`${D.J.length} jobs open, nothing logged yet`:"no job cards yet",{go:"prod",tone:D.late.length?"warn":""}));
   $("#homeKpi").innerHTML=K.join("");$("#homeKpi").hidden=!K.length;
   const showChart=can("inv")||can("acct");$("#homeChart").hidden=!showChart;
-  if(showChart){const S=[];if(can("inv"))S.push({name:"Sales",c:"var(--s1)",vals:D.sales12});if(can("acct")||can("saved"))S.push({name:"Purchases",c:"var(--s4)",vals:D.purch12});
-    $("#homeChart").innerHTML=`<h3>${S.length>1?"Sales vs purchases":S[0].name}, last 12 months</h3><div class="note">Before GST${curPlant?" · "+esc(plantName(curPlant))+" only":""}. Sales are invoices less credit notes; purchases are booked GRNs.</div>`+vBars(D.MS,S,{money:true})}
+  if(showChart){const ser=X=>{const S=[];if(can("inv"))S.push({name:"Sales",c:"var(--s1)",vals:X.sales12});if(can("acct")||can("saved"))S.push({name:"Purchases",c:"var(--s4)",vals:X.purch12});return S};
+    const S=ser(D),ttl=`${S.length>1?"Sales vs purchases":S[0].name}, last 12 months`,nt=`Before GST. Sales are invoices less credit notes; purchases are booked GRNs.`;
+    if(HP){const mx=niceMax(Math.max(1000,...HP.flatMap(x=>ser(x.D).flatMap(s=>s.vals))));
+      $("#homeChart").innerHTML=`<h3>${ttl}, by plant</h3><div class="note">${nt} Both plants on the same scale.</div><div class="hpcharts">${HP.map(x=>`<div class="hpchart"><b>${esc(x.p.name)}</b>${vBars(D.MS,ser(x.D),{money:true,max:mx})}</div>`).join("")}</div>`}
+    else $("#homeChart").innerHTML=`<h3>${ttl}</h3><div class="note">${nt.slice(0,-1)}${curPlant?" · "+esc(plantName(curPlant))+" only":""}.</div>`+vBars(D.MS,S,{money:true})}
   const W0=workItems(),W=W0.filter(w=>!(w.n===0||w.zero||/^₹\s?0$/.test(String(w.n))));$("#homeCardsH").hidden=!W0.length;
   $("#homeCards").innerHTML=W.length?W.map(w=>`<button class="card${w.warn&&w.n&&w.n!==0?" warn":""}${w.zero||w.n===0?" zero":""}" data-go="${w.v}"><span class="n">${w.n}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></button>`).join(""):W0.length?`<div class="panel empty">Nothing is waiting for you right now.</div>`:(K.length?"":`<div class="panel empty">No tasks for your role. Ask the admin to give you rights on the Users &amp; rights page.</div>`);
   const st=s=>reqs.filter(r=>r.status===s).length;
@@ -5052,14 +5086,20 @@ function renderHome(){
   $("#flowBox").innerHTML=[["Requests with checker",st("Submitted")],["Requests with approver",st("Checked")],["Approved requests",st("Approved")+st("Estimated")],["POs for approval",saved.filter(p=>p.status==="Pending approval").length],["Approved POs open",saved.filter(p=>p.status==="Approved"&&!p.closed).length],["GRNs to book",grns.filter(g=>g.status==="With accounts").length],["GRNs unpaid",grns.filter(g=>["Booked","Part paid"].includes(g.status)).length],["POs closed",saved.filter(p=>p.closed).length]].map(([t,n])=>`<div><b>${n}</b><span>${t}</span></div>`).join("");
 }
 /* a short table for a home tab */
+/* both plants: per-plant figures under a tile, and one series per plant on the single-measure charts */
+let HP=null;
+const hSplit=(k,tot)=>{if(!HP)return null;const R=HP.map(x=>[x.p.short||x.p.name,+x.D[k]||0]);if(tot!=null){const r=tot-sum(R.map(x=>x[1]));if(r>0.5)R.push(["Opening bills",r])}return R.map(([l,v])=>[l,kpiL(v)])};
+const PLC=["var(--s1)","var(--s7)","var(--s3)"],PLC2=["var(--s4)","var(--s2)","var(--s5)"];
+const hBars12=(k,name,c,D)=>HP?vBars(D.MS,HP.map((x,i)=>({name:x.p.short||x.p.name,c:(k==="sales12"?PLC:PLC2)[i%3],vals:x.D[k]})),{money:true}):vBars(D.MS,[{name,c,vals:D[k]}],{money:true});
+$("#homePlant").addEventListener("click",e=>{const b=e.target.closest("[data-hpl]");if(!b)return;const sel=$("#plantSel");if(sel){sel.value=b.dataset.hpl;sel.onchange({target:sel})}});
 const homeList=(title,cols,rows,empty,go)=>`<div class="panel stack"><div class="row"><h2 class="sec">${esc(title)}</h2><span style="flex:1"></span>${go&&can(go)?`<button type="button" class="linkbtn" data-go="${go}">Open all</button>`:""}</div>${rows.length?`<div class="tablebox"><table class="est hlist"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${esc(c[0])}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${cols[i][1]?` class="${cols[i][1]}"`:""}>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:`<div class="empty">${esc(empty)}</div>`}</div>`;
 function homeTabHtml(k,D){const t=today(),K=[];let h="";
   if(k==="sal"){const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),D2=deals.filter(d=>inPlant(d)&&!["Won","Lost"].includes(d.stage));
-    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv"}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv"}),kpi("To collect",kpiL(D.recv),"all open invoices",{go:"inv",tone:D.recv>0.5?"warn":""}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":""}))}
+    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv",split:hSplit("salesFY")}),kpi("To collect",kpiL(D.recv),"all open invoices",{go:"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":"",split:hSplit("old")}))}
     if(can("so"))K.push(kpi("Orders to dispatch",fmt0(openSO.length),kpiL(sum(openSO.map(sdSub)))+" order value",{go:"so"}));
     if(can("sales"))K.push(kpi("Open enquiries",fmt0(D2.length),kpiL(sum(D2.map(dealVal))),{go:"sales"}));
     h+=`<div class="kpis">${K.join("")}</div>`;
-    if(can("inv"))h+=`<div class="panel dchart"><h3>Sales, last 12 months</h3><div class="note">Invoices less credit notes, before GST</div>${vBars(D.MS,[{name:"Sales",c:"var(--s1)",vals:D.sales12}],{money:true})}</div>`;
+    if(can("inv"))h+=`<div class="panel dchart"><h3>Sales, last 12 months</h3><div class="note">Invoices less credit notes, before GST</div>${hBars12("sales12","Sales","var(--s1)",D)}</div>`;
     if(can("so"))h+=homeList("Orders to dispatch",[["SO"],["Customer"],["Date","dt"],["Value","num"],["Status"]],openSO.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).slice(0,8).map(s=>[esc(soLbl(s.no)),esc(s.cust||""),dmy(s.date),fmt0(Math.round(sdSub(s))),stChip(soStatus(s))]),"No open sales orders.","so");
     if(can("inv")){const A=custAgeing().map(r=>({c:r.cust,d:r.tot})).filter(r=>r.d>0.5).sort((a,b)=>b.d-a.d).slice(0,8);
       h+=homeList("Biggest amounts to collect",[["Customer"],["To collect","num"]],A.map(r=>[esc(r.c||""),fmt0(Math.round(r.d))]),"Nothing to collect.","inv")}}
@@ -5067,9 +5107,9 @@ function homeTabHtml(k,D){const t=today(),K=[];let h="";
     K.push(kpi("Requests waiting",fmt0(st("Submitted")+st("Checked")),"with department head or approver",{go:"req"}),kpi("Lines to buy",fmt0(pendToOrder().length),"approved, not on a PO yet",{go:can("buy")?"buy":"req",tone:pendToOrder().length?"warn":""}),
       kpi("POs for approval",fmt0(P.filter(p=>p.status==="Pending approval").length),"waiting to be signed",{go:can("appr")?"appr":"saved"}),kpi("Material due",fmt0(P.filter(p=>p.status==="Approved"&&!p.closed).length),"approved POs still open",{go:"saved"}),
       kpi("Late from supplier",fmt0(P.filter(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved").length),"past the required date",{go:"saved",tone:P.some(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved")?"warn":""}));
-    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),"booked GRNs, before GST",{go:can("acct")?"acct":"saved"}),kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved"}));
+    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),"booked GRNs, before GST",{go:can("acct")?"acct":"saved",split:hSplit("purM")}),kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
     h+=`<div class="kpis">${K.join("")}</div>`;
-    if(can("acct")||can("saved"))h+=`<div class="panel dchart"><h3>Purchases, last 12 months</h3><div class="note">Booked GRNs, before GST</div>${vBars(D.MS,[{name:"Purchases",c:"var(--s4)",vals:D.purch12}],{money:true})}</div>`;
+    if(can("acct")||can("saved"))h+=`<div class="panel dchart"><h3>Purchases, last 12 months</h3><div class="note">Booked GRNs, before GST</div>${hBars12("purch12","Purchases","var(--s4)",D)}</div>`;
     h+=homeList("POs waiting for approval",[["PO"],["Supplier"],["Date","dt"],["Value","num"]],P.filter(p=>p.status==="Pending approval").slice(0,8).map(p=>[esc(p.no),esc(p.sup||""),dmy(p.date),fmt0(Math.round(+p.total||0))]),"Nothing is waiting for approval.",can("appr")?"appr":"saved")}
   if(k==="store"){const due=saved.filter(p=>inPlant(p)&&p.status==="Approved"&&!p.closed&&pendingLines(p).length),G=grns.filter(inPlant),L=lowStock();
     K.push(kpi("POs waiting for material",fmt0(due.length),"create a GRN when it arrives",{go:"grn"}),kpi("GRNs this month",fmt0(G.filter(g=>m7(g.date)===D.cm).length),`${G.filter(g=>g.date===t).length} today`,{go:"grn"}),kpi("GRNs with accounts",fmt0(G.filter(g=>g.status==="With accounts").length),"not yet booked",{go:"grn"}));
