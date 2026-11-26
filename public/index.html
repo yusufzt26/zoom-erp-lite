@@ -2305,7 +2305,7 @@ function pcx(n){if(!PCX){PCX=new Map();[suppliers,customers].forEach(A=>(A||[]).
   const c=PCX.get(key(n));return c?(n||"")+" "+c:(n||"")}
 const partyOpts=A=>A.map(x=>`<option value="${esc(x.name)}"${x.code?` label="${esc(x.code)}"`:""}>`).join("");
 // a code typed into a supplier or customer field is turned into that party's name
-document.addEventListener("change",e=>{const t=e.target;if(!t||t.tagName!=="INPUT")return;const l=t.getAttribute("list");if(l!=="suppliers"&&l!=="custnames")return;
+document.addEventListener("change",e=>{const t=e.target;if(!t||t.tagName!=="INPUT")return;const l=t.getAttribute("list")||String(t.dataset.ac||"").replace(/^list:/,"");if(l!=="suppliers"&&l!=="custnames")return;
   const v=t.value.trim().toUpperCase().replace(/\s+/g,"");if(!v)return;const A=l==="suppliers"?suppliers:customers;if(A.some(x=>key(x.name)===key(v)))return;
   const p=A.find(x=>x&&x.code===v);if(p){t.value=p.name;t.dispatchEvent(new Event("input",{bubbles:true}))}},true);
 /* ---------- masters ---------- */
