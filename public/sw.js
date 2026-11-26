@@ -2,7 +2,7 @@
    Lets Chrome install the app. Pages always load fresh from the server, so
    staff never see stale data; when there is no internet the app shows a small
    "No internet" page instead of Chrome's error. API calls are never touched. */
-const CACHE = "zt-erp-shell-v1";
+const CACHE = "zt-erp-shell-v2";
 const SHELL = ["/offline.html", "/icon-192.png", "/icon-512.png", "/favicon.png"];
 
 self.addEventListener("install", e => {
