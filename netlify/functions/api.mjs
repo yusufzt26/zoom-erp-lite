@@ -4,14 +4,14 @@ import { scryptSync, randomBytes, randomInt, timingSafeEqual, createHash } from 
 import nodemailer from "nodemailer";
 import Anthropic from "@anthropic-ai/sdk";
 import { gstCall, gstStatus } from "../gst/gsp.mjs";
+import { allotPartyCodes } from "../codes.mjs";
 
-const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins"]);
+const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "costing", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins"]);
 const SESSION_DAYS = 30;
 let db;
-const q = async (text, params = []) => {
-  db = db || getDatabase(process.env.ZPO_DB_URL ? { connectionString: process.env.ZPO_DB_URL } : {});
-  return (await db.pool.query(text, params)).rows;
-};
+const pool = () => (db = db || getDatabase(process.env.ZPO_DB_URL ? { connectionString: process.env.ZPO_DB_URL } : {})).pool;
+const q = async (text, params = []) => (await pool().query(text, params)).rows;
+const CODE_PRE = { sup: "S", cust: "C" };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const hashPass = (p) => { const salt = randomBytes(16); return "s1$" + salt.toString("hex") + "$" + scryptSync(p, salt, 32).toString("hex"); };
 const checkPass = (p, h) => { const [, s, k] = String(h).split("$"); if (!s || !k) return false; const a = scryptSync(p, Buffer.from(s, "hex"), 32), b = Buffer.from(k, "hex"); return a.length === b.length && timingSafeEqual(a, b); };
@@ -221,6 +221,22 @@ export default async (req) => {
         results.push({ coll, id, rev: Number(r[0].rev), created_rev: Number(r[0].created_rev) });
       }
       return json({ results });
+    }
+
+    // Supplier / customer codes: given from the party_codes register under a lock, so two people never get the same code and no number is given twice
+    if (path === "codes" && m === "POST") {
+      const b = await body(req); const kind = String(b.kind || ""), pre = CODE_PRE[kind];
+      if (!pre || !Array.isArray(b.items) || b.items.length > 3000) return json({ error: "Bad request" }, 400);
+      const items = b.items.map((x) => ({ k: String(x?.k || "").slice(0, 200), name: String(x?.name || ""), code: String(x?.code || ""), fresh: !!x?.fresh }));
+      const c = await pool().connect();
+      try {
+        await c.query("BEGIN"); await c.query("SELECT pg_advisory_xact_lock(hashtext('party_codes:' || $1))", [kind]);
+        const rows = (await c.query("SELECT code,num,pkey FROM party_codes WHERE kind=$1", [kind])).rows;
+        const reg = new Map(rows.map((r) => [r.code, { k: r.pkey || "", num: Number(r.num) }]));
+        const { codes, add } = allotPartyCodes(reg, items, pre);
+        if (add.length) await c.query("INSERT INTO party_codes(kind,code,num,pkey,name,by_name) SELECT $1,x.code,x.num,x.k,x.name,$3 FROM jsonb_to_recordset($2::jsonb) AS x(code text,num bigint,k text,name text) ON CONFLICT DO NOTHING", [kind, JSON.stringify(add), me]);
+        await c.query("COMMIT"); return json({ codes });
+      } catch (e) { await c.query("ROLLBACK").catch(() => {}); throw e; } finally { c.release(); }
     }
 
     // Mould Estimator (separate Netlify site): read-only list of estimates, selected fields only; the shared key never reaches the browser
