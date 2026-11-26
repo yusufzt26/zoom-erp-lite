@@ -330,6 +330,7 @@ body.gated header.bar,body.gated main{display:none}
     <button id="tab-rep" data-view="rep">Reports</button>
     <button id="tab-mast" data-view="mast">Masters</button>
     <button id="tab-users" data-view="users">Users &amp; rights</button>
+    <button id="tab-imp" data-view="imp">Import old data</button>
   </nav>
   <label class="who">Signed in as<select id="who"></select></label><label class="who">Plant<select id="plantSel"></select></label>
   <span class="who" id="cloudUser" hidden><b id="cuName"></b><span id="syncState" class="chip calc">Saved</span><button class="btn" type="button" id="btn-cu-pw">Password</button><button class="btn" type="button" id="btn-cu-out">Log out</button></span>
@@ -661,9 +662,13 @@ body.gated header.bar,body.gated main{display:none}
 
 <section id="view-cn" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Credit notes to customers</h2><select class="per" id="per-cn" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" id="btn-cn-new">+ Credit note</button></div><div class="note">For sales returns, rate differences or discounts after billing. Open an invoice and press "Credit note" to fill the lines. Credit notes reduce what the customer owes and go into the e-invoice export.</div><div id="cnList"></div></div><div class="panel stack" id="cnForm" hidden></div></section>
 <!-- MASTERS -->
+<section id="view-imp" class="stack" hidden>
+  <div class="panel stack" id="importPanel"></div>
+  <div class="panel stack" id="openPanel"></div>
+</section>
 <section id="view-mast" class="stack" hidden>
   <div class="row"><label class="f" style="flex-direction:row;align-items:center;gap:10px;font-size:15px"><b>Show list</b><select id="mast-pick" style="width:auto;min-width:240px;font-size:15px">
-    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="opening">Opening bills (old ERP)</option><option value="import">Import old data (Admin)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
+    <option value="items">Items and services</option><option value="sups">Suppliers</option><option value="custs">Customers</option><option value="projs">Projects (Job Nos.)</option><option value="depts">Departments</option><option value="plants">Plants</option><option value="mach">Machines and hourly rates</option><option value="salescfg">Invoice settings (bank, terms)</option><option value="all">All lists</option></select></label><span class="note">Edit any cell directly. Users are managed on the Users &amp; rights page.</span></div>
   <div class="masters">
     <div class="panel stack" data-mp="depts"><h2 class="sec">Departments</h2>
       <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
@@ -688,8 +693,6 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack" data-mp="plants" id="plantPanel" style="grid-column:1/-1"></div>
     <div class="panel stack" data-mp="salescfg" id="salesCfgPanel" style="grid-column:1/-1"></div>
     <div class="panel stack" data-mp="mach" id="machPanel"></div>
-    <div class="panel stack" data-mp="opening" id="openPanel" style="grid-column:1/-1"></div>
-    <div class="panel stack" data-mp="import" id="importPanel" style="grid-column:1/-1"></div>
   </div>
 </section>
 
@@ -853,7 +856,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users"];
+const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users","imp"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Old pre-estimate (direct PO)"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
@@ -884,11 +887,11 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||v==="dash"||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(v==="imp"?isRole("Admin")||has("acct.book"):false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="imp"){renderImportHub();renderOpening()}if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);window.scrollTo(0,0)}
 const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
@@ -898,7 +901,7 @@ const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
   ["Store & production",[["grn","📦","Store / GRN"],["stock","🗃️","Stock & issue"],["prod","⚙️","Production"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Tax invoices"],["cn","↩️","Credit notes"]]],
   ["Accounts & reports",[["acct","💰","Accounts"],["rep","📈","Reports"]]],
-  ["Setup",[["mast","🗂️","Masters"],["users","👥","Users & rights"]]]];
+  ["Setup",[["mast","🗂️","Masters"],["users","👥","Users & rights"],["imp","📥","Import old data"]]]];
 function renderMnav(){const cur=views.find(x=>!$("#view-"+x).hidden);$("#mnav").innerHTML=MNAV.map(([h,L])=>{const vis=L.filter(([v])=>{const b=$("#tab-"+v);return b&&!b.hidden&&can(v)});if(!vis.length)return"";
   return (h?`<div class="mh">${esc(h)}</div>`:"")+vis.map(([v,ic,t])=>{const bd=$("#tab-"+v).querySelector(".badge");return `<button type="button" data-mv="${v}"${v===cur?' aria-current="true"':""}><span class="mi" aria-hidden="true">${ic}</span>${esc(t)}${bd?`<span class="badge">${esc(bd.textContent)}</span>`:""}</button>`}).join("")}).join("")}
 $("#mnav").addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(b){setMenu(false);show(b.dataset.mv)}});
@@ -3679,15 +3682,15 @@ function renderOpening(){const P=$("#openPanel");if(!P)return;const ed=obCan();
     ${unk.length?`<div class="note">${unk.length} ${unk.length===1?"party is":"parties are"} not in your ${obPrev.kind==="cust"?"customer":"supplier"} master and will be tracked by the name in the file: ${unk.slice(0,6).map(esc).join("; ")}${unk.length>6?" …":""}</div>`:""}
     ${R.length?`<div class="tablebox"><table class="mt" style="min-width:720px"><thead><tr><th>Party</th><th>Bill No</th><th>Bill date</th><th class="num">Amount</th><th class="num">Paid before</th><th class="num">Balance</th><th>Due</th><th>Plant</th></tr></thead><tbody>${R.slice(0,100).map(o=>`<tr><td>${esc(o.party)}</td><td>${esc(o.bill)}</td><td>${dmy(o.date)}</td><td class="num">${fmt(o.amt)}</td><td class="num">${o.prior?fmt(o.prior):""}</td><td class="num"><b>${fmt(o.amt-o.prior)}</b></td><td>${obDue(o)?dmy(obDue(o)):""}</td><td>${esc(o.plant)}</td></tr>`).join("")}</tbody></table></div>${R.length>100?`<div class="note">Showing the first 100.</div>`:""}`:""}
     <div class="row"><span style="flex:1"></span><button class="btn" id="ob-cancel" type="button">Cancel</button>${R.length?`<button class="btn primary" id="ob-go" type="button">Import ${R.length} bills</button>`:""}</div></div>`}
-  P.innerHTML=`<div class="row"><h2 class="sec">Opening bills (old ERP)</h2><span style="flex:1"></span>${ed?`<button class="btn" id="ob-tpl" type="button">Download template</button><button class="btn" id="ob-imp-c" type="button">Import customer bills</button><button class="btn" id="ob-imp-s" type="button">Import supplier bills</button>`:""}</div>
-  <div class="note">Bills from your old ERP that are still unpaid on the day you start. Customer bills show in Customer outstanding and ageing on the Tax invoices page and on the owner summary, and you record their receipts here; supplier bills show in Accounts &gt; Vendor payments, where you pay them like a GRN. They are not counted in GST registers or stock. Import from Excel (.xlsx, .xls) or CSV; the template shows the columns. A PDF of the outstanding report also works if it has column headings; Excel or CSV is the most reliable.</div>
+  P.innerHTML=`<div class="row"><h2 class="sec">Opening bills imported</h2></div>
+  <div class="note">Bills from your old ERP that are still unpaid on the day you start. Customer bills show in Customer outstanding and ageing on the Tax invoices page and on the owner summary, and you record their receipts here; supplier bills show in Accounts &gt; Vendor payments, where you pay them like a GRN. They are not counted in GST registers or stock. Import them from the list above.</div>
   <div class="row" style="gap:16px;flex-wrap:wrap"><span>Customers owe <b>₹ ${fmt(tot("cust"))}</b></span><span>You owe suppliers <b>₹ ${fmt(tot("sup"))}</b></span></div>
   ${pv}
   <div class="row"><select id="ob-t" style="width:auto"><option value="">Customers and suppliers</option><option value="cust"${tf==="cust"?" selected":""}>Customer bills</option><option value="sup"${tf==="sup"?" selected":""}>Supplier bills</option></select><input id="ob-q" placeholder="Search party or bill" style="max-width:240px" value="${esc(($("#ob-q")||{}).value||"")}"><span class="note">${L.length} bills</span></div>
   ${L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th>Type</th><th>Party</th><th>Bill No</th><th>Bill date</th><th>Due</th><th class="num">Amount</th><th class="num">Paid before</th><th class="num">Paid since</th><th class="num">Balance</th><th></th></tr></thead><tbody>${L.map(o=>{const since=obPaid(o)-(+o.prior||0),b=obBal(o),d=obDue(o);
     return`<tr><td>${obLabel(o.kind)}</td><td><b>${esc(o.party)}</b></td><td>${esc(o.bill)}</td><td>${dmy(o.date)}</td><td style="${b>0.004&&d&&d<today()?"color:var(--danger);font-weight:600":""}">${d?dmy(d):""}</td><td class="num">${fmt(o.amt)}</td><td class="num">${o.prior?fmt(o.prior):""}</td><td class="num">${since?fmt(since):""}</td><td class="num"><b>${b>0.004?fmt(b):"Paid"}</b></td><td style="white-space:nowrap">${ed&&o.kind==="cust"&&b>0.004?`<button class="btn" data-obrc="${o.id}" type="button">Receipt</button> `:""}${ed&&!since?`<button class="btn" data-obdel="${o.id}" type="button" title="Remove this bill">✕</button>`:""}</td></tr>
     ${o.kind==="cust"&&rcptsOf(o).length?`<tr><td></td><td colspan="9" class="note">${rcptsOf(o).map((r,i)=>`Received ₹ ${fmt(r.amt)} on ${dmy(r.date)}${r.ref?" ("+esc(r.ref)+")":""}${ed?` <a href="#" data-obrcdel="${o.id}:${i}">remove</a>`:""}`).join(" · ")}</td></tr>`:""}
-    ${obRc===o.id?`<tr><td></td><td colspan="9"><div class="row" style="gap:8px;flex-wrap:wrap"><label class="f">Date<input id="obr-date" type="date" value="${today()}"></label><label class="f">Amount ₹<input id="obr-amt" type="number" step="0.01" value="${b.toFixed(2)}"></label><label class="f">Cheque / UTR ref.<input id="obr-ref"></label><button class="btn primary" id="obr-save" type="button" style="align-self:flex-end">Save receipt</button><button class="btn" id="obr-x" type="button" style="align-self:flex-end">Cancel</button></div></td></tr>`:""}`}).join("")}</tbody></table></div>`:`<div class="empty">${obills.length?"No bill matches.":"No opening bills yet. Download the template, fill it from your old ERP's outstanding report, and import it."}</div>`}
+    ${obRc===o.id?`<tr><td></td><td colspan="9"><div class="row" style="gap:8px;flex-wrap:wrap"><label class="f">Date<input id="obr-date" type="date" value="${today()}"></label><label class="f">Amount ₹<input id="obr-amt" type="number" step="0.01" value="${b.toFixed(2)}"></label><label class="f">Cheque / UTR ref.<input id="obr-ref"></label><button class="btn primary" id="obr-save" type="button" style="align-self:flex-end">Save receipt</button><button class="btn" id="obr-x" type="button" style="align-self:flex-end">Cancel</button></div></td></tr>`:""}`}).join("")}</tbody></table></div>`:`<div class="empty">${obills.length?"No bill matches.":"No opening bills yet. Import them from the list above (rows 3 and 4)."}</div>`}
   <input type="file" id="ob-file" accept=".xlsx,.xls,.csv,.pdf" hidden>`}
 $("#openPanel").addEventListener("click",e=>{const t=e.target;
   if(t.id==="ob-tpl"){obTemplate();return}
@@ -3858,23 +3861,32 @@ async function readBook(f,F,xlOpts){const pdf=/\.pdf$/i.test(f.name||"")||/pdf/i
   if(!rows){try{rows=await pdfAI(f,F)}catch(e){throw e&&e.user?e:userErr(e&&e.status===501?"This PDF has no readable table and the document reader is not set up (ANTHROPIC_API_KEY). Export the report to Excel instead.":"Could not read a table from this PDF. Export the report to Excel or CSV instead.")}}
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"PDF");return wb}
 /* admin: one place to bring in old data */
-function renderImportHub(){const P=$("#importPanel");if(!P)return;if(!isRole("Admin")){P.innerHTML=`<div class="empty">Only the Admin can import old data.</div>`;return}
-  const card=(t,d,btns)=>`<div class="panel stack" style="padding:12px"><b>${t}</b><div class="note">${d}</div><div class="row" style="gap:8px;flex-wrap:wrap">${btns}</div></div>`;
-  const b=(id,t,pri)=>`<button class="btn${pri?" primary":""}" type="button" data-imp="${id}">${t}</button>`;
-  P.innerHTML=`<h2 class="sec">Import old data</h2>
-  <div class="note">Bring in data from the old ERP or from your own sheets. Every import accepts <b>Excel (.xlsx, .xls), CSV or PDF</b>, shows a preview before anything is saved, and skips records that are already in. For PDF, use the report as printed by the old ERP (with column headings); scanned PDFs are read by the online document reader. Excel or CSV is still the most reliable, so prefer it when the old ERP can export.</div>
-  <div class="grid-fields" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
-  ${card("1. Customers and suppliers","Party list or ledger list with GSTIN, address, city, PIN, contact. A Group column (Sundry Debtors / Creditors) splits customers from suppliers.",b("party","Choose file",1))}
-  ${card("2. Items and services","Item and Service Master with HSN, GST %, units and rates. An opening stock column sets opening stock.",b("items","Choose file",1))}
-  ${card("3. Customers' unpaid bills","Outstanding receivables on the start date: party, bill no., date, amount, received, credit days.",b("obc","Choose file",1)+b("tpl","Template"))}
-  ${card("4. Suppliers' unpaid bills","Outstanding payables on the start date, same columns as above.",b("obs","Choose file",1)+b("tpl","Template"))}
-  ${card("5. Bank statement","Statement from net banking; lines are matched to the bills above.",b("bank","Choose file",1))}
-  ${card("6. Full backup","Restore a ZT-ERP LITE backup file (Home > Backup). Replaces everything.",b("restore","Go to backup"))}
-  ${card("7. Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN. Their supplier and rate fill the Pre-estimate.",b("opo","Choose file",1)+b("opotpl","Template"))}
-  </div><input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div>`;renderOpo()}
+const IMP_LIST=[
+  ["party","Customers and suppliers","Party or ledger list: name, GSTIN, address, city, PIN, contact. A Group column (Sundry Debtors / Creditors) splits customers from suppliers.","Excel (.xlsx, .xls), CSV, PDF","Admin"],
+  ["items","Items and services","Item and Service Master: name, HSN, GST %, unit, rate. An opening stock column sets opening stock.","Excel (.xlsx, .xls), CSV, PDF","Admin"],
+  ["obc","Customers' unpaid bills","Outstanding receivables on the start date: party, bill no., date, amount, received, credit days.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
+  ["obs","Suppliers' unpaid bills","Outstanding payables on the start date, same columns as customers' bills.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
+  ["opo","Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN.","Excel (.xlsx, .xls), CSV, PDF","Admin"],
+  ["bank","Bank statement","Statement downloaded from net banking. Lines are matched to the bills above in Accounts.","Excel (.xlsx), CSV","Acct"],
+  ["restore","Full backup","A ZT-ERP LITE backup file (Home > Backup). Replaces everything.","Backup file (.xlsx)","Admin"]];
+const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN","PAN","Address","City","PIN","State code","Contact person","Phone","Email"],["ABC Engineering Pvt Ltd","Sundry Debtors","27ABCDE1234F1Z5","ABCDE1234F","Plot 12, MIDC","Pune","411019","27","Mr. Patil","9800000000","accounts@abc.in"],["Shree Steels","Sundry Creditors","27AAAAA0000A1Z5","","Bhosari","Pune","411026","27","","",""]]),
+  items:()=>tplBook("Items-template.xlsx",[["Item name","Item code","HSN / SAC","GST %","Unit","Rate","Opening stock"],["Ejector pin 6 x 200","","84807100","18","NOS","85","40"],["Wire cutting","","998898","18","HR","450",""]]),
+  obc:()=>obTemplate(),obs:()=>obTemplate(),opo:()=>opoTemplate()};
+async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((h,k)=>({wch:Math.max(10,...rows.map(r=>String(r[k]||"").length))+2}));XLSX.utils.book_append_sheet(wb,ws,"Sheet1");
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function renderImportHub(){const P=$("#importPanel");if(!P)return;const ad=isRole("Admin"),ac=ad||has("acct.book");
+  const L=IMP_LIST.filter(x=>x[4]==="Admin"?ad:ac);
+  P.innerHTML=`<div class="row"><h2 class="sec">Import old data</h2></div>
+  <div class="note">Bring in data from the old ERP or from your own sheets. Every import shows a preview before anything is saved, and skips records that are already in, so importing the same file again is safe. Excel or CSV is the most reliable. A PDF works if it is the report as printed by the old ERP, with column headings.</div>
+  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th style="width:34px">#</th><th>What to import</th><th>What the file should have</th><th>Formats accepted</th><th></th></tr></thead><tbody>
+  ${L.map((x,k)=>`<tr><td>${k+1}</td><td><b>${esc(x[1])}</b></td><td class="note">${esc(x[2])}</td><td style="white-space:nowrap">${esc(x[3])}</td><td style="white-space:nowrap">${IMP_TPL[x[0]]?`<button class="btn" type="button" data-imp="tpl:${x[0]}">Template</button> `:""}<button class="btn primary" type="button" data-imp="${x[0]}">${x[0]==="restore"?"Go to backup":x[0]==="bank"?"Go to Accounts":"Import"}</button></td></tr>`).join("")}
+  </tbody></table></div>
+  ${L.length?"":`<div class="empty">Only the Admin or Accounts can import old data.</div>`}
+  <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div>`;renderOpo()}
 $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!k)return;
-  if(k==="tpl"){obTemplate();return}
-  if(k==="opotpl"){opoTemplate();return}
+  if(k.startsWith("tpl:")){const f=IMP_TPL[k.slice(4)];if(f)f();return}
   if(k==="opo-go"){opoSave();return}
   if(k==="opo-cancel"){opoPv=null;renderOpo();return}
   if(k==="restore"){show("home");return}
@@ -3884,7 +3896,7 @@ $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!
   const i=$("#imp-file");i.dataset.kind=k;i.click()});
 $("#importPanel").addEventListener("change",e=>{if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
   if(k==="opo"){opoImport(f);return}
-  mastSel="opening";mastPick();renderOpening();obImport(f,k==="obc"?"cust":"sup")});
+  obImport(f,k==="obc"?"cust":"sup")});
 /* ---------- old purchase orders from the old ERP (Excel / CSV / PDF), one row per PO line ---------- */
 const OPO_FIELDS=[["po","PO No",["pono","ponumber","purchaseorderno","purchaseordernumber","orderno","ordernumber","voucherno","vchno","po","no"]],
   ["date","PO date",["podate","orderdate","purchaseorderdate","voucherdate","vchdate","date"]],
@@ -3965,7 +3977,7 @@ function opoSave(){if(!opoPv)return;const at=new Date().toISOString(),have=new S
 /* masters: one list at a time, customer master */
 const projCan=a=>has("proj."+a)||has("mast.edit");const projOnly=()=>!has("mast.view");
 let mastSel="items";try{mastSel=localStorage.getItem("zpo:mastPick")||"items"}catch(e){}
-function mastPick(){const sel=$("#mast-pick");if(!sel)return;const po=projOnly();[...sel.options].forEach(o=>o.hidden=po&&o.value!=="projs");{const io=sel.querySelector('option[value="import"]');if(io&&!isRole("Admin")){io.hidden=true;if(mastSel==="import")mastSel="items"}}if(po)mastSel="projs";sel.value=mastSel;document.querySelectorAll("#view-mast [data-mp]").forEach(p=>{p.hidden=mastSel!=="all"&&p.dataset.mp!==mastSel;if(!p.hidden&&mastSel!=="all")p.style.gridColumn="1/-1"})}
+function mastPick(){const sel=$("#mast-pick");if(!sel)return;if(mastSel!=="all"&&!sel.querySelector(`option[value="${mastSel}"]`))mastSel="items";const po=projOnly();[...sel.options].forEach(o=>o.hidden=po&&o.value!=="projs");{const io=sel.querySelector('option[value="import"]');if(io&&!isRole("Admin")){io.hidden=true;if(mastSel==="import")mastSel="items"}}if(po)mastSel="projs";sel.value=mastSel;document.querySelectorAll("#view-mast [data-mp]").forEach(p=>{p.hidden=mastSel!=="all"&&p.dataset.mp!==mastSel;if(!p.hidden&&mastSel!=="all")p.style.gridColumn="1/-1"})}
 $("#mast-pick").onchange=e=>{mastSel=e.target.value;try{localStorage.setItem("zpo:mastPick",mastSel)}catch(err){}mastPick();window.scrollTo(0,0)};
 const MC_F=[["name",200],["addr",260],["city",100],["pin",80],["gstin",150],["state",50],["contact",130],["phone",120],["email",180]];
 function renderMastCusts(){const B=$("#m-custs");if(!B)return;const q=key($("#mc-q").value),ed=has("mast.edit")||has("sales.edit");
