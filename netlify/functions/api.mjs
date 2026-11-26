@@ -11,6 +11,8 @@ const SESSION_DAYS = 30;
 let db;
 const pool = () => (db = db || getDatabase(process.env.ZPO_DB_URL ? { connectionString: process.env.ZPO_DB_URL } : {})).pool;
 const q = async (text, params = []) => (await pool().query(text, params)).rows;
+// every write to records also goes into record_history, so the data can be put back to any earlier date and time
+const HIST = (sql) => `WITH w AS (${sql} RETURNING coll,id,data,deleted,rev,created_rev,updated_by), h AS (INSERT INTO record_history(coll,id,data,deleted,rev,changed_by) SELECT coll,id,data,deleted,rev,updated_by FROM w) SELECT coll,id,rev,created_rev FROM w`;
 const CODE_PRE = { sup: "S", cust: "C" };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const hashPass = (p) => { const salt = randomBytes(16); return "s1$" + salt.toString("hex") + "$" + scryptSync(p, salt, 32).toString("hex"); };
@@ -29,7 +31,7 @@ async function hasAdmin() { return anyAdmin(await mastersDoc()); }
 function withAdmin(m, name) { const md = m && typeof m === "object" ? { ...m } : { users: [], depts: [], projects: [] }; const users = Array.isArray(md.users) ? md.users.filter(Boolean) : []; const i = users.findIndex((x) => x.name === name);
   if (i >= 0) users[i] = { ...users[i], role: "Admin" }; else users.unshift({ name, dept: "", role: "Admin" }); md.users = users; return md; }
 async function repairAdmin(me) { const cur = await mastersDoc(); if (anyAdmin(cur) || (await ownerName()) !== me) return;
-  await q("INSERT INTO records(coll,id,data,rev,created_rev,updated_by) VALUES('masters','_',$1,nextval('rev_seq'),currval('rev_seq'),$2) ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by", [JSON.stringify(withAdmin(cur, me)), me]); }
+  await q(HIST("INSERT INTO records(coll,id,data,rev,created_rev,updated_by) VALUES('masters','_',$1,nextval('rev_seq'),currval('rev_seq'),$2) ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by"), [JSON.stringify(withAdmin(cur, me)), me]); }
 
 const MOULD_ROLES = ["Sales", "Approver", "Purchaser", "Admin"];
 function canMould(u) { const r = Array.isArray(u.rights) ? u.rights : null; if (r && r.includes("v2")) return ["sales.view", "sales.create", "sales.edit"].some((k) => r.includes(k)); return MOULD_ROLES.includes(u.role) || (!!r && r.includes("page.sales")); }
@@ -111,6 +113,78 @@ async function scanDoc(b) {
 
 async function body(req) { try { return await req.json(); } catch { return {}; } }
 
+// ---------- Restore to an earlier date (Admin and Director) ----------
+const COLL_WORDS = { reqs: "purchase requests", saved: "POs", grns: "GRNs", pays: "payments", rgps: "returnable challans", slips: "issue slips", deletedPOs: "deleted-PO log", suppliers: "suppliers", rates: "rates", bins: "stock bins", masters: "masters and settings", costing: "rates and costing", items: "items", customers: "customers", deals: "RFQs and quotations", fups: "follow-ups", sorders: "sales orders", dchallans: "delivery challans", invoices: "sales invoices", jobs: "jobs", dnotes: "debit notes", cnotes: "credit notes", obills: "opening bills", bank: "bank statement lines", jwins: "job work inward" };
+async function canRestore(me) { if (await isAdmin(me)) return true; const u = await profile(me); return !!u && ["Director", "Approver"].includes(u.role); }
+const topRev = async (c = { query: (t, p) => pool().query(t, p) }) => Number((await c.query("SELECT COALESCE(MAX(rev),0)::bigint AS r FROM records")).rows[0].r);
+async function startRev() { const r = await q("SELECT rev FROM restore_points WHERE kind='start' ORDER BY pid LIMIT 1"); return r[0] ? Number(r[0].rev) : 0; }
+// a big save (an import, a bulk delete, a backup restore) gets a restore point just before it, at most one per person every 3 minutes
+async function autoPoint(me, list) {
+  const dels = list.filter((c) => c.deleted).length; if (list.length < 20 && dels < 3) return;
+  const recent = await q("SELECT 1 FROM restore_points WHERE kind='auto' AND by_name=$1 AND at>NOW()-interval '3 minutes' LIMIT 1", [me]); if (recent[0]) return;
+  const cnt = {}; list.forEach((c) => { const w = COLL_WORDS[c.coll]; if (w) cnt[w] = (cnt[w] || 0) + 1; });
+  const what = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([w, n]) => n + " " + w).join(", ");
+  await q("INSERT INTO restore_points(rev,kind,label,by_name) VALUES($1,'auto',$2,$3)", [await topRev(), `Before ${me} ${dels >= list.length / 2 ? "deleted" : "saved"} ${what}${list.length >= 500 ? " (and more)" : ""}`.slice(0, 300), me]);
+}
+// state as of rev R compared with today: one row per record that would change
+const DIFF = `WITH past AS (SELECT DISTINCT ON (coll,id) coll,id,data,deleted FROM record_history WHERE rev<=$1 AND coll=ANY($2) ORDER BY coll,id,rev DESC)
+  SELECT r.coll, r.id, p.data AS pdata, COALESCE(p.deleted, TRUE) AS pdel, r.deleted AS cdel
+  FROM records r LEFT JOIN past p ON p.coll=r.coll AND p.id=r.id
+  WHERE r.coll=ANY($2) AND ((p.coll IS NULL AND NOT r.deleted) OR (p.coll IS NOT NULL AND (p.deleted<>r.deleted OR (NOT p.deleted AND p.data IS DISTINCT FROM r.data))))`;
+function diffCounts(rows) { const by = {}; rows.forEach((x) => { const o = by[x.coll] || (by[x.coll] = { coll: x.coll, words: COLL_WORDS[x.coll] || x.coll, back: 0, removed: 0, changed: 0 }); if (x.cdel && !x.pdel) o.back++; else if (x.pdel && !x.cdel) o.removed++; else o.changed++; }); return Object.values(by).sort((a, b) => (b.back + b.removed + b.changed) - (a.back + a.removed + a.changed)); }
+async function resolveRev(b) {
+  if (b.point != null) { const r = await q("SELECT rev,at,label FROM restore_points WHERE pid=$1", [Number(b.point) || 0]); if (!r[0]) throw Object.assign(new Error("That restore point is not there any more"), { status: 404 }); return { rev: Number(r[0].rev), at: r[0].at, label: r[0].label }; }
+  const t = new Date(String(b.at || "")); if (isNaN(t)) throw Object.assign(new Error("Pick a date and time"), { status: 400 });
+  if (t > new Date()) throw Object.assign(new Error("That time is in the future"), { status: 400 });
+  const r = await q("SELECT COALESCE(MAX(rev),0)::bigint AS r FROM record_history WHERE changed_at<=$1", [t.toISOString()]); return { rev: Number(r[0].r), at: t.toISOString(), label: "" };
+}
+async function restoreApi(me, m, url, req) {
+  if (!(await canRestore(me))) return json({ error: "Only Admin and Director can restore data to an earlier date" }, 403);
+  if (m === "GET") {
+    const points = await q("SELECT pid,at,rev,kind,label,by_name FROM restore_points ORDER BY at DESC LIMIT 300");
+    // end of each day (India time), last 120 days
+    const days = await q(`SELECT to_char(changed_at AT TIME ZONE 'Asia/Kolkata','YYYY-MM-DD') AS day, MAX(rev)::bigint AS rev, MAX(changed_at) AS last, COUNT(*)::int AS n
+      FROM record_history WHERE changed_at>NOW()-interval '120 days' AND rev>=$1 GROUP BY 1 ORDER BY 1 DESC`, [await startRev()]);
+    const st = await q("SELECT at,rev FROM restore_points WHERE kind='start' ORDER BY pid LIMIT 1");
+    return json({ points: points.map((p) => ({ ...p, rev: Number(p.rev), pid: Number(p.pid) })), days: days.map((d) => ({ ...d, rev: Number(d.rev) })), start: st[0] ? st[0].at : null, colls: COLL_WORDS });
+  }
+  const b = await body(req); const action = String(b.action || "");
+  if (action === "point") {
+    const label = String(b.label || "").trim().slice(0, 200) || "Restore point made by hand";
+    const r = await q("INSERT INTO restore_points(rev,kind,label,by_name) VALUES($1,'manual',$2,$3) RETURNING pid,at", [await topRev(), label, me]);
+    return json({ ok: true, pid: Number(r[0].pid), at: r[0].at });
+  }
+  if (action !== "preview" && action !== "run") return json({ error: "Unknown action" }, 400);
+  const target = await resolveRev(b); const sr = await startRev();
+  if (target.rev < sr) return json({ error: "Restore history starts on " + new Date((await q("SELECT at FROM restore_points WHERE kind='start' ORDER BY pid LIMIT 1"))[0].at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + ". Pick a later time." }, 400);
+  const colls = (Array.isArray(b.colls) && b.colls.length ? b.colls.map(String) : Object.keys(COLL_WORDS)).filter((c) => COLL_WORDS[c]);
+  if (!colls.length) return json({ error: "Pick at least one area to restore" }, 400);
+  if (action === "preview") {
+    const rows = await q(DIFF.replace("SELECT r.coll, r.id, p.data AS pdata,", "SELECT r.coll, r.id,"), [target.rev, colls]);
+    return json({ rev: target.rev, at: target.at, changes: diffCounts(rows), total: rows.length });
+  }
+  // run: one transaction under a lock. First a restore point of today's data (so this restore can be undone), then put back the old versions.
+  const c = await pool().connect();
+  try {
+    await c.query("BEGIN"); await c.query("SELECT pg_advisory_xact_lock(hashtext('restore'))");
+    const when = target.label || new Date(target.at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const undo = (await c.query("INSERT INTO restore_points(rev,kind,label,by_name) VALUES($1,'before-restore',$2,$3) RETURNING pid", [await topRev(c), `Before ${me} restored data to ${when}`.slice(0, 300), me])).rows[0];
+    const rows = (await c.query(DIFF, [target.rev, colls])).rows;
+    const plain = rows.filter((x) => x.coll !== "masters"); const ms = rows.find((x) => x.coll === "masters");
+    if (plain.length) await c.query(`WITH d AS (SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(coll text,id text,pdata jsonb,pdel boolean)),
+      u AS (UPDATE records r SET data=CASE WHEN d.pdel THEN NULL ELSE d.pdata END, deleted=d.pdel, rev=nextval('rev_seq'), updated_at=NOW(), updated_by=$2 FROM d WHERE r.coll=d.coll AND r.id=d.id RETURNING r.coll,r.id,r.data,r.deleted,r.rev,r.updated_by)
+      INSERT INTO record_history(coll,id,data,deleted,rev,changed_by) SELECT coll,id,data,deleted,rev,updated_by FROM u`, [JSON.stringify(plain.map((x) => ({ coll: x.coll, id: x.id, pdata: x.pdata, pdel: x.pdel }))), me + " (restore)"]);
+    if (ms && !ms.pdel && ms.id === "_") {
+      // masters and settings go back, but users, rights and logins stay as they are today, so nobody is locked out
+      const cur = (await c.query("SELECT data FROM records WHERE coll='masters' AND id='_'")).rows[0]; const now = cur && cur.data ? cur.data : {};
+      let md = { ...(ms.pdata || {}), users: Array.isArray(now.users) ? now.users : (ms.pdata || {}).users || [] }; if (!anyAdmin(md)) md = withAdmin(md, me);
+      await c.query(HIST("UPDATE records SET data=$1, deleted=FALSE, rev=nextval('rev_seq'), updated_at=NOW(), updated_by=$2 WHERE coll='masters' AND id='_'"), [JSON.stringify(md), me + " (restore)"]);
+    }
+    await c.query("COMMIT");
+    return json({ ok: true, undo: Number(undo.pid), changes: diffCounts(rows), total: rows.length });
+  } catch (e) { await c.query("ROLLBACK").catch(() => {}); throw e; } finally { c.release(); }
+}
+
 export default async (req) => {
   const url = new URL(req.url); const path = url.pathname.replace(/^\/api\/?/, "").replace(/\/$/, ""); const m = req.method;
   try {
@@ -123,7 +197,7 @@ export default async (req) => {
       await q("INSERT INTO logins(name,pass_hash) VALUES($1,$2)", [n, hashPass(password)]);
       const md = masters && typeof masters === "object" ? masters : { users: [], depts: [], projects: [] };
       md.users = (md.users || []).filter((u) => u.name !== n); md.users.unshift({ name: n, dept: "", role: "Admin" });
-      await q("INSERT INTO records(coll,id,data,rev,created_rev,updated_by) VALUES('masters','_',$1,nextval('rev_seq'),currval('rev_seq'),$2) ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by", [JSON.stringify(md), n]);
+      await q(HIST("INSERT INTO records(coll,id,data,rev,created_rev,updated_by) VALUES('masters','_',$1,nextval('rev_seq'),currval('rev_seq'),$2) ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by"), [JSON.stringify(md), n]);
       return json({ token: await newSession(n), name: n });
     }
 
@@ -184,6 +258,7 @@ export default async (req) => {
       const { changes } = await body(req); if (!Array.isArray(changes)) return json({ error: "Bad request" }, 400);
       const admin = await isAdmin(me); const results = [];
       const list = changes.slice(0, 500);
+      await autoPoint(me, list).catch((e) => console.error("restore point", e && e.message));
       // fast path: plain saves (not new-numbered docs, not masters) go in one statement, so a 1,000-row import takes one round trip
       // only the admin may delete a purchase request
       const reqDelBlocked = (c) => !admin && c.coll === "reqs" && c.deleted;
@@ -192,9 +267,9 @@ export default async (req) => {
       if (plain.length) {
         const seen = new Set(); const rows = [];
         for (const c of plain) { const k = c.coll + "\u0001" + c.id; if (seen.has(k)) continue; seen.add(k); rows.push({ coll: String(c.coll), id: String(c.id), data: c.deleted ? null : (c.data ?? null), deleted: !!c.deleted }); }
-        const r = await q(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by)
+        const r = await q(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by)
           SELECT x.coll,x.id,x.data,x.deleted,nextval('rev_seq'),currval('rev_seq'),$2 FROM jsonb_to_recordset($1::jsonb) AS x(coll text,id text,data jsonb,deleted boolean)
-          ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=EXCLUDED.deleted,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by RETURNING coll,id,rev,created_rev`, [JSON.stringify(rows), me]);
+          ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=EXCLUDED.deleted,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by`), [JSON.stringify(rows), me]);
         r.forEach((x) => done.set(x.coll + "\u0001" + x.id, { coll: x.coll, id: x.id, rev: Number(x.rev), created_rev: Number(x.created_rev) }));
       }
       for (const c of list) {
@@ -215,8 +290,8 @@ export default async (req) => {
           const ex = await q("SELECT rev FROM records WHERE coll=$1 AND id=$2 AND NOT deleted", [coll, id]);
           if (ex[0]) { results.push({ coll, id, conflict: true }); continue; }
         }
-        const r = await q(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by) VALUES($1,$2,$3,$4,nextval('rev_seq'),currval('rev_seq'),$5)
-          ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=EXCLUDED.deleted,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by RETURNING rev,created_rev`,
+        const r = await q(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by) VALUES($1,$2,$3,$4,nextval('rev_seq'),currval('rev_seq'),$5)
+          ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=EXCLUDED.deleted,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by`),
           [coll, id, c.deleted ? null : JSON.stringify(c.data ?? null), !!c.deleted, me]);
         results.push({ coll, id, rev: Number(r[0].rev), created_rev: Number(r[0].created_rev) });
       }
@@ -289,6 +364,10 @@ export default async (req) => {
         await log(false, { error: String(e.message || e), code: e.code || "" });
         return json({ error: e.status ? e.message : "GST portal: " + (e.name === "TimeoutError" ? "no answer in time. Try again in a minute." : e.message), code: e.code || "", noSetup: !!e.noSetup }, st);
       }
+    }
+
+    if (path === "restore" && (m === "GET" || m === "POST")) {
+      try { return await restoreApi(me, m, url, req); } catch (e) { if (e.status) return json({ error: e.message }, e.status); throw e; }
     }
 
     if (path === "password" && m === "POST") {
