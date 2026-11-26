@@ -1568,7 +1568,8 @@ function costLog(what,o,n){costing.hist.push({at:new Date().toISOString(),by:me?
 const costName=(L,x)=>L==="grades"?x.g:L==="ops"?x.op:L==="cons"?x.name:[x.type,x.size,x.len].filter(Boolean).join(" ");
 let costTab="grades";
 function renderCost(){
-  const B=$("#costBody");if(!B)return;const ed=canCost();
+  const B=$("#costBody");if(!B)return;const A=document.activeElement,fk=A&&A.closest&&A.closest("#costBody [data-ci]")&&A.dataset.cf?[A.closest("[data-ci]").dataset.ci,A.dataset.cf]:null;
+  if(fk)setTimeout(()=>{const f=B.querySelector(`tr[data-ci="${fk[0]}"] [data-cf="${fk[1]}"]`);if(f&&document.activeElement!==f){if(typeof gSel!=="undefined"&&gSel)gSel.keep=true;f.focus();try{f.select()}catch(_){}}if(typeof gPaint==="function")gPaint()},0);const ed=canCost();
   $("#costTabs").innerHTML=[...Object.entries(COST_LISTS).map(([k,v])=>[k,v.t]),["calc","Calculation sheets"],["hist","Rate history"]].map(([k,t])=>`<button type="button" data-ctab="${k}" aria-pressed="${costTab===k}">${esc(t)}</button>`).join("");
   if(costTab==="hist"){const H=costing.hist.slice().reverse().slice(0,300);
     B.innerHTML=H.length?`<div class="tablebox"><table class="est" style="min-width:720px"><thead><tr><th>When</th><th>By</th><th>What</th><th class="num">Old</th><th class="num">New</th><th>Applies from</th></tr></thead><tbody>${H.map(h=>`<tr><td>${dmy(String(h.at).slice(0,10))}</td><td>${esc(h.by)}</td><td>${esc(h.what)}</td><td class="num">${esc(h.o)}</td><td class="num">${esc(h.n)}</td><td>${esc(h.from)} onwards</td></tr>`).join("")}</tbody></table></div><div class="note">POs made before a change keep the rates they were made with.</div>`:`<div class="empty">No rate changes yet. Every change made here is listed with the old and new value and the PO number it applies from.</div>`;return}
@@ -1591,7 +1592,7 @@ $("#costBody").addEventListener("change",e=>{if(!canCost())return;const t=e.targ
   const tp=t.closest("[data-tp]");if(tp&&t.dataset.tf){const T=costing.tpl[tp.dataset.tp][+tp.dataset.j];if(t.dataset.tf==="op")T[0]=t.value;else T[1]=+t.value||0;saveCosting();toast("Template saved");return}
   const tr=t.closest("[data-ci]");if(!tr||!t.dataset.cf)return;const L=costing[costTab],x=L[+tr.dataset.ci],f=t.dataset.cf,ty=(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[])[2];
   const n=ty==="n"?(t.value===""?"":+t.value):t.value.trim(),o=x[f];if(String(o??"")===String(n))return;
-  x[f]=n;x.upd=today();x.by=me?me.name:"";costLog(`${COST_LISTS[costTab].t}: ${costName(costTab,x)||"new row"} · ${(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[f])[0]}`,o,n);saveCosting();renderCost();toast(`Saved. Applies from PO ${nextPONo()} onwards.`)});
+  x[f]=n;x.upd=today();x.by=me?me.name:"";costLog(`${COST_LISTS[costTab].t}: ${costName(costTab,x)||"new row"} · ${(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[f])[0]}`,o,n);saveCosting();clearTimeout(renderCost.t);renderCost.t=setTimeout(renderCost,0);toast(`Saved. Applies from PO ${nextPONo()} onwards.`)});
 $("#costBody").addEventListener("click",async e=>{const t=e.target;if(!t.closest("button"))return;const b=t.closest("button"),d=b.dataset;
   if(d.cxout!=null){costExport();return}
   if(!canCost())return;
@@ -1657,7 +1658,7 @@ function openBuy(r){buyQ=r?String(r.no):"";if(r)buyTab=buyCat(r);show("buy")}
 const bMatch=(b,q)=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.c.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q);
 const autoSt=on=>on?"background:color-mix(in srgb,#ffe600 28%,transparent)":"";
 function renderBuy(){
-  if(!$("#view-buy"))return;$("#buy-q").value=buyQ;fillGradeList();
+  if(!$("#view-buy"))return;const A=document.activeElement,fk=A&&A.closest&&A.closest("#buyBody")?[A.closest("[data-bk]").dataset.bk,A.dataset.bf]:null;$("#buy-q").value=buyQ;fillGradeList();
   const all=buyRows(),q=key(buyQ);if(!BUY_TABS.includes(buyTab))buyTab=(BUY_TABS.find(t=>all.some(b=>b.cat===t))||BUY_TABS[0]);
   $("#buyTabs").innerHTML=BUY_TABS.map((t,i)=>{const n=all.filter(b=>b.cat===t).length;return`<button type="button" data-btab="${esc(t)}" aria-pressed="${t===buyTab}">${i+1}. ${esc(t)}${n?` (${n})`:""}</button>`}).join("");
   const L=all.filter(b=>b.cat===buyTab&&bMatch(b,q)),reqN=new Set(all.map(b=>b.x.r.no)).size;
@@ -1681,7 +1682,9 @@ function renderBuy(){
     note=pl?`Lines are matched on description (type) + ${buyTab==="BOP"?"size":"dia / size"} + length against the ${buyTab==="BOP"?"BOP price list":"tool catalogue"} in Rates &amp; costing. A price typed for an unmatched line can be saved to the list for next time.`:`Rate and supplier come from the last PO for the same item${buyTab==="Consumables"?", or from the consumables list in Rates &amp; costing":""}.`}
   $("#buyHead").innerHTML=`<tr>${head}</tr>`;$("#buyBody").innerHTML=body;$("#buyNote").innerHTML=note+` Yellow = filled in from the masters or the last PO; change any of it.`;
   $("#buy-all").checked=L.length>0&&L.every(b=>b.on);$("#buy-all").closest("label").hidden=!L.length;
-  buyTotals(all)}
+  buyTotals(all);
+  if(fk&&fk[1]){const el=[...$("#buyBody").querySelectorAll("[data-bk]")].find(t=>t.dataset.bk===fk[0]);const f=el&&el.querySelector(`[data-bf="${fk[1]}"]`);if(f&&document.activeElement!==f){gSel&&(gSel.keep=true);f.focus();if(f.tagName==="INPUT")try{f.select()}catch(_){}}}
+  if(typeof gPaint==="function")gPaint()}
 function buyLines(all){const out=[];(all||buyRows()).filter(b=>b.on&&b.c.ok).forEach(b=>{const c=b.c;
   out.push({b,sup:c.sup,amt:c.amt})});return out}
 function buyTotals(all){all=all||buyRows();const on=all.filter(b=>b.on),ready=on.filter(b=>b.c.ok),bad=on.filter(b=>!b.c.ok),out=buyLines(all);
@@ -1699,7 +1702,8 @@ $("#buyBody").addEventListener("change",e=>{const t=e.target,tr=t.closest("[data
   else if(f){if(d.on==null)d.on=true;d[f]=["sup","grade","raw"].includes(f)?t.value:(t.value===""?null:+t.value);if(f==="grade"){delete d.allow;delete d.raw;delete d.rate;delete d.sup}if(f==="allow")delete d.raw;if(f==="raw"&&!t.value.trim())delete d.raw}
   else if(t.dataset.of){if(d.on==null)d.on=true;const b=buyRows().find(x=>x.k===k),ops=bOps(k,b),p=ops[+t.closest("[data-oj]").dataset.oj],of=t.dataset.of;p[of]=of==="op"||of==="sup"?t.value:(t.value===""?null:+t.value);if(of==="op"){p.q=null;p.rate=null;p.sup=null}}
   else return;
-  saveBuy();renderBuy()});
+  /* redraw after the cursor has moved (arrow, Enter, Tab, paste), so it stays where it went */
+  saveBuy();clearTimeout(renderBuy.t);renderBuy.t=setTimeout(renderBuy,0)});
 $("#buyBody").addEventListener("click",e=>{const btn=e.target.closest("button");if(!btn)return;const tr=btn.closest("[data-bk]"),k=tr&&tr.dataset.bk;
   if(btn.dataset.bops){buyOpen.has(btn.dataset.bops)?buyOpen.delete(btn.dataset.bops):buyOpen.add(btn.dataset.bops);renderBuy();return}
   const b=k&&buyRows().find(x=>x.k===k);if(!b)return;
@@ -2258,6 +2262,8 @@ const GRIDS=[
   {is:tb=>tb.id==="estBody",q:()=>$("#estBody"),add:()=>{est.lines.push({item:"",spec:"",expr:"",rate:null,qty:1,unit:est.unit||"NOS",src:""});saveEst();renderEst();return true}},
   {is:tb=>tb.id==="poBody",q:()=>$("#poBody"),add:()=>{const b=$("#btn-po-line");if(!b)return false;b.click();return true}},
   {is:tb=>tb.id==="grnBody",q:()=>$("#grnBody"),add:()=>false},
+  {is:tb=>tb.id==="buyBody",q:()=>$("#buyBody"),add:()=>false},
+  {is:tb=>!!tb.closest("#costBody")&&!!tb.querySelector("[data-ci]"),q:()=>$("#costBody tbody"),add:()=>false},
   {is:tb=>!!tb.closest("#rgpForm"),q:()=>$("#rgpForm tbody"),add:()=>{const b=$("#btn-r-line");if(!b)return false;b.click();return true}},
   {is:tb=>!!tb.closest("#slipForm"),q:()=>$("#slipForm tbody"),add:()=>{const b=$("#btn-sl-line");if(!b)return false;b.click();return true}}];
 const gCells=tr=>[...tr.querySelectorAll("input:not([type=file]):not([type=checkbox]),select")];
