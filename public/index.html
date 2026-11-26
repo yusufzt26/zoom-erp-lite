@@ -1490,7 +1490,7 @@ function renderEstReq(){
 /* ---------- store / GRN ---------- */
 const saveGRNs=()=>store.set("grns",grns);
 const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
-function acceptedSoFar(poNo,i){return grns.filter(g=>String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
+function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;return o+grns.filter(g=>String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
 function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
 function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
 /* ---------- pending balance: request -> PO -> received ---------- */
@@ -3870,16 +3870,98 @@ function renderImportHub(){const P=$("#importPanel");if(!P)return;if(!isRole("Ad
   ${card("4. Suppliers' unpaid bills","Outstanding payables on the start date, same columns as above.",b("obs","Choose file",1)+b("tpl","Template"))}
   ${card("5. Bank statement","Statement from net banking; lines are matched to the bills above.",b("bank","Choose file",1))}
   ${card("6. Full backup","Restore a ZT-ERP LITE backup file (Home > Backup). Replaces everything.",b("restore","Go to backup"))}
-  </div><input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden>`}
+  ${card("7. Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN. Their supplier and rate fill the Pre-estimate.",b("opo","Choose file",1)+b("opotpl","Template"))}
+  </div><input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div>`;renderOpo()}
 $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!k)return;
   if(k==="tpl"){obTemplate();return}
+  if(k==="opotpl"){opoTemplate();return}
+  if(k==="opo-go"){opoSave();return}
+  if(k==="opo-cancel"){opoPv=null;renderOpo();return}
   if(k==="restore"){show("home");return}
   if(k==="bank"){show("acct");setTimeout(()=>{const i=$("#bks-file");if(i)i.click()},50);return}
   if(k==="party"){$("#sup-file").click();return}
   if(k==="items"){$("#it-file").click();return}
   const i=$("#imp-file");i.dataset.kind=k;i.click()});
 $("#importPanel").addEventListener("change",e=>{if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
+  if(k==="opo"){opoImport(f);return}
   mastSel="opening";mastPick();renderOpening();obImport(f,k==="obc"?"cust":"sup")});
+/* ---------- old purchase orders from the old ERP (Excel / CSV / PDF), one row per PO line ---------- */
+const OPO_FIELDS=[["po","PO No",["pono","ponumber","purchaseorderno","purchaseordernumber","orderno","ordernumber","voucherno","vchno","po","no"]],
+  ["date","PO date",["podate","orderdate","purchaseorderdate","voucherdate","vchdate","date"]],
+  ["sup","Supplier",["suppliername","vendorname","supplier","vendor","partyname","party","ledgername"]],
+  ["desc","Item",["itemdescription","description","itemname","item","particulars","materialdescription","material","product","nameofitem","goods"]],
+  ["hsn","HSN",["hsn","hsncode","hsnsac","hsnsaccode","sac"]],
+  ["qty","Qty",["orderedqty","orderqty","poqty","quantity","qty","ordered"]],
+  ["unit","Unit",["unit","uom","units","per"]],
+  ["rate","Rate",["rate","unitrate","rateperunit","price","unitprice","basicrate"]],
+  ["dis","Discount %",["discount","discountpercent","disc","dis","discpercent"]],
+  ["gst","GST %",["gst","gstpercent","gstrate","taxrate","igstrate","tax","taxpercent"]],
+  ["recv","Received qty",["receivedqty","qtyreceived","received","recdqty","receivedquantity","grnqty","recd","supplied","suppliedqty"]],
+  ["pend","Pending qty",["pendingqty","balanceqty","qtypending","pending","balqty","pendingquantity","balance"]],
+  ["status","Status",["status","postatus","state"]],
+  ["job","Project / Job No",["jobno","projectno","project","job","reference","refno","ref"]],
+  ["need","Delivery date",["deliverydate","requiredby","needby","duedate","deliveryby","schedule"]],
+  ["plant","Plant",["plant","branch"]]];
+let opoPv=null;
+async function opoTemplate(){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([OPO_FIELDS.filter(f=>!["pend","status"].includes(f[0])).map(f=>f[1]),["1840","12/10/2026","Shree Steels","EN31 round 40 dia x 120","72286000","25","KG","98","","18","25","ZT2350","20/10/2026","P1"],["1840","12/10/2026","Shree Steels","D2 flat 60 x 25 x 200","72286000","40","KG","210","","18","10","ZT2350","20/10/2026","P1"]]);
+  ws["!cols"]=[{wch:10},{wch:12},{wch:28},{wch:34},{wch:10},{wch:8},{wch:7},{wch:9},{wch:11},{wch:7},{wch:13},{wch:16},{wch:13},{wch:7}];XLSX.utils.book_append_sheet(wb,ws,"Old POs");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["How to fill"],["One row for each line of each PO. Repeat the PO No, date and supplier on every line of the same PO."],["Received qty is what has already come in. A PO whose lines are all fully received comes in closed; any other PO stays open so the store can make a GRN for the rest."],["Instead of Received qty you can give a Pending qty column, or a Status column (Open / Closed)."],["Dates as DD/MM/YYYY. GST % blank means 18. Plant is P1 or P2; blank means P1."],["POs whose number is already in the app are skipped, so importing the same file again is safe."]]),"Read me");
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Old-PO-template.xlsx";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+async function opoImport(f){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  try{const wb=await readBook(f,OPO_FIELDS,"csv");let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:true,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],OPO_FIELDS),sc=Object.keys(m).length;
+      if(m.po!=null&&m.desc!=null&&m.qty!=null&&sc>=4&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
+    if(!best){toast("Could not find the columns. The sheet needs PO No, Item and Qty columns. Download the template to see the layout.");return}
+    const M=best.map,G=new Map(),bad=[],have=new Set(saved.map(p=>key(p.no)));let last={};
+    best.rows.slice(best.hr+1).forEach((r,i)=>{const g=k=>M[k]==null?"":r[M[k]],row=i+best.hr+2;
+      const no=String(g("po")??"").trim()||last.no||"",desc=String(g("desc")??"").replace(/\s+/g," ").trim();
+      if(!desc&&!String(g("po")).trim())return;if(/^(grand\s*)?total/i.test(no)||/^(grand\s*)?total/i.test(desc))return;
+      if(!no){bad.push(`Row ${row}: no PO No`);return}
+      if(no!==last.no)last={no};
+      if(!desc){bad.push(`Row ${row} (PO ${no}): no item`);return}
+      const qty=Math.abs(obNum(g("qty")));if(!(qty>0)){bad.push(`Row ${row} (PO ${no}): no qty`);return}
+      let P=G.get(key(no));if(!P){P={no,date:"",sup:"",job:"",need:"",plant:"",st:"",lines:[],rows:[]};G.set(key(no),P)}
+      const d=obDate(g("date")),sp=String(g("sup")??"").replace(/\s+/g," ").trim(),jb=String(g("job")??"").trim(),nd=obDate(g("need")),pl=String(g("plant")??"").trim().toUpperCase(),st=String(g("status")??"").trim();
+      if(d&&!P.date)P.date=d;if(sp&&!P.sup)P.sup=sp;if(jb&&!P.job)P.job=jb;if(nd&&!P.need)P.need=nd;if(pl&&!P.plant)P.plant=pl;if(st&&!P.st)P.st=st;
+      let rec;const sv=String(g("status")??"");
+      if(M.pend!=null&&String(g("pend")).trim()!=="")rec=qty-Math.min(qty,Math.abs(obNum(g("pend"))));
+      else if(M.recv!=null&&String(g("recv")).trim()!=="")rec=Math.min(qty,Math.abs(obNum(g("recv"))));
+      else if(M.recv!=null||M.pend!=null)rec=0;
+      else if(/open|pend|part|await/i.test(sv||P.st))rec=0;
+      else rec=qty;
+      const gs=String(g("gst")??"").trim(),tax=gs===""?18:Math.abs(obNum(gs))<1&&Math.abs(obNum(gs))>0?Math.round(Math.abs(obNum(gs))*100):Math.abs(obNum(gs));
+      const it=itemByName(desc);
+      P.lines.push({desc,item:it?it.name:"",spec:it?"":desc,hsn:String(g("hsn")??"").trim()||(it&&it.hsn)||"84801000",tax,qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||(it&&it.unit)||"NOS",rate:Math.abs(obNum(g("rate"))),dis:Math.abs(obNum(g("dis"))),oldRecv:r2(rec)})});
+    const out=[],dup=[];
+    G.forEach(P=>{if(have.has(key(P.no))){dup.push(P.no);return}if(!P.date){bad.push(`PO ${P.no}: PO date missing or not readable`);return}if(!P.sup){bad.push(`PO ${P.no}: no supplier`);return}
+      P.plant=plants().some(x=>x.id===P.plant)?P.plant:"P1";P.closed=P.lines.every(l=>l.oldRecv>=l.qty-0.0001)||/cancel|short.?clos/i.test(P.st);
+      P.total=Math.round(P.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100)*(1+l.tax/100),0));const sp=supOf(P.sup);P.known=!!sp;if(sp)P.sup=sp.name;out.push(P)});
+    out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true}));
+    opoPv={fname:f.name,sn:best.sn,map:M,pos:out,bad,dup};renderOpo();const el=$("#opoPrev");if(el)el.scrollIntoView({block:"start"})}
+  catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
+function renderOpo(){const P=$("#opoPrev");if(!P)return;if(!opoPv){P.innerHTML="";return}const R=opoPv.pos,open=R.filter(p=>!p.closed),unk=[...new Set(R.filter(p=>!p.known).map(p=>p.sup))];
+  const recvNote=opoPv.map.recv==null&&opoPv.map.pend==null?(opoPv.map.status==null?`<div class="note" style="color:var(--danger)">The file has no Received qty, Pending qty or Status column, so every PO is taken as fully received and comes in closed. Add a Received qty column to keep open POs open.</div>`:`<div class="note">No Received qty column: POs marked Open or Pending in the Status column come in open with nothing received.</div>`):"";
+  P.innerHTML=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c);margin-top:12px"><h3 class="rg" style="margin:0">Check before importing: old POs from ${esc(opoPv.fname)}</h3>
+  <div class="note">Sheet "${esc(opoPv.sn)}". Columns found: ${OPO_FIELDS.filter(([f])=>opoPv.map[f]!=null).map(([,l])=>l).join(", ")}.</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip calc">${R.length} POs, ${R.reduce((a,p)=>a+p.lines.length,0)} lines</span><span class="chip sugg">${R.length-open.length} closed · ${open.length} open for GRN</span><span class="chip">₹ ${fmt(R.reduce((a,p)=>a+p.total,0))} incl. GST</span>${opoPv.dup.length?`<span class="chip">${opoPv.dup.length} already in the app, skipped</span>`:""}${opoPv.bad.length?`<span class="chip st-Draft">${opoPv.bad.length} problems, skipped</span>`:""}</div>
+  ${recvNote}
+  ${opoPv.bad.length?`<div class="note" style="color:var(--danger)">${opoPv.bad.slice(0,8).map(esc).join("<br>")}${opoPv.bad.length>8?"<br>…":""}</div>`:""}
+  ${unk.length?`<div class="note">${unk.length} supplier${unk.length===1?" is":"s are"} not in the supplier master and will be added by the name in the file: ${unk.slice(0,6).map(esc).join("; ")}${unk.length>6?" …":""}</div>`:""}
+  ${R.length?`<div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th>PO</th><th>Date</th><th>Supplier</th><th>Project</th><th class="num">Lines</th><th class="num">Total ₹</th><th>Status after import</th></tr></thead><tbody>${R.slice(0,150).map(p=>{const pend=p.lines.filter(l=>l.qty-l.oldRecv>0.0001).length;return`<tr><td style="font-family:var(--mono)">${esc(p.no)}</td><td>${dmy(p.date)}</td><td>${esc(p.sup)}</td><td>${esc(p.job)}</td><td class="num">${p.lines.length}</td><td class="num">${fmt(p.total)}</td><td>${p.closed?`<span class="chip">Closed</span>`:`<span class="chip st-Pending">Open · ${pend} line${pend>1?"s":""} to receive</span>`}</td></tr>`}).join("")}</tbody></table></div>${R.length>150?`<div class="note">Showing the first 150.</div>`:""}`:""}
+  <div class="row"><span style="flex:1"></span><button class="btn" type="button" data-imp="opo-cancel">Cancel</button>${R.length?`<button class="btn primary" type="button" data-imp="opo-go">Import ${R.length} POs</button>`:""}</div></div>`}
+function opoSave(){if(!opoPv)return;const at=new Date().toISOString(),have=new Set(saved.map(p=>key(p.no)));let n=0;
+  opoPv.pos.forEach(P=>{if(have.has(key(P.no)))return;let sp=supOf(P.sup);if(!sp){sp={name:P.sup,addr:"",state:"27"};suppliers.push(sp)}
+    const anyR=P.lines.some(l=>l.oldRecv>0);
+    const rec={no:P.no,date:P.date,sup:sp.name,supAddr:sp.addr||"",ref:P.job,refDate:P.date,attn:"",venCode:sp.gstin||"",terms:sp.terms||"",transport:"",validity:"",reqNo:"",needBy:P.need,plant:P.plant,deliv:plantAddr(P.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",xcols:[],
+      lines:P.lines,status:"Approved",approvedBy:"Old ERP",approvedAt:P.date,old:true,sentAt:P.date,recv:P.closed?"Closed":anyR?"Partly received":"",closed:P.closed,
+      history:[{by:me.name,action:"Imported from the old ERP ("+opoPv.fname+")",at,comment:""}],total:P.total,savedAt:at};
+    if(P.closed)rec.closedAt=P.date;
+    saved.push(rec);n++;
+    P.lines.forEach(l=>{if(!(l.rate>0))return;const k=rkey(l.item||l.desc,l.item?l.spec:""),o=rates[k];if(!o||String(o.date||"")<=P.date)rates[k]={name:l.item||l.desc,rate:+l.rate,date:P.date,src:"PO "+P.no+" (old ERP)"}})});
+  store.set("saved",saved);store.set("rates",rates);store.set("suppliers",suppliers);bindHeader();
+  toast(`${n} old POs imported. Open ones are ready for a GRN in Store.`);opoPv=null;renderOpo()}
 /* masters: one list at a time, customer master */
 const projCan=a=>has("proj."+a)||has("mast.edit");const projOnly=()=>!has("mast.view");
 let mastSel="items";try{mastSel=localStorage.getItem("zpo:mastPick")||"items"}catch(e){}
