@@ -1777,6 +1777,8 @@ document.addEventListener("focusin",e=>{const el=e.target;if(!(el instanceof HTM
 document.addEventListener("input",e=>{if(e.target===AC.el&&e.isTrusted!==false)acShow()});
 document.addEventListener("focusout",e=>{if(e.target===AC.el)setTimeout(()=>{if(document.activeElement!==AC.el)acHide()},0)});
 document.addEventListener("keydown",e=>{if(!AC.box||AC.box.hidden||e.target!==AC.el)return;const n=AC.hits.length;
+  /* in a sheet cell the arrows and Enter move between cells like Excel: pick a suggestion with the mouse there */
+  if(typeof gPos==="function"&&gPos(e.target)&&AC.i<0&&["ArrowDown","ArrowUp","Enter"].includes(e.key)){acHide();return}
   if(e.key==="ArrowDown"||e.key==="ArrowUp"){AC.i=e.key==="ArrowDown"?(AC.i+1)%n:(AC.i<=0?n-1:AC.i-1);acMark();e.preventDefault();e.stopImmediatePropagation();return}
   if(e.key==="Enter"&&AC.i>=0){acPick(AC.i);e.preventDefault();e.stopImmediatePropagation();return}
   if(e.key==="Escape"){acHide();e.preventDefault();e.stopImmediatePropagation()}},true);
