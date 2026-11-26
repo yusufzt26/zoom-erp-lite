@@ -628,7 +628,8 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 <!-- SAVED -->
 <section id="view-saved" class="panel stack" hidden>
   <div class="row"><h2 class="sec">Purchase orders</h2><input id="saved-q" placeholder="Search PO, supplier, item, job" style="max-width:280px"><select class="prj" id="prj-saved" aria-label="Project" style="width:auto"></select><select class="per" id="per-saved" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><span class="note" id="saved-n"></span></div>
-  <div class="row" id="savedBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="saved-all" style="width:18px;height:18px"> Select all shown</label><span class="note" id="saved-seln">Tick POs to delete them together. POs with material received cannot be deleted.</span><span style="flex:1"></span><button class="btn" id="btn-saved-del" style="color:var(--danger);border-color:var(--danger)" disabled>Delete selected</button></div>
+  <div class="row" id="savedBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="saved-all" style="width:18px;height:18px"> Select all shown</label><span class="note" id="saved-seln">Tick POs to mark them fully received, or to delete them. POs with material received cannot be deleted.</span><span style="flex:1"></span><button class="btn" id="btn-saved-close" disabled title="Close the ticked approved POs as fully received, for material that came in but was never entered as a GRN here">Mark fully received</button><button class="btn" id="btn-saved-del" style="color:var(--danger);border-color:var(--danger)" disabled>Delete selected</button></div>
+  <div class="banner stack" id="savedCloseAsk" hidden><b id="saved-close-t"></b><span class="note" id="saved-close-n"></span><label class="f">Note (optional)<input id="saved-close-note" placeholder="e.g. received in the old ERP"></label><div class="row"><span style="flex:1"></span><button class="btn" id="btn-close-no">Cancel</button><button class="btn primary" id="btn-close-yes">Mark fully received</button></div></div>
   <div class="banner stack" id="savedDelAsk" hidden style="border-color:var(--danger)"><b id="saved-ask-t" style="color:var(--danger)"></b><span class="note" id="saved-ask-n"></span><label class="f">Reason for deleting (optional)<input id="saved-del-reason" placeholder="e.g. old POs from the previous ERP"></label><div class="row"><span style="flex:1"></span><button class="btn" id="btn-saved-no">Keep them</button><button class="btn primary" id="btn-saved-yes" style="background:var(--danger);border-color:var(--danger)">Delete permanently</button></div></div>
   <div id="savedList"></div>
 </section>
@@ -1502,9 +1503,9 @@ $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
 function renderSaved(){
   const L=$("#savedList");
   $("#savedBulk").hidden=!(canBulkDel()&&saved.length);if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;$("#savedDelAsk").hidden=true;return}
-  const q=key($("#saved-q").value||"");fillPrj("saved",saved.map(s=>s.ref));const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&lfOk("saved",s.ref,[s.no,pcx(s.sup),s.ref,s.reqNo,s.status,lineTxt(s.lines)],s)).sort((a,b)=>cmpNew(a[0],b[0]));$("#saved-n").textContent=`${S.length} of ${saved.length}`;
+  const q=key($("#saved-q").value||"");fillPrj("saved",saved.map(s=>s.ref));const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&lfOk("saved",s.ref,[s.no,pcx(s.sup),s.ref,s.reqNo,s.status,s.recv||(s.status==="Approved"&&!s.closed?"Not received":""),s.old?"Old ERP":"",lineTxt(s.lines)],s)).sort((a,b)=>cmpNew(a[0],b[0]));$("#saved-n").textContent=`${S.length} of ${saved.length}`;
   const bd=canBulkDel();savedShown=S.map(([s])=>String(s.no));
-  L.innerHTML=S.length?ltT(bd?[["Select","sel act"],...PO_COLS]:PO_COLS,S.map(([s,i])=>({c:[...(bd?[poHasGrn(s)?`<input type="checkbox" disabled title="Material has been received against this PO, so it cannot be deleted" style="width:18px;height:18px">`:`<input type="checkbox" data-dsel="${esc(s.no)}" aria-label="Select PO ${esc(s.no)}" style="width:18px;height:18px"${delSel.has(String(s.no))?" checked":""}>`]:[]),`${esc(s.no)}<small>${esc(plantName(s.plant))}</small>`,ltPrj(s.ref),`${esc(s.sup||"No supplier")}<br><span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span>`,ltD(s.date),ltAmt(s.total),esc(poBy(s)),`${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}`,ltDT(poUpd(s)),ltActs(`<button class="btn" type="button" data-open="${i}">View</button>`,poPdfBtn(i))]}))):lfNone;
+  L.innerHTML=S.length?ltT(bd?[["Select","sel act"],...PO_COLS]:PO_COLS,S.map(([s,i])=>({c:[...(bd?[poHasGrn(s)&&!poClosable(s)?`<input type="checkbox" disabled title="Material has been received against this PO and it is closed" style="width:18px;height:18px">`:`<input type="checkbox" data-dsel="${esc(s.no)}" aria-label="Select PO ${esc(s.no)}" style="width:18px;height:18px"${delSel.has(String(s.no))?" checked":""}>`]:[]),`${esc(s.no)}<small>${esc(plantName(s.plant))}</small>`,ltPrj(s.ref),`${esc(s.sup||"No supplier")}<br><span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span>`,ltD(s.date),ltAmt(s.total),esc(poBy(s)),`${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}`,ltDT(poUpd(s)),ltActs(`<button class="btn" type="button" data-open="${i}">View</button>`,poPdfBtn(i))]}))):lfNone;
   if(bd)delSelSync();
 }
 function poPdfClick(e){const b=e.target.closest("[data-pdf]");if(!b)return;const p=saved[+b.dataset.pdf];if(p)savePDF(docPO(p),pdfName("PO",p.no,p.sup,p.status==="Approved"?"":String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase()))}
@@ -1554,15 +1555,33 @@ const delSel=new Set();let savedShown=[];
 const canBulkDel=()=>isRole("Director","Approver","Admin")&&has("po.delete");
 const poHasGrn=p=>grns.some(g=>String(g.poNo)===String(p.no));
 function delOk(){return saved.filter(s=>savedShown.includes(String(s.no))&&!poHasGrn(s))}
+const poClosable=s=>s.status==="Approved"&&!s.closed;
+function closeOk(){return saved.filter(s=>savedShown.includes(String(s.no))&&poClosable(s))}
+function selOk(){return saved.filter(s=>savedShown.includes(String(s.no))&&(!poHasGrn(s)||poClosable(s)))}
 function delSelSync(){
-  const ok=delOk(),ids=new Set(ok.map(s=>String(s.no)));[...delSel].forEach(n=>{if(!ids.has(n))delSel.delete(n)});
+  const ok=selOk(),ids=new Set(ok.map(s=>String(s.no)));[...delSel].forEach(n=>{if(!ids.has(n))delSel.delete(n)});
   const n=delSel.size,tot=ok.filter(s=>delSel.has(String(s.no))).reduce((a,s)=>a+(+s.total||0),0);
+  const nd=delOk().filter(s=>delSel.has(String(s.no))).length,nc=closeOk().filter(s=>delSel.has(String(s.no))).length;
   $("#saved-all").checked=n>0&&n===ok.length;$("#saved-all").indeterminate=n>0&&n<ok.length;$("#saved-all").disabled=!ok.length;
-  $("#saved-seln").textContent=n?`${n} of ${ok.length} selected · ₹ ${fmt(tot)}`:"Tick POs to delete them together. POs with material received cannot be deleted.";
-  $("#btn-saved-del").disabled=!n;$("#btn-saved-del").textContent=n?`Delete selected (${n})`:"Delete selected";if(!n)$("#savedDelAsk").hidden=true;
+  $("#saved-seln").textContent=n?`${n} of ${ok.length} selected · ₹ ${fmt(tot)}`:"Tick POs to mark them fully received, or to delete them. POs with material received cannot be deleted.";
+  $("#btn-saved-del").disabled=!nd;$("#btn-saved-del").textContent=nd?`Delete selected (${nd})`:"Delete selected";if(!nd)$("#savedDelAsk").hidden=true;
+  $("#btn-saved-close").disabled=!nc;$("#btn-saved-close").textContent=nc?`Mark fully received (${nc})`:"Mark fully received";if(!nc)$("#savedCloseAsk").hidden=true;
 }
 $("#savedList").addEventListener("change",e=>{const n=e.target.dataset.dsel;if(n==null)return;if(e.target.checked)delSel.add(n);else delSel.delete(n);delSelSync()});
-$("#saved-all").addEventListener("change",e=>{delSel.clear();if(e.target.checked)delOk().forEach(s=>delSel.add(String(s.no)));renderSaved()});
+$("#saved-all").addEventListener("change",e=>{delSel.clear();if(e.target.checked)selOk().forEach(s=>delSel.add(String(s.no)));renderSaved()});
+$("#btn-saved-close").onclick=()=>{
+  if(!canBulkDel())return;const L=closeOk().filter(s=>delSel.has(String(s.no)));if(!L.length){toast("Tick at least one approved, open PO first");return}
+  const old=L.filter(s=>s.old).length;$("#savedDelAsk").hidden=true;
+  $("#saved-close-t").textContent=`Mark ${L.length} PO${L.length>1?"s":""} as fully received and close ${L.length>1?"them":"it"}?`;
+  $("#saved-close-n").textContent=`PO ${L.slice(0,40).map(s=>s.no).join(", ")}${L.length>40?" …":""}.${old?` ${old} of them came from the old ERP.`:""} They leave "waiting for material" and the GRN list of open POs, and show as Closed. Stock and vendor dues do not change, because no GRN is made. The change is recorded with your name.`;
+  $("#saved-close-note").value="";$("#savedCloseAsk").hidden=false;$("#btn-close-yes").focus()};
+$("#btn-close-no").onclick=()=>{$("#savedCloseAsk").hidden=true};
+$("#btn-close-yes").onclick=()=>{
+  $("#savedCloseAsk").hidden=true;if(!canBulkDel())return;const L=closeOk().filter(s=>delSel.has(String(s.no)));if(!L.length)return;
+  const note=$("#saved-close-note").value.trim(),at=new Date().toISOString();
+  L.forEach(s=>{s.closed=true;s.recv="Closed";s.closedAt=today();s.closedBy=me.name;s.closeNote=note||"Marked fully received";(s.history=s.history||[]).push({action:"Marked fully received and closed",by:me.name,at,note:note||""});});
+  store.set("saved",saved);if(po&&L.some(s=>String(s.no)===String(po.no))){po=JSON.parse(JSON.stringify(saved.find(s=>String(s.no)===String(po.no))));store.set("po",po)}
+  delSel.clear();renderSaved();renderBadges();toast(`${L.length} PO${L.length>1?"s":""} marked fully received`)};
 $("#btn-saved-del").onclick=()=>{
   if(!canBulkDel())return;const L=delOk().filter(s=>delSel.has(String(s.no)));if(!L.length){toast("Tick at least one PO first");return}
   const tot=L.reduce((a,s)=>a+(+s.total||0),0);
@@ -1779,7 +1798,8 @@ function renderEstReq(){
 /* ---------- store / GRN ---------- */
 const saveGRNs=()=>store.set("grns",grns);
 const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
-function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;return o+grns.filter(g=>!g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
+function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o0=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;
+  const og=P&&P.old?grns.filter(g=>g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0):0,o=Math.max(o0,og);return o+grns.filter(g=>!g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
 function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
 function grnFirst(){return !!grn&&serFirst("grn",grn.plant,fyOf(grn.date||today()))}
 function nextGRN(pl,fy){return serNext("grn",pl||"P1",fy)}
@@ -2101,7 +2121,7 @@ $("#pendBody").addEventListener("click",e=>{const r=e.target.dataset.preq,p=e.ta
 function grnCalc(g){const sub=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l),0);const tax=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))*lineNet(l)*(+l.tax||0)/100,0);return{sub,tax,total:Math.round(sub+tax)}}
 let grn=null;
 function renderGRN(){
-  const open0=saved.filter(p=>p.status==="Approved"&&pendingLines(p).length);fillPrj("gpo",open0.map(p=>p.ref));const open=byNew(open0.filter(p=>inPer(p.approvedAt||p.date,"gpo")&&lfOk("gpo",p.ref,[p.no,p.sup,p.ref,p.reqNo,lineTxt(p.lines)],p)),p=>p.approvedAt||p.date);
+  const open0=saved.filter(p=>p.status==="Approved"&&!p.closed&&pendingLines(p).length);fillPrj("gpo",open0.map(p=>p.ref));const open=byNew(open0.filter(p=>inPer(p.approvedAt||p.date,"gpo")&&lfOk("gpo",p.ref,[p.no,p.sup,p.ref,p.reqNo,lineTxt(p.lines)],p)),p=>p.approvedAt||p.date);
   $("#grnPOs").innerHTML=open.length?ltT([["PO number","no"],["Project"],["Vendor"],["Approved on","dt"],["Need by","dt"],["Lines pending","num"],["Amount","num"],["Status"],["Actions","act"]],open.map(p=>({c:[esc(p.no),ltPrj(p.ref),esc(p.sup),ltD(p.approvedAt),p.needBy?`<span style="${p.needBy<today()?"color:var(--danger);font-weight:600":""}">${ltD(p.needBy)}${p.needBy<today()?" (late)":""}</span>`:"-",`${pendingLines(p).length} of ${p.lines.length}`,ltAmt(p.total),p.recv?stChip(p.recv):stChip("Approved"),ltActs(has("grn.create")?`<button class="btn primary" type="button" data-grnpo="${esc(p.no)}">Receive</button>`:"",`<button class="btn pdf" type="button" data-pdf="${saved.indexOf(p)}">Signed PDF</button>`)]}))):open0.length?lfNone:`<div class="empty">No approved POs are waiting for material.</div>`;
   fillPrj("grn",grns.map(g=>g.job));const GL=byNew(grns.filter(g=>inPer(g.date,"grn")&&inPlant(g)&&lfOk("grn",g.job,["GRN "+g.no,g.no,"PO "+g.poNo,g.sup,g.dc,g.inv,g.job,g.status,lineTxt(g.lines)],g)));$("#grnList").innerHTML=GL.length?ltT([["GRN No.","no"],["Project"],["Vendor"],["GRN date","dt"],["PO No."],["Supplier DC / Invoice"],["Amount","num"],["Received by"],["Status"],["Actions","act"]],GL.map(g=>{const pi=saved.findIndex(x=>String(x.no)===String(g.poNo));return{c:[esc(g.no),ltPrj(g.job),esc(g.sup),ltD(g.date),esc(g.poNo),`DC ${esc(g.dc||"-")}<br><span class="note">Inv ${esc(g.inv||"-")}${g.invDate?" · "+ltD(g.invDate):""}</span>`,ltAmt(grnCalc(g).total),esc(g.by||"-"),stChip(g.status),pi>=0?ltActs(`<button class="btn" type="button" data-pdf="${pi}">PO PDF</button>`):""]}})):grns.length?lfNone:`<div class="empty">No GRNs yet.</div>`;
   renderGRNForm();
@@ -2448,7 +2468,7 @@ $("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
     if(qs.some((q,i)=>q>(+c.lines[i].qty||0)-(+c.lines[i].ret||0)+0.0001)){toast("Received qty is more than what is still out");return}
     if(!qs.some(q=>q>0)){toast("Enter the qty received back");return}
     c.lines.forEach((l,i)=>l.ret=(+l.ret||0)+qs[i]);c.returns.push({date:$("#rr-date").value||today(),dc:$("#rr-dc").value.trim(),by:me.name,qty:qs});
-    const rcPO=c.po&&saved.find(p=>String(p.no)===String(c.po)&&p.status==="Approved"&&pendingLines(p).length),rcDC=c.returns[c.returns.length-1].dc;
+    const rcPO=c.po&&saved.find(p=>String(p.no)===String(c.po)&&p.status==="Approved"&&!p.closed&&pendingLines(p).length),rcDC=c.returns[c.returns.length-1].dc;
     if(rcPO&&has("grn.create"))setTimeout(()=>{if(!confirm(`Material is back from ${c.party}. Make the GRN for service PO ${rcPO.no} now, so their bill can be booked?`))return;const b=document.querySelector(`[data-grnpo="${rcPO.no}"]`);if(!b){toast("PO "+rcPO.no+" has nothing pending");return}b.click();if(grn){grn.dc=rcDC;grn.rgp=c.no;grn.remark=(grn.remark?grn.remark+" ":"")+"Against RC-"+c.no;renderGRNForm()}},50);
     c.status=rgpPend(c)<=0.0001?"Closed":"Partly returned";if(c.status==="Closed")c.closedAt=c.returns[c.returns.length-1].date;saveRgps();rgp=null;renderRgp();
     toast(c.status==="Closed"?`RC-${c.no} fully received back and closed`:`Part received. RC-${c.no} stays open`)}});
@@ -4436,7 +4456,7 @@ async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load
 /* who may use each import: Admin all; Masters editors parties and items; Admin and Director old POs; Accounts bills and bank */
 function impRows(){const ad=isRole("Admin"),ok={Admin:ad,Mast:ad||has("mast.edit"),PO:ad||isRole("Director"),Acct:ad||has("acct.book")};return IMP_LIST.filter(x=>ok[x[4]])}
 function renderImportHub(){const P=$("#importPanel");if(!P)return;
-  if(isRole("Admin","Director")){const f=oldPlantFix();if(f)toast(`Plant set from the number (Z = Plant 1, J = Plant 2) on ${[f.po&&f.po+" old POs",f.grn&&f.grn+" old GRNs",f.inv&&f.inv+" old invoices"].filter(Boolean).join(", ")}`)}
+  if(isRole("Admin","Director")){oldPoRecalc();const f=oldPlantFix();if(f)toast(`Plant set from the number (Z = Plant 1, J = Plant 2) on ${[f.po&&f.po+" old POs",f.grn&&f.grn+" old GRNs",f.inv&&f.inv+" old invoices"].filter(Boolean).join(", ")}`)}
   const L=impRows();
   P.innerHTML=`<div class="row"><h2 class="sec">Import old data</h2></div>
   <div class="note">Bring in data from the old ERP or from your own sheets. Every import shows a preview before anything is saved, and skips records that are already in, so importing the same file again is safe. Excel or CSV is the most reliable. A PDF works if it is the report as printed by the old ERP, with column headings.</div>
@@ -4485,6 +4505,10 @@ const ohPlant=(v,no)=>{const f=String(no||"").trim().charAt(0).toUpperCase();if(
   const t=String(v??"").trim().toUpperCase();if(plants().some(x=>x.id===t))return t;
   const w=t.replace(/[^A-Z0-9]/g,"");const byName=plants().find(x=>w&&(w===("PLANT"+x.id.slice(1))||w.includes(String(x.short||"").toUpperCase())));if(byName)return byName.id;
   const m=String(no||"").match(/^([A-Za-z]+)/);const P=m&&plants().find(x=>String(x.pre||"").toUpperCase()===m[1].toUpperCase());return P?P.id:"P1"};
+/* old POs: status follows what was received (old file qty or old GRNs linked to the PO) */
+function oldPoRecalc(){let n=0;saved.forEach(p=>{if(!p||!p.old||p.closed||p.status!=="Approved")return;const L=p.lines.map((l,i)=>[+l.qty||0,acceptedSoFar(p.no,i)]);
+    if(L.every(([q,a])=>a>=q-0.0001)){p.closed=true;p.recv="Closed";p.closedAt=p.closedAt||p.date;n++}else{const r=L.some(([,a])=>a>0.0001)?"Partly received":"";if((p.recv||"")!==r){p.recv=r;n++}}});
+  if(n)store.set("saved",saved);return n}
 /* records already imported with the wrong plant are put right: old POs, GRNs and invoices take the plant from their number */
 function oldPlantFix(){let a=0,b=0,c=0;
   saved.forEach(x=>{if(!x||!x.old)return;const p=ohPlant(x.plant,x.no);if(p!==x.plant){x.plant=p;x.deliv=plantAddr(p);a++}});
@@ -4553,7 +4577,7 @@ function ohSave(){if(!ohPv)return;const g=ohPv.kind==="ogrn",at=new Date().toISO
       const st=String(sp.gstin||H.gstin||"").slice(0,2);
       grns.push({no:H.no,date:H.date,poNo:H.po||"",plant:H.plant,sup:sp.name,job:H.job||"",reqNo:"",terms:"",gstmode:st&&st!=="27"?"inter":"intra",dc:"",dcDate:"",inv:H.inv||"",invDate:H.invDate||"",vehicle:"",by:me.name,
         lines,status:"Paid",voucher:"Old ERP",bookedAt:H.date,bookedBy:"Old ERP",createdAt:H.date+"T00:00:00.000Z",old:true,importedAt:at,importFile:ohPv.fname});n++});
-    saveGRNs();store.set("suppliers",suppliers)}
+    saveGRNs();store.set("suppliers",suppliers);oldPoRecalc()}
   else{const have=new Set(invoices.flatMap(x=>[(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)),...(x.oldNo?["old|"+key(x.oldNo)]:[])]));
     ohPv.recs.forEach(H=>{if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))||have.has("old|"+key(H.no)))return;let c=custByName(H.cust);if(!c){c={id:itId(),name:H.cust,gstin:H.gstin||""};customers.push(c);addC++}
       invoices.push({fy:H.fy,no:H.num,oldNo:H.no,date:H.date,cust:c.name,so:"",oldSO:H.so||"",job:H.job||"",dc:[],custPO:H.custPO||"",custPODate:H.custPODate||"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:"",
