@@ -651,6 +651,8 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 <section id="view-grn" class="stack" hidden>
   <div class="panel stack"><div class="row"><h2 class="sec">Approved POs waiting for material</h2><input class="lq" id="gpo-q" placeholder="Search PO, supplier, item, job" style="max-width:240px"><select class="prj" id="prj-gpo" aria-label="Project" style="width:auto"></select><select class="per" id="per-gpo" aria-label="Period" style="width:auto"></select></div>
     <div class="note">Select a PO when material arrives. The GRN is filled in from the PO lines; enter what was actually received and any rejections.</div>
+    <div class="row" id="gpoBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="gpo-all" style="width:18px;height:18px"> Select all shown</label><span class="note" id="gpo-seln">Tick POs whose material already came in (for example in the old ERP) to close them.</span><span style="flex:1"></span><button class="btn" id="btn-gpo-close" disabled>Mark fully received</button></div>
+    <div class="banner stack" id="gpoCloseAsk" hidden><b id="gpo-close-t"></b><span class="note" id="gpo-close-n"></span><label class="f">Note (optional)<input id="gpo-close-note" placeholder="e.g. received in the old ERP"></label><div class="row"><span style="flex:1"></span><button class="btn" id="btn-gpo-no">Cancel</button><button class="btn primary" id="btn-gpo-yes">Mark fully received</button></div></div>
     <div id="grnPOs"></div></div>
   <div class="panel stack" id="grnForm" hidden></div>
   <div class="panel stack"><div class="row"><h2 class="sec">GRNs created</h2><input class="lq" id="grn-q" placeholder="Search GRN, PO, supplier, invoice" style="max-width:240px"><select class="prj" id="prj-grn" aria-label="Project" style="width:auto"></select><select class="per" id="per-grn" aria-label="Period" style="width:auto"></select></div><div id="grnList"></div></div>
@@ -1590,10 +1592,13 @@ $("#btn-saved-close").onclick=()=>{
 $("#btn-close-no").onclick=()=>{$("#savedCloseAsk").hidden=true};
 $("#btn-close-yes").onclick=()=>{
   $("#savedCloseAsk").hidden=true;if(!canBulkDel())return;const L=closeOk().filter(s=>delSel.has(String(s.no)));if(!L.length)return;
-  const note=$("#saved-close-note").value.trim(),at=new Date().toISOString();
+  markPOsReceived(L,$("#saved-close-note").value.trim());delSel.clear();renderSaved()};
+/* close POs as fully received (material that came in but was never entered as a GRN here): no stock or vendor-due change */
+function canClosePO(){return isRole("Director","Approver","Admin")}
+function markPOsReceived(L,note){const at=new Date().toISOString();
   L.forEach(s=>{s.closed=true;s.recv="Closed";s.closedAt=today();s.closedBy=me.name;s.closeNote=note||"Marked fully received";(s.history=s.history||[]).push({action:"Marked fully received and closed",by:me.name,at,note:note||""});});
   store.set("saved",saved);if(po&&L.some(s=>String(s.no)===String(po.no))){po=JSON.parse(JSON.stringify(saved.find(s=>String(s.no)===String(po.no))));store.set("po",po)}
-  delSel.clear();renderSaved();renderBadges();toast(`${L.length} PO${L.length>1?"s":""} marked fully received`)};
+  renderBadges();toast(`${L.length} PO${L.length>1?"s":""} marked fully received`)}
 $("#btn-saved-del").onclick=()=>{
   if(!canBulkDel())return;const L=delOk().filter(s=>delSel.has(String(s.no)));if(!L.length){toast("Tick at least one PO first");return}
   const tot=L.reduce((a,s)=>a+(+s.total||0),0);
@@ -2136,7 +2141,9 @@ function grnCalc(g){const sub=g.lines.reduce((a,l)=>a+((+l.recv||0)-(+l.rej||0))
 let grn=null;
 function renderGRN(){
   const open0=saved.filter(p=>p.status==="Approved"&&!p.closed&&pendingLines(p).length);fillPrj("gpo",open0.map(p=>p.ref));const open=byNew(open0.filter(p=>inPer(p.approvedAt||p.date,"gpo")&&lfOk("gpo",p.ref,[p.no,p.sup,p.ref,p.reqNo,lineTxt(p.lines)],p)),p=>p.approvedAt||p.date);
-  $("#grnPOs").innerHTML=open.length?ltT([["PO number","no"],["Project"],["Vendor"],["Approved on","dt"],["Need by","dt"],["Lines pending","num"],["Amount","num"],["Status"],["Actions","act"]],open.map(p=>({c:[esc(p.no),ltPrj(p.ref),esc(p.sup),ltD(p.approvedAt),p.needBy?`<span style="${p.needBy<today()?"color:var(--danger);font-weight:600":""}">${ltD(p.needBy)}${p.needBy<today()?" (late)":""}</span>`:"-",`${pendingLines(p).length} of ${p.lines.length}`,ltAmt(p.total),p.recv?stChip(p.recv):stChip("Approved"),ltActs(has("grn.create")?`<button class="btn primary" type="button" data-grnpo="${esc(p.no)}">Receive</button>`:"",`<button class="btn pdf" type="button" data-pdf="${saved.indexOf(p)}">Signed PDF</button>`)]}))):open0.length?lfNone:`<div class="empty">No approved POs are waiting for material.</div>`;
+  const gc=canClosePO();gpoShown=open.map(p=>String(p.no));$("#gpoBulk").hidden=!(gc&&open.length);if(!gc||!open.length)$("#gpoCloseAsk").hidden=true;
+  $("#grnPOs").innerHTML=open.length?ltT([["PO number","no"],["Project"],["Vendor"],["Approved on","dt"],["Need by","dt"],["Lines pending","num"],["Amount","num"],["Status"],["Actions","act"]],open.map(p=>({c:[(gc?`<input type="checkbox" data-gsel="${esc(p.no)}" aria-label="Select PO ${esc(p.no)}" style="width:18px;height:18px;margin:0 8px 0 0;vertical-align:middle"${gpoSel.has(String(p.no))?" checked":""}>`:"")+esc(p.no),ltPrj(p.ref),esc(p.sup),ltD(p.approvedAt),p.needBy?`<span style="${p.needBy<today()?"color:var(--danger);font-weight:600":""}">${ltD(p.needBy)}${p.needBy<today()?" (late)":""}</span>`:"-",`${pendingLines(p).length} of ${p.lines.length}`,ltAmt(p.total),p.recv?stChip(p.recv):stChip("Approved"),ltActs(has("grn.create")?`<button class="btn primary" type="button" data-grnpo="${esc(p.no)}">Receive</button>`:"",`<button class="btn pdf" type="button" data-pdf="${saved.indexOf(p)}">Signed PDF</button>`,gc?`<button class="btn" type="button" data-gclose="${esc(p.no)}" title="Close this PO as fully received">Close</button>`:"")]}))):open0.length?lfNone:`<div class="empty">No approved POs are waiting for material.</div>`;
+  if(gc)gpoSync();
   fillPrj("grn",grns.map(g=>g.job));const GL=byNew(grns.filter(g=>inPer(g.date,"grn")&&inPlant(g)&&lfOk("grn",g.job,["GRN "+g.no,g.no,"PO "+g.poNo,g.sup,g.dc,g.inv,g.job,g.status,lineTxt(g.lines)],g)));$("#grnList").innerHTML=GL.length?ltT([["GRN No.","no"],["Project"],["Vendor"],["GRN date","dt"],["PO No."],["Supplier DC / Invoice"],["Amount","num"],["Received by"],["Status"],["Actions","act"]],GL.map(g=>{const pi=saved.findIndex(x=>String(x.no)===String(g.poNo));return{c:[esc(g.no),ltPrj(g.job),esc(g.sup),ltD(g.date),esc(g.poNo),`DC ${esc(g.dc||"-")}<br><span class="note">Inv ${esc(g.inv||"-")}${g.invDate?" · "+ltD(g.invDate):""}</span>`,ltAmt(grnCalc(g).total),esc(g.by||"-"),stChip(g.status),pi>=0?ltActs(`<button class="btn" type="button" data-pdf="${pi}">PO PDF</button>`):""]}})):grns.length?lfNone:`<div class="empty">No GRNs yet.</div>`;
   renderGRNForm();
 }
@@ -2156,7 +2163,23 @@ function renderGRNForm(){
   scanMark(grn,"grn");
 }
 $("#grnList").addEventListener("click",poPdfClick);
-$("#grnPOs").addEventListener("click",e=>{poPdfClick(e);const n=e.target.dataset.grnpo;if(n==null)return;const p=saved.find(x=>String(x.no)===n);
+var gpoSel=new Set(),gpoShown=[],gpoAsk=[];
+function gpoSync(){[...gpoSel].forEach(n=>{if(!gpoShown.includes(n))gpoSel.delete(n)});const n=gpoSel.size,N=gpoShown.length;
+  const tot=saved.filter(s=>gpoSel.has(String(s.no))).reduce((a,s)=>a+(+s.total||0),0);
+  $("#gpo-all").checked=n>0&&n===N;$("#gpo-all").indeterminate=n>0&&n<N;
+  $("#gpo-seln").textContent=n?`${n} of ${N} selected · ₹ ${fmt(tot)}`:"Tick POs whose material already came in (for example in the old ERP) to close them.";
+  $("#btn-gpo-close").disabled=!n;$("#btn-gpo-close").textContent=n?`Mark fully received (${n})`:"Mark fully received"}
+function gpoConfirm(L){if(!canClosePO()||!L.length)return;gpoAsk=L;const old=L.filter(s=>s.old).length;
+  $("#gpo-close-t").textContent=L.length===1?`Close PO ${L[0].no} as fully received?`:`Mark ${L.length} POs as fully received and close them?`;
+  $("#gpo-close-n").textContent=`${L.length===1?`${L[0].sup||""} · ${pendingLines(L[0]).length} of ${L[0].lines.length} lines still pending.`:`PO ${L.slice(0,40).map(s=>s.no).join(", ")}${L.length>40?" …":""}.`}${old?` ${old===L.length&&L.length===1?"It came":`${old} came`} from the old ERP.`:""} ${L.length===1?"It leaves this list and shows":"They leave this list and show"} as Closed on the PO list. Stock and vendor dues do not change, because no GRN is made. The change is recorded with your name.`;
+  $("#gpo-close-note").value="";$("#gpoCloseAsk").hidden=false;$("#gpoCloseAsk").scrollIntoView({block:"nearest"});$("#btn-gpo-yes").focus()}
+$("#grnPOs").addEventListener("change",e=>{const n=e.target.dataset.gsel;if(n==null)return;if(e.target.checked)gpoSel.add(n);else gpoSel.delete(n);gpoSync()});
+$("#gpo-all").addEventListener("change",e=>{gpoSel.clear();if(e.target.checked)gpoShown.forEach(n=>gpoSel.add(n));renderGRN()});
+$("#btn-gpo-close").onclick=()=>gpoConfirm(saved.filter(s=>gpoSel.has(String(s.no))&&s.status==="Approved"&&!s.closed));
+$("#btn-gpo-no").onclick=()=>{$("#gpoCloseAsk").hidden=true;gpoAsk=[]};
+$("#btn-gpo-yes").onclick=()=>{$("#gpoCloseAsk").hidden=true;if(!canClosePO())return;const L=gpoAsk.filter(s=>s.status==="Approved"&&!s.closed);gpoAsk=[];if(!L.length)return;
+  markPOsReceived(L,$("#gpo-close-note").value.trim());L.forEach(s=>gpoSel.delete(String(s.no)));renderGRN()};
+$("#grnPOs").addEventListener("click",e=>{const gc=e.target.closest("[data-gclose]");if(gc){const p=saved.find(x=>String(x.no)===gc.dataset.gclose);if(p)gpoConfirm([p]);return}poPdfClick(e);const n=e.target.dataset.grnpo;if(n==null)return;const p=saved.find(x=>String(x.no)===n);
   grn={no:nextGRN(p.plant),date:today(),poNo:p.no,plant:p.plant||"",sup:p.sup,job:p.ref||"",reqNo:p.reqNo||"",terms:p.terms||"",gstmode:p.gstmode,dc:"",dcDate:today(),inv:"",invDate:"",vehicle:"",by:me.name,
     lines:pendingLines(p).map(({l,i,acc})=>({i,desc:l.desc,unit:l.unit,rate:l.rate,dis:l.dis||0,tax:l.tax,hsn:l.hsn,ordered:+l.qty,prev:acc,recv:+((+l.qty)-acc).toFixed(3),rej:0,remark:""}))};
   scanState.rec=null;renderGRNForm();$("#grnForm").scrollIntoView({block:"start"})});
