@@ -3645,7 +3645,7 @@ async function obTemplate(){if(!window.XLSX){toast("Excel tools did not load. Ch
   mk(OB_TPL,"Customer bills");mk(OB_TPL,"Supplier bills");
   mk([["How to fill"],["Example: ABC Engineering Pvt Ltd | ZT/245 | 15/09/2026 | 118000 | 50000 | (blank) | 45 | P1"],["One row for each bill that is still unpaid (fully or partly) on the day you start the new app."],["Dates as DD/MM/YYYY. Fill either Bill amount (and Already received or paid if part paid), or only Balance."],["Credit days give the due date. Plant is P1 or P2; leave blank for P1."],["Import customer bills and supplier bills separately in Masters > Opening bills. Bills already imported are skipped, so re-importing is safe."]],"Read me");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Opening-bills-template.xlsx";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+  if(await deliver(blob,"Opening-bills-template.xlsx"))toast("Template downloaded")}
 let obPrev=null,obRc=null;
 const obCan=()=>isRole("Admin")||has("acct.book");
 async function obImport(f,kind){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
@@ -3875,7 +3875,7 @@ const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN
 async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((h,k)=>({wch:Math.max(10,...rows.map(r=>String(r[k]||"").length))+2}));XLSX.utils.book_append_sheet(wb,ws,"Sheet1");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+  if(await deliver(blob,fn))toast("Template downloaded")}
 /* who may use each import: Admin all; Masters editors parties and items; Admin and Director old POs; Accounts bills and bank */
 function impRows(){const ad=isRole("Admin"),ok={Admin:ad,Mast:ad||has("mast.edit"),PO:ad||isRole("Director"),Acct:ad||has("acct.book")};return IMP_LIST.filter(x=>ok[x[4]])}
 function renderImportHub(){const P=$("#importPanel");if(!P)return;
@@ -3922,7 +3922,7 @@ async function opoTemplate(){if(!window.XLSX){toast("Excel tools did not load. C
   ws["!cols"]=[{wch:10},{wch:12},{wch:28},{wch:34},{wch:10},{wch:8},{wch:7},{wch:9},{wch:11},{wch:7},{wch:13},{wch:16},{wch:13},{wch:7}];XLSX.utils.book_append_sheet(wb,ws,"Old POs");
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["How to fill"],["One row for each line of each PO. Repeat the PO No, date and supplier on every line of the same PO."],["Received qty is what has already come in. A PO whose lines are all fully received comes in closed; any other PO stays open so the store can make a GRN for the rest."],["Instead of Received qty you can give a Pending qty column, or a Status column (Open / Closed)."],["Dates as DD/MM/YYYY. GST % blank means 18. Plant is P1 or P2; blank means P1."],["POs whose number is already in the app are skipped, so importing the same file again is safe."]]),"Read me");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Old-PO-template.xlsx";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+  if(await deliver(blob,"Old-PO-template.xlsx"))toast("Template downloaded")}
 async function opoImport(f){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   try{const wb=await readBook(f,OPO_FIELDS,"csv");let best=null;
     wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:true,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],OPO_FIELDS),sc=Object.keys(m).length;
