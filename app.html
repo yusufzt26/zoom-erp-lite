@@ -1484,7 +1484,9 @@ function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
 /* ---------- pending balance: request -> PO -> received ---------- */
 /* A request can be split over several POs (part now, part later, or different suppliers). Each PO line made from a request
    remembers its request line (rq). Older POs without that link are matched to request lines by item name. */
-const reqPOs=r=>r?saved.filter(p=>(p.reqNo&&p.reqNo===r.no)||(Array.isArray(p.reqNos)&&p.reqNos.includes(r.no))):[];
+/* rejected POs and lines removed from a PO no longer count: those items are pending again */
+const reqPOs=r=>r?saved.filter(p=>p.status!=="Rejected"&&((p.reqNo&&p.reqNo===r.no)||(Array.isArray(p.reqNos)&&p.reqNos.includes(r.no)))):[];
+const reqHadPO=r=>!!r&&(reqPOs(r).length>0||["PO raised","PO approved"].includes(r.status));
 /* a PO made on the Buy sheet can carry lines of several requests: reqNos lists them, each line keeps rqNo + rq */
 const poReqNos=p=>p?(Array.isArray(p.reqNos)?p.reqNos:(p.reqNo?[p.reqNo]:[])):[];
 const poReqs=p=>poReqNos(p).map(n=>reqs.find(x=>x.no===n)).filter(Boolean);
@@ -1507,12 +1509,12 @@ const reqDone=r=>reqBal(r).every(x=>x.toOrder<0.0001)&&reqPOs(r).every(p=>p.clos
 const REQ_OPEN=[...PUR_READY,"Estimated","PO raised","PO approved"];
 function pendToOrder(){return reqs.filter(r=>REQ_OPEN.includes(r.status)&&!r.balClosed).flatMap(r=>reqBal(r).filter(x=>x.toOrder>0.0001).map(x=>Object.assign({r},x)))}
 function pendToRecv(){return saved.filter(p=>!p.closed&&p.status!=="Rejected").flatMap(p=>p.lines.map((l,i)=>({p,l,i,name:poLineName(l),unit:l.unit||"NOS",ord:+l.qty||0,acc:acceptedSoFar(p.no,i)})).filter(x=>x.name&&x.ord-x.acc>0.0001))}
-function reqPendChip(r){if(!reqPOs(r).length||r.status==="Closed")return"";const B=reqBal(r),o=B.filter(x=>x.toOrder>0.0001).length,v=B.filter(x=>x.toRecv>0.0001).length;
+function reqPendChip(r){if(!reqHadPO(r)||r.status==="Closed")return"";const B=reqBal(r),o=B.filter(x=>x.toOrder>0.0001).length,v=B.filter(x=>x.toRecv>0.0001).length;
   return o?` <span class="chip st-Back">Balance: ${o} item${o>1?"s":""} not on PO yet</span>`:v?` <span class="chip sugg">${v} to receive</span>`:""}
 const q3=n=>fmt0(Math.round((+n||0)*1000)/1000);
 /* request page: what is ordered and received against each line */
 function renderReqBal(r){const P=$("#reqBal");const pos=reqPOs(r);
-  if(!r||!pos.length){P.hidden=true;P.innerHTML="";return}
+  if(!r||!reqHadPO(r)){P.hidden=true;P.innerHTML="";return}
   const B=reqBal(r),toO=B.filter(x=>x.toOrder>0.0001).length,toR=B.filter(x=>x.toRecv>0.0001).length,pur=has("po.create");
   P.hidden=false;
   P.innerHTML=`<div class="row"><h2 class="sec">Ordered and received</h2><span class="note">${pos.map(p=>"PO "+esc(p.no)+" ("+esc(p.closed?"Closed":p.recv||p.status||"Draft")+")").join(" · ")}</span></div>
