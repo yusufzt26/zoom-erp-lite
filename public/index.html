@@ -500,6 +500,7 @@ body.gated header.bar,body.gated main{display:none}
 <section id="view-appr" class="stack" hidden>
   <div class="panel stack"><h2 class="sec">Waiting for your approval</h2>
     <div class="row" id="apprBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="appr-all" style="width:18px;height:18px"> Select all</label><span class="note" id="appr-seln">Tick POs to approve them together.</span><span style="flex:1"></span><button class="btn primary" id="btn-appr-bulk" disabled>Approve selected</button></div>
+    <div class="banner stack" id="apprBulkAsk" hidden><b id="appr-ask-t"></b><span class="note" id="appr-ask-n"></span><div class="row"><span style="flex:1"></span><button class="btn" id="btn-appr-no">Cancel</button><button class="btn primary" id="btn-appr-yes">Yes, approve and sign</button></div></div>
     <div id="apprList"></div></div>
   <div class="panel stack"><h2 class="sec">Recently decided</h2><div id="apprDone"></div></div>
 </section>
@@ -1269,14 +1270,19 @@ function apprSelSync(){
   const n=apprSel.size,tot=P.filter(s=>apprSel.has(String(s.no))).reduce((a,s)=>a+(+s.total||0),0);
   $("#appr-all").checked=n>0&&n===P.length;$("#appr-all").indeterminate=n>0&&n<P.length;
   $("#appr-seln").textContent=n?`${n} of ${P.length} selected · ₹ ${fmt(tot)}`:"Tick POs to approve them together.";
-  $("#btn-appr-bulk").disabled=!n;$("#btn-appr-bulk").textContent=n?`Approve selected (${n})`:"Approve selected";
+  $("#btn-appr-bulk").disabled=!n;if(!n)$("#apprBulkAsk").hidden=true;$("#btn-appr-bulk").textContent=n?`Approve selected (${n})`:"Approve selected";
 }
 $("#apprList").addEventListener("change",e=>{const n=e.target.dataset.bsel;if(n==null)return;if(e.target.checked)apprSel.add(n);else apprSel.delete(n);apprSelSync()});
 $("#appr-all").addEventListener("change",e=>{apprSel.clear();if(e.target.checked)apprPend().forEach(s=>apprSel.add(String(s.no)));renderAppr()});
 $("#btn-appr-bulk").onclick=()=>{
   if(!canBulkAppr())return;const L=apprPend().filter(s=>apprSel.has(String(s.no)));if(!L.length){toast("Tick at least one PO first");return}
   const tot=L.reduce((a,s)=>a+(+s.total||0),0);
-  if(!confirm(`Approve and sign ${L.length} PO${L.length>1?"s":""} (₹ ${fmt(tot)}): ${L.map(s=>s.no).join(", ")}?`+(me.sig?"":`\n\nNo signature is uploaded for ${me.name}, so these POs will print without a signature.`)))return;
+  $("#appr-ask-t").textContent=`Approve and sign ${L.length} PO${L.length>1?"s":""} (₹ ${fmt(tot)})?`;
+  $("#appr-ask-n").textContent=`PO ${L.map(s=>s.no).join(", ")}.`+(me.sig?"":` No signature is uploaded for ${me.name}, so these POs will print without a signature.`);
+  $("#apprBulkAsk").hidden=false;$("#btn-appr-yes").focus()};
+$("#btn-appr-no").onclick=()=>{$("#apprBulkAsk").hidden=true};
+$("#btn-appr-yes").onclick=()=>{
+  $("#apprBulkAsk").hidden=true;if(!canBulkAppr())return;const L=apprPend().filter(s=>apprSel.has(String(s.no)));if(!L.length)return;
   const keep=po;let reqsTouched=false;
   L.forEach(s=>{po=JSON.parse(JSON.stringify(s));po.approvedBy=me.name;po.approvedAt=today();po.sig=me.sig||"";recordPO("Approved","Approved","Approved with other POs in one go");
     if(po.reqNo){const r=reqs.find(x=>x.no===po.reqNo);if(r){r.status="PO approved";reqsTouched=true}}});
