@@ -389,7 +389,7 @@ body.gated header.bar,body.gated main{display:none}
       <label class="f">Request No.<input id="q-no"></label>
       <label class="f">Date<input id="q-date" type="date"></label>
       <label class="f">Requested by<select id="q-by" title="Not needed when a project is chosen"></select></label>
-      <label class="f">Department / To *<select id="q-dept"></select></label>
+      <label class="f">Department / To<span id="q-dept-req"> *</span><select id="q-dept"></select></label>
       <label class="f">Project / Job No.<select id="q-job"></select></label>
       <label class="f">Material required by *<input id="q-need" type="date" required></label>
       <label class="f">Plant<select id="q-plant" class="plantsel"></select></label>
@@ -1355,7 +1355,7 @@ function renderReq(){
   $("#reqTitle").textContent=r.status==="Draft"?"New purchase request":`Purchase request ${r.no}`;
   $("#reqStatus").innerHTML=r.status==="Draft"?"":stChip(r.status);
   $("#reqExample").hidden=!r.example;
-  fillReqSelects();
+  fillReqSelects();$("#q-dept-req").hidden=!!r.job;
   [["no","no"],["date","date"],["by","by"],["dept","dept"],["job","job"],["need","need"],["plant","plant"]].forEach(([id,k])=>{const el=$("#q-"+id);el.value=r[k]||(k==="plant"?"P1":"");el.disabled=locked});
   $("#q-cat").innerHTML=`<option value="">Choose type</option>`+REQ_CATS.map(c=>`<option${r.cat===c?" selected":""}>${esc(c)}</option>`).join("");$("#q-cat").disabled=locked;
   {const n=locked&&!r.cat?"Type not set: this request goes to Others on the Buy sheet.":"";$("#q-cat-note").textContent=n;$("#q-cat-note").hidden=!n}
@@ -1407,7 +1407,7 @@ function renderReqList(){
 }
 $("#reqList").addEventListener("click",e=>{const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
 $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest(".reqrow");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
-["no","date","by","dept","job","need","plant"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
+["no","date","by","dept","job","need","plant"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;if(k==="job")$("#q-dept-req").hidden=!!cur.job;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
 $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
 $("#q-dept").addEventListener("change",()=>fillReqSelects());
 $("#reqBody").addEventListener("input",e=>{const tr=e.target.closest("tr");if(!tr)return;const l=rqFlat(cur.lines[+tr.dataset.i]),xk=e.target.dataset.x;
@@ -1429,7 +1429,9 @@ $("#btn-q-submit").onclick=()=>{
   if(!needCat())return;
   cur.lines=cur.lines.map(rqFlat).filter(l=>String(l.desc||"").trim());
   if(!cur.lines.length&&!attList(cur.attach).length){toast("Add at least one item or attach the request slip");renderReq();return}
-  if(!cur.dept){toast("Choose the department");$("#q-dept").focus();return}
+  /* with a project chosen the department is optional: the requester's own department routes it to their head */
+  if(!cur.dept&&cur.job){const u=M.users.find(x=>x.name===(cur.by||(me&&me.name)));if(u&&u.dept)cur.dept=u.dept}
+  if(!cur.dept&&!cur.job){toast("Choose the department, or pick the project");$("#q-dept").focus();return}
   if(!cur.job&&!cur.by){toast("Choose who is requesting, or pick the project");$("#q-by").focus();return}
   if(!cur.by&&me)cur.by=me.name;
   if(!cur.need){toast("Enter when the material is required");$("#q-need").focus();return}
@@ -1494,7 +1496,9 @@ function nextGRN(){return Math.max(1000,...grns.map(g=>+g.no||0))+1}
 /* ---------- pending balance: request -> PO -> received ---------- */
 /* A request can be split over several POs (part now, part later, or different suppliers). Each PO line made from a request
    remembers its request line (rq). Older POs without that link are matched to request lines by item name. */
-const reqPOs=r=>r?saved.filter(p=>(p.reqNo&&p.reqNo===r.no)||(Array.isArray(p.reqNos)&&p.reqNos.includes(r.no))):[];
+/* rejected POs and lines removed from a PO no longer count: those items are pending again */
+const reqPOs=r=>r?saved.filter(p=>p.status!=="Rejected"&&((p.reqNo&&p.reqNo===r.no)||(Array.isArray(p.reqNos)&&p.reqNos.includes(r.no)))):[];
+const reqHadPO=r=>!!r&&(reqPOs(r).length>0||["PO raised","PO approved"].includes(r.status));
 /* a PO made on the Buy sheet can carry lines of several requests: reqNos lists them, each line keeps rqNo + rq */
 const poReqNos=p=>p?(Array.isArray(p.reqNos)?p.reqNos:(p.reqNo?[p.reqNo]:[])):[];
 const poReqs=p=>poReqNos(p).map(n=>reqs.find(x=>x.no===n)).filter(Boolean);
@@ -1517,12 +1521,12 @@ const reqDone=r=>reqBal(r).every(x=>x.toOrder<0.0001)&&reqPOs(r).every(p=>p.clos
 const REQ_OPEN=[...PUR_READY,"Estimated","PO raised","PO approved"];
 function pendToOrder(){return reqs.filter(r=>REQ_OPEN.includes(r.status)&&!r.balClosed).flatMap(r=>reqBal(r).filter(x=>x.toOrder>0.0001).map(x=>Object.assign({r},x)))}
 function pendToRecv(){return saved.filter(p=>!p.closed&&p.status!=="Rejected").flatMap(p=>p.lines.map((l,i)=>({p,l,i,name:poLineName(l),unit:l.unit||"NOS",ord:+l.qty||0,acc:acceptedSoFar(p.no,i)})).filter(x=>x.name&&x.ord-x.acc>0.0001))}
-function reqPendChip(r){if(!reqPOs(r).length||r.status==="Closed")return"";const B=reqBal(r),o=B.filter(x=>x.toOrder>0.0001).length,v=B.filter(x=>x.toRecv>0.0001).length;
+function reqPendChip(r){if(!reqHadPO(r)||r.status==="Closed")return"";const B=reqBal(r),o=B.filter(x=>x.toOrder>0.0001).length,v=B.filter(x=>x.toRecv>0.0001).length;
   return o?` <span class="chip st-Back">Balance: ${o} item${o>1?"s":""} not on PO yet</span>`:v?` <span class="chip sugg">${v} to receive</span>`:""}
 const q3=n=>fmt0(Math.round((+n||0)*1000)/1000);
 /* request page: what is ordered and received against each line */
 function renderReqBal(r){const P=$("#reqBal");const pos=reqPOs(r);
-  if(!r||!pos.length){P.hidden=true;P.innerHTML="";return}
+  if(!r||!reqHadPO(r)){P.hidden=true;P.innerHTML="";return}
   const B=reqBal(r),toO=B.filter(x=>x.toOrder>0.0001).length,toR=B.filter(x=>x.toRecv>0.0001).length,pur=has("po.create");
   P.hidden=false;
   P.innerHTML=`<div class="row"><h2 class="sec">Ordered and received</h2><span class="note">${pos.map(p=>"PO "+esc(p.no)+" ("+esc(p.closed?"Closed":p.recv||p.status||"Draft")+")").join(" · ")}</span></div>
