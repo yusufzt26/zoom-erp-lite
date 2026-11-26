@@ -580,6 +580,7 @@ table.hlist{min-width:0}table.hlist td{padding:7px 6px}
     <div class="row"><label style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="buy-all" style="width:auto;margin:0"> Tick all lines in this tab</label></div>
     <div class="tablebox"><table class="est" style="min-width:980px"><thead id="buyHead"></thead><tbody id="buyBody"></tbody></table></div>
     <div class="note" id="buyNote"></div>
+    <label class="f" style="max-width:760px">Notes for the PO (terms and conditions)<textarea id="buy-notes" rows="2" placeholder="Any comment for the supplier. It goes into the Notes row of the terms on each PO made here, and you can still change it on the PO." style="font:inherit;resize:vertical"></textarea></label>
     <div class="row"><b id="buy-tot"></b><span style="flex:1"></span><span class="note" id="buy-msg"></span><button class="btn primary" id="btn-buy-make">Make POs</button></div>
   </div>
 </section>
@@ -1304,7 +1305,7 @@ function renderPO(){
   <div class="noprint row" style="margin-top:4px"><button class="btn" id="btn-po-line" style="font-size:12px;padding:4px 10px">Add line</button><button class="btn" id="btn-po-delpick" style="font-size:12px;padding:4px 10px" hidden>Remove ticked lines</button></div>
   <table class="tot" style="margin-top:0"><tbody id="poTot"></tbody></table>
   <p id="poWords" style="margin:4px 0"></p>
-  <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
+  <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr><tr><td>2</td><td>Notes</td><td><textarea id="po-notes" data-pk="notes" rows="2" placeholder="Any comment for the supplier, typed by the purchaser (prints on the PO)" style="width:100%;min-height:38px;font:inherit;resize:vertical">${esc(po.notes||"")}</textarea></td></tr></tbody></table>
   <p style="margin:6px 0"><b>Remark</b> ${inp("remark","80%")}</p>
   <div class="foot small">
     <div><b>Special Instruction :</b><br>1) Please mention our P.O. No. on your D.C. &amp; Invoice.<br>2) Send Delivery Challan &amp; Original Invoice (with Transporter's copy) along with the material.</div>
@@ -1441,7 +1442,7 @@ function renderSaved(){
   L.innerHTML=S.length?ltT(bd?[["Select","sel act"],...PO_COLS]:PO_COLS,S.map(([s,i])=>({c:[...(bd?[poHasGrn(s)?`<input type="checkbox" disabled title="Material has been received against this PO, so it cannot be deleted" style="width:18px;height:18px">`:`<input type="checkbox" data-dsel="${esc(s.no)}" aria-label="Select PO ${esc(s.no)}" style="width:18px;height:18px"${delSel.has(String(s.no))?" checked":""}>`]:[]),`${esc(s.no)}<small>${esc(plantName(s.plant))}</small>`,ltPrj(s.ref),`${esc(s.sup||"No supplier")}<br><span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span>`,ltD(s.date),ltAmt(s.total),esc(poBy(s)),`${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}`,ltDT(poUpd(s)),ltActs(`<button class="btn" type="button" data-open="${i}">View</button>`,poPdfBtn(i))]}))):lfNone;
   if(bd)delSelSync();
 }
-function poPdfClick(e){const b=e.target.closest("[data-pdf]");if(!b)return;const p=saved[+b.dataset.pdf];if(p)savePDF(docPO(p),`PO-${p.no}${p.status==="Approved"?"":"-"+String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase()}.pdf`)}
+function poPdfClick(e){const b=e.target.closest("[data-pdf]");if(!b)return;const p=saved[+b.dataset.pdf];if(p)savePDF(docPO(p),pdfName("PO",p.no,p.sup,p.status==="Approved"?"":String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase()))}
 const apprTbl=(L,bulk)=>ltT(PO_COLS,L.map(s=>{const i=saved.indexOf(s);return{c:[bulk?`<label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-bsel="${esc(s.no)}" style="width:18px;height:18px"${apprSel.has(String(s.no))?" checked":""}>${esc(s.no)}</label>`:esc(s.no),ltPrj(s.ref),esc(s.sup||"No supplier"),ltD(s.date),ltAmt(s.total),esc(poBy(s)),stChip(s.status),ltDT(poUpd(s)),ltActs(`<button class="btn${s.status==="Pending approval"?" primary":""}" type="button" data-open="${i}">${s.status==="Pending approval"?"Review":"View"}</button>`,poPdfBtn(i))]}}));
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
@@ -1845,6 +1846,7 @@ async function costImport(e){const f=e.target.files[0];e.target.value="";if(!f||
 /* supplier, rate, qty, grade, allowance, operations and tick per line are a working draft kept in this browser (key "reqNo:line") */
 let buyDraft=store.get("buy",{}),buyQ="",buyTab="",buyOpen=new Set();
 const saveBuy=()=>store.set("buy",buyDraft);
+let buyNotes=store.get("buyNotes","");$("#buy-notes").value=buyNotes;$("#buy-notes").oninput=e=>{buyNotes=e.target.value;store.set("buyNotes",buyNotes)};
 const BUY_TABS=["Raw material","Child parts","BOP","Consumables","Tools & cutters","Others"];
 const buyCat=r=>BUY_TABS.includes(r.cat)?r.cat:"Others";
 /* last supplier and rate for an item, from the newest PO that has it (by master item, typed name or description) */
@@ -1941,7 +1943,7 @@ $("#btn-buy-make").onclick=()=>{
   Object.values(G).forEach(g=>{const sp=g.sp||{name:g.sup,addr:"",state:"27"},R=g.rows;
     const nos=[...new Set(R.map(o=>o.b.x.r.no))],jobs=[...new Set(R.map(o=>o.b.x.r.job).filter(Boolean))],needs=R.map(o=>o.b.x.r.need).filter(Boolean).sort();
     po={no:nextPONo(),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
-      reqNo:nos.join(", "),reqNos:nos,needBy:needs[0]||"",plant:g.plant,deliv:plantAddr(g.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",xcols:[],
+      reqNo:nos.join(", "),reqNos:nos,needBy:needs[0]||"",plant:g.plant,deliv:plantAddr(g.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",notes:String(buyNotes||"").trim(),xcols:[],
       lines:R.map(o=>{const b=o.b,x=b.x,c=b.c,cat=b.cat,base={hsn:"84801000",tax:18,dis:0,rqNo:x.r.no,cat};
         if(cat==="Raw material"){const l=Object.assign(base,{item:"",spec:x.name,fin:c.fin,raw:c.raw,rawAuto:false,grade:c.grade,rawOn:true,pcs:c.qty,qty:Math.round(c.wpc*c.qty*100)/100,unit:"KG",rate:+c.rate,rq:x.i,hsn:"72269990"});poSetDesc(l);return l}
         const it=itemByName(x.name),sz=[lineX(x.l,"Size"),lineX(x.l,"L")].filter(Boolean).join(" x "),spec=cat==="BOP"||cat==="Tools & cutters"?[sz,x.l.spec].filter(Boolean).join(" · "):b.spec,full=[x.name,spec].filter(Boolean).join(" - ");
@@ -1949,7 +1951,7 @@ $("#btn-buy-make").onclick=()=>{
     recordPO("Pending approval","Made on the Pre-estimate and sent for approval");learnFromPO();
     poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});made.push(po)});
   on.forEach(b=>{delete buyDraft[b.k];buyOpen.delete(b.k)});
-  saveReqs();saveBuy();po=made[made.length-1];store.set("po",po);
+  saveReqs();saveBuy();buyNotes="";store.set("buyNotes","");$("#buy-notes").value="";po=made[made.length-1];store.set("po",po);
   const D=$("#buyDone");D.hidden=false;D.className="banner";
   D.innerHTML=`<b>${made.length} PO${made.length>1?"s":""} sent for approval:</b> ${made.map(p=>`<button class="linkbtn" type="button" data-bpo="${esc(p.no)}">PO ${esc(p.no)} · ${esc(p.sup)}</button>`).join(" · ")}`;
   toast(`${made.length} PO${made.length>1?"s":""} made and sent for approval`);renderBuy();renderBadges()};
@@ -2206,7 +2208,7 @@ function docPO(p){
   <table><thead><tr><th>Sn</th><th>Description</th>${poCols(p).map(c=>`<th>${esc(c)}</th>`).join("")}<th>Quantity</th><th>Units</th><th>Rate</th><th>Dis%</th><th>Amount</th></tr></thead><tbody>${p.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(poCols(p).length&&l.x?[l.item,l.pn,l.xo].map(x=>String(x||"").trim()).filter(Boolean).join(" - ")+((String(l.desc||"").match(/ · (Finished size|Finished|Raw size|Raw|Grade|Total wt|Pcs): .*$/)||[""])[0]):String(l.desc||"").replace(/ · Total wt: [^·]*/,""))}</td>${poCols(p).map(c=>`<td>${esc((l.x||{})[c]||"")}</td>`).join("")}<td class="r">${fmt(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${l.dis||""}</td><td class="r">${fmt((+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100))}</td></tr>`).join("")}</tbody></table>
   <table class="tot" style="margin-top:0"><tbody><tr><td>Sub Total</td><td class="amt">${fmt(c.sub)}</td></tr>${tax}<tr><td><b>Total</b></td><td class="amt"><b>${fmt(c.total)}</b></td></tr></tbody></table>
   <p style="margin:4px 0"><b>Amount In Words :</b> Rupees ${words(c.total)} Only.</p>
-  <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr></tbody></table>
+  <table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms</th><th>Conditions</th></tr></thead><tbody><tr><td>1</td><td>Taxes</td><td>As Applicable</td></tr>${String(p.notes||"").trim()?`<tr><td>2</td><td>Notes</td><td>${esc(String(p.notes).trim()).replace(/\n/g,"<br>")}</td></tr>`:""}</tbody></table>
   <p style="margin:6px 0"><b>Remark</b> ${esc(p.remark)}</p>
   <div class="foot small"><div><b>Special Instruction :</b><br>1) Please mention our P.O. No. on your D.C. &amp; Invoice.<br>2) Send Delivery Challan &amp; Original Invoice (with Transporter's copy) along with the material.</div><div><b>Rejections :</b><br>If material received is found faulty or not matching the required specifications, we will intimate you within 4 weeks from receiving the material. Such material will be rejected and sent back at the cost and risk of the supplier. Corresponding deductions will apply to the supplier's account.</div></div>
   <div class="row small" style="justify-content:space-between;margin-top:6px"><span>" Subject to Pune jurisdiction only "</span><b>For ZOOM TECHNOLOGIES</b></div>
@@ -2221,6 +2223,7 @@ function docChallan(c){
   <div class="foot small" style="margin-top:46px"><div>Issued by (Store): <b>${esc(c.by)}</b></div><div style="text-align:right">For ZOOM TECHNOLOGIES<br><br><br>Authorised Signatory</div></div>
   <p class="small" style="margin-top:24px">Receiver's signature &amp; stamp: ____________________________</p>`;
 }
+const pdfName=(...parts)=>parts.map(x=>String(x??"").replace(/[\\/:*?"<>|\u0000-\u001f]+/g,"-").replace(/\s+/g," ").trim()).filter(Boolean).join("-").replace(/-{2,}/g,"-").replace(/^[-. ]+|[-. ]+$/g,"").slice(0,150)+".pdf";
 async function savePDF(html,filename){
   if(!window.jspdf||!window.html2canvas){toast("PDF tools did not load. Check the connection and reload.");return}
   toast("Preparing PDF...");
@@ -2253,7 +2256,7 @@ $("#reqDelete").addEventListener("click",e=>{const id=e.target.id;if(id==="btn-q
   reqDelFor=null;cur=null;$("#reqDelete").hidden=true;renderReq();renderBadges();toast(`Request ${r.no} deleted`)});
 $("#btn-q-pdf").onclick=()=>{if(cur)savePDF(docRequest(cur),`Purchase-request-${cur.no}.pdf`)};
 $("#btn-e-pdf").onclick=()=>{if(!est.lines.length){toast("Add some lines first");return}savePDF(docEstimate(est),`Pre-estimate-${est.job||est.reqNo||"direct"}.pdf`)};
-$("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),`PO-${po.no}${po.status==="Approved"?"":"-"+String(po.status||"Draft").replace(/\s+/g,"-").toLowerCase()}.pdf`)};
+$("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),pdfName("PO",po.no,po.sup,po.status==="Approved"?"":String(po.status||"Draft").replace(/\s+/g,"-").toLowerCase()))};
 
 /* ---------- returnable challans ---------- */
 let jwins=store.get("jwins",[]);const saveJw=()=>store.set("jwins",jwins);let jwin=null;
@@ -2294,7 +2297,7 @@ $("#jwForm").addEventListener("click",e=>{const id=e.target.id;
   if(id==="btn-jwo-save"){const c=jwSend,P=jwOutPend(c),qs=c.lines.map((l,i)=>Math.max(0,+($("#jwo"+i).value)||0));
     if(qs.some((q,i)=>q>P[i]+0.0001)){toast("More than what is still with us");return}if(!qs.some(q=>q>0)){toast("Enter the qty being sent back");return}
     c.outs=c.outs||[];const o={n:c.outs.length+1,date:$("#jwo-date").value||today(),vehicle:$("#jwo-vehicle").value.trim(),by:me.name,qty:qs};c.outs.push(o);saveJw();jwSend=null;renderJwin();
-    toast(`Challan JWO-${c.no}-${o.n} saved`);savePDF(docJwOut(c,o),`Job-work-return-JWO-${c.no}-${o.n}.pdf`);return}
+    toast(`Challan JWO-${c.no}-${o.n} saved`);savePDF(docJwOut(c,o),pdfName("Job-work-return","JWO-"+c.no+"-"+o.n,c.cust));return}
   if(e.target.dataset.jldel!=null){jwin.lines.splice(+e.target.dataset.jldel,1);renderJwForm();return}
   if(id==="btn-jw-line"){jwin.lines.push(jwLine());renderJwForm();return}
   if(id==="btn-jw-save"){const c=jwin;c.lines=c.lines.filter(l=>String(l.desc).trim()&&+l.qty>0);
@@ -2304,7 +2307,7 @@ $("#jwForm").addEventListener("click",e=>{const id=e.target.id;
     jwins.unshift(c);saveJw();jwin=null;renderJwin();toast(`Job work inward JW-${c.no} saved`)}});
 $("#jwList").addEventListener("click",e=>{const a=e.target.dataset.jwinv,d=e.target.dataset.jwdel,O=e.target.dataset.jwout,pd=e.target.dataset.jwpdf,jb=e.target.dataset.jwjob;const F=n=>jwins.find(x=>String(x.no)===n);
   if(O!=null){const c=F(O);if(c){jwin=null;jwSend=c;renderJwForm();$("#jwForm").scrollIntoView({block:"start"})}return}
-  if(pd!=null){const c=F(pd);if(c&&c.outs&&c.outs.length){const o=c.outs[c.outs.length-1];savePDF(docJwOut(c,o),`Job-work-return-JWO-${c.no}-${o.n}.pdf`)}return}
+  if(pd!=null){const c=F(pd);if(c&&c.outs&&c.outs.length){const o=c.outs[c.outs.length-1];savePDF(docJwOut(c,o),pdfName("Job-work-return","JWO-"+c.no+"-"+o.n,c.cust))}return}
   if(jb!=null){const c=F(jb);if(!c)return;if(!c.job){const n=prompt(`Job No. for job work JW-${c.no} (${c.cust})`,"");if(!n||!n.trim())return;c.job=n.trim().toUpperCase();saveJw();renderJwin()}
     jobFor(c.job,{cust:c.cust,desc:"Job work: "+c.lines.map(l=>(l.process?l.process+" on ":"")+l.desc).join(", "),jw:c.no,start:c.date});return}
   if(a!=null){const c=jwins.find(x=>String(x.no)===a);if(c)invFromJW(c)}
@@ -2336,7 +2339,7 @@ function renderRgpForm(){
 }
 $("#btn-rgp-new").onclick=()=>{rgpMode="new";rgp={no:Math.max(300,...rgps.map(c=>c.no))+1,plant:defPlant(),date:today(),expected:addDays(today(),7),party:"",addr:"",gstin:"",purpose:"",vehicle:"",job:"",by:me.name,status:"Open",returns:[],lines:[{desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0}]};renderRgpForm();$("#rg-party").focus()};
 $("#rgpList").addEventListener("click",e=>{const i=e.target.dataset.rpdf,j=e.target.dataset.rret;
-  if(i!=null){const c=rgps[+i];savePDF(docChallan(c),`Returnable-challan-RC-${c.no}.pdf`)}
+  if(i!=null){const c=rgps[+i];savePDF(docChallan(c),pdfName("Returnable-challan","RC-"+c.no,c.party))}
   if(j!=null){rgpMode="ret";rgp=rgps[+j];renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"})}});
 $("#rgpForm").addEventListener("input",e=>{if(rgpMode!=="new"||!rgp)return;const t=e.target;
   if(t.id&&t.id.startsWith("rg-")){const k=t.id.slice(3);rgp[k]=t.value;if(k==="party"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp){rgp.addr=sp.addr||"";rgp.gstin=sp.gstin||"";$("#rg-addr").value=rgp.addr;const hp=document.activeElement===t;renderRgpForm();if(hp){const n=$("#rg-party");n.focus();n.setSelectionRange(n.value.length,n.value.length)}}}
@@ -2351,7 +2354,7 @@ $("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
     if(!rgp.lines.length){toast("Add at least one item with qty");rgp.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0});renderRgpForm();return}
     if(!rgp.expected){toast("Enter the expected return date");return}
     if(rgp.expected<rgp.date){toast("Return date cannot be before the challan date");return}
-    const c=rgp;rgps.unshift(c);saveRgps();rgp=null;renderRgp();toast(`Challan RC-${c.no} saved`);savePDF(docChallan(c),`Returnable-challan-RC-${c.no}.pdf`);return}
+    const c=rgp;rgps.unshift(c);saveRgps();rgp=null;renderRgp();toast(`Challan RC-${c.no} saved`);savePDF(docChallan(c),pdfName("Returnable-challan","RC-"+c.no,c.party));return}
   if(id==="btn-r-ret"){const c=rgp;const qs=c.lines.map((l,i)=>Math.max(0,+$("#rr"+i).value||0));
     if(qs.some((q,i)=>q>(+c.lines[i].qty||0)-(+c.lines[i].ret||0)+0.0001)){toast("Received qty is more than what is still out");return}
     if(!qs.some(q=>q>0)){toast("Enter the qty received back");return}
@@ -3356,7 +3359,7 @@ $("#dealForm").addEventListener("click",e=>{if(!dealCur)return;const id=e.target
   if(id==="dlf-add"){const w=$("#dlf-what").value.trim();if(!w){toast("Write what the follow-up is");return}
     fups.push({id:itId(),date:$("#dlf-date").value||today(),time:$("#dlf-time").value,deal:dealKey(d),cust:d.cust,what:w,by:d.owner||me.name,done:false});saveFups();renderSales();toast("Follow-up added");return}
   if(id==="dl-so"){const o=dealBy(dealKey(d));if(o)sdFromDeal(o);return}
-  if(id==="dl-pdf"){const o=dealBy(dealKey(d));savePDF(docQuote({...o,...d}),`Quotation-${qtNo(d).replace(/[\\/:*?"<>|]+/g,"-")}${+d.rev?"-R"+d.rev:""}.pdf`);return}
+  if(id==="dl-pdf"){const o=dealBy(dealKey(d));savePDF(docQuote({...o,...d}),pdfName("Quotation",qtNo(d)+(+d.rev?"-R"+d.rev:""),d.cust));return}
   if(id==="dl-del"){const dk=dealKey(d),qn=qtNo(d);if(!confirm(`Delete enquiry ${qn} for ${d.cust}? This cannot be undone.`))return;deals=deals.filter(x=>dealKey(x)!==dk);fups=fups.filter(f=>String(f.deal)!==dk);saveDeals();saveFups();dealCur=null;renderSales();toast(`${qn} deleted`);return}
   if(id==="dl-save")saveDeal()});
 function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=String(d.title||"").trim();
@@ -3553,7 +3556,7 @@ function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEac
   $(`#${t}-list`).innerHTML=A.length?ltT(COLS,A.slice(0,200).map(x=>({c:row(x)}))):(A0.length?lfNone:`<div class="empty">None yet.</div>`)}
 ["so","dc","inv"].forEach(t=>{$(`#${t}-q`).oninput=()=>renderSDList(t);
   $(`#${t}-list`).addEventListener("click",e=>{const o=e.target.dataset.sdopen,p=e.target.dataset.sdpdf;const x=SD[t].arr().find(r=>sdId(t,r)===(o||p));if(!x)return;
-    if(o){sdOpen(t,x,false)}else savePDF(sdDoc(t,x),`${SD[t].name.replace(/ /g,"-")}-${sdNo(t,x).replace(/\//g,"-")}.pdf`)})});
+    if(o){sdOpen(t,x,false)}else savePDF(sdDoc(t,x),pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,x),x.cust))})});
 function renderSD(t){renderSDList(t);renderSDForm()}
 function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if(!sdCur||sdCur.t!==t){F.hidden=true;F.innerHTML="";return}});if(!sdCur)return;
   const {t,rec:x,isNew}=sdCur,F=$(`#${t}-form`),ro=isNew?!has(t+".create"):!has(t+".edit");F.hidden=false;const link=t!=="so"&&x.so;
@@ -3600,7 +3603,7 @@ function sdTotUpd(){const x=sdCur.rec,t=sdCur.t;$("#sd-tot").textContent=fmt(t==
     const rd=e.target.closest("[data-rcdel]");if(rd){x.rcpts.splice(+rd.dataset.rcdel,1);renderSDForm();return}
     if(id==="sd-addline"){x.lines.push({desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""});renderSDForm();$(`#sl${x.lines.length-1}d`).focus();return}
     if(e.target.dataset.sldel!=null){x.lines.splice(+e.target.dataset.sldel,1);renderSDForm();return}
-    if(id==="sd-pdf"){savePDF(sdDoc(t,x),`${SD[t].name.replace(/ /g,"-")}-${sdNo(t,x).replace(/\//g,"-")}.pdf`);return}
+    if(id==="sd-pdf"){savePDF(sdDoc(t,x),pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,x),x.cust));return}
     if(id==="sd-mkcn"){ntFromInv(x);return}
     if(id==="sd-irn-gen"){gstGenIRN("inv",e.target);return}if(id==="sd-irn-cnl"){gstCancelIRN("inv",e.target);return}if(id==="sd-irn-clr"){gstClear("inv");return}
     if(id==="sd-ewb-irn"){gstEwbDlg(e.target);return}if(id==="sd-ewb-cnl"){gstCancelEwb(e.target);return}
@@ -3622,7 +3625,7 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
   if(t==="inv"&&isNew&&x.dc)x.dc.forEach(n=>{const d=dchallans.find(r=>String(r.no)===String(n));if(d)d.inv=sdId("inv",x)});
   if(t==="so"&&isNew&&x.deal){const d=dealBy(x.deal);if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
   sdSave(t);if(t==="inv")sdSave("dc");const saved=A.find(r=>sdId(t,r)===sdId(t,x));sdCur={t,rec:JSON.parse(JSON.stringify(saved)),isNew:false};renderSD(t);
-  toast(`${sdNo(t,saved)} saved`);if(isNew&&t!=="so")savePDF(sdDoc(t,saved),`${SD[t].name.replace(/ /g,"-")}-${sdNo(t,saved).replace(/\//g,"-")}.pdf`)}
+  toast(`${sdNo(t,saved)} saved`);if(isNew&&t!=="so")savePDF(sdDoc(t,saved),pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,saved),saved.cust))}
 function sdDoc(t,x){if(t==="inv")return docTaxInvoice(x);const c=custByName(x.cust)||{name:x.cust},cfg=salesCfg(),intra=isIntra(x.cust);
   const to=`<div><b>${t==="inv"?"Bill to":"To"},</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${t==="inv"?`<br>Place of supply: ${c.gstin&&/^\d\d/.test(c.gstin)?c.gstin.slice(0,2):"27"}${intra?" Maharashtra":""}`:""}</div>`;
   const kv={so:[["Order No.",sdNo(t,x)],["Date",dmy(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dmy(x.custPODate):"-"],["Job No.",x.job||"-"],["Delivery",x.due?dmy(x.due):"-"]],
@@ -3863,7 +3866,7 @@ function renderNotes(t){{const pn=($(t==="dn"?"#dnList":"#cnList")||{}).closest;
     return`<div class="listrow"><b style="font-family:var(--mono)">${esc(ntNo(t,x))}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.party)}${ref?" · "+esc(ref):""}<br><span class="note">${dmy(x.date)} · ${esc(x.reason)}</span></span><span>${t==="cn"?(x.irn?`<span class="chip calc">IRN</span>`:`<span class="chip sugg">IRN pending</span>`):x.reason==="Rejected at GRN"?`<span class="chip calc">For record</span>`:`<span class="chip sugg">Reduces payable</span>`}</span><span class="num">₹ ${fmt0(k.grand)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" type="button" data-ntopen="${esc(ntId(t,x))}">Open</button><button class="btn" type="button" data-ntpdf="${esc(ntId(t,x))}">PDF</button></span></div>`}).join("")||`<div class="empty">None yet.</div>`;
   renderNoteForm()}
 ["dn","cn"].forEach(t=>{const L=$(t==="dn"?"#dnList":"#cnList");L.addEventListener("click",e=>{const o=e.target.dataset.ntopen,p=e.target.dataset.ntpdf;const x=NT[t].arr().find(r=>ntId(t,r)===(o||p));if(!x)return;
-  if(o){ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(x))};renderNoteForm();$(t==="dn"?"#dnForm":"#cnForm").scrollIntoView({block:"start"})}else savePDF(docNote(t,x),`${NT[t].name.replace(/ /g,"-")}-${ntNo(t,x).replace(/\//g,"-")}.pdf`)})});
+  if(o){ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(x))};renderNoteForm();$(t==="dn"?"#dnForm":"#cnForm").scrollIntoView({block:"start"})}else savePDF(docNote(t,x),pdfName(NT[t].name.replace(/ /g,"-"),ntNo(t,x),x.party))})});
 $("#btn-dn-new").onclick=()=>{if(!has("dn.create")){toast("Only accounts can make debit notes");return}ntCur={t:"dn",isNew:true,rec:ntNew("dn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
 $("#btn-cn-new").onclick=()=>{if(!has("cn.create")){toast("You can view but not make credit notes");return}ntCur={t:"cn",isNew:true,rec:ntNew("cn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
 function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"#cnForm");if(!ntCur||ntCur.t!==t){F.hidden=true;F.innerHTML=""}});if(!ntCur)return;
@@ -3890,7 +3893,7 @@ function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"
     if(id==="nt-close"){ntCur=null;renderNoteForm();return}
     if(id==="nt-addline"){x.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18});renderNoteForm();return}
     if(e.target.dataset.nldel!=null){x.lines.splice(+e.target.dataset.nldel,1);renderNoteForm();return}
-    if(id==="nt-pdf"){savePDF(docNote(t,x),`${NT[t].name.replace(/ /g,"-")}-${ntNo(t,x).replace(/\//g,"-")}.pdf`);return}
+    if(id==="nt-pdf"){savePDF(docNote(t,x),pdfName(NT[t].name.replace(/ /g,"-"),ntNo(t,x),x.party));return}
     if(id==="nt-irn-gen"){gstGenIRN("cn",e.target);return}if(id==="nt-irn-cnl"){gstCancelIRN("cn",e.target);return}if(id==="nt-irn-clr"){gstClear("cn");return}
     if(id==="nt-json"){einvExportMixed([],[x],`einvoice-${ntNo(t,x).replace(/\//g,"-")}.json`);return}
     if(id==="nt-del"){if(!confirm(`Delete ${ntNo(t,x)}?`))return;const A=NT[t].arr(),i=A.findIndex(r=>ntId(t,r)===ntId(t,x));if(i>=0)A.splice(i,1);store.set(NT[t].coll,A);ntCur=null;renderNotes(t);if(t==="dn")renderAcct();return}
@@ -3898,7 +3901,7 @@ function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"
       x.lines=x.lines.filter(l=>String(l.desc||"").trim()&&+l.qty>0&&+l.rate>0);if(!x.lines.length){toast("Add at least one line with quantity and rate");renderNoteForm();return}
       delete x._rs;const A=NT[t].arr();x.updatedAt=new Date().toISOString();if(ntCur.isNew){if(t==="cn"){x.fy=fyOf(x.date);x.no=nextCN(x.fy)}else x.no=nextDN();x.createdAt=x.updatedAt;A.unshift(x)}else Object.assign(A.find(r=>ntId(t,r)===ntId(t,x)),x);
       store.set(NT[t].coll,A);const sv=A.find(r=>ntId(t,r)===ntId(t,x));ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(sv))};renderNotes(t);if(t==="dn"){renderAcct();renderStock&&0}
-      toast(`${ntNo(t,sv)} saved`);savePDF(docNote(t,sv),`${NT[t].name.replace(/ /g,"-")}-${ntNo(t,sv).replace(/\//g,"-")}.pdf`)}})});
+      toast(`${ntNo(t,sv)} saved`);savePDF(docNote(t,sv),pdfName(NT[t].name.replace(/ /g,"-"),ntNo(t,sv),sv.party))}})});
 function docNote(t,x){const k=ntCalc(t,x),p=t==="dn"?(suppliers.find(s=>key(s.name)===key(x.party))||{name:x.party}):(custByName(x.party)||{name:x.party});
   const ref=t==="dn"?(x.grn?(()=>{const g=grns.find(r=>String(r.no)===String(x.grn));return g?[["Our GRN",`${g.no} · ${dmy(g.date)}`],["Your invoice",`${g.inv||"-"}${g.invDate?" · "+dmy(g.invDate):""}`],["Our PO",String(g.poNo)]]:[]})():[]):(x.inv?(()=>{const v=invoices.find(r=>ntInvId(r)===x.inv);return v?[["Against invoice",`${invNo(v)} · ${dmy(v.date)}`]]:[]})():[]);
   const qr=t==="cn"&&x.qr?qrURL(x.qr):"";
