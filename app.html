@@ -102,6 +102,7 @@ input.auto,select.auto,textarea.auto,table.est input.auto,table.est textarea.aut
 .paper .small{font-size:10px}
 .paper .foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
 .paper .sign{text-align:right;margin-top:26px}
+.ltbar{display:flex;justify-content:flex-end;margin-bottom:-4px}
 table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.lt th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg);font-weight:600;white-space:nowrap}
 table.lt td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -782,7 +783,18 @@ const lineTxt=L=>(L||[]).map(l=>[l.item,l.desc,l.spec,l.hsn].filter(Boolean).joi
 const lfOk=(k,job,parts)=>{const pe=$("#prj-"+k),p=pe?pe.value:"";if(p&&key(job)!==key(p))return false;
   const q=key(($("#"+k+"-q")||{}).value||"");if(!q)return true;const t=" "+key(parts.filter(x=>x!=null&&x!=="").join(" "));return q.split(" ").every(w=>t.includes(w))};
 /* document lists shown as tables: cols [label, class], rows {c:[cells], a:" attrs"} */
-const ltT=(cols,rows)=>`<div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+const ltT=(cols,rows)=>`<div class="ltbar"><button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+/* Export to Excel: takes the table under the button exactly as shown (filters applied), without the Actions column */
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-ltx]");if(!b)return;const T=b.parentElement.nextElementSibling?.querySelector("table.lt");if(!T)return;
+  if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const ths=[...T.querySelectorAll("thead th")],keep=ths.map(th=>!th.classList.contains("act"));
+  const cell=td=>{const t=td.innerText.replace(/\s*\n+\s*/g," · ").trim();if(td.classList.contains("num")){const n=parseFloat(t.replace(/[₹,\s]/g,""));if(/^₹?[\d,.\s-]+$/.test(t)&&!isNaN(n))return n}
+    const m=t.match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$/);if(m&&MON3.includes(m[2]))return new Date(Date.UTC(+m[3],MON3.indexOf(m[2]),+m[1]));return t==="-"?"":t};
+  const aoa=[ths.filter((_,i)=>keep[i]).map(th=>th.textContent.trim()),...[...T.querySelectorAll("tbody tr")].map(tr=>[...tr.children].filter((_,i)=>keep[i]).map(cell))];
+  const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd-mmm-yyyy"});ws["!cols"]=aoa[0].map((h,i)=>({wch:Math.min(40,Math.max(h.length+2,...aoa.slice(1).map(r=>String(r[i] instanceof Date?"00-Mmm-0000":r[i]??"").length+1)))}));
+  const nm=((b.closest(".panel,section")||document).querySelector("h2.sec")?.textContent||"List").trim(),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,nm.slice(0,31).replace(/[\\/?*[\]:]/g," "));
+  const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  if(await deliver(blob,`${nm.replace(/[^A-Za-z0-9]+/g,"-")}-${today()}.xlsx`))toast(`Saved ${aoa.length-1} row${aoa.length===2?"":"s"} to Excel`)});
 const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const ltD=iso=>{const x=String(iso||"");if(!/^\d{4}-\d\d-\d\d/.test(x))return"-";return`${+x.slice(8,10)} ${MON3[+x.slice(5,7)-1]} ${x.slice(0,4)}`};
 const ltDT=iso=>{const x=String(iso||"");if(x.length<=10)return ltD(x);const d=new Date(x);if(isNaN(d))return ltD(x);const h=d.getHours(),m=String(d.getMinutes()).padStart(2,"0");return`${d.getDate()} ${MON3[d.getMonth()]} ${d.getFullYear()}, ${String(h%12||12).padStart(2,"0")}:${m} ${h<12?"am":"pm"}`};
