@@ -114,6 +114,21 @@ input.auto,select.auto,textarea.auto,table.est input.auto,table.est textarea.aut
 .paper .small{font-size:10px}
 .paper .foot{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
 .paper .sign{text-align:right;margin-top:26px}
+/* list tables fit the screen: wrap long text, keep Actions visible, scroll inside the box (scrollbar stays on screen) */
+.tablebox:has(> table.lt){max-height:calc(100vh - 150px);overflow:auto;border:1px solid var(--line);border-radius:8px}
+table.lt thead th{position:sticky;top:0;z-index:2}
+table.lt th,table.lt td{padding-left:8px!important;padding-right:8px!important}
+table.lt .prj{white-space:normal!important;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:170px}
+table.lt td:has(> .prj){max-width:180px}
+table.lt td.num{font-size:13px}table.lt td.dt{font-size:13px}table.lt td.upd{min-width:0;max-width:110px;font-size:12px}
+table.lt .chip{font-size:11.5px;padding:3px 8px 3px 7px;white-space:normal;line-height:1.25}
+table.lt td.act,table.lt th.act{position:sticky;right:0;z-index:1;background:var(--panel);box-shadow:-6px 0 6px -6px rgba(0,0,0,.18)}table.lt th.act{z-index:3;background:var(--bg)}
+table.lt tr[aria-selected="true"] td.act{background:var(--sugg-bg)}
+table.lt td.act .btn{padding:4px 9px;font-size:12.5px}table.lt td.act .acts{flex-direction:row!important;gap:4px!important}
+table.lt td{padding-top:6px!important;padding-bottom:6px!important;font-size:13px;line-height:1.3}table.lt th{padding-top:7px!important;padding-bottom:7px!important;font-size:10.5px}
+table.lt td.no{font-size:13px}table.lt td.no small{font-size:10.5px}table.lt td .note{font-size:11.5px}
+select.prj,select.pl,select.dep,select.per{max-width:190px}
+@media (max-width:640px){.tablebox:has(> table.lt){max-height:none;overflow:visible;border:0}table.lt thead th{position:static}table.lt td.act,table.lt th.act{position:static;box-shadow:none;background:none}table.lt .prj{max-width:none}}
 .ltbar{display:flex;justify-content:flex-end;margin-bottom:-4px}
 table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.lt th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg);font-weight:600;white-space:nowrap}
@@ -932,7 +947,7 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-xlx]
 const MON3=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const ltD=iso=>{const x=String(iso||"");if(!/^\d{4}-\d\d-\d\d/.test(x))return"-";return`${+x.slice(8,10)} ${MON3[+x.slice(5,7)-1]} ${x.slice(0,4)}`};
 const ltDT=iso=>{const x=String(iso||"");if(x.length<=10)return ltD(x);const d=new Date(x);if(isNaN(d))return ltD(x);const h=d.getHours(),m=String(d.getMinutes()).padStart(2,"0");return`${d.getDate()} ${MON3[d.getMonth()]} ${d.getFullYear()}, ${String(h%12||12).padStart(2,"0")}:${m} ${h<12?"am":"pm"}`};
-const ltPrj=j=>j?`<span class="prj">${esc(j)}</span>`:`<span class="note">-</span>`;
+const ltPrj=j=>j?`<span class="prj" title="${esc(j)}">${esc(j)}</span>`:`<span class="note">-</span>`;
 const ltAmt=n=>"₹"+fmt(n);
 const ltActs=(...b)=>`<span class="acts">${b.filter(Boolean).join("")}</span>`;
 const poBy=s=>((s.history||[]).find(h=>h.action==="Sent for approval")||(s.history||[])[0]||{}).by||s.by||"";
@@ -2222,9 +2237,13 @@ async function savePDF(html,filename){
   const host=document.createElement("div");host.style.cssText="position:fixed;left:-10000px;top:0;width:794px";
   host.innerHTML=`<div class="paper" style="box-shadow:none;width:794px">${html}</div>`;document.body.appendChild(host);
   try{
-    const canvas=await html2canvas(host.firstChild,{scale:2,backgroundColor:"#ffffff",useCORS:true});
-    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4"});const ih=canvas.height*210/canvas.width;const img=canvas.toDataURL("image/jpeg",0.92);
-    let y=0;for(;;){pdf.addImage(img,"JPEG",0,-y,210,ih);y+=297;if(y>=ih-1)break;pdf.addPage()}
+    /* a document wider than A4 portrait (many columns) is widened to fit all columns, then printed landscape and scaled to the page */
+    const el=host.firstChild,need=Math.max(794,...[...el.querySelectorAll("table")].map(t=>t.scrollWidth+(el.scrollWidth-el.clientWidth)+60),el.scrollWidth);
+    const land=need>820,W=land?Math.max(1123,need):794;if(W!==794){host.style.width=W+"px";el.style.width=W+"px"}
+    const canvas=await html2canvas(el,{scale:2,backgroundColor:"#ffffff",useCORS:true,windowWidth:W+40});
+    const pw=land?297:210,ph=land?210:297;
+    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:land?"landscape":"portrait"});const ih=canvas.height*pw/canvas.width;const img=canvas.toDataURL("image/jpeg",0.92);
+    let y=0;for(;;){pdf.addImage(img,"JPEG",0,-y,pw,ih);y+=ph;if(y>=ih-1)break;pdf.addPage()}
     const blob=pdf.output("blob");
     let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null}catch(e){dl=null}
     if(dl){try{await dl.save({filename,data:blob});toast(`Saved ${filename}`)}catch(e){if(e&&e.code!=="declined")toast("Download is not available in this view")}}
