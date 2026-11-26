@@ -2970,7 +2970,9 @@ let bank=store.get("bank",[]);const saveBank=()=>store.set("bank",bank);
 const obPaid=o=>(+o.prior||0)+(o.kind==="sup"?pays.reduce((a,p)=>a+(p.alloc||[]).filter(x=>x.ob===o.id).reduce((b,x)=>b+x.amt,0),0):rcptsOf(o).reduce((a,r)=>a+(+r.amt||0),0));
 const obBal=o=>Math.round(((+o.amt||0)-obPaid(o))*100)/100;
 const obDue=o=>o.days!==""&&o.days!=null&&!isNaN(+o.days)?addDays(o.date,+o.days):(o.due||"");
-const obCustDue=()=>obills.filter(o=>o.kind==="cust").reduce((a,o)=>a+obBal(o),0);
+/* unpaid opening bills, for the plant picked in the header (all plants when none) */
+const obCustDue=()=>obills.filter(o=>o.kind==="cust"&&inPlant(o)).reduce((a,o)=>a+Math.max(0,obBal(o)),0);
+const obSupDue=()=>obills.filter(o=>o.kind==="sup"&&inPlant(o)).reduce((a,o)=>a+Math.max(0,obBal(o)),0);
 const obBill=id=>{const o=obills.find(x=>x.id===id);return o?`bill ${o.bill||"(no number)"} (old ERP)`:"old bill"};
 const grnDirect=g=>pays.reduce((a,p)=>a+(p.alloc||[]).filter(x=>x.grn===g.no).reduce((b,x)=>b+x.amt,0),0);
 const poAdv=no=>pays.filter(p=>p.adv&&String(p.po)===String(no)).reduce((a,p)=>a+(+p.amount||0),0);
@@ -4247,7 +4249,7 @@ function renderPlants(){const P=$("#plantPanel");if(!P)return;const L=plants(),a
     return`<tr>${[["name",200],["short",110],["pre",70],["lastNo",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(invPreOf(p.id))}${nextInvNo(fyOf(today()),p.id)}/${fyOf(today())}</td>${[["qpre",70],["qLast",90]].map(inp).join("")}<td style="font-family:var(--mono);white-space:nowrap">${esc(qtPreOf(p.id))}${nextDealNo(p.id)}</td>${[["addr1",260],["addr2",180],["loc",80],["pin",80]].map(inp).join("")}</tr>`}).join("")}</tbody></table></div>`}
 $("#plantPanel").addEventListener("change",e=>{const id=e.target.dataset.pl,f=e.target.dataset.pf;if(!id||!f)return;const m=(M.plants||[]).slice();let o=m.find(x=>x.id===id);if(!o){o={id};m.push(o)}o[f]=e.target.value.trim();M.plants=m;saveM();renderPlants();fillPlantSels();toast("Saved")});
 /* ---------- opening bills from the old ERP (unpaid on the start date) ---------- */
-const OB_FIELDS=[["party","Party",["partyname","customername","suppliername","vendorname","ledgername","nameofledger","accountname","name","party","customer","supplier","vendor","account","particulars"]],
+const OB_FIELDS=[["party","Party",["partyname","partysname","customername","suppliername","vendorname","ledgername","nameofledger","accountname","name","party","customer","supplier","vendor","account","particulars"]],
   ["bill","Bill No",["billno","invoiceno","invno","billnumber","invoicenumber","supplierinvoiceno","voucherno","vchno","refno","reference","ref","docno","no"]],
   ["date","Bill date",["billdate","invoicedate","invdate","voucherdate","vchdate","docdate","date"]],
   ["amt","Bill amount",["billamount","invoiceamount","invoicevalue","billvalue","grandtotal","totalamount","amount","total","value","openingamount"]],
@@ -4270,7 +4272,7 @@ const OB_TPL=[["Party name","Bill No","Bill date","Bill amount","Already receive
 async function obTemplate(){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   const wb=XLSX.utils.book_new(),mk=(rows,n)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:34},{wch:14},{wch:12},{wch:14},{wch:22},{wch:14},{wch:12},{wch:8}];XLSX.utils.book_append_sheet(wb,ws,n)};
   mk(OB_TPL,"Customer bills");mk(OB_TPL,"Supplier bills");
-  mk([["How to fill"],["Example: ABC Engineering Pvt Ltd | ZT/245 | 15/09/2026 | 118000 | 50000 | (blank) | 45 | P1"],["One row for each bill that is still unpaid (fully or partly) on the day you start the new app."],["Dates as DD/MM/YYYY. Fill either Bill amount (and Already received or paid if part paid), or only Balance."],["Credit days give the due date. Plant is P1 or P2; leave blank for P1."],["Import customer bills and supplier bills separately in Masters > Opening bills. Bills already imported are skipped, so re-importing is safe."]],"Read me");
+  mk([["How to fill"],["Example: ABC Engineering Pvt Ltd | ZT/245 | 15/09/2026 | 118000 | 50000 | (blank) | 45 | P1"],["One row for each bill that is still unpaid (fully or partly) on the day you start the new app."],["Dates as DD/MM/YYYY. Fill either Bill amount (and Already received or paid if part paid), or only Balance."],["Credit days give the due date. Plant is P1 or P2. If Plant is blank, customer bills take it from the bill number (Z = Plant 1, J = Plant 2); supplier bills go to P1."],["A Tally Bills Receivable or Bills Payable export (Date, Ref. No., Party's Name, Pending Amount, Due on) can be imported as it is."],["Import customer bills and supplier bills separately in Masters > Opening bills. Bills already imported are skipped, so re-importing is safe."]],"Read me");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
   if(await deliver(blob,"Opening-bills-template.xlsx"))toast("Template downloaded")}
 let obPrev=null,obRc=null;
@@ -4293,7 +4295,7 @@ async function obImport(f,kind){if(!window.XLSX){toast("Excel tools did not load
       if(amt-paid<0.5){return}
       const k=key(party)+"|"+key(bill);if(have.has(k)||seen.has(k)){dup.push(`${party} ${bill}`);return}seen.add(k);
       const dRaw=String(g("days")??"").match(/\d+/),plRaw=String(g("plant")??"").trim().toUpperCase();
-      out.push({id:itId(),kind,party:mk.get(key(party))||party,known:mk.has(key(party)),bill,date,amt:r2(amt),prior:r2(paid),days:dRaw?+dRaw[0]:"",due:obDate(g("due")),plant:plants().some(p=>p.id===plRaw)?plRaw:"P1",rcpts:[],by:me.name,at:today(),file:f.name})});
+      out.push({id:itId(),kind,party:mk.get(key(party))||party,known:mk.has(key(party)),bill,date,amt:r2(amt),prior:r2(paid),days:dRaw?+dRaw[0]:"",due:obDate(g("due")),plant:kind==="cust"?ohPlant(plRaw,bill):plants().some(p=>p.id===plRaw)?plRaw:"P1",rcpts:[],by:me.name,at:today(),file:f.name})});
     obPrev={kind,fname:f.name,sn:best.sn,rows:out,bad,dup,map:best.map};renderOpening();$("#openPanel").scrollIntoView({block:"start"})}
   catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
 const obLabel=k=>k==="cust"?"Customer":"Supplier";
@@ -5027,11 +5029,11 @@ function dashMoney(MS){const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN
   const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]),purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
   const R=[];invoices.filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.filter(inPlant).forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s)));
-  return{sales,purch,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:INV.reduce((a,v)=>a+invDue(v),0),payb:plantDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
+  return{sales,purch,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb:plantDue()+obSupDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
 function dashPlants(MS){const PL=plants(),X=PL.map(p=>({p,d:withPlant(p.id,()=>dashMoney(MS))}));
   const rows=[["Sales","inv",x=>sum(x.sales)],["Purchases","acct",x=>sum(x.purch)],["Collected","inv",x=>sum(x.coll)],["To collect now","inv",x=>x.recv],["To pay now","acct",x=>x.payb],["Orders to dispatch","so",x=>x.soVal]].filter(r=>can(r[1]));
   const mx=niceMax(Math.max(1000,...X.flatMap(x=>x.d.sales.concat(x.d.purch))));
-  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period, incl. GST. To collect / to pay are as of today. Opening bills from the old ERP have no plant, so they count only in the totals above.</div>
+  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period, incl. GST. To collect / to pay are as of today, including unpaid bills from the old ERP.</div>
     <div class="tablebox"><table class="est dplant"><thead><tr><th></th>${X.map(x=>`<th class="num">${esc(x.p.name)}</th>`).join("")}<th class="num">Both plants</th></tr></thead><tbody>${rows.map(([l,,f])=>{const v=X.map(x=>f(x.d));return`<tr><td>${esc(l)}</td>${v.map(n=>`<td class="num">${moneyTxt(n)}</td>`).join("")}<td class="num"><b>${moneyTxt(sum(v))}</b></td></tr>`}).join("")}</tbody></table></div></div>`,
     charts:X.map(x=>chartBox(`Sales and purchases · ${x.p.name}`,"Same scale for both plants, incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:x.d.sales},{name:"Purchases",c:"var(--s2)",vals:x.d.purch}],{money:true,max:mx})))}}
 function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
@@ -5040,7 +5042,7 @@ function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today()
   const purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
   const R=[];invoices.concat(obills.filter(o=>o.kind==="cust")).filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
   const coll=byMonth(MS,R,r=>r.date,r=>r.amt),paid=byMonth(MS,pays,p=>p.date,p=>p.amount);
-  const recv=invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
+  const recv=invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),lateJ=J.filter(j=>j.due&&j.due<t);
   const go=v=>can(v)?v:"";
   let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales","Invoices less credit notes",false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases","Booked GRNs",false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
@@ -5116,13 +5118,13 @@ function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS
   const sOf=x=>invCalc(x).ass,cOf=n=>ntCalc("cn",n).ass,pOf=g=>grnCalc(g).sub,gd=g=>g.bookedAt||g.date;
   const salesIn=f=>sum(INV.filter(x=>f(x.date)).map(sOf))-sum(CN.filter(n=>f(n.date)).map(cOf));
   const sales12=MS.map(k=>salesIn(d=>m7(d)===k)),purch12=MS.map(k=>sum(GR.filter(g=>m7(gd(g))===k).map(pOf)));
-  const recv=INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),old=INV.filter(v=>v.date<addDays(t,-60)).reduce((a,v)=>a+invDue(v),0);
-  const payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0);
+  const o60=addDays(t,-60),recv=INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),old=INV.filter(v=>v.date<o60).reduce((a,v)=>a+invDue(v),0)+obills.filter(o=>o.kind==="cust"&&inPlant(o)&&o.date<o60).reduce((a,o)=>a+Math.max(0,obBal(o)),0);
+  const payb=curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0);
   const SI=stockItems(),zero=new Set(SI.filter(i=>i.bal<=0.0001).map(i=>i.k));lowStock().forEach(r=>zero.add(key(r.it.name)));
   const wk=weekMon(),J=jobs.filter(j=>j.status!=="Completed"),OPS=jobs.flatMap(j=>(j.ops||[]).filter(o=>o.status==="Done"&&d10(o.end)>=wk));
   return{t,cm,pm,fs,MS,INV,GR,sales12,purch12,
     salesM:salesIn(d=>m7(d)===cm),salesPM:salesIn(d=>m7(d)===pm),salesFY:salesIn(d=>d>=fs&&d<=t),purFY:sum(GR.filter(g=>gd(g)>=fs).map(pOf)),purM:sum(GR.filter(g=>m7(gd(g))===cm).map(pOf)),
-    recv,recvP:INV.reduce((a,v)=>a+invDue(v),0),old,payb,paybP:plantDue(),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
+    recv,recvP:recv,old,payb,paybP:plantDue()+obSupDue(),obC:obills.some(o=>o.kind==="cust"),obS:obills.some(o=>o.kind==="sup"),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
 function homeTabs(){return[["ov","🏢","Overview",true],["sal","📈","Sales",["sales","so","dc","inv","cn"].some(can)],["pur","🛒","Purchase",["req","buy","po","saved","appr"].some(can)],["store","📦","Store",["grn","stock"].some(can)],["prod","🏭","Production",can("prod")]].filter(x=>x[3])}
 const HQA=[["inv","🧾","New sales invoice","From a customer order","inv"],["prod","🏭","Production","Job cards, log what's made"],["stock","📊","Stock entry","Opening, issue, return"],["inv","💰","Payment received","From a customer"],["so","📥","New sales order","From a customer PO","so"],
   ["grn","📦","Receive material","GRN against a PO"],["req","📝","New request","Ask for material or a service"],["appr","✅","Approve POs","Review and sign"],["po","🛒","Purchase order","From a pre-estimate"],["acct","💳","Bills & payments","Book bills, pay vendors"],["sales","💬","Quotation","RFQ and quote a customer"],["mast","➕","New product","Item code is automatic"]];
@@ -5140,8 +5142,8 @@ function renderHome(){
   $("#homeQuick").innerHTML=QA.map(([v,ic,t,d,nw],i)=>`<button type="button" class="qact" data-qa="${i}" data-go="${v}"${nw?` data-new="${nw}"`:""}><b><i aria-hidden="true">${ic}</i>${esc(t)}</b><span>${esc(d)}</span></button>`).join("");
   const K=[];
   if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",split:hSplit("salesFY")}));
-    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days`:"from customers",{go:"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
-  if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),"to vendors",{go:"acct",split:hSplit("paybP",D.payb)}));
+    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days`:obHint("cust",D)||"from customers",{go:obGo("cust",D)||"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
+  if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),obHint("sup",D)||"to vendors",{go:obGo("sup",D)||"acct",split:hSplit("paybP",D.payb)}));
   if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
   if(can("stock"))K.push(kpi("Stock alerts",fmt0(D.alerts),"items at zero or below minimum",{go:"stock",tone:D.alerts?"warn":""}));
   if(can("prod"))K.push(kpi("Production this week",D.ops.length?fmt0(Math.round(D.hrs*10)/10)+" h":"—",D.ops.length?`${D.ops.length} operation${D.ops.length>1?"s":""} done · ${D.J.length} jobs open`:D.J.length?`${D.J.length} jobs open, nothing logged yet`:"no job cards yet",{go:"prod",tone:D.late.length?"warn":""}));
@@ -5158,6 +5160,9 @@ function renderHome(){
   $("#homeFlow").hidden=!(has("req.all")||has("po.create")||has("po.approve")||has("acct.book"));
   $("#flowBox").innerHTML=[["Requests with checker",st("Submitted")],["Requests with approver",st("Checked")],["Approved requests",st("Approved")+st("Estimated")],["POs for approval",saved.filter(p=>p.status==="Pending approval").length],["Approved POs open",saved.filter(p=>p.status==="Approved"&&!p.closed).length],["GRNs to book",grns.filter(g=>g.status==="With accounts").length],["GRNs unpaid",grns.filter(g=>["Booked","Part paid"].includes(g.status)).length],["POs closed",saved.filter(p=>p.closed).length]].map(([t,n])=>`<div><b>${n}</b><span>${t}</span></div>`).join("");
 }
+/* before the old ERP's unpaid bills are imported, the To collect / To pay tiles say so and open Import old data */
+const obHint=(k,D)=>(k==="cust"?D.obC:D.obS)?"":`<b class="down">Old ERP unpaid bills not imported yet</b>`;
+const obGo=(k,D)=>!(k==="cust"?D.obC:D.obS)&&can("imp")&&obCan()?"imp":"";
 /* a short table for a home tab */
 /* both plants: per-plant figures under a tile, and one series per plant on the single-measure charts */
 let HP=null;
