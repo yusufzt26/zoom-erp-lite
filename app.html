@@ -625,9 +625,9 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack"><h2 class="sec">Quotation value by customer</h2><div class="note">Quotes and orders dated in the last 90 days, not counting lost ones.</div><div id="sb-bars"></div>
       <h2 class="sec">Won orders, cost so far</h2><div class="tablebox" id="sb-won"></div><div class="note">Material cost comes from approved POs and store issues for the same Job No.</div></div>
   </div>
-  <div class="panel stack"><div class="row"><h2 class="sec">Customers</h2><input id="cu-q" placeholder="Search customer" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-cu-import" type="button">Import from Excel</button><input type="file" id="cu-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Customers</h2><input id="cu-q" placeholder="Search customer or code" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-cu-import" type="button">Import from Excel</button><input type="file" id="cu-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
     <form class="addrow" id="cu-form"><input id="cu-name" placeholder="Customer name"><input id="cu-contact" placeholder="Contact person"><input id="cu-phone" placeholder="Mobile"><input id="cu-city" placeholder="City" style="max-width:140px"><button class="btn primary" type="submit">Add</button></form>
-    <div class="tablebox"><table class="mt" style="min-width:1300px"><thead><tr><th>Customer</th><th>Contact person</th><th>Mobile</th><th>Email</th><th>City</th><th>PIN</th><th>GSTIN</th><th>Address</th><th class="num">Open quotes</th><th class="num">Won this year</th><th>Last contact</th><th></th></tr></thead><tbody id="cu-body"></tbody></table></div></div>
+    <div class="tablebox"><table class="mt" style="min-width:1300px"><thead><tr><th>Code</th><th>Customer</th><th>Contact person</th><th>Mobile</th><th>Email</th><th>City</th><th>PIN</th><th>GSTIN</th><th>Address</th><th class="num">Open quotes</th><th class="num">Won this year</th><th>Last contact</th><th></th></tr></thead><tbody id="cu-body"></tbody></table></div></div>
 </section>
 
 <!-- SALES DOCUMENTS -->
@@ -658,13 +658,13 @@ body.gated header.bar,body.gated main{display:none}
     <div class="panel stack" data-mp="depts"><h2 class="sec">Departments</h2>
       <form class="addrow" id="m-dept-form"><input id="md-name" placeholder="Department"><select id="md-hod"></select><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt"><thead><tr><th>Department</th><th>Department head</th><th></th></tr></thead><tbody id="m-depts"></tbody></table></div></div>
-    <div class="panel stack" data-mp="sups" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
+    <div class="panel stack" data-mp="sups" style="grid-column:1/-1"><div class="row"><h2 class="sec">Suppliers</h2><span class="note" id="ms-n"></span><input id="ms-q" placeholder="Search supplier, code, GSTIN" style="max-width:220px"><span style="flex:1"></span><button class="btn" id="btn-sup-import" type="button">Import customers &amp; suppliers</button><input type="file" id="sup-file" accept=".xlsx,.xls,.csv,.pdf" hidden></div>
       <form class="addrow" id="m-sup-form"><input id="ms-name" placeholder="Supplier name"><input id="ms-gst" placeholder="GSTIN"><input id="ms-terms" placeholder="Pay terms e.g. 60 Days"><button class="btn primary" type="submit">Add</button></form>
-      <div class="note">The state is read from the first two digits of the GSTIN (27 is Maharashtra, so CGST + SGST; any other state gets IGST).</div>
-      <div class="tablebox"><table class="mt" style="min-width:860px"><thead><tr><th>Name</th><th>Address</th><th>GSTIN</th><th>State</th><th>Pay terms</th><th>Contact</th><th></th></tr></thead><tbody id="m-sups"></tbody></table></div></div>
-    <div class="panel stack" data-mp="custs" style="grid-column:1/-1"><div class="row"><h2 class="sec">Customers</h2><span class="note" id="mc-n"></span><input id="mc-q" placeholder="Search name, city, GSTIN" style="max-width:240px"><span style="flex:1"></span><button class="btn" id="btn-mc-import" type="button">Import customers &amp; suppliers</button></div>
+      <div class="note">The state is read from the first two digits of the GSTIN (27 is Maharashtra, so CGST + SGST; any other state gets IGST). Each supplier gets a code (S0001, S0002 …) when it is added; a code that came with imported data is kept. A code is never given to a second party, even after a supplier is removed.</div>
+      <div class="tablebox"><table class="mt" style="min-width:860px"><thead><tr><th>Code</th><th>Name</th><th>Address</th><th>GSTIN</th><th>State</th><th>Pay terms</th><th>Contact</th><th></th></tr></thead><tbody id="m-sups"></tbody></table></div></div>
+    <div class="panel stack" data-mp="custs" style="grid-column:1/-1"><div class="row"><h2 class="sec">Customers</h2><span class="note" id="mc-n"></span><input id="mc-q" placeholder="Search name, code, city, GSTIN" style="max-width:240px"><span style="flex:1"></span><button class="btn" id="btn-mc-import" type="button">Import customers &amp; suppliers</button></div>
       <form class="addrow" id="m-cust-form"><input id="mc-name" placeholder="Customer name"><input id="mc-gst" placeholder="GSTIN"><input id="mc-city" placeholder="City" style="max-width:140px"><button class="btn primary" type="submit">Add</button></form>
-      <div class="tablebox"><table class="mt" style="min-width:1100px"><thead><tr><th>Name</th><th>Address</th><th>City</th><th>PIN</th><th>GSTIN</th><th>State</th><th>Contact</th><th>Mobile</th><th>Email</th><th></th></tr></thead><tbody id="m-custs"></tbody></table></div><div class="note" id="mc-more"></div></div>
+      <div class="tablebox"><table class="mt" style="min-width:1100px"><thead><tr><th>Code</th><th>Name</th><th>Address</th><th>City</th><th>PIN</th><th>GSTIN</th><th>State</th><th>Contact</th><th>Mobile</th><th>Email</th><th></th></tr></thead><tbody id="m-custs"></tbody></table></div><div class="note" id="mc-more"></div></div>
     <div class="panel stack" data-mp="projs" style="grid-column:1/-1"><h2 class="sec">Projects</h2>
       <form class="addrow" id="m-proj-form"><input id="mp-no" placeholder="Job No. e.g. ZT2350"><input id="mp-desc" placeholder="Description"><input id="mp-cust" placeholder="Customer"><button class="btn primary" type="submit">Add</button></form>
       <div class="tablebox"><table class="mt" style="min-width:560px"><thead><tr><th>Job No.</th><th>Description</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody id="m-projs"></tbody></table></div></div>
@@ -768,7 +768,7 @@ function cloudApply(r){const k=r.coll,S=SYNC[k];if(!S)return false;const kk=k+"\
   if(i>=0){const o=a[i];Object.keys(o).forEach(x=>delete o[x]);Object.assign(o,r.data)}else if(S.newest)a.unshift(r.data);else a.push(r.data);return true}
 async function cloudPull(){try{const d=await api("sync?since="+cloud.rev);cloud.logins=d.logins||cloud.logins;let ch=false;(d.records||[]).forEach(r=>{if(cloudApply(r))ch=true});cloud.rev=Math.max(cloud.rev,d.rev);
     if(ch)cloudRefresh();if(cloud.status==="offline")cloudBadge(cloud.pending.size?"saving":"ok")}catch(e){if(!e.auth)cloudBadge("offline")}}
-function cloudRefresh(){
+function cloudRefresh(){PCX=null;
   if(me){const nm=me.name;const u=M.users.find(x=>x.name===nm);if(u&&u!==me){me=u;views.forEach(v=>$("#tab-"+v).hidden=!can(v))}}
   renderBadges();const v=views.find(x=>!$("#view-"+x).hidden);const a=document.activeElement;
   const busy=a&&a!==document.body&&a.matches&&a.matches("input,select,textarea")&&a.closest("main");
@@ -910,7 +910,7 @@ function bindHeader(){fillPlantSels();
   $("#e-job").value=est.job||"";$("#e-date").value=est.date||today();$("#e-unit").value=est.unit||"NOS";$("#e-need").value=est.need||"";$("#e-plant").value=est.plant||defPlant();
   [["#e-job","job"],["#e-date","date"],["#e-unit","unit"],["#e-need","need"],["#e-plant","plant"]].forEach(([s,k])=>$(s).oninput=e=>{est[k]=e.target.value;saveEst()});
   $("#exampleNote").hidden=!isExample;
-  $("#suppliers").innerHTML=suppliers.map(s=>`<option value="${esc(s.name)}">`).join("");
+  $("#suppliers").innerHTML=partyOpts(suppliers);
   fillItemList();
 }
 function lineAmt(l){return (+l.rate||0)*(+l.qty||0)}
@@ -1221,7 +1221,7 @@ $("#btn-vendor").onclick=()=>{if(!po)return;const sp=supOf(po.sup)||{},c=String(
 $("#btn-pv-cancel").onclick=()=>{$("#poVendor").hidden=true};
 const poMsg=()=>`Dear Sir/Madam,\n\nPlease find attached our Purchase Order No. ${po.no} dated ${dmy(po.date)}${po.needBy?", delivery required by "+dmy(po.needBy):""}.\nKindly acknowledge the order and confirm the delivery date.\n\nRegards,\n${me.name}\n${COMPANY.name}`;
 function poSent(via){if(!po||po.status!=="Approved")return;const sp=supOf(po.sup),em=$("#pv-email").value.trim(),ph=$("#pv-phone").value.trim();
-  if(sp&&((em&&sp.email!==em)||(ph&&sp.phone!==ph))){if(em)sp.email=em;if(ph)sp.phone=ph;store.set("suppliers",suppliers)}
+  if(sp&&((em&&sp.email!==em)||(ph&&sp.phone!==ph))){if(em)sp.email=em;if(ph)sp.phone=ph;saveSups()}
   po.sentAt=today();po.sentBy=me.name;po.sentVia=via;recordPO("Approved","Sent to vendor"+(via?" by "+via:""));
   $("#poVendor").hidden=true;toast(`PO ${po.no} marked as sent to ${po.sup||"the vendor"}`);renderPO()}
 $("#btn-pv-mail").onclick=()=>{const em=$("#pv-email").value.trim();if(!/@/.test(em)){toast("Enter the supplier's email");$("#pv-email").focus();return}
@@ -1263,7 +1263,7 @@ $("#btn-po-back").onclick=()=>{const c=$("#po-comment").value.trim();if(!c){toas
   po.backNote=c;recordPO("Sent back","Sent back for correction",c);$("#po-comment").value="";toast(`PO ${po.no} sent back to the purchaser`);renderPO()};
 function learnFromPO(){
   po.lines.forEach(l=>{const it=l.item||l.desc;if(it&&l.rate)rates[rkey(it,l.item?l.spec:"")]={name:l.item?[l.item,l.spec].filter(Boolean).join(" - "):it,rate:+l.rate,date:po.date,src:"PO "+po.no}});store.set("rates",rates);
-  if(po.sup&&!suppliers.some(s=>key(s.name)===key(po.sup))){suppliers.push({name:po.sup,addr:po.supAddr,state:po.gstmode==="inter"?"":"27"});store.set("suppliers",suppliers)}
+  if(po.sup&&!suppliers.some(s=>key(s.name)===key(po.sup))){suppliers.push({name:po.sup,addr:po.supAddr,state:po.gstmode==="inter"?"":"27"});saveSups()}
   bindHeader();
 }
 $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
@@ -1272,7 +1272,7 @@ $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
 function renderSaved(){
   const L=$("#savedList");
   if(!saved.length){L.innerHTML=`<div class="empty">No saved purchase orders yet. Saved POs appear here with supplier, job and total.</div>`;return}
-  const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&(!q||key([s.no,s.sup,s.ref,s.reqNo,s.status].join(" ")).includes(q))).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
+  const q=key($("#saved-q").value||"");const S=saved.map((s,i)=>[s,i]).filter(([s])=>inPer(s.date,"saved")&&inPlant(s)&&(!q||key([s.no,pcx(s.sup),s.ref,s.reqNo,s.status].join(" ")).includes(q))).reverse();$("#saved-n").textContent=`${S.length} of ${saved.length}`;
   L.innerHTML=(S.length?"":`<div class="empty">No PO matches that search.</div>`)+S.map(([s,i])=>`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}<br><span class="note">${esc(plantName(s.plant))}</span></b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span></span><span>${stChip(s.status||"Draft")}${s.status==="Approved"&&!s.closed&&(s.sentAt||!s.recv)?(s.sentAt?' <span class="chip st-PO" title="Sent '+dmy(s.sentAt)+'">Sent to vendor</span>':' <span class="chip st-Submitted">Not sent to vendor</span>'):""}${s.recv?" "+stChip(s.recv):""}${payChip(s)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn" data-open="${i}">Open</button></div>`).join("");
 }
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,s.ref].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
@@ -1789,7 +1789,7 @@ function renderPend(){const P=$("#homePend");P.hidden=!(has("po.create")||has("r
   if(pendTab==="order"){const L=A.filter(x=>!q||key([x.r.no,x.name,x.r.job,x.r.by,x.r.dept].join(" ")).includes(q));
     $("#pendNote").textContent="Approved request items with quantity not yet on any PO. Order them from the Buy sheet.";
     $("#pendBody").innerHTML=L.length?`<div class="tablebox"><table class="est" style="min-width:680px"><thead><tr><th>Request</th><th>Item</th><th>Need by</th><th class="num">Requested</th><th class="num">On PO</th><th class="num">Pending</th><th></th></tr></thead><tbody>${L.map(x=>{const late=x.r.need&&x.r.need<t;return`<tr><td><b style="font-family:var(--mono)">${esc(x.r.no)}</b><br><span class="note">${esc(x.r.job||x.r.dept||"")}${x.r.by?" · "+esc(x.r.by):""}</span></td><td>${esc(x.name)}</td><td style="${late?"color:var(--danger);font-weight:600":""}">${dmy(x.r.need)||"-"}${late?" (late)":""}</td><td class="num">${q3(x.qty)} ${esc(x.unit)}</td><td class="num">${x.onPO?q3(x.onPO):"-"}</td><td class="num"><b style="color:var(--danger)">${q3(x.toOrder)}</b></td><td><button class="btn" type="button" data-preq="${esc(x.r.no)}">Open</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">${q?"Nothing matches that search.":"Nothing pending. Every approved request item is on a PO."}</div>`}
-  else{const L=Bv.filter(x=>!q||key([x.p.no,x.p.sup,x.name,x.p.reqNo,x.p.ref].join(" ")).includes(q));
+  else{const L=Bv.filter(x=>!q||key([x.p.no,pcx(x.p.sup),x.name,x.p.reqNo,x.p.ref].join(" ")).includes(q));
     $("#pendNote").textContent="PO items not yet received in full, from requests and direct POs. They leave this list when the store makes the GRN.";
     $("#pendBody").innerHTML=L.length?`<div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th>PO</th><th>Supplier</th><th>Item</th><th>Need by</th><th class="num">Ordered</th><th class="num">Received</th><th class="num">Pending</th><th></th></tr></thead><tbody>${L.map(x=>{const nb=x.p.needBy,late=nb&&nb<t;return`<tr><td><b style="font-family:var(--mono)">PO ${esc(x.p.no)}</b><br><span class="note">${x.p.reqNo?"Request "+esc(x.p.reqNo):"Direct"}</span> ${x.p.status!=="Approved"?stChip(x.p.status||"Draft"):""}</td><td>${esc(x.p.sup||"-")}</td><td>${esc(x.name)}</td><td style="${late?"color:var(--danger);font-weight:600":""}">${dmy(nb)||"-"}${late?" (late)":""}</td><td class="num">${q3(x.ord)} ${esc(x.unit)}</td><td class="num">${x.acc?q3(x.acc):"-"}</td><td class="num"><b>${q3(x.ord-x.acc)}</b></td><td><button class="btn" type="button" data-ppo="${esc(x.p.no)}">Open</button></td></tr>`}).join("")}</tbody></table></div>`:`<div class="empty">${q?"Nothing matches that search.":"Nothing pending. All PO items are received."}</div>`}
 }
@@ -2550,12 +2550,58 @@ function renderBadges(){
   syncGroups(views.find(x=>!$("#view-"+x).hidden));
 }
 
+/* ---------- supplier / customer codes ---------- */
+// Same rules as netlify/codes.mjs (kept in step by test/codes.test.mjs). In the cloud the server keeps the register; in preview mode it is kept in this browser.
+function allotPartyCodes(reg, items, pre) {
+  const norm = (c) => String(c ?? "").trim().toUpperCase().replace(/\s+/g, "").slice(0, 24);
+  const num = (c) => { const m = String(c).match(/(\d{1,12})$/); return m ? Number(m[1]) : 0; };
+  let top = null;
+  for (const [code, r] of reg) if (r.num > 0 && (!top || r.num > top.num)) top = { code, num: r.num };
+  const add = [];
+  const put = (code, k, name) => { const r = { code, num: num(code), k, name: String(name || "").slice(0, 200) }; reg.set(code, { k, num: r.num }); add.push(r); if (r.num > 0 && (!top || r.num > top.num)) top = { code, num: r.num }; return code; };
+  const fmt = (n) => { if (!top) return pre + String(n).padStart(4, "0"); const p = top.code.replace(/\d+$/, ""), w = top.code.length - p.length; return p + String(n).padStart(w, "0"); };
+  const next = (k, name) => { let n = (top ? top.num : 0) + 1, c; while (reg.has(c = fmt(n))) n++; return put(c, k, name); };
+  const codes = items.map((it) => {
+    const k = String(it.k || ""), c = norm(it.code);
+    if (c) { const r = reg.get(c); if (!r) return { code: put(c, k, it.name) }; if (r.k === k) return { code: c }; return { code: next(k, it.name), replaced: c }; }
+    if (!it.fresh && k) { let best = null; for (const [code, r] of reg) if (r.k === k && (!best || r.num > best.num)) best = { code, num: r.num }; if (best) return { code: best.code }; }
+    return { code: next(k, it.name) };
+  });
+  return { codes, add };
+}
+var PCODE={sup:{pre:"S",arr:()=>suppliers,save:()=>saveSups(),render:()=>{if(typeof renderSups==="function")renderSups()}},
+  cust:{pre:"C",arr:()=>customers,save:()=>saveCusts(),render:()=>{if(typeof renderMastCusts==="function")renderMastCusts();if(typeof renderCusts==="function"&&can("sales"))renderCusts()}}};
+var codeT={},codeBusy={},PCX=null;
+function codesSoon(kind){PCX=null;clearTimeout(codeT[kind]);codeT[kind]=setTimeout(()=>ensureCodes(kind),300)}
+async function codeAllot(kind,items){
+  if(CLOUD)return(await api("codes",{method:"POST",body:{kind,items}})).codes;
+  const R=local.get("pcodes",{}),reg=new Map(Object.entries(R[kind]||{}));const{codes}=allotPartyCodes(reg,items,PCODE[kind].pre);
+  R[kind]=Object.fromEntries(reg);local.set("pcodes",R);return codes}
+async function ensureCodes(kind){if(!me)return;if(codeBusy[kind]){codeBusy[kind]=2;return}
+  const P=PCODE[kind],A=P.arr(),need=A.filter(x=>x&&x.name&&(!x.code||x.codeWant));if(!need.length)return;
+  codeBusy[kind]=1;let ch=false;
+  try{const used=new Map();A.forEach(x=>{if(x&&x.code&&!x.codeWant)used.set(x.code,x)});const rep=[],redo=[];
+    const res=await codeAllot(kind,need.map(x=>({k:key(x.name),name:x.name,code:x.codeWant||""})));
+    need.forEach((x,i)=>{const r=res[i];if(!r||(x.code&&!x.codeWant))return;const o=used.get(r.code);
+      if(o&&o!==x){redo.push(x);return}x.code=r.code;delete x.codeWant;used.set(r.code,x);ch=true;if(r.replaced)rep.push(`${r.replaced} (${x.name}) → ${r.code}`)});
+    if(redo.length){const r2=await codeAllot(kind,redo.map(x=>({k:key(x.name),name:x.name,fresh:true})));redo.forEach((x,i)=>{if(r2[i]){x.code=r2[i].code;delete x.codeWant;ch=true}})}
+    if(rep.length)toast(`${rep.length} code${rep.length>1?"s were":" was"} already given to another party, so a new code was given: ${rep.slice(0,3).join("; ")}${rep.length>3?" …":""}`)}
+  catch(e){if(!e.auth)setTimeout(()=>codesSoon(kind),60000)}
+  finally{const again=codeBusy[kind]===2;codeBusy[kind]=0;if(ch){P.save();P.render()}else if(again)codesSoon(kind)}}
+// name + code(s), for search boxes: typing a code finds the party on any list
+function pcx(n){if(!PCX){PCX=new Map();[suppliers,customers].forEach(A=>(A||[]).forEach(x=>{if(x&&x.code){const k=key(x.name);PCX.set(k,((PCX.get(k)||"")+" "+x.code).trim())}}))}
+  const c=PCX.get(key(n));return c?(n||"")+" "+c:(n||"")}
+const partyOpts=A=>A.map(x=>`<option value="${esc(x.name)}"${x.code?` label="${esc(x.code)}"`:""}>`).join("");
+// a code typed into a supplier or customer field is turned into that party's name
+document.addEventListener("change",e=>{const t=e.target;if(!t||t.tagName!=="INPUT")return;const l=t.getAttribute("list")||String(t.dataset.ac||"").replace(/^list:/,"");if(l!=="suppliers"&&l!=="custnames")return;
+  const v=t.value.trim().toUpperCase().replace(/\s+/g,"");if(!v)return;const A=l==="suppliers"?suppliers:customers;if(A.some(x=>key(x.name)===key(v)))return;
+  const p=A.find(x=>x&&x.code===v);if(p){t.value=p.name;t.dispatchEvent(new Event("input",{bubbles:true}))}},true);
 /* ---------- masters ---------- */
-const saveSups=()=>store.set("suppliers",suppliers);
+const saveSups=()=>{store.set("suppliers",suppliers);codesSoon("sup")};
 function renderSups(){
-  const sq=key(($("#ms-q")||{}).value||"");const SL=suppliers.map((x,i)=>[x,i]).filter(([x])=>!sq||key(x.name+" "+(x.gstin||"")+" "+(x.city||"")).includes(sq));$("#ms-n").textContent=suppliers.length+" suppliers";
-  $("#m-sups").innerHTML=SL.slice(0,sq?300:150).map(([x,i])=>`<tr data-si="${i}"><td><input id="ms${i}-n" data-sf="name" value="${esc(x.name)}" style="font-weight:600"></td><td><input id="ms${i}-a" data-sf="addr" value="${esc((x.addr||"").replace(/\n/g,", "))}"></td><td><input id="ms${i}-g" data-sf="gstin" value="${esc(x.gstin||"")}" style="font-family:var(--mono);width:150px"></td><td>${x.state==="27"?"27 Maharashtra":esc(x.state||"-")}</td><td><input id="ms${i}-t" data-sf="terms" value="${esc(x.terms||"")}" style="width:90px"></td><td><input id="ms${i}-c" data-sf="contact" value="${esc(x.contact||"")}"></td><td><button class="x" data-sdel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">No suppliers yet.</td></tr>`;
-  $("#suppliers").innerHTML=suppliers.map(x=>`<option value="${esc(x.name)}">`).join("");
+  const sq=key(($("#ms-q")||{}).value||"");const SL=suppliers.map((x,i)=>[x,i]).filter(([x])=>!sq||key(x.name+" "+(x.code||"")+" "+(x.gstin||"")+" "+(x.city||"")).includes(sq));$("#ms-n").textContent=suppliers.length+" suppliers";
+  $("#m-sups").innerHTML=SL.slice(0,sq?300:150).map(([x,i])=>`<tr data-si="${i}"><td style="font-family:var(--mono);white-space:nowrap" title="Code, given automatically and never reused">${esc(x.code||"…")}</td><td><input id="ms${i}-n" data-sf="name" value="${esc(x.name)}" style="font-weight:600"></td><td><input id="ms${i}-a" data-sf="addr" value="${esc((x.addr||"").replace(/\n/g,", "))}"></td><td><input id="ms${i}-g" data-sf="gstin" value="${esc(x.gstin||"")}" style="font-family:var(--mono);width:150px"></td><td>${x.state==="27"?"27 Maharashtra":esc(x.state||"-")}</td><td><input id="ms${i}-t" data-sf="terms" value="${esc(x.terms||"")}" style="width:90px"></td><td><input id="ms${i}-c" data-sf="contact" value="${esc(x.contact||"")}"></td><td><button class="x" data-sdel="${i}" aria-label="Remove ${esc(x.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">No suppliers yet.</td></tr>`;
+  $("#suppliers").innerHTML=partyOpts(suppliers);
 }
 $("#m-sups").addEventListener("change",e=>{const tr=e.target.closest("tr"),f=e.target.dataset.sf;if(!tr||!f)return;const x=suppliers[+tr.dataset.si];x[f]=e.target.value.trim();
   if(f==="gstin"){const st=x.gstin.slice(0,2);if(/^\d\d$/.test(st))x.state=st}if(f==="addr")x.addr=x.addr.replace(/,\s*/g,",\n");saveSups();renderSups()});
@@ -2564,7 +2610,7 @@ $("#m-sups").addEventListener("click",e=>{const i=e.target.dataset.sdel;if(i!=nu
 $("#m-sup-form").onsubmit=e=>{e.preventDefault();const n=$("#ms-name").value.trim();if(!n){toast("Fill in the supplier name");return}
   if(suppliers.some(x=>key(x.name)===key(n))){toast(`${n} is already in the list`);return}
   const g=$("#ms-gst").value.trim().toUpperCase();suppliers.push({name:n,addr:"",gstin:g,state:/^\d\d/.test(g)?g.slice(0,2):"27",terms:$("#ms-terms").value.trim()||"60 Days",contact:""});saveSups();renderSups();
-  $("#ms-name").value="";$("#ms-gst").value="";$("#ms-terms").value="";toast(`Added ${n}. Fill in the address in the table.`)};
+  $("#ms-name").value="";$("#ms-gst").value="";$("#ms-terms").value="";toast(`Added ${n}. A supplier code is being given. Fill in the address in the table.`)};
 function renderMasters(){
   renderSups();renderItems();renderSalesCfg();renderMachines();renderMastCusts();renderOpening();renderImportHub();mastPick();
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
@@ -2619,7 +2665,7 @@ function refreshWho(){
 function setMe(name){
   me=CLOUD?(M.users.find(u=>u.name===BOOT.me)||{name:BOOT.me,dept:"",role:"Staff",rights:[]}):(M.users.find(u=>u.name===name)||M.users.find(u=>u.role==="Admin")||M.users[0]);store.set("me",me&&me.name);if(CLOUD&&$("#cuName"))$("#cuName").textContent=`${me.name} · ${me.role}`;
   views.forEach(v=>$("#tab-"+v).hidden=!can(v));refreshWho();
-  cur=null;const open=views.find(v=>!$("#view-"+v).hidden);show("home");
+  cur=null;const open=views.find(v=>!$("#view-"+v).hidden);show("home");codesSoon("sup");codesSoon("cust");
 }
 $("#who").onchange=e=>setMe(e.target.value);
 let sigFor=null;
@@ -2850,7 +2896,7 @@ const STAGES=["Enquiry","Quotation sent","Negotiation","Won","Lost"];
 const LOST_WHY=["Price too high","Delivery time","Lost to competitor","Project cancelled / on hold","No response","Other"];
 const SOURCES=["Phone","Email","Visit","Reference","Existing customer","Exhibition","Website","Other"];
 const QT_TERMS="Prices: Ex-works Pune\nGST: Extra as applicable\nPayment: 40% advance with PO, 50% on T1 sample approval, 10% before dispatch\nDelivery: 10 to 12 weeks from PO and final drawing approval\nValidity: 30 days from the date of this quotation";
-let customers=store.get("customers",[]);const saveCusts=()=>store.set("customers",customers);
+let customers=store.get("customers",[]);const saveCusts=()=>{store.set("customers",customers);codesSoon("cust")};
 let deals=store.get("deals",[]);const saveDeals=()=>store.set("deals",deals);
 let fups=store.get("fups",[]);const saveFups=()=>store.set("fups",fups);
 const nextDealNo=()=>Math.max(1000,...deals.map(d=>+d.no||0))+1;
@@ -2878,7 +2924,7 @@ function renderSales(){{const b=$("#btn-deal-new");if(b)b.hidden=!has("sales.cre
   const os=$("#sb-owner"),ov=os.value;os.hidden=!seeAllSales();
   os.innerHTML=`<option value="">All salespeople</option>`+[...new Set([...salesOwners(),...deals.map(d=>d.owner).filter(Boolean)])].map(n=>`<option${n===ov?" selected":""}>${esc(n)}</option>`).join("");
   const q=key($("#sb-q").value),own=os.value,d90=addDays(today(),-90),t=today();
-  const D=deals.filter(myDeal).filter(d=>(!own||d.owner===own)&&(!q||key(d.cust+" "+d.title+" QT "+d.no).includes(q)));
+  const D=deals.filter(myDeal).filter(d=>(!own||d.owner===own)&&(!q||key(pcx(d.cust)+" "+d.title+" QT "+d.no).includes(q)));
   const nextF=no=>fups.filter(f=>!f.done&&String(f.deal)===String(no)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
   $("#sb-board").innerHTML=STAGES.map(s=>{let L=D.filter(d=>d.stage===s);if(s==="Won"||s==="Lost")L=L.filter(d=>(d.closedAt||d.date)>=d90).sort((a,b)=>(b.closedAt||"").localeCompare(a.closedAt||""));
     const v=L.reduce((a,d)=>a+dealVal(d),0);
@@ -2886,7 +2932,7 @@ function renderSales(){{const b=$("#btn-deal-new");if(b)b.hidden=!has("sales.cre
       const chip=s==="Won"?(d.job?`<span class="chip calc">Job ${esc(d.job)}</span>`:`<span class="chip sugg">Job No. needed</span>`):s==="Lost"?`<span class="chip st-Back">${esc(d.lostWhy||"Lost")}</span>`:f?`<span class="chip ${f.date<t?"st-Back":f.date===t?"sugg":"calc"}">${f.date<t?"Overdue":f.date===t?"Follow up today":"Next "+dmy(f.date).slice(0,5)}</span>`:"";
       return`<button type="button" class="sb-card" data-deal="${esc(d.no)}"><b>${esc(d.cust)}</b><span class="m">${s==="Enquiry"?"RFQ":"QT"}-${esc(d.no)} · ${esc(d.title)}</span><span class="v">${dealVal(d)?fmtL(dealVal(d)):"Value not set"}</span>${chip?`<span>${chip}</span>`:""}${seeAllSales()&&d.owner?`<span class="m">${esc(d.owner)}</span>`:""}</button>`}).join("")||`<div class="sb-empty">None</div>`}</div>`}).join("");
   renderFups();renderSalesCharts();renderCusts();renderDealForm();
-  $("#custnames").innerHTML=customers.map(c=>`<option value="${esc(c.name)}">`).join("");
+  $("#custnames").innerHTML=partyOpts(customers);
 }
 $("#sb-owner").onchange=()=>renderSales();$("#sb-q").oninput=()=>renderSales();
 $("#sb-board").addEventListener("click",e=>{const b=e.target.closest("[data-deal]");if(!b)return;openDeal(b.dataset.deal)});
@@ -3024,11 +3070,11 @@ function renderSalesCharts(){const d90=addDays(today(),-90),m={};
   const W=deals.filter(myDeal).filter(d=>d.stage==="Won"&&d.job).sort((a,b)=>(b.closedAt||"").localeCompare(a.closedAt||"")).slice(0,10);
   $("#sb-won").innerHTML=W.length?`<table class="mt"><thead><tr><th>Job</th><th class="num">Order</th><th class="num">Material POs</th><th class="num">Store issued</th><th class="num">Margin</th></tr></thead><tbody>${W.map(d=>{const r=PC[key(d.job)]||{po:0,iss:0,ret:0},v=dealVal(d),mat=Math.max(r.po,r.iss-r.ret),mg=v?Math.round((v-mat)*100/v):0;
     return`<tr><td><b>${esc(d.job)}</b> <span class="note">${esc(d.cust)}</span></td><td class="num">${fmtL(v)}</td><td class="num">${fmtL(r.po)}</td><td class="num">${fmtL(r.iss-r.ret)}</td><td class="num"><span class="chip ${mg>=40?"calc":mg>=20?"sugg":"st-Back"}">${v?mg+"%":"-"}</span></td></tr>`}).join("")}</tbody></table>`:`<div class="empty">No won orders with a Job No. yet.</div>`}
-function renderCusts(){const q=key($("#cu-q").value),y=today().slice(0,4);const L=customers.map((c,i)=>[c,i]).filter(([c])=>!q||key(c.name+" "+c.city+" "+c.contact).includes(q));
+function renderCusts(){const q=key($("#cu-q").value),y=today().slice(0,4);const L=customers.map((c,i)=>[c,i]).filter(([c])=>!q||key(c.name+" "+(c.code||"")+" "+c.city+" "+c.contact).includes(q));
   const last=n=>{let a="";deals.filter(d=>key(d.cust)===key(n)).forEach(d=>(d.log||[]).forEach(l=>{if(l.at>a)a=l.at}));fups.filter(f=>f.done&&key(f.cust)===key(n)).forEach(f=>{if(f.doneAt>a)a=f.doneAt});return a};
   $("#cu-body").innerHTML=L.slice(0,200).map(([c,i])=>{const D=deals.filter(d=>key(d.cust)===key(c.name)),lc=last(c.name);
-    return`<tr data-ci="${i}"><td><input id="cu${i}-n" data-cf="name" value="${esc(c.name)}" style="font-weight:600;min-width:180px"></td><td><input id="cu${i}-c" data-cf="contact" value="${esc(c.contact)}" style="min-width:130px"></td><td><input id="cu${i}-p" data-cf="phone" value="${esc(c.phone)}" style="width:120px"></td><td><input id="cu${i}-e" data-cf="email" value="${esc(c.email)}" style="min-width:170px"></td><td><input id="cu${i}-t" data-cf="city" value="${esc(c.city)}" style="width:110px"></td><td><input id="cu${i}-z" data-cf="pin" value="${esc(c.pin)}" style="width:80px"></td><td><input id="cu${i}-g" data-cf="gstin" value="${esc(c.gstin)}" style="font-family:var(--mono);width:150px"></td><td><input id="cu${i}-a" data-cf="addr" value="${esc((c.addr||"").replace(/\n/g,", "))}" style="min-width:200px"></td>
-      <td class="num">${D.filter(d=>!["Won","Lost"].includes(d.stage)).length}</td><td class="num" style="white-space:nowrap">${fmtL(D.filter(d=>d.stage==="Won"&&(d.closedAt||"").startsWith(y)).reduce((a,d)=>a+dealVal(d),0))}</td><td>${lc?dmy(lc.slice(0,10)):"-"}</td><td>${has("sales.delete")?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="12" class="empty">${customers.length?"No customer matches.":"No customers yet. Add them above or import your customer list from Excel."}</td></tr>`;
+    return`<tr data-ci="${i}"><td style="font-family:var(--mono);white-space:nowrap" title="Code, given automatically and never reused">${esc(c.code||"…")}</td><td><input id="cu${i}-n" data-cf="name" value="${esc(c.name)}" style="font-weight:600;min-width:180px"></td><td><input id="cu${i}-c" data-cf="contact" value="${esc(c.contact)}" style="min-width:130px"></td><td><input id="cu${i}-p" data-cf="phone" value="${esc(c.phone)}" style="width:120px"></td><td><input id="cu${i}-e" data-cf="email" value="${esc(c.email)}" style="min-width:170px"></td><td><input id="cu${i}-t" data-cf="city" value="${esc(c.city)}" style="width:110px"></td><td><input id="cu${i}-z" data-cf="pin" value="${esc(c.pin)}" style="width:80px"></td><td><input id="cu${i}-g" data-cf="gstin" value="${esc(c.gstin)}" style="font-family:var(--mono);width:150px"></td><td><input id="cu${i}-a" data-cf="addr" value="${esc((c.addr||"").replace(/\n/g,", "))}" style="min-width:200px"></td>
+      <td class="num">${D.filter(d=>!["Won","Lost"].includes(d.stage)).length}</td><td class="num" style="white-space:nowrap">${fmtL(D.filter(d=>d.stage==="Won"&&(d.closedAt||"").startsWith(y)).reduce((a,d)=>a+dealVal(d),0))}</td><td>${lc?dmy(lc.slice(0,10)):"-"}</td><td>${has("sales.delete")?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="13" class="empty">${customers.length?"No customer matches.":"No customers yet. Add them above or import your customer list from Excel."}</td></tr>`;
   if(!has("sales.edit"))$("#cu-body").querySelectorAll("input").forEach(x=>x.disabled=true)}
 $("#cu-q").oninput=()=>renderCusts();
 $("#cu-body").addEventListener("change",e=>{const f=e.target.dataset.cf,tr=e.target.closest("tr");if(!f||!tr)return;const c=customers[+tr.dataset.ci],v=e.target.value.trim(),old=c.name;
@@ -3046,7 +3092,7 @@ $("#btn-cu-import").onclick=()=>{if(!has("sales.edit")){toast("You can view sale
 $("#cu-file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)partyImport(f,"cust")};
 $("#btn-sup-import").onclick=()=>$("#sup-file").click();
 $("#sup-file").onchange=e=>{const f=e.target.files[0];e.target.value="";if(f)partyImport(f,"sup")};
-const PARTY_FIELDS=[["name","Name",["accountname","partyname","ledgername","customername","suppliername","vendorname","nameofledger","name","party","account","companyname","company","customer","supplier","vendor","client","clientname"]],
+const PARTY_FIELDS=[["pcode","Code",["suppliercode","vendorcode","customercode","partycode","accountcode","ledgercode","suppcode","vencode","custcode","code","codeno","vendorno","supplierno","customerno"]],["name","Name",["accountname","partyname","ledgername","customername","suppliername","vendorname","nameofledger","name","party","account","companyname","company","customer","supplier","vendor","client","clientname"]],
   ["group","Customer / supplier",["groupname","group","accountgroup","ledgergroup","under","partytype","accounttype","type"]],
   ["gstin","GSTIN",["gstno","gstin","gstnumber","gstinuin","gstinno","gst"]],["pan","PAN",["panno","pan","pannumber"]],
   ["msme","MSME / Udyam No.",["msmeno","msme","udyamno","udyam","msmenumber","udyamregistrationno"]],["msmeType","MSME type",["msmetype","udyamtype","enterprisetype"]],
@@ -3065,30 +3111,30 @@ async function partyImport(f,dflt){if(!window.XLSX){toast("Excel tools did not l
       const gr=g("group");let kind=dflt;if(best.map.group!=null){kind=/cust|debtor|buyer|client/i.test(gr)?"cust":/supp|vendor|creditor|seller/i.test(gr)?"sup":"";if(!kind){skip++;skipG[gr||"(blank)"]=(skipG[gr||"(blank)"]||0)+1;return}}
       const gstin=g("gstin").toUpperCase().replace(/\s/g,""),code=(GSTIN_RE.test(gstin)?gstin.slice(0,2):(g("stcode").replace(/\D/g,"")||"").padStart(2,"0"));
       const clean=v=>v.replace(/[,\s]+$/,"");const line=[g("a1"),g("a2"),g("area")].map(clean).filter(Boolean).join(", ");
-      const o={kind,name:n,gstin,bad:!!gstin&&!GSTIN_RE.test(gstin),state:code!=="00"?code:"",stname:g("stname"),pan:g("pan").toUpperCase(),msme:g("msme"),msmeType:g("msmeType"),addr:line,city:g("city"),pin:g("pin").replace(/\D/g,""),contact:g("contact"),phone:g("phone"),email:g("email"),terms:g("terms")};
+      const o={kind,name:n,pcode:g("pcode").toUpperCase().replace(/\s+/g,""),gstin,bad:!!gstin&&!GSTIN_RE.test(gstin),state:code!=="00"?code:"",stname:g("stname"),pan:g("pan").toUpperCase(),msme:g("msme"),msmeType:g("msmeType"),addr:line,city:g("city"),pin:g("pin").replace(/\D/g,""),contact:g("contact"),phone:g("phone"),email:g("email"),terms:g("terms")};
       const sk=kind+key(n),prev=seen.get(sk);
       if(prev){if(o.gstin&&prev.gstin&&o.gstin!==prev.gstin){o.name=`${n} (${o.gstin})`;twin.push(n)}else{Object.keys(o).forEach(k=>{if(o[k]&&!prev[k])prev[k]=o[k]});dupN++;return}}
       seen.set(kind+key(o.name),o);P.push(o)});
     const C=P.filter(p=>p.kind==="cust"),S=P.filter(p=>p.kind==="sup");
     const cNew=C.filter(x=>!custByName(x.name)).length,sNew=S.filter(x=>!suppliers.some(s=>key(s.name)===key(x.name))).length;
-    const unreg=P.filter(p=>!p.gstin).length,bad=P.filter(p=>p.bad);
+    const unreg=P.filter(p=>!p.gstin).length,bad=P.filter(p=>p.bad),withCode=P.filter(p=>p.pcode).length;
     const d=document.createElement("div");d.className="modal";document.body.appendChild(d);
     d.innerHTML=`<div class="panel stack" style="max-width:920px;width:100%;max-height:92vh;overflow:auto"><div class="row"><h2 class="sec">Import customers and suppliers from ${esc(f.name)}</h2><span style="flex:1"></span><button class="btn" id="pi-x" type="button">Cancel</button></div>
       <div class="note">Sheet "${esc(best.sn)}". Columns used: ${PARTY_FIELDS.filter(([k])=>best.map[k]!=null).map(([k,l])=>`${esc(l)} = <b>${esc(String(best.rows[best.hr][best.map[k]]).replace(/\s+/g," "))}</b>`).join(", ")}.${best.map.group==null?` There is no customer/supplier column, so every row is read as a ${dflt==="cust"?"customer":"supplier"}.`:""}</div>
-      <div class="row"><span class="chip calc">${C.length} customers (${cNew} new)</span><span class="chip calc">${S.length} suppliers (${sNew} new)</span>${skip?`<span class="chip st-Draft">${skip} other accounts left out: ${Object.entries(skipG).map(([k,v])=>esc(k)+" "+v).join(", ")}</span>`:""}<span class="chip sugg">${unreg} without GSTIN (unregistered)</span>${bad.length?`<span class="chip st-Back">${bad.length} GSTIN not in the right format</span>`:""}${dupN?`<span class="chip st-Draft">${dupN} repeated names merged (e.g. Pvt Ltd / Pvt. Ltd.)</span>`:""}</div>${twin.length?`<div class="note">Same name but a different GSTIN, so kept as separate parties with the GSTIN added to the name: ${twin.map(esc).join("; ")}</div>`:""}
+      <div class="row"><span class="chip calc">${C.length} customers (${cNew} new)</span><span class="chip calc">${S.length} suppliers (${sNew} new)</span>${skip?`<span class="chip st-Draft">${skip} other accounts left out: ${Object.entries(skipG).map(([k,v])=>esc(k)+" "+v).join(", ")}</span>`:""}<span class="chip sugg">${unreg} without GSTIN (unregistered)</span><span class="chip calc">${withCode} with a code in the file${P.length-withCode?`, ${P.length-withCode} will get the next free code`:""}</span>${bad.length?`<span class="chip st-Back">${bad.length} GSTIN not in the right format</span>`:""}${dupN?`<span class="chip st-Draft">${dupN} repeated names merged (e.g. Pvt Ltd / Pvt. Ltd.)</span>`:""}</div>${twin.length?`<div class="note">Same name but a different GSTIN, so kept as separate parties with the GSTIN added to the name: ${twin.map(esc).join("; ")}</div>`:""}
       ${bad.length?`<div class="note">Check these GSTINs: ${bad.slice(0,8).map(b=>esc(b.name)+" ("+esc(b.gstin)+")").join("; ")}${bad.length>8?" …":""}</div>`:""}
-      <div class="tablebox"><table class="mt" style="min-width:820px"><thead><tr><th></th><th>Name</th><th>GSTIN</th><th>State</th><th>Address</th><th>City</th><th>PIN</th></tr></thead><tbody>${P.slice(0,12).map(p=>`<tr><td><span class="chip ${p.kind==="cust"?"calc":"sugg"}">${p.kind==="cust"?"Customer":"Supplier"}</span></td><td>${esc(p.name)}</td><td style="font-family:var(--mono)">${esc(p.gstin)||`<span class="note">Unregistered</span>`}</td><td>${esc(p.state)} ${esc(p.stname)}</td><td>${esc(p.addr)}</td><td>${esc(p.city)}</td><td>${esc(p.pin)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="tablebox"><table class="mt" style="min-width:820px"><thead><tr><th></th><th>Code</th><th>Name</th><th>GSTIN</th><th>State</th><th>Address</th><th>City</th><th>PIN</th></tr></thead><tbody>${P.slice(0,12).map(p=>`<tr><td><span class="chip ${p.kind==="cust"?"calc":"sugg"}">${p.kind==="cust"?"Customer":"Supplier"}</span></td><td style="font-family:var(--mono);white-space:nowrap">${esc(p.pcode)||`<span class="note">Next free</span>`}</td><td>${esc(p.name)}</td><td style="font-family:var(--mono)">${esc(p.gstin)||`<span class="note">Unregistered</span>`}</td><td>${esc(p.state)} ${esc(p.stname)}</td><td>${esc(p.addr)}</td><td>${esc(p.city)}</td><td>${esc(p.pin)}</td></tr>`).join("")}</tbody></table></div>
       ${P.length>12?`<div class="note">First 12 of ${P.length} shown.</div>`:""}
       <label class="row" style="gap:8px"><input type="checkbox" id="pi-c" style="width:auto"${C.length&&canC?" checked":""}${canC&&C.length?"":" disabled"}> Import ${C.length} customers${canC?"":" (needs the Sales edit right)"}</label>
       <label class="row" style="gap:8px"><input type="checkbox" id="pi-s" style="width:auto"${S.length&&canS?" checked":""}${canS&&S.length?"":" disabled"}> Import ${S.length} suppliers${canS?"":" (Admin only, from Masters)"}</label>
-      <div class="note">Names already in the list are matched and only their blank details are filled in. Nothing already entered is overwritten.</div>
+      <div class="note">Names already in the list are matched and only their blank details are filled in. Nothing already entered is overwritten. A code from the file is kept; a party with no code gets the next free code. A code already given to another party is never given again, so that row gets the next free code instead.</div>
       <div class="row"><span style="flex:1"></span><button class="btn primary" id="pi-go" type="button">Import</button></div></div>`;
     d.querySelector("#pi-x").onclick=()=>d.remove();
     d.querySelector("#pi-go").onclick=()=>{const doC=d.querySelector("#pi-c").checked,doS=d.querySelector("#pi-s").checked;let nc=0,uc=0,ns=0,us=0;
       const fill=(o,v)=>Object.keys(v).forEach(k=>{if(v[k]&&!o[k])o[k]=v[k]});
-      if(doC){C.forEach(({kind,bad,...x})=>{const c=custByName(x.name);if(c){fill(c,x);uc++}else{customers.push({id:itId(),contact:"",phone:"",email:"",city:"",gstin:"",addr:"",...x});nc++}});saveCusts()}
-      if(doS){S.forEach(({kind,bad,addr,...x})=>{const full=[addr,[x.city,x.pin].filter(Boolean).join(" - "),x.stname].filter(Boolean).join("\n");const v={...x,addr:full,terms:x.terms||"60 Days"};
-        const s=suppliers.find(s=>key(s.name)===key(x.name));if(s){fill(s,v);us++}else{suppliers.push({contact:"",...v,state:v.state||"27"});ns++}});saveSups()}
+      if(doC){C.forEach(({kind,bad,pcode,...x})=>{const c=custByName(x.name);if(c){fill(c,x);if(pcode&&!c.code)c.codeWant=pcode;uc++}else{customers.push({id:itId(),contact:"",phone:"",email:"",city:"",gstin:"",addr:"",...x,...(pcode?{codeWant:pcode}:{})});nc++}});saveCusts()}
+      if(doS){S.forEach(({kind,bad,addr,pcode,...x})=>{const full=[addr,[x.city,x.pin].filter(Boolean).join(" - "),x.stname].filter(Boolean).join("\n");const v={...x,addr:full,terms:x.terms||"60 Days"};
+        const s=suppliers.find(s=>key(s.name)===key(x.name));if(s){fill(s,v);if(pcode&&!s.code)s.codeWant=pcode;us++}else{suppliers.push({contact:"",...v,state:v.state||"27",...(pcode?{codeWant:pcode}:{})});ns++}});saveSups()}
       d.remove();if(typeof renderSups==="function")renderSups();if(typeof renderMastCusts==="function")renderMastCusts();if(can("sales"))renderSales();
       toast(`Imported ${nc} new customers${uc?` (${uc} updated)`:""}, ${ns} new suppliers${us?` (${us} updated)`:""}`)}}
   catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
@@ -3171,7 +3217,7 @@ function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.n
 function sdFromDC(d){if(d.inv){const v=invoices.find(x=>sdId("inv",x)===d.inv);if(v){sdOpen("inv",v,false);toast(`Already billed on ${invNo(v)}`);return}}
   const s=sorders.find(x=>String(x.no)===String(d.so));
   sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,so:d.so||"",dc:[d.no],job:s?s.job||"":"",custPO:s?s.custPO:"",custPODate:s?s.custPODate:"",vehicle:d.vehicle,gst:s?s.gst:18,lines:d.lines.map(l=>({i:l.i,desc:l.desc,hsn:l.hsn,qty:+l.qty,unit:l.unit,rate:s&&l.i!=null&&s.lines[l.i]?s.lines[l.i].rate:l.rate}))}),true)}
-function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>!q||key(sdNo(t,x)+" "+x.cust+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
+function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEach(b=>b.hidden=!has(t+".create"));const q=key(($(`#${t}-q`)||{}).value||""),A=SD[t].arr().filter(x=>inPer(x.date,t)&&inPlant(x)).filter(x=>!q||key(sdNo(t,x)+" "+pcx(x.cust)+" "+(x.custPO||"")+" "+(x.job||"")).includes(q));
   if(t==="inv"){const due=invoices.reduce((a,x)=>a+invDue(x),0),mo=today().slice(0,7),thisM=invoices.filter(x=>x.date.slice(0,7)===mo).reduce((a,x)=>a+invTot(x),0),od=invoices.filter(x=>invDue(x)>0.5&&x.date<addDays(today(),-60)).reduce((a,x)=>a+invDue(x),0);
     $("#inv-tiles").innerHTML=[{n:fmtL(thisM),t:"Billed this month",d:"Including GST"},{n:fmtL(due),t:"To collect",d:"Invoices not fully paid",zero:!due},{n:fmtL(od),t:"Over 60 days",d:"Follow up for payment",warn:od>0,zero:!od}].map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("")}
   const row=x=>{if(t==="so"){const st=soStatus(x);return`<b style="font-family:var(--mono)">${sdNo(t,x)}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.cust)}${x.custPO?" · PO "+esc(x.custPO):""}${x.job?" · Job "+esc(x.job):""}<br><span class="note">${dmy(x.date)}${x.due?" · Delivery "+dmy(x.due):""}</span></span><span><span class="chip ${["Open","Part dispatched"].includes(st)?"sugg":"calc"}">${st}</span></span><span class="num">₹ ${fmt0(sdSub(x))}</span>`}
@@ -3663,7 +3709,7 @@ async function obImport(f,kind){if(!window.XLSX){toast("Excel tools did not load
 const obLabel=k=>k==="cust"?"Customer":"Supplier";
 function renderOpening(){const P=$("#openPanel");if(!P)return;const ed=obCan();
   const q=key(($("#ob-q")||{}).value||""),tf=($("#ob-t")||{}).value||"";
-  const L=obills.filter(o=>(!tf||o.kind===tf)&&(!q||key(o.party+" "+o.bill).includes(q))).sort((a,b)=>a.kind.localeCompare(b.kind)||String(a.party).localeCompare(String(b.party))||a.date.localeCompare(b.date));
+  const L=obills.filter(o=>(!tf||o.kind===tf)&&(!q||key(pcx(o.party)+" "+o.bill).includes(q))).sort((a,b)=>a.kind.localeCompare(b.kind)||String(a.party).localeCompare(String(b.party))||a.date.localeCompare(b.date));
   const tot=k=>obills.filter(o=>o.kind===k).reduce((a,o)=>a+obBal(o),0);
   let pv="";if(obPrev){const R=obPrev.rows,unk=[...new Set(R.filter(o=>!o.known).map(o=>o.party))];
     pv=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c)"><div class="row"><h3 class="rg" style="margin:0">Check before importing: ${obLabel(obPrev.kind).toLowerCase()} bills from ${esc(obPrev.fname)}</h3></div>
@@ -3757,7 +3803,7 @@ async function bkImport(f){if(!window.XLSX){toast("Excel tools did not load. Che
   catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save the statement as .xlsx, .csv or a text PDF and try again.")}}
 function renderBank(){const P=$("#bankPanel");if(!P)return;const ed=has("acct.book");
   const q=key(($("#bk-q")||{}).value||"");const taken=bkTaken(),BD=bkBills("dr"),BC=bkBills("cr");
-  const L=bank.filter(l=>(bkF==="all"||(bkF==="open"?!l.status:l.status===bkF))&&(!q||key(l.narr+" "+l.ref+" "+bkAmt(l)+" "+((l.link||{}).party||"")).includes(q)));
+  const L=bank.filter(l=>(bkF==="all"||(bkF==="open"?!l.status:l.status===bkF))&&(!q||key(l.narr+" "+l.ref+" "+bkAmt(l)+" "+pcx((l.link||{}).party||"")).includes(q)));
   const sg=new Map();L.slice(0,bkMore).forEach(l=>{if(!l.status)sg.set(l.id,bkSuggest(l,l.dr?BD:BC,taken))});
   const exact=[...sg.entries()].filter(([,s])=>s.length&&s[0].score>=100&&!(s[1]&&s[1].score>=100));
   const cnt=k=>bank.filter(l=>k==="open"?!l.status:l.status===k).length;
@@ -3881,9 +3927,9 @@ function mastPick(){const sel=$("#mast-pick");if(!sel)return;const po=projOnly()
 $("#mast-pick").onchange=e=>{mastSel=e.target.value;try{localStorage.setItem("zpo:mastPick",mastSel)}catch(err){}mastPick();window.scrollTo(0,0)};
 const MC_F=[["name",200],["addr",260],["city",100],["pin",80],["gstin",150],["state",50],["contact",130],["phone",120],["email",180]];
 function renderMastCusts(){const B=$("#m-custs");if(!B)return;const q=key($("#mc-q").value),ed=has("mast.edit")||has("sales.edit");
-  const L=customers.map((c,i)=>[c,i]).filter(([c])=>!q||key([c.name,c.city,c.gstin,c.contact].join(" ")).includes(q)).sort((a,b)=>String(a[0].name).localeCompare(String(b[0].name)));
+  const L=customers.map((c,i)=>[c,i]).filter(([c])=>!q||key([c.name,c.code,c.city,c.gstin,c.contact].join(" ")).includes(q)).sort((a,b)=>String(a[0].name).localeCompare(String(b[0].name)));
   $("#mc-n").textContent=customers.length+" customers";
-  B.innerHTML=L.slice(0,q?300:150).map(([c,i])=>`<tr data-ci="${i}">${MC_F.map(([f,w])=>`<td><input id="mc${i}-${f}" data-cf="${f}" value="${esc(f==="state"?stOf(c):c[f]??"")}" style="width:${w}px${f==="gstin"?";font-family:var(--mono)":""}${f==="name"?";font-weight:600":""}"${ed?"":" disabled"}></td>`).join("")}<td>${has("sales.delete")?`<button class="x" type="button" data-mcdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="10" class="empty">${customers.length?"No customer matches the search.":"No customers yet. Import your list or add one above."}</td></tr>`;
+  B.innerHTML=L.slice(0,q?300:150).map(([c,i])=>`<tr data-ci="${i}"><td style="font-family:var(--mono);white-space:nowrap" title="Code, given automatically and never reused">${esc(c.code||"…")}</td>${MC_F.map(([f,w])=>`<td><input id="mc${i}-${f}" data-cf="${f}" value="${esc(f==="state"?stOf(c):c[f]??"")}" style="width:${w}px${f==="gstin"?";font-family:var(--mono)":""}${f==="name"?";font-weight:600":""}"${ed?"":" disabled"}></td>`).join("")}<td>${has("sales.delete")?`<button class="x" type="button" data-mcdel="${i}" aria-label="Remove ${esc(c.name)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="11" class="empty">${customers.length?"No customer matches the search.":"No customers yet. Import your list or add one above."}</td></tr>`;
   $("#mc-more").textContent=L.length>(q?300:150)?`Showing ${q?300:150} of ${L.length}. Search to find the rest.`:"";
   $("#m-cust-form").hidden=!ed}
 $("#mc-q").oninput=renderMastCusts;
@@ -3924,7 +3970,7 @@ function prodTiles(){const t=today(),A=jobs.filter(j=>j.status!=="Completed");
 function renderProd(){if($("#view-prod").hidden)return;
   $("#prodTiles").innerHTML=prodTiles().map(w=>`<div class="card${w.warn?" warn":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("");
   const q=key($("#pj-q").value),t=today(),d60=addDays(t,-60);
-  const J=jobs.filter(j=>!q||key(j.no+" "+j.cust+" "+j.desc).includes(q));
+  const J=jobs.filter(j=>!q||key(j.no+" "+pcx(j.cust)+" "+j.desc).includes(q));
   $("#pj-board").innerHTML=JOB_ST.map(s=>{let L=J.filter(j=>j.status===s);if(s==="Completed")L=L.filter(j=>(j.doneAt||t)>=d60);L.sort((a,b)=>(a.due||"9").localeCompare(b.due||"9"));
     return`<div class="sb-col"><h3><span>${s} · ${L.length}</span></h3>${L.map(j=>{const pct=jobPct(j),run=(j.ops||[]).find(o=>o.status==="Running"),nx=(j.ops||[]).find(o=>o.status!=="Done");
       return`<button type="button" class="sb-card" data-job="${esc(j.no)}"><b>${esc(j.no)} · ${esc(j.cust||"")}</b><span class="m">${esc(j.desc||"")}</span><span style="display:block;height:6px;background:var(--bg);border-radius:3px;margin:4px 0"><span style="display:block;height:6px;width:${pct}%;background:var(--accent);border-radius:3px"></span></span><span class="m">${pct}% done${run?" · Now: "+esc(run.op):nx&&s!=="Completed"?" · Next: "+esc(nx.op):""}</span>${j.due?`<span><span class="chip ${s!=="Completed"&&j.due<t?"st-Back":s!=="Completed"&&j.due<=addDays(t,7)?"sugg":"calc"}">Due ${dmy(j.due).slice(0,5)}</span></span>`:""}</button>`}).join("")||`<div class="sb-empty">None</div>`}</div>`}).join("");
@@ -3935,7 +3981,7 @@ function renderProd(){if($("#view-prod").hidden)return;
   $("#pj-running").innerHTML=R.map(({j,o})=>`<div class="fu"><div class="when"><b>${esc(j.no)}</b></div><div><b>${esc(o.op)}</b><br><span class="note">${esc(o.machine||"")}${o.who?" · "+esc(o.who):""}${o.start?" · since "+dmy(o.start).slice(0,5):""}</span></div><button class="btn" type="button" data-jopen="${esc(j.no)}">Open</button></div>`).join("")||`<div class="empty">Nothing marked Running.</div>`;
   $("#opnames").innerHTML=[...new Set([...DEF_ROUTE.map(r=>r[0]),...jobs.flatMap(j=>(j.ops||[]).map(o=>o.op))])].map(o=>`<option value="${esc(o)}">`).join("");
   $("#allusers").innerHTML=M.users.map(u=>`<option value="${esc(u.name)}">`).join("");
-  $("#custnames").innerHTML=customers.map(c=>`<option value="${esc(c.name)}">`).join("");
+  $("#custnames").innerHTML=partyOpts(customers);
   renderJobForm()}
 $("#pj-q").oninput=()=>renderProd();
 $("#pj-board").addEventListener("click",e=>{const b=e.target.closest("[data-job]");if(b)openJob(b.dataset.job)});
