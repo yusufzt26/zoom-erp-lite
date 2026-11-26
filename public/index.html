@@ -140,6 +140,9 @@ table.mt input.cbx{background-color:transparent;border-color:transparent;padding
 .cblist .cbo{padding:7px 10px;border-radius:5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cblist .cbo b{font-weight:700;text-decoration:underline}
 .cblist .cbo.act{background:var(--sugg-bg)}.cblist .cbo.cur{font-weight:600}.cblist .cbo.dis{opacity:.45;cursor:default}
 .cblist .cbg{padding:6px 10px 2px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.6}.cblist .cbnone{padding:8px 10px;opacity:.7}
+.ltbar .ltsum{margin-right:auto;align-self:center;font-size:14px;color:var(--muted)}.ltbar .ltsum b{color:var(--ink);font-family:var(--mono)}
+table.lt tfoot td{border-top:2px solid var(--line);background:var(--bg);font-size:13px;white-space:nowrap}table.lt tfoot td.act{background:var(--bg)}table.lt tfoot td.num b{font-family:var(--mono)}
+@media (max-width:640px){table.lt tfoot{display:none}.ltbar .ltsum{font-size:13px}}
 .ltbar{display:flex;justify-content:flex-end;margin-bottom:-4px}
 table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.lt th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--bg);font-weight:600;white-space:nowrap}
@@ -952,15 +955,24 @@ const lfOk=(k,job,parts,x)=>{const pe=$("#prj-"+k),p=pe?pe.value:"";if(p&&key(jo
 /* every document list starts with its date, then its number (owner asked 2026-11-26); the Excel export follows the table */
 const ltOrd=cols=>{const ix=cols.map((_,i)=>i),cl=c=>" "+(c[1]||"")+" ",di=cols.findIndex(c=>cl(c).includes(" dt ")),ni=cols.findIndex(c=>cl(c).includes(" no "));
   if(ni<0||di<0||di<ni)return ix;ix.splice(di,1);ix.splice(ni,0,di);return ix};
-const ltT=(cols0,rows0)=>{const o=ltOrd(cols0),cols=o.map(i=>cols0[i]),rows=rows0.map(r=>Object.assign({},r,{c:o.map(i=>r.c[i])}));return ltT0(cols,rows)};
-const ltT0=(cols,rows)=>`<div class="ltbar"><button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+/* totals of the rows shown (after filters): a line above the table and a Total row at the bottom; the Excel export includes it */
+const ltNum=x=>{const t=String(x??"").replace(/<[^>]*>/g," ").replace(/&nbsp;/g," ").trim();const m=t.match(/^(-?)\s*₹?\s*(-?[\d,]+(?:\.\d+)?)(?=\s|$)/);if(!m)return null;const n=parseFloat(m[2].replace(/,/g,""));return isNaN(n)?null:(m[1]?-n:n)};
+function ltFoot(cols,rows){if(rows.length<1)return{foot:"",sum:""};const isNum=c=>(" "+(c[1]||"")+" ").includes(" num ");
+  const S=cols.map((c,i)=>{if(!isNum(c))return null;let t=0,k=0,rs=false;rows.forEach(r=>{const n=ltNum(r.c[i]);if(n!=null){t+=n;k++;if(/₹/.test(String(r.c[i])))rs=true}});return k?{t,rs}:null});
+  if(!S.some(Boolean))return{foot:"",sum:`<span class="ltsum">${rows.length} shown</span>`};
+  const lab=cols.findIndex((c,i)=>!S[i]&&c[0]!=="Select");const show=x=>x.rs?ltAmt(x.t):fmt(x.t).replace(/\.00$/,"");
+  const main=cols.findIndex((c,i)=>S[i]&&S[i].rs&&/amount|value|total|grand/i.test(c[0]));const mi=main>=0?main:S.findIndex(Boolean);
+  const foot=`<tfoot><tr class="lttot">${cols.map((c,i)=>`<td${c[1]?` class="${c[1]}"`:""}>${i===lab?`<b>Total</b> <span class="note">(${rows.length} shown)</span>`:S[i]?`<b>${show(S[i])}</b>`:""}</td>`).join("")}</tr></tfoot>`;
+  return{foot,sum:`<span class="ltsum">${rows.length} shown · ${esc(cols[mi][0])} <b>${show(S[mi])}</b></span>`}}
+const ltT=(cols0,rows0)=>{const o=ltOrd(cols0),cols=o.map(i=>cols0[i]),rows=rows0.map(r=>Object.assign({},r,{c:o.map(i=>r.c[i])}));return ltT0(cols,rows,ltFoot(cols,rows))};
+const ltT0=(cols,rows,F={})=>`<div class="ltbar">${F.sum||""}<button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody>${F.foot||""}</table></div>`;
 /* Export to Excel: takes the table under the button exactly as shown (filters applied), without the Actions column */
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-ltx]");if(!b)return;const T=b.parentElement.nextElementSibling?.querySelector("table.lt");if(!T)return;
   if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   const ths=[...T.querySelectorAll("thead th")],keep=ths.map(th=>!th.classList.contains("act"));
   const cell=td=>{const t=td.innerText.replace(/\s*\n+\s*/g," · ").trim();if(td.classList.contains("num")){const n=parseFloat(t.replace(/[₹,\s]/g,""));if(/^₹?[\d,.\s-]+$/.test(t)&&!isNaN(n))return n}
     const m=t.match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$/);if(m&&MON3.includes(m[2]))return new Date(Date.UTC(+m[3],MON3.indexOf(m[2]),+m[1]));return t==="-"?"":t};
-  const aoa=[ths.filter((_,i)=>keep[i]).map(th=>th.textContent.trim()),...[...T.querySelectorAll("tbody tr")].map(tr=>[...tr.children].filter((_,i)=>keep[i]).map(cell))];
+  const aoa=[ths.filter((_,i)=>keep[i]).map(th=>th.textContent.trim()),...[...T.querySelectorAll("tbody tr, tfoot tr")].map(tr=>[...tr.children].filter((_,i)=>keep[i]).map(cell))];
   const ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true,dateNF:"dd-mmm-yyyy"});ws["!cols"]=aoa[0].map((h,i)=>({wch:Math.min(40,Math.max(h.length+2,...aoa.slice(1).map(r=>String(r[i] instanceof Date?"00-Mmm-0000":r[i]??"").length+1)))}));
   const nm=((b.closest(".panel,section")||document).querySelector("h2.sec")?.textContent||"List").trim(),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,nm.slice(0,31).replace(/[\\/?*[\]:]/g," "));
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
