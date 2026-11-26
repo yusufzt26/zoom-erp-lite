@@ -4393,6 +4393,7 @@ async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load
 /* who may use each import: Admin all; Masters editors parties and items; Admin and Director old POs; Accounts bills and bank */
 function impRows(){const ad=isRole("Admin"),ok={Admin:ad,Mast:ad||has("mast.edit"),PO:ad||isRole("Director"),Acct:ad||has("acct.book")};return IMP_LIST.filter(x=>ok[x[4]])}
 function renderImportHub(){const P=$("#importPanel");if(!P)return;
+  if(isRole("Admin","Director")){const f=oldPlantFix();if(f)toast(`Plant set from the number (Z = Plant 1, J = Plant 2) on ${[f.po&&f.po+" old POs",f.grn&&f.grn+" old GRNs",f.inv&&f.inv+" old invoices"].filter(Boolean).join(", ")}`)}
   const L=impRows();
   P.innerHTML=`<div class="row"><h2 class="sec">Import old data</h2></div>
   <div class="note">Bring in data from the old ERP or from your own sheets. Every import shows a preview before anything is saved, and skips records that are already in, so importing the same file again is safe. Excel or CSV is the most reliable. A PDF works if it is the report as printed by the old ERP, with column headings.</div>
@@ -4431,7 +4432,21 @@ const OINV_FIELDS=[["no","Invoice No",["invoiceno","invno","invoicenumber","bill
   ["qty","Qty",["qty","quantity"]],["unit","Unit",["unit","uom","units"]],["rate","Rate",["rate","unitrate","price"]],["dis","Discount %",["discount","discountpercent","disc"]],["gst","GST %",["gst","gstpercent","gstrate","taxrate"]]];
 let ohPv=null;
 const ohGst=v=>{const t=String(v??"").trim();if(t==="")return 18;const n=Math.abs(obNum(t));return n>0&&n<1?Math.round(n*100):n};
-const ohPlant=(v,no)=>{const t=String(v??"").trim().toUpperCase();if(plants().some(x=>x.id===t))return t;const m=String(no||"").match(/^([A-Za-z]+)/);const P=m&&plants().find(x=>String(x.pre||"").toUpperCase()===m[1].toUpperCase());return P?P.id:"P1"};
+/* plant of an old-ERP record: numbers starting with Z are Plant 1 (Talwade), with J Plant 2 (Jadhavwadi); otherwise the Plant column, then the plant's invoice prefix */
+const OLD_PRE={Z:"P1",J:"P2"};
+const ohPlant=(v,no)=>{const f=String(no||"").trim().charAt(0).toUpperCase();if(OLD_PRE[f])return OLD_PRE[f];
+  const t=String(v??"").trim().toUpperCase();if(plants().some(x=>x.id===t))return t;
+  const w=t.replace(/[^A-Z0-9]/g,"");const byName=plants().find(x=>w&&(w===("PLANT"+x.id.slice(1))||w.includes(String(x.short||"").toUpperCase())));if(byName)return byName.id;
+  const m=String(no||"").match(/^([A-Za-z]+)/);const P=m&&plants().find(x=>String(x.pre||"").toUpperCase()===m[1].toUpperCase());return P?P.id:"P1"};
+/* records already imported with the wrong plant are put right: old POs, GRNs and invoices take the plant from their number */
+function oldPlantFix(){let a=0,b=0,c=0;
+  saved.forEach(x=>{if(!x||!x.old)return;const p=ohPlant(x.plant,x.no);if(p!==x.plant){x.plant=p;x.deliv=plantAddr(p);a++}});
+  grns.forEach(x=>{if(!x||!x.old)return;const p=ohPlant(x.plant,x.no);if(p!==x.plant){x.plant=p;b++}});
+  /* an invoice's saved id carries its plant, so it moves only when that plant has no invoice with the same year and number */
+  const used=new Set(invoices.map(x=>(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no))));
+  invoices.forEach(x=>{if(!x||!x.old)return;const p=ohPlant(x.plant,x.oldNo||x.no);if(p===(x.plant||"P1"))return;const k=p+"|"+x.fy+"|"+(+x.no||key(x.no));if(used.has(k))return;
+    used.delete((x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)));used.add(k);x.plant=p;c++});
+  if(a)store.set("saved",saved);if(b)saveGRNs();if(c)sdSave("inv");return a+b+c?{po:a,grn:b,inv:c}:null}
 async function ohImport(f,kind){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   const F=kind==="ogrn"?OGRN_FIELDS:OINV_FIELDS,who=kind==="ogrn"?"sup":"cust";
   try{toast("Reading the file…");const wb=await readBook(f,F,"csv");let best=null;
@@ -4452,11 +4467,11 @@ async function ohImport(f,kind){if(!window.XLSX){toast("Excel tools did not load
       const L={desc,hsn:String(g("hsn")??"").trim(),qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||"NOS",rate,dis:Math.abs(obNum(g("dis"))),tax:ohGst(g("gst"))};
       if(kind==="ogrn"){const rc=String(g("recv")).trim(),ac=String(g("acc")).trim(),rj=Math.abs(obNum(g("rej")));const nt=[];if(rc!==""&&Math.abs(obNum(rc)-qty)>0.0001)nt.push("received "+obNum(rc));if(ac!==""&&Math.abs(obNum(ac)-qty)>0.0001)nt.push("accepted "+obNum(ac));if(rj>0)nt.push("rejected "+rj);L.remark=nt.length?"Old ERP: "+nt.join(", "):""}
       H.lines.push(L)});
-    const have=new Set(kind==="ogrn"?grns.map(x=>key(x.no)):invoices.map(x=>(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)))),out=[],dup=[];
+    const have=new Set(kind==="ogrn"?grns.map(x=>key(x.no)):invoices.flatMap(x=>[(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)),...(x.oldNo?["old|"+key(x.oldNo)]:[])])),out=[],dup=[];
     G.forEach(H=>{if(!H.date){bad.push(`${H.no}: date missing or not readable`);return}if(!H[who]){bad.push(`${H.no}: no ${kind==="ogrn"?"supplier":"customer"}`);return}
       H.plant=ohPlant(H.plant,H.no);
       if(kind==="oinv"){const m=String(H.no).match(/^[A-Za-z]*\s*\/?\s*(\d+)\s*(?:\/\s*(\d{2}-\d{2}))?$/);if(!m){bad.push(`${H.no}: invoice number not understood (expected like Z0001/26-27)`);return}H.num=m[1];H.fy=m[2]||fyOf(H.date);
-        if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))){dup.push(H.no);return}}
+        if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))||have.has("old|"+key(H.no))){dup.push(H.no);return}}
       else if(have.has(key(H.no))){dup.push(H.no);return}
       const sub=H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100),0);H.total=Math.round(sub+H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100)*l.tax/100,0));
       out.push(H)});
@@ -4484,8 +4499,8 @@ function ohSave(){if(!ohPv)return;const g=ohPv.kind==="ogrn",at=new Date().toISO
       grns.push({no:H.no,date:H.date,poNo:H.po||"",plant:H.plant,sup:sp.name,job:H.job||"",reqNo:"",terms:"",gstmode:st&&st!=="27"?"inter":"intra",dc:"",dcDate:"",inv:H.inv||"",invDate:H.invDate||"",vehicle:"",by:me.name,
         lines,status:"Paid",voucher:"Old ERP",bookedAt:H.date,bookedBy:"Old ERP",createdAt:H.date+"T00:00:00.000Z",old:true,importedAt:at,importFile:ohPv.fname});n++});
     saveGRNs();store.set("suppliers",suppliers)}
-  else{const have=new Set(invoices.map(x=>(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no))));
-    ohPv.recs.forEach(H=>{if(have.has(H.plant+"|"+H.fy+"|"+(+H.num)))return;let c=custByName(H.cust);if(!c){c={id:itId(),name:H.cust,gstin:H.gstin||""};customers.push(c);addC++}
+  else{const have=new Set(invoices.flatMap(x=>[(x.plant||"P1")+"|"+x.fy+"|"+(+x.no||key(x.no)),...(x.oldNo?["old|"+key(x.oldNo)]:[])]));
+    ohPv.recs.forEach(H=>{if(have.has(H.plant+"|"+H.fy+"|"+(+H.num))||have.has("old|"+key(H.no)))return;let c=custByName(H.cust);if(!c){c={id:itId(),name:H.cust,gstin:H.gstin||""};customers.push(c);addC++}
       invoices.push({fy:H.fy,no:H.num,oldNo:H.no,date:H.date,cust:c.name,so:"",oldSO:H.so||"",job:H.job||"",dc:[],custPO:H.custPO||"",custPODate:H.custPODate||"",vehicle:"",eway:"",gst:18,consignee:"",attn:"",custDC:"",custDCDate:"",delivery:"",payDays:"",terms:"",
         lines:H.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:l.qty,unit:l.unit,rate:l.rate,dis:l.dis,tax:l.tax})),rcpts:[],irn:"",ackNo:"",ackDt:"",qr:"",by:me.name,plant:H.plant,old:true,importedAt:at,importFile:ohPv.fname});n++});
     sdSave("inv");if(addC)saveCusts()}
@@ -4541,7 +4556,7 @@ async function opoImport(f){if(!window.XLSX){toast("Excel tools did not load. Ch
       P.lines.push({desc,item:it?it.name:"",spec:it?"":desc,hsn:String(g("hsn")??"").trim()||(it&&it.hsn)||"84801000",tax,qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||(it&&it.unit)||"NOS",rate:Math.abs(obNum(g("rate"))),dis:Math.abs(obNum(g("dis"))),oldRecv:r2(rec)})});
     const out=[],dup=[];
     G.forEach(P=>{if(have.has(key(P.no))){dup.push(P.no);return}if(!P.date){bad.push(`PO ${P.no}: PO date missing or not readable`);return}if(!P.sup){bad.push(`PO ${P.no}: no supplier`);return}
-      P.plant=plants().some(x=>x.id===P.plant)?P.plant:"P1";P.closed=P.lines.every(l=>l.oldRecv>=l.qty-0.0001)||/cancel|short.?clos/i.test(P.st);
+      P.plant=ohPlant(P.plant,P.no);P.closed=P.lines.every(l=>l.oldRecv>=l.qty-0.0001)||/cancel|short.?clos/i.test(P.st);
       P.total=Math.round(P.lines.reduce((a,l)=>a+l.qty*l.rate*(1-l.dis/100)*(1+l.tax/100),0));const sp=supOf(P.sup);P.known=!!sp;if(sp)P.sup=sp.name;out.push(P)});
     out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true}));
     opoPv={fname:f.name,sn:best.sn,map:M,pos:out,bad,dup};renderOpo();const el=$("#opoPrev");if(el)el.scrollIntoView({block:"start"})}
