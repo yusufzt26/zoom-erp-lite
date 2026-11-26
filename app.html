@@ -381,6 +381,7 @@ table.hlist{min-width:0}table.hlist td{padding:7px 6px}
     <button id="tab-mast" data-view="mast">Masters</button>
     <button id="tab-users" data-view="users">Users &amp; rights</button>
     <button id="tab-imp" data-view="imp">Import old data</button>
+    <button id="tab-undo" data-view="undo">Restore data</button>
   </nav>
   <label class="who">Signed in as<select id="who"></select></label><label class="who">Plant<select id="plantSel"></select></label>
   <span class="who" id="cloudUser" hidden><b id="cuName"></b><span id="syncState" class="chip calc">Saved</span><button class="btn" type="button" id="btn-cu-pw">Password</button><button class="btn" type="button" id="btn-cu-out">Log out</button></span>
@@ -724,6 +725,9 @@ table.hlist{min-width:0}table.hlist td{padding:7px 6px}
 
 <section id="view-cn" class="stack" hidden><div class="panel stack"><div class="row"><h2 class="sec">Credit notes to customers</h2><select class="per" id="per-cn" aria-label="Period" style="width:auto"></select><span style="flex:1"></span><button class="btn primary" type="button" id="btn-cn-new">+ Credit note</button></div><div class="note">For sales returns, rate differences or discounts after billing. Open an invoice and press "Credit note" to fill the lines. Credit notes reduce what the customer owes and go into the e-invoice export.</div><div id="cnList"></div></div><div class="panel stack" id="cnForm" hidden></div></section>
 <!-- MASTERS -->
+<section id="view-undo" class="stack" hidden>
+  <div class="panel stack" id="undoPanel"></div>
+</section>
 <section id="view-imp" class="stack" hidden>
   <div class="panel stack" id="importPanel"></div>
   <div class="panel stack" id="openPanel"></div>
@@ -990,7 +994,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users","imp"];
+const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users","imp","undo"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Old pre-estimate (direct PO)"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
@@ -1021,11 +1025,11 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||v==="dash"||(v==="imp"?(()=>{try{return impRows().length>0}catch(e){return isRole("Admin")}})():false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(v==="undo"?canUndo():false)||(v==="imp"?(()=>{try{return impRows().length>0}catch(e){return isRole("Admin")}})():false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="imp"){renderImportHub();renderOpening()}if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
 const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
@@ -1034,7 +1038,7 @@ const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Sales invoices"],["cn","↩️","Credit notes"]]],
   ["Purchase",[["req","📝","Purchase requests"],["buy","🧾","Pre-estimate"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["appr","✅","PO approvals"],["rmast","📐","Rates & costing"],["rates","🏷️","Rate list"]]],
   ["Stock & accounts",[["grn","📦","Goods receipts (GRN)"],["stock","📊","Stock & issue"],["prod","🏭","Production"],["acct","💰","Accounts"],["rep","📈","Reports"]]],
-  ["Masters",[["mast","🗂️","Masters"],["users","👥","Users & rights"],["imp","📥","Import old data"]]]];
+  ["Masters",[["mast","🗂️","Masters"],["users","👥","Users & rights"],["imp","📥","Import old data"],["undo","⏪","Restore data"]]]];
 function renderMnav(){const cur=views.find(x=>!$("#view-"+x).hidden);const mn=$("#mnav");mn.innerHTML=MNAV.map(([h,L])=>{const vis=L.filter(([v])=>{const b=$("#tab-"+v);return b&&!b.hidden&&can(v)});if(!vis.length)return"";
   return (h?`<div class="mh">${esc(h)}</div>`:"")+vis.map(([v,ic,t])=>{const bd=$("#tab-"+v).querySelector(".badge");return `<button type="button" data-mv="${v}"${v===cur?' aria-current="true"':""}><span class="mi" aria-hidden="true">${ic}</span>${esc(t)}${bd?`<span class="badge">${esc(bd.textContent)}</span>`:""}</button>`}).join("")}).join("");document.body.classList.toggle("has-sb",!!me&&!!mn.children.length)}
 $("#mnav").addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(b){setMenu(false);show(b.dataset.mv)}});
@@ -1487,6 +1491,7 @@ $("#btn-saved-del").onclick=()=>{
 $("#btn-saved-no").onclick=()=>{$("#savedDelAsk").hidden=true};
 $("#btn-saved-yes").onclick=()=>{
   $("#savedDelAsk").hidden=true;if(!canBulkDel())return;const L=delOk().filter(s=>delSel.has(String(s.no)));if(!L.length)return;
+  if(!CLOUD)try{rpSnap("auto",`Before ${me.name} deleted ${L.length} PO${L.length>1?"s":""} (${L.map(s=>s.no).join(", ")})`)}catch(e){}
   const why=$("#saved-del-reason").value.trim(),at=new Date().toISOString(),gone=new Set(L.map(s=>String(s.no)));
   const del=store.get("deletedPOs",[]);L.forEach(s=>del.unshift({no:s.no,sup:s.sup,status:s.status,total:s.total,by:me.name,at,reason:why||"Deleted with other POs in one go"}));store.set("deletedPOs",del);
   const rs=new Set();L.forEach(s=>poReqs(s).forEach(r=>rs.add(r)));
@@ -2542,7 +2547,7 @@ document.addEventListener("paste",e=>{const p=gPos(e.target);if(!p)return;if(e.t
   const back=gCell(g,r0,c0);if(back)back.focus({preventScroll:true});gSel=null;gPaint();gShow(gCell(g,Math.min(r0+data.length-1,gRows(g.q()).length-1),c0)||back);toast(n?`Pasted ${data.length} row${data.length>1?"s":""} into the table`:"Nothing pasted: these cells are locked")});
 
 /* ---------- weekly backup ---------- */
-const BK_SKIP=["lastBackup","me","theme","po","est"];
+const BK_SKIP=["lastBackup","me","theme","po","est","_rp"];
 const isDesktop=()=>!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)&&!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);
 const lastBk=()=>store.get("lastBackup",null);
 async function deliver(blob,filename){
@@ -2585,11 +2590,11 @@ function backupDue(){if(!isDesktop())return false;const l=lastBk(),n=new Date(),
   if(!l)return n.getDay()===BK_DAY&&n.getHours()>=BK_HOUR;return new Date(l.at||l.date)<slot}
 const bkToday=()=>{const n=new Date();return n.getDay()===BK_DAY&&n.getHours()>=BK_HOUR};
 function renderBackup(){const P=$("#homeBackup");if(!P)return;const l=lastBk(),due=backupDue();
-  P.hidden=!isDesktop()&&!has("page.users");
+  P.hidden=!isDesktop()&&!has("page.users")&&!canUndo();
   P.innerHTML=`<div class="row"><h2 class="sec">Weekly backup</h2><span class="note">${l?`Last backup ${dmy(l.date)} ${new Date(l.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}${l.auto?" (automatic)":""}`:"No backup taken on this PC yet"} · runs once a week, Thursday at 7 PM, on desktop PCs</span><span style="flex:1"></span>
-  ${has("page.users")?`<button class="btn" id="btn-bk-restore">Restore from backup</button><input type="file" id="bk-file" accept=".xlsx" hidden>`:""}<button class="btn${due?" primary":""}" id="btn-bk-now">${due?"Save this week's backup":"Backup now"}</button></div>
+  ${canUndo()?`<button class="btn" type="button" id="btn-bk-undo">Restore to an earlier date</button>`:""}${has("page.users")?`<button class="btn" id="btn-bk-restore">Restore from backup</button><input type="file" id="bk-file" accept=".xlsx" hidden>`:""}<button class="btn${due?" primary":""}" id="btn-bk-now">${due?"Save this week's backup":"Backup now"}</button></div>
   ${due?`<div class="banner back">${bkToday()?"Today's Thursday 7 PM backup is due.":`This week's Thursday backup was missed. The last one was on ${dmy(l.date)}.`} Click "Save this week's backup" to save the Excel file to this PC.</div>`:""}<div id="bkConfirm"></div>`;
-  if($("#btn-bk-now"))$("#btn-bk-now").onclick=()=>runBackup(false);
+  if($("#btn-bk-now"))$("#btn-bk-now").onclick=()=>runBackup(false);if($("#btn-bk-undo"))$("#btn-bk-undo").onclick=()=>show("undo");
   if($("#btn-bk-restore")){$("#btn-bk-restore").onclick=()=>$("#bk-file").click();$("#bk-file").onchange=readRestore}}
 async function readRestore(e){const f=e.target.files[0];e.target.value="";if(!f)return;
   try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const sh=wb.Sheets["_restore"];if(!sh)throw 0;const rows=XLSX.utils.sheet_to_json(sh,{header:1});const B=JSON.parse(rows.slice(1).map(r=>r[0]||"").join(""));if(B.app!=="zoom-po-desk")throw 0;
@@ -2599,9 +2604,100 @@ async function readRestore(e){const f=e.target.files[0];e.target.value="";if(!f)
       /* big backups go up in several batches: keep sending until everything is saved, then reload */
       for(let i=0;i<400&&(cloud.pending.size||cloud.busy);i++){if(!cloud.busy&&cloud.status!=="offline")await cloudFlush();else await new Promise(r=>setTimeout(r,500))}
       if(cloud.pending.size){toast("Not everything is saved yet. Keep this page open; it will keep trying.");$("#btn-bk-yes").disabled=false;return}
-      location.reload();return}const keep={};BK_SKIP.forEach(k=>keep[k]=localStorage.getItem("zpo:"+k));Object.keys(localStorage).filter(k=>k.startsWith("zpo:")).forEach(k=>localStorage.removeItem(k));
+      location.reload();return}try{rpSnap("auto","Before restoring the backup file of "+dmy(B.at.slice(0,10)))}catch(e){}const keep={};BK_SKIP.forEach(k=>keep[k]=localStorage.getItem("zpo:"+k));Object.keys(localStorage).filter(k=>k.startsWith("zpo:")).forEach(k=>localStorage.removeItem(k));
       Object.entries(B.data).forEach(([k,v])=>localStorage.setItem("zpo:"+k,v));Object.entries(keep).forEach(([k,v])=>{if(v!=null&&k!=="po"&&k!=="est")localStorage.setItem("zpo:"+k,v)});location.reload()}}
   catch(err){toast("This is not a ZT-ERP LITE backup file")}}
+/* ---------- restore data to an earlier date (Admin and Director) ----------
+   Live app: the server keeps every saved version of every record, so any date and time since the feature went live can be put back.
+   Restore points are made automatically before big imports and bulk deletes, by hand, and before every restore (so a restore can be undone).
+   Preview (no server): restore points are copies of this browser's data. */
+const canUndo=()=>!!me&&(isRole("Admin","Director","Approver")||has("page.users"));
+const UNDO_AREAS=[["pur","Purchase","requests, POs, deleted-PO log, rate list, rates & costing",["reqs","saved","deletedPOs","rates","costing"]],
+  ["store","Store & production","GRNs, returnable challans, issue slips, stock bins, job work inward, jobs",["grns","rgps","slips","bins","jwins","jobs"]],
+  ["sales","Sales","RFQs and quotations, follow-ups, sales orders, delivery challans, invoices, credit notes",["deals","fups","sorders","dchallans","invoices","cnotes"]],
+  ["acct","Accounts","payments, debit notes, opening bills, bank statement lines",["pays","dnotes","obills","bank"]],
+  ["mast","Masters","suppliers, customers, items, departments, plants, projects and settings",["suppliers","customers","items","masters"]]];
+const U_WORDS={reqs:"Purchase requests",saved:"POs",grns:"GRNs",pays:"Payments",rgps:"Returnable challans",slips:"Issue slips",deletedPOs:"Deleted-PO log",suppliers:"Suppliers",rates:"Rate list",bins:"Stock bins",masters:"Masters and settings",costing:"Rates & costing",items:"Items",customers:"Customers",deals:"RFQs and quotations",fups:"Follow-ups",sorders:"Sales orders",dchallans:"Delivery challans",invoices:"Sales invoices",jobs:"Jobs",dnotes:"Debit notes",cnotes:"Credit notes",obills:"Opening bills",bank:"Bank statement lines",jwins:"Job work inward"};
+const U={data:null,loading:false,pick:null,all:true,areas:new Set(UNDO_AREAS.map(a=>a[0])),prev:null,ask:false,busy:false,done:null,err:"",more:false};
+try{const d=sessionStorage.getItem("zpo:_rpdone");if(d){U.done=JSON.parse(d);sessionStorage.removeItem("zpo:_rpdone")}}catch(e){}
+const dtIN=t=>new Date(t).toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const uColls=()=>U.all?[]:UNDO_AREAS.filter(a=>U.areas.has(a[0])).flatMap(a=>a[3]);
+/* preview mode: copies of this browser's data */
+function rpLocal(){try{return JSON.parse(localStorage.getItem(LP+"_rp")||"[]")}catch(e){return[]}}
+function rpSave(L){for(;;){try{localStorage.setItem(LP+"_rp",JSON.stringify(L));return}catch(e){if(L.length<=1)return;L.pop()}}}
+function rpSnap(kind,label){const data={};Object.keys(SYNC).forEach(k=>{const v=localStorage.getItem(LP+k);if(v!=null)data[k]=v});const L=rpLocal();const pid=Math.max(0,...L.map(x=>x.pid))+1;
+  L.unshift({pid,at:new Date().toISOString(),kind,label,by_name:me?me.name:"",data});L.splice(15);rpSave(L);return pid}
+function rpDiff(snap,colls){const out=[];let total=0;(colls.length?colls:Object.keys(SYNC)).forEach(k=>{if(!SYNC[k])return;
+  const fl=v=>{const f=cloudFlat(k,v);Object.keys(f).forEach(id=>{if(f[id]==null)delete f[id]});if(k==="masters"&&f._){f._={...f._};delete f._.users}return f};
+  const was=snap.data[k]!=null?fl(JSON.parse(snap.data[k])):{},now=fl(local.get(k,SYNC[k].doc?null:SYNC[k].map?{}:[]));
+  const c={coll:k,words:U_WORDS[k],back:0,removed:0,changed:0};
+  Object.keys(was).forEach(id=>{if(!(id in now))c.back++;else if(JSON.stringify(was[id])!==JSON.stringify(now[id]))c.changed++});Object.keys(now).forEach(id=>{if(!(id in was))c.removed++});
+  const n=c.back+c.removed+c.changed;if(n){out.push(c);total+=n}});return{changes:out.sort((a,b)=>(b.back+b.removed+b.changed)-(a.back+a.removed+a.changed)),total}}
+function rpRun(pid,colls){const snap=rpLocal().find(x=>x.pid===pid);if(!snap)throw new Error("That restore point is not there any more");const d=rpDiff(snap,colls);
+  const undo=rpSnap("before-restore",`Before ${me.name} restored data to ${snap.kind==="day"?"end of "+dmy(snap.at.slice(0,10)):dtIN(snap.at)}`);
+  (colls.length?colls:Object.keys(SYNC)).forEach(k=>{if(!SYNC[k])return;if(k==="masters"){const m=snap.data[k]!=null?JSON.parse(snap.data[k]):null;if(!m)return;m.users=(local.get("masters",{}).users)||m.users;localStorage.setItem(LP+k,JSON.stringify(m));return}
+    if(snap.data[k]!=null)localStorage.setItem(LP+k,snap.data[k]);else localStorage.removeItem(LP+k)});return{ok:true,undo,...d}}
+function rpLocalInit(){const L=rpLocal();if(!L.some(x=>String(x.at).slice(0,10)===today()))rpSnap("auto","Start of the day (first time the app was opened today)")}
+/* calls: same answers from the server and from the preview copies */
+async function uApi(b){if(CLOUD)return b?api("restore",{method:"POST",body:b}):api("restore");
+  if(!b){rpLocalInit();const L=rpLocal();return{points:L.map(({data,...x})=>x),days:[],start:L.length?L[L.length-1].at:null}}
+  if(b.action==="point")return{ok:true,pid:rpSnap("manual",b.label||"Restore point made by hand")};
+  const snap=rpLocal().find(x=>x.pid===b.point);if(!snap)throw new Error("In this preview, pick one of the restore points in the list");
+  return b.action==="preview"?rpDiff(snap,b.colls||[]):rpRun(b.point,b.colls||[])}
+async function uFlush(){if(!CLOUD)return true;for(let i=0;i<120&&(cloud.pending.size||cloud.busy);i++){if(!cloud.busy&&cloud.status!=="offline")await cloudFlush();else await new Promise(r=>setTimeout(r,500))}return!cloud.pending.size}
+function uRows(){const D=U.data||{points:[],days:[]};const td=new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kolkata"});
+  const R=D.points.map(p=>({key:"p"+p.pid,at:p.at,kind:p.kind,label:p.label,by:p.by_name,sel:{point:p.pid}}));
+  (D.days||[]).filter(d=>d.day!==td).forEach(d=>R.push({key:"d"+d.day,at:d.last,kind:"day",label:`End of the day ${dmy(d.day)} (${d.n} change${d.n===1?"":"s"} that day)`,by:"",sel:{at:d.last}}));
+  return R.sort((a,b)=>String(b.at).localeCompare(String(a.at)))}
+const U_KIND={start:["calc","Start"],auto:["sugg","Automatic"],manual:["man","Made by hand"],"before-restore":["st-Back","Before a restore"],day:["calc","End of day"]};
+function renderUndo(){const P=$("#undoPanel");if(!P)return;
+  if(!canUndo()){P.innerHTML=`<h2 class="sec">Restore data to an earlier date</h2><div class="note">Only Admin and Director can restore data.</div>`;return}
+  if(!U.data&&!U.loading){U.loading=true;U.err="";uApi().then(d=>{U.data=d}).catch(e=>{U.err=e.message||"Could not load restore points";U.data={points:[],days:[]}}).finally(()=>{U.loading=false;if(!$("#view-undo").hidden)renderUndo()})}
+  const R=uRows(),shown=U.more?R:R.slice(0,25),pk=U.pick,P0=U.prev,st=U.data&&U.data.start;
+  const nowLocal=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16);
+  P.innerHTML=`<div class="row"><h2 class="sec">Restore data to an earlier date</h2><span style="flex:1"></span><button class="btn" type="button" data-u="reload">Refresh list</button></div>
+  <div class="note" style="line-height:1.6">If something was entered or imported by mistake, or deleted in bulk, put the data back the way it was at an earlier date and time. Nothing is lost: every saved change is kept, and before a restore starts the app saves a restore point of today's data, so <b>a restore can always be undone</b>. Users, rights and passwords are never changed by a restore.${CLOUD?(st?` Restore history starts ${dtIN(st)}.`:""):` <b>Preview:</b> here restore points are copies of this browser's data.`}</div>
+  ${U.done?`<div class="banner ok stack" style="gap:6px"><b>Data restored to ${esc(U.done.when)}.</b><span>${U.done.total} record${U.done.total===1?"":"s"} put back. Everyone's screens update within a minute.${U.done.undo?" If this was the wrong time, undo it:":""}</span>${U.done.undo?`<span class="row"><button class="btn" type="button" data-u="undo-last">Undo this restore</button><button class="btn" type="button" data-u="done-x">Close</button></span>`:""}</div>`:""}
+  ${U.err?`<div class="banner back">${esc(U.err)}</div>`:""}
+  <h3 style="margin:6px 0 0;font-size:15px">1. Pick when to go back to</h3>
+  ${U.loading&&!U.data?`<div class="note">Loading restore points…</div>`:`<div class="tablebox"><table class="mt lt"><thead><tr><th>When</th><th>Restore point</th><th>By</th><th></th></tr></thead><tbody>
+  ${shown.length?shown.map(r=>{const on=pk&&pk.key===r.key,k=U_KIND[r.kind]||["calc",r.kind];return`<tr${on?' style="background:var(--sugg-bg)"':""}><td style="white-space:nowrap">${esc(dtIN(r.at))}</td><td><span class="chip ${k[0]}">${esc(k[1])}</span> ${esc(r.label)}</td><td>${esc(r.by||"")}</td><td>${r.kind==="start"&&!CLOUD?"":`<button class="btn${on?" primary":""}" type="button" data-u="pick" data-k="${esc(r.key)}">${on?"Chosen":"Choose"}</button>`}</td></tr>`}).join(""):`<tr><td colspan="4" class="empty">No restore points yet.</td></tr>`}</tbody></table></div>
+  ${R.length>shown.length?`<button class="btn" type="button" data-u="more">Show all ${R.length}</button>`:""}`}
+  ${CLOUD?`<div class="row" style="align-items:flex-end"><label class="f">Or any date and time<input type="datetime-local" id="undo-at" max="${nowLocal}"${st?` min="${new Date(new Date(st)-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,16)}"`:""} value="${pk&&pk.key==="t"?esc(pk.local):""}"></label><button class="btn${pk&&pk.key==="t"?" primary":""}" type="button" data-u="pick-at">${pk&&pk.key==="t"?"Chosen":"Use this time"}</button></div>`:""}
+  <div class="row" style="align-items:flex-end"><label class="f">Save a restore point now (optional name)<input id="undo-name" placeholder="e.g. Before year-end import" maxlength="200"></label><button class="btn" type="button" data-u="point">Save restore point</button></div>
+  <h3 style="margin:6px 0 0;font-size:15px">2. What to put back</h3>
+  <div class="stack" style="gap:6px"><label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="radio" style="width:auto;margin:0" name="undo-all" data-u="all" value="1"${U.all?" checked":""}> <b>Everything</b> <span class="note">all areas below</span></label>
+  <label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="radio" style="width:auto;margin:0" name="undo-all" data-u="all" value="0"${U.all?"":" checked"}> <b>Only some areas</b> <span class="note">the rest stays as it is today</span></label>
+  ${U.all?"":UNDO_AREAS.map(a=>`<label class="row" style="gap:8px;margin-left:26px;justify-content:flex-start;flex-wrap:wrap"><input type="checkbox" style="width:auto;margin:0" data-u="area" value="${a[0]}"${U.areas.has(a[0])?" checked":""}> <b>${esc(a[1])}</b> <span class="note">${esc(a[2])}</span></label>`).join("")}</div>
+  <h3 style="margin:6px 0 0;font-size:15px">3. Check and restore</h3>
+  ${pk?`<div class="note">Going back to <b>${esc(pk.when)}</b>, ${U.all?"everything":esc(UNDO_AREAS.filter(a=>U.areas.has(a[0])).map(a=>a[1]).join(", ")||"no area picked")}.</div>`:`<div class="note">Choose a restore point or a time in step 1.</div>`}
+  <div class="row"><button class="btn" type="button" data-u="preview"${pk&&!U.busy?"":" disabled"}>Check what will change</button>${P0&&P0.total?`<button class="btn primary" type="button" data-u="ask" style="background:var(--danger);border-color:var(--danger)"${U.busy?" disabled":""}>Restore now…</button>`:""}${U.busy?`<span class="note">Working…</span>`:""}</div>
+  ${P0?(P0.total?`<div class="tablebox"><table class="mt"><thead><tr><th>Area</th><th class="num">Come back</th><th class="num">Go away</th><th class="num">Go back to the earlier version</th></tr></thead><tbody>${P0.changes.map(c=>`<tr><td>${esc(U_WORDS[c.coll]||c.words)}</td><td class="num">${c.back||""}</td><td class="num">${c.removed||""}</td><td class="num">${c.changed||""}</td></tr>`).join("")}</tbody></table></div>
+    <div class="note">"Come back" were deleted after that time, "Go away" were added after it, the rest were changed after it. ${P0.total} record${P0.total===1?"":"s"} in all.</div>`:`<div class="banner ok">Nothing to change: this data is already the same as it was at that time.</div>`):""}
+  ${U.ask?`<div class="banner back stack" style="gap:8px"><b>Restore ${U.all?"all data":"these areas"} to ${esc(pk.when)}?</b><span>${P0.total} record${P0.total===1?"":"s"} will change for everyone. Anything entered after that time in ${U.all?"any area":"these areas"} is taken back out, but it is not lost: a restore point of today's data is saved first, so you can undo this restore. Users, rights and passwords stay as they are.</span><span class="row"><button class="btn" type="button" data-u="no">Cancel</button><button class="btn primary" type="button" data-u="yes" style="background:var(--danger);border-color:var(--danger)">Yes, restore</button></span></div>`:""}`;
+}
+async function uRun(sel,colls,when){U.busy=true;U.ask=false;renderUndo();
+  try{if(!(await uFlush()))throw new Error("Some of your changes are not saved yet (no connection). Try again when the Saved sign shows.");
+    const r=await uApi({action:"run",...sel,colls});const done={when,total:r.total,undo:r.undo,colls};
+    try{sessionStorage.setItem("zpo:_rpdone",JSON.stringify(done))}catch(e){}location.reload()}
+  catch(e){U.busy=false;U.err=e.message||"Restore failed";renderUndo()}}
+$("#undoPanel").addEventListener("change",e=>{const t=e.target,u=t.dataset.u;
+  if(u==="all"){U.all=t.value==="1";U.prev=null;U.ask=false;renderUndo()}
+  if(u==="area"){if(t.checked)U.areas.add(t.value);else U.areas.delete(t.value);U.prev=null;U.ask=false;renderUndo()}});
+$("#undoPanel").addEventListener("click",async e=>{const b=e.target.closest("[data-u]");if(!b||b.tagName==="INPUT")return;const u=b.dataset.u;U.err="";
+  if(u==="reload"){U.data=null;renderUndo();return}
+  if(u==="more"){U.more=true;renderUndo();return}
+  if(u==="done-x"){U.done=null;renderUndo();return}
+  if(u==="pick"){const r=uRows().find(x=>x.key===b.dataset.k);if(!r)return;U.pick={key:r.key,sel:r.sel,when:r.kind==="day"?"the end of "+dmy(String(r.at).slice(0,10)):dtIN(r.at)+(r.kind==="day"?"":" ("+r.label+")")};U.prev=null;U.ask=false;renderUndo();return}
+  if(u==="pick-at"){const v=$("#undo-at").value;if(!v){toast("Pick a date and time first");return}const t=new Date(v);if(t>new Date()){toast("That time is in the future");return}
+    U.pick={key:"t",local:v,sel:{at:t.toISOString()},when:dtIN(t)};U.prev=null;U.ask=false;renderUndo();return}
+  if(u==="point"){b.disabled=true;try{await uApi({action:"point",label:$("#undo-name").value.trim()});toast("Restore point saved");U.data=null}catch(err){U.err=err.message}renderUndo();return}
+  if(u==="preview"){if(!U.pick)return;if(!U.all&&!U.areas.size){toast("Tick at least one area");return}U.busy=true;U.ask=false;renderUndo();
+    try{if(!(await uFlush()))throw new Error("Some of your changes are not saved yet. Try again when the Saved sign shows.");U.prev=await uApi({action:"preview",...U.pick.sel,colls:uColls()})}catch(err){U.err=err.message;U.prev=null}U.busy=false;renderUndo();return}
+  if(u==="ask"){U.ask=true;renderUndo();const y=$("#undoPanel [data-u=yes]");if(y)y.focus();return}
+  if(u==="no"){U.ask=false;renderUndo();return}
+  if(u==="yes"){if(!U.pick||!U.prev)return;uRun(U.pick.sel,uColls(),U.pick.when);return}
+  if(u==="undo-last"){const d=U.done;if(!d||!d.undo)return;U.done=null;uRun({point:d.undo},d.colls||[],"just before the restore to "+d.when)}});
 setInterval(()=>{if(!me)return;if(backupDue()){if(!inFrame&&!backupDue.busy){backupDue.busy=true;runBackup(true).finally(()=>backupDue.busy=false)}else if(!$("#view-home").hidden)renderBackup();if(inFrame&&!backupDue.told){backupDue.told=true;toast("This week's Thursday 7 PM backup is due. Open Home to save it.")}}},60000);
 
 /* ---------- accounts ---------- */
@@ -3067,11 +3163,11 @@ function itPreview(fname,BL){const d=document.createElement("div");d.className="
       <div class="rgroup">${IT_FIELDS.map(([f,lab])=>`<label class="f" style="display:block">${esc(lab)}<select id="itm-${f}" data-map="${f}">${`<option value="">Not in file</option>`+H.map((h,j)=>`<option value="${j}"${B.map[f]===j?" selected":""}>${esc(String(h)||"Column "+(j+1))}</option>`).join("")}</select></label>`).join("")}</div>
       <div class="row"><span class="chip calc">${P.nw} new</span><span class="chip sugg">${P.up} already in the list</span>${P.dup-P.clash.length>0?`<span class="chip st-Draft">${P.dup-P.clash.length} repeated row${P.dup-P.clash.length===1?"":"s"} merged</span>`:""}${P.skipped?`<span class="chip st-Back">${P.skipped} row${P.skipped===1?"":"s"} without a name skipped</span>`:""}${warn}</div>
       ${P.clash.length?`<div class="banner back">${P.clash.length} code${P.clash.length===1?" is":"s are"} used for two different names. Only the first row is imported: ${P.clash.slice(0,5).map(esc).join("; ")}${P.clash.length>5?" …":""}</div>`:""}
-      ${P.ex||!skipEx?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-ex" style="width:auto"${skipEx?" checked":""}> Leave out the sample rows marked "Example only" (${P.ex})</label>`:""}
+      ${P.ex||!skipEx?`<label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="checkbox" id="iti-ex" style="width:auto"${skipEx?" checked":""}> Leave out the sample rows marked "Example only" (${P.ex})</label>`:""}
       <div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th></th><th>Code</th><th>Name</th><th>Type</th><th>Category</th><th>Unit</th><th>HSN/SAC</th><th class="num">GST %</th><th class="num">Buy rate</th><th class="num">Sell rate</th><th class="num">Min</th>${anyOpen?`<th class="num">Opening</th>`:""}</tr></thead><tbody>${P.L.slice(0,15).map(x=>`<tr><td>${x.match?`<span class="chip sugg">Update</span>`:`<span class="chip calc">New</span>`}</td><td>${esc(x.code)}</td><td>${esc(x.name)}${x.kind==="Service"?` <span class="note">service</span>`:""}</td><td>${esc(x.type)}</td><td>${esc(x.cat)}${x.subcat?` / ${esc(x.subcat)}`:""}</td><td>${esc(x.unit)}</td><td>${esc(x.hsn)}</td><td class="num">${x.gst}</td><td class="num">${x.rate}</td><td class="num">${x.srate}</td><td class="num">${x.min}</td>${anyOpen?`<td class="num">${x.open}</td>`:""}</tr>`).join("")||`<tr><td colspan="12" class="empty">No rows to import.</td></tr>`}</tbody></table></div>
       ${P.L.length>15?`<div class="note">First 15 of ${P.L.length} shown.</div>`:""}
-      ${P.up?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-upd" checked style="width:auto"> Update items already in the list with the details from this file (blank cells keep what is there)</label>`:""}
-      ${hasOpen?`<label class="row" style="gap:8px"><input type="checkbox" id="iti-opchk" style="width:auto"> Also enter the opening stock quantities in the stock register (one Opening stock slip). Only tick this once.</label>`:""}
+      ${P.up?`<label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="checkbox" id="iti-upd" checked style="width:auto"> Update items already in the list with the details from this file (blank cells keep what is there)</label>`:""}
+      ${hasOpen?`<label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="checkbox" id="iti-opchk" style="width:auto"> Also enter the opening stock quantities in the stock register (one Opening stock slip). Only tick this once.</label>`:""}
       <div class="row"><span style="flex:1"></span><button class="btn primary" id="iti-go" type="button"${P.L.length?"":" disabled"}>Import ${P.L.length} record${P.L.length===1?"":"s"}</button></div></div>`;
     d.querySelector("#iti-x").onclick=()=>d.remove();
     d.querySelectorAll("[data-bi]").forEach(b=>b.onclick=()=>{bi=+b.dataset.bi;draw()});
@@ -3324,8 +3420,8 @@ async function partyImport(f,dflt){if(!window.XLSX){toast("Excel tools did not l
       ${bad.length?`<div class="note">Check these GSTINs: ${bad.slice(0,8).map(b=>esc(b.name)+" ("+esc(b.gstin)+")").join("; ")}${bad.length>8?" …":""}</div>`:""}
       <div class="tablebox"><table class="mt" style="min-width:820px"><thead><tr><th></th><th>Code</th><th>Name</th><th>GSTIN</th><th>State</th><th>Address</th><th>City</th><th>PIN</th></tr></thead><tbody>${P.slice(0,12).map(p=>`<tr><td><span class="chip ${p.kind==="cust"?"calc":"sugg"}">${p.kind==="cust"?"Customer":"Supplier"}</span></td><td style="font-family:var(--mono);white-space:nowrap">${esc(p.pcode)||`<span class="note">Next free</span>`}</td><td>${esc(p.name)}</td><td style="font-family:var(--mono)">${esc(p.gstin)||`<span class="note">Unregistered</span>`}</td><td>${esc(p.state)} ${esc(p.stname)}</td><td>${esc(p.addr)}</td><td>${esc(p.city)}</td><td>${esc(p.pin)}</td></tr>`).join("")}</tbody></table></div>
       ${P.length>12?`<div class="note">First 12 of ${P.length} shown.</div>`:""}
-      <label class="row" style="gap:8px"><input type="checkbox" id="pi-c" style="width:auto"${C.length&&canC?" checked":""}${canC&&C.length?"":" disabled"}> Import ${C.length} customers${canC?"":" (needs the Sales edit right)"}</label>
-      <label class="row" style="gap:8px"><input type="checkbox" id="pi-s" style="width:auto"${S.length&&canS?" checked":""}${canS&&S.length?"":" disabled"}> Import ${S.length} suppliers${canS?"":" (Admin only, from Masters)"}</label>
+      <label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="checkbox" id="pi-c" style="width:auto"${C.length&&canC?" checked":""}${canC&&C.length?"":" disabled"}> Import ${C.length} customers${canC?"":" (needs the Sales edit right)"}</label>
+      <label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="checkbox" id="pi-s" style="width:auto"${S.length&&canS?" checked":""}${canS&&S.length?"":" disabled"}> Import ${S.length} suppliers${canS?"":" (Admin only, from Masters)"}</label>
       <div class="note">Names already in the list are matched and only their blank details are filled in. Nothing already entered is overwritten. A code from the file is kept; a party with no code gets the next free code. A code already given to another party is never given again, so that row gets the next free code instead.</div>
       <div class="row"><span style="flex:1"></span><button class="btn primary" id="pi-go" type="button">Import</button></div></div>`;
     d.querySelector("#pi-x").onclick=()=>d.remove();
@@ -3447,7 +3543,7 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   <div class="grid-fields">${head}</div>${lines}
   <div class="row">${ro||link?"":`<button class="btn" type="button" id="sd-addline">+ Add line</button>`}${t!=="dc"?`<label class="f" style="flex-direction:row;align-items:center;gap:6px">GST %<select id="sd-gst" data-sf="gst" style="width:auto">${[18,12,5,28,0].map(g=>`<option${+x.gst===g?" selected":""}>${g}</option>`).join("")}</select></label>`:""}<span style="flex:1"></span>
     <span class="total"><span>${t==="dc"?"Value":"Total with GST"}</span><b id="sd-tot">${fmt(sdT)}</b></span></div>
-  ${t==="so"?`<label class="row" style="gap:8px"><input type="checkbox" id="sd-closed" data-sf="closed" style="width:auto"${x.closed?" checked":""}> Close this order (nothing more to dispatch or bill)</label>`:""}
+  ${t==="so"?`<label class="row" style="gap:8px;justify-content:flex-start;flex-wrap:wrap"><input type="checkbox" id="sd-closed" data-sf="closed" style="width:auto"${x.closed?" checked":""}> Close this order (nothing more to dispatch or bill)</label>`:""}
   ${t!=="dc"?`<label class="f">Terms printed on the ${t==="so"?"order":"invoice"}<textarea id="sd-terms" data-sf="terms" rows="3">${esc(x.terms)}</textarea></label>`:""}
   ${t==="inv"&&!isNew?`<h3 class="sec" style="font-size:15px">Payments received</h3><div class="tablebox"><table class="mt" style="min-width:520px"><thead><tr><th>Date</th><th class="num">Amount ₹</th><th>Cheque / UTR ref.</th><th></th></tr></thead><tbody>${(x.rcpts=rcptsOf(x)).map((r,i)=>`<tr><td><input type="date" data-rc="${i}" data-rf="date" value="${esc(r.date||"")}"></td><td><input type="number" step="any" data-rc="${i}" data-rf="amt" value="${esc(r.amt)}" style="text-align:right"></td><td><input data-rc="${i}" data-rf="ref" value="${esc(r.ref||"")}"></td><td><button class="btn" type="button" data-rcdel="${i}" aria-label="Remove payment">✕</button></td></tr>`).join("")||`<tr><td colspan="4" class="note">No payment recorded yet.</td></tr>`}</tbody></table></div><div class="row"><button class="btn" type="button" id="sd-rc-add">+ Add payment</button><span style="flex:1"></span><span>Received <b>₹ ${fmt(recdOf(x))}</b> · Still to collect <b id="sd-baldue">₹ ${fmt(invDue(x))}</b></span></div>
   ${gstSection("inv",x)}
