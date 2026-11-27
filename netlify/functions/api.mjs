@@ -87,7 +87,15 @@ Read it and fill every field you can find. Use an empty string for text you cann
 - customer_name / customer_gstin are the BUYER who issued the PO, not us (our GSTINs: ${b.own}).
 - Dates as YYYY-MM-DD (Indian documents are day/month/year). delivery_date is the required delivery / schedule date if one is given.
 - gst_percent is the total GST rate on the items (CGST+SGST, or IGST), e.g. 18.
-- lines: one per item row with the full item description (include drawing / part numbers and sizes printed with it), HSN/SAC, ordered quantity, unit, and rate per unit before tax.` },
+- lines: one per item row with the full item description (include drawing / part numbers and sizes printed with it), HSN/SAC, ordered quantity, unit, and rate per unit before tax.` },  jw: {
+    schema: obj({ customer_name: S, customer_gstin: S, challan_no: S, challan_date: S, po_no: S, vehicle_no: S,
+      lines: { type: "array", items: obj({ description: S, qty: N, unit: S, process: S }) } }),
+    prompt: (b) => `This is a delivery challan that a customer sent to us (${b.us}) with their own material for job work. We will record it as job work inward.
+Read it and fill every field you can find. Use an empty string for text you cannot find and 0 for numbers you cannot find; never guess.
+- customer_name / customer_gstin are the SENDER of the material (the customer), not us (our GSTINs: ${b.own}).
+- challan_no / challan_date are the customer's own challan number and date. Dates as YYYY-MM-DD (Indian documents are day/month/year).
+- po_no is the customer's purchase order or work order number if printed. vehicle_no is the vehicle registration if printed.
+- lines: one per item row with the full description (include part / drawing numbers and sizes), quantity, unit, and process: the job work asked for on that line (wire cut, EDM, grinding, hardening...) if written, else an empty string.` },
 };
 // Old-data import: any printed report (party list, item list, outstanding, bank statement) read as a table with the columns the app asks for.
 function tableKind(b) {
