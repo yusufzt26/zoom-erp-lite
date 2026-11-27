@@ -3732,6 +3732,8 @@ const QT_TERMS="Prices: Ex-works Pune\nGST: Extra as applicable\nPayment: 40% ad
 const JW_QT_TERMS="Prices: Ex-works Talwade, Pune, per unit as above\nGST: 18% extra\nMaterial: Supplied by you with your delivery challan, unless priced above\nPayment: 30 days from the date of invoice\nDelivery: As agreed on receipt of material\nValidity: 30 days from the date of this quotation";
 const qtJW=d=>!!d&&d.plant==="P1";
 const qtTermsFor=pl=>pl==="P1"?JW_QT_TERMS:QT_TERMS;
+const JW_QT_TITLE="GUN DRILLING";/* Plant 1 enquiries start as gun drilling; the user can change it */
+const qtTitleFor=pl=>pl==="P1"?JW_QT_TITLE:"";
 const jwQtLine=()=>({desc:"",hsn:"998898",qty:1,unit:"NOS",rate:""});
 /* job work rate for a quotation line: rate card or last rate, by exact job work name, else by the longest rate card job work named inside the description */
 function qtJwRate(cust,desc){const kd=key(desc||"");if(!kd)return null;const R=M.jwRates||[];let r=jwRateFor(cust,desc);if(r)return{rate:r,unit:(R.find(x=>key(x.proc||"")===kd)||{}).unit};
@@ -3748,7 +3750,7 @@ const dealBy=k=>deals.find(x=>dealKey(x)===String(k));
 const qtPreOf=pl=>{const P=plantBy(pl||"P1")||{};return P.qpre!=null?String(P.qpre):"QT-"};
 const qtNo=d=>(d.pre!=null?d.pre:d.ps?qtPreOf(d.plant):"QT-")+d.no;
 const nextDealNo=pl=>{pl=pl||"P1";const P=plantBy(pl)||{};return Math.max(1000,+P.qLast||0,...deals.filter(d=>(d.plant||"P1")===pl||(pl==="P1"&&!d.ps)).map(d=>+d.no||0))+1};
-const newDeal=()=>{const pl=defPlant();return{_new:true,ps:1,no:nextDealNo(pl),plant:pl,date:today(),cust:"",title:"",stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:qtTermsFor(pl),log:[]}};
+const newDeal=()=>{const pl=defPlant();return{_new:true,ps:1,no:nextDealNo(pl),plant:pl,date:today(),cust:"",title:qtTitleFor(pl),stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:qtTermsFor(pl),log:[]}};
 const dealVal=d=>{const L=(d.lines||[]).filter(l=>+l.qty&&+l.rate);return L.length?L.reduce((a,l)=>a+(+l.qty)*(+l.rate),0):(+d.value||0)};
 const fmtL=v=>v>=100000?"₹ "+(v/100000).toFixed(v>=1e7?0:1)+" L":"₹ "+fmt0(Math.round(v));
 const seeAllSales=()=>has("sales.all");
@@ -3811,7 +3813,7 @@ function renderMouldPick(){const P=$("#mouldPick");if(P.hidden)return;
   const msg=!hasQ?"Type the customer name to list the best-matching estimates first.":L.length?`Estimates whose customer name matches the most words of “${esc(mouldQ)}” are listed first.`:"";
   P.innerHTML=head+(mouldEst.note?`<div class="note">${esc(mouldEst.note)}</div>`:"")+(msg?`<div class="note">${msg}</div>`:"")+(L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th></th>${hasQ?"<th>Match</th>":""}<th>Estimate</th><th>Date</th><th>Customer</th><th>Part</th><th>Mould No.</th><th>Status</th><th class="num">Price before GST</th><th></th></tr></thead><tbody>${L.map(({e,m})=>{const u=used(e.id),other=u&&!(dealCur&&!dealCur._new&&dealKey(dealCur)===dealKey(u));return `<tr><td><input type="checkbox" style="width:auto" data-mp-sel="${esc(e.id)}"${mouldSel.has(e.id)?" checked":""}${other?" disabled title=\"Already used in "+esc(qtNo(u))+"\"":""}></td>${hasQ?`<td>${m.n?`<span class="chip ${m.n===m.of?"st-PO":"sugg"}">${m.n} of ${m.of} words</span>`:"—"}</td>`:""}<td>${esc(e.no||"—")}</td><td>${esc(e.date)}</td><td>${esc(e.customer)}</td><td>${esc(e.part)}</td><td>${esc(e.mouldNo)}</td><td>${esc(e.status)}</td><td class="num">${e.price==null?"Open and save it in Mould Estimator":"₹ "+fmt(e.price)}</td><td>${other?`<button class="btn" type="button" data-mp-open="${esc(dealKey(u))}">Open ${esc(qtNo(u))}</button>`:`<button class="btn primary" type="button" data-mp-use="${esc(e.id)}">Use</button>`}</td></tr>`}).join("")}</tbody></table></div>`:`<div class="note">${hasQ?`No estimate has a customer matching “${esc(mouldQ)}”. Tick Show all estimates to see every one.`:"No estimates found."}</div>`)+`<div class="note">Only the estimate No., customer, part, mould No., status and price before GST come across. Nothing is changed in Mould Estimator.</div>`}
 function useMouldEst(list){if(!list.length)return;
-  if(!dealCur){dealCur=newDeal();if(qtJW(dealCur)&&plantBy("P2")){dealCur.plant="P2";dealCur.no=nextDealNo("P2");dealCur.terms=QT_TERMS}}
+  if(!dealCur){dealCur=newDeal();if(qtJW(dealCur)&&plantBy("P2")){dealCur.plant="P2";dealCur.no=nextDealNo("P2");dealCur.terms=QT_TERMS;dealCur.title=""}}
   const d=dealCur,e0=list[0],at=new Date().toISOString(),c=e0.customer&&custByName(e0.customer);
   if(!String(d.cust||"").trim())d.cust=c?c.name:String(e0.customer||"").trim();
   const parts=[...new Set(list.map(e=>String(e.part||"").trim()).filter(Boolean))];
@@ -3869,7 +3871,7 @@ function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.in
 }
 const DL_FIELDS=["plant","cust","title","date","stage","owner","expClose","src","ref","value","custPO","custPODate","job","lostWhy","lostNote","gst","rev","terms"];
 $("#dealForm").addEventListener("input",e=>{if(!dealCur)return;const t=e.target;
-  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-plant"){if(dealCur._new&&dealCur.ps)dealCur.no=nextDealNo(dealCur.plant);if([QT_TERMS,JW_QT_TERMS].includes(dealCur.terms))dealCur.terms=qtTermsFor(dealCur.plant);qtFillJw(dealCur);renderDealForm()}if(t.id==="dl-stage")renderDealForm();return}
+  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-plant"){if(dealCur._new&&dealCur.ps)dealCur.no=nextDealNo(dealCur.plant);if([QT_TERMS,JW_QT_TERMS].includes(dealCur.terms))dealCur.terms=qtTermsFor(dealCur.plant);if(["",JW_QT_TITLE].includes(String(dealCur.title||"").trim()))dealCur.title=qtTitleFor(dealCur.plant);qtFillJw(dealCur);renderDealForm()}if(t.id==="dl-stage")renderDealForm();return}
   const q=t.dataset.q;if(!q)return;const tr=t.closest("tr"),l=dealCur.lines[+tr.dataset.i];l[q]=["qty","rate"].includes(q)?(t.value===""?"":+t.value):t.value;
   tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0));$("#dl-tot").textContent=fmt(dealCur.lines.reduce((a,x)=>a+(+x.qty||0)*(+x.rate||0),0))});
 $("#dealForm").addEventListener("change",e=>{if(!dealCur)return;const t=e.target;
