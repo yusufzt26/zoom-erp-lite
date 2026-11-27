@@ -4073,8 +4073,13 @@ const sdId=(t,x)=>t==="inv"?invKey(x):String(x.no);
 const isIntra=c=>stOf(custByName(c)||{})==="27";
 const sdSub=x=>(x.lines||[]).reduce((a,l)=>a+(+l.qty||0)*(+l.rate||0)*(1-(+l.dis||0)/100),0);
 const invTot=x=>invCalc(x).grand;
-const sentQ=(so,i)=>dchallans.filter(d=>String(d.so)===String(so)).reduce((a,d)=>a+d.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
-const billQ=(so,i)=>invoices.filter(v=>String(v.so)===String(so)).reduce((a,v)=>a+v.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
+/* a sales order imported from the old ERP carries what was already sent and billed there, line by line */
+const soOldQ=(so,i,k)=>{const s=sorders.find(y=>String(y.no)===String(so)),l=s&&s.old&&s.lines[i];return l?(+l[k]||0):0};
+/* the sales order made from a quotation (an old-ERP order can come from several quotations) */
+const soOfDeal=d=>{const k=dealKey(d);return sorders.find(s=>String(s.deal)===k||(s.qts||[]).includes(k))||(d.so?sorders.find(s=>String(s.no)===String(d.so)):null)||null};
+const soQts=s=>[...new Set([s.deal,...(s.qts||[])].filter(Boolean).map(String))].map(k=>{const d=dealBy(k);return d?qtNo(d)+(+d.rev?" R"+d.rev:""):k});
+const sentQ=(so,i)=>soOldQ(so,i,"oldSent")+dchallans.filter(d=>String(d.so)===String(so)).reduce((a,d)=>a+d.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
+const billQ=(so,i)=>soOldQ(so,i,"oldBilled")+invoices.filter(v=>String(v.so)===String(so)).reduce((a,v)=>a+v.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.qty||0),0),0);
 function soStatus(s){if(s.closed)return"Closed";const L=s.lines.map((l,i)=>({q:+l.qty||0,s:sentQ(s.no,i),b:billQ(s.no,i)}));
   if(L.every(x=>x.b>=x.q-1e-9))return"Billed";if(L.every(x=>x.s>=x.q-1e-9))return"Dispatched";if(L.some(x=>x.s>0||x.b>0))return"Part dispatched";return"Open"}
 const invDue0=x=>x.old?0:Math.max(0,invTot(x)-settledOf(x)-cnAdj(x));
@@ -4090,7 +4095,7 @@ document.querySelectorAll("[data-sdnew]").forEach(b=>b.onclick=()=>{if(!has(b.da
 function invStart(){const blank=()=>sdOpen("inv",sdNew("inv",{lines:[{desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""}]}),true);
   const SO=sorders.filter(s=>inPlant(s)&&!["Billed","Closed"].includes(soStatus(s))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const PO=[...SO.filter(s=>s.custPO).map(s=>({k:"s"+s.no,po:s.custPO,pd:s.custPODate,cust:s.cust,via:sdNo("so",s),go:()=>sdFromSO("inv",s)})),
-    ...deals.filter(d=>d.stage==="Won"&&d.custPO&&inPlant(d)&&!sorders.some(s=>String(s.deal)===dealKey(d))).map(d=>({k:"d"+dealKey(d),po:d.custPO,pd:d.custPODate,cust:d.cust,via:qtNo(d),go:()=>invViaSO(d)}))];
+    ...deals.filter(d=>d.stage==="Won"&&d.custPO&&inPlant(d)&&!soOfDeal(d)).map(d=>({k:"d"+dealKey(d),po:d.custPO,pd:d.custPODate,cust:d.cust,via:qtNo(d),go:()=>invViaSO(d)}))];
   const JW=jwins.filter(c=>inPlant(c)&&!jwInternal(c)&&jwStatus(c)!=="Billed");
   const d=document.createElement("div");d.className="modal";
   const opt=(v,lab,sub,n)=>`<label class="row" style="gap:10px;flex-wrap:nowrap;align-items:flex-start;cursor:pointer;padding:10px;border:1px solid var(--line,#ddd);border-radius:8px"><input type="radio" name="inv-src" value="${v}"${n===0?" disabled":""} style="width:auto;margin-top:3px"><span><b>${lab}</b><br><span class="note" style="margin:0">${sub}</span></span></label>`;
@@ -4114,7 +4119,7 @@ function invViaSO(d){if(!has("so.create")){invFromDeal(d);return}const x=sdNew("
   x.updatedAt=x.createdAt=new Date().toISOString();x.by=me.name;sorders.unshift(x);store.set("sorders",sorders);d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made for customer PO "+(d.custPO||"")});saveDeals();
   toast(`Sales order ${sdNo("so",x)} made for PO ${d.custPO}, so billed quantities are tracked`);sdFromSO("inv",x)}
 function invFromDeal(d){sdOpen("inv",sdNew("inv",{plant:d.plant||defPlant(),cust:d.cust,custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
-function sdFromDeal(d){const o=sorders.find(s=>String(s.deal)===dealKey(d));if(o){sdOpen("so",o,false);toast(`${sdNo("so",o)} already made for this quotation`);return}
+function sdFromDeal(d){const o=soOfDeal(d);if(o){sdOpen("so",o,false);toast(`${sdNo("so",o)} already made for this quotation`);return}
   sdOpen("so",sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:dealKey(d),custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))}),true)}
 function sdFromSO(t,s){const L=s.lines.map((l,i)=>{const done=t==="dc"?sentQ(s.no,i):billQ(s.no,i);const q=+((+l.qty||0)-done).toFixed(3);return{i,desc:l.desc,hsn:l.hsn,qty:q>0?q:0,unit:l.unit,rate:l.rate,ord:+l.qty||0,done}}).filter(l=>l.qty>0);
   if(!L.length){toast(t==="dc"?"Everything on this order has been dispatched":"Everything on this order has been billed");return}
@@ -4139,7 +4144,7 @@ function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if
   const {t,rec:x,isNew}=sdCur,F=$(`#${t}-form`),ro=isNew?!has(t+".create"):!has(t+".edit");F.hidden=false;const link=t!=="so"&&x.so;
   const fld=(k,lab,type,extra)=>`<label class="f">${lab}<input id="sd-${k}" data-sf="${k}"${type?` type="${type}"`:""} value="${esc(x[k]??"")}"${extra||""}></label>`;
   const plS=`<label class="f">Plant<select id="sd-plant" data-sf="plant"${!isNew?" disabled title=\"Number already given for this plant\"":""}>${plantOpts(x.plant)}</select></label>`;
-  const head0={so:fld("cust","Customer","",` list="custnames"`)+fld("date","Order date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("job","Job No.","",` list="projects"`)+fld("due","Delivery date","date"),
+  const head0={so:fld("cust","Customer","",` list="custnames"`)+fld("date","Order date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("job","Job No.","",` list="projects"`)+fld("due","Delivery date","date")+(x.deal||(x.qts||[]).length?`<label class="f">From quotation<input value="${esc(soQts(x).join(", "))}" disabled></label>`:""),
     dc:fld("cust","Customer","",` list="custnames"`)+fld("date","Challan date","date")+`<label class="f">Sales order<input value="${x.so?esc(soLbl(x.so)):"Direct, no order"}" disabled></label>`+fld("job","Job No.","",` list="projects"`)+fld("vehicle","Vehicle No.")+fld("transporter","Transporter")+fld("lr","LR / docket No.")+fld("remark","Remark"),
     inv:fld("cust","Customer","",` list="custnames"`)+fld("date","Invoice date","date")+fld("custPO","Customer PO No.")+fld("custPODate","Customer PO date","date")+fld("custDC","Your challan No.")+fld("custDCDate","Your challan date","date")+fld("job","Job No.","",` list="projects"`)+fld("attn","Kind Attn.","",` placeholder="From customer contact"`)+fld("delivery","Delivery")+fld("payDays","Pay terms (days)","number")+fld("vehicle","Vehicle No.")+fld("eway","E-way bill No.")+`<label class="f">Challan / order<input value="${esc([x.dc&&x.dc.length?x.dc.map(dcLbl).join(", "):"",x.so?soLbl(x.so):"",x.jw?"Job work JW-"+x.jw:""].filter(Boolean).join(" · ")||"Direct")}" disabled></label>`}[t];const head=plS+(t!=="inv"&&isNew&&(serFirst(t,x.plant,fyOf(x.date||today()))||isRole("Admin"))?`<label class="f">${SD[t].name} No. ${t==="dc"?"":esc(serL(x.plant)+"/"+SER[t].tag)}${t==="dc"?" of ":"…/"}${esc(fyOf(x.date||today()))} ${serFirst(t,x.plant,fyOf(x.date||today()))?"(first of this plant and year: next number filled in, change it to match your old records)":"(Admin can change it)"}<input id="sd-nofirst" inputmode="numeric" value="${esc(serNum(x.no))}"></label>`:"")+(t==="inv"&&isNew&&(invFirst(fyOf(x.date||today()),x.plant)||isRole("Admin"))?`<label class="f">Invoice No. ${invFirst(fyOf(x.date||today()),x.plant)?`(first ${esc(invPreOf(x.plant))}… of ${esc(fyOf(x.date||today()))}: next number filled in, change it to match your old records)`:"(Admin can change it)"}<input id="sd-no" data-sf="no" inputmode="numeric" value="${esc(x.no??"")}"></label>`:"")+head0;
   const showDone=link&&x.lines.some(l=>l.ord!=null);
@@ -5002,6 +5007,8 @@ const IMP_LIST=[
   ["ogrn","Old GRNs","One row per GRN line: GRN no., date, supplier, supplier invoice no., PO no., item, qty, unit, rate, GST %. Kept as history: they do not add stock, do not add to vendor dues, and do not change PO received qty.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["ojw","Old job work inward","One row per line of customer material received for job work: inward no., date, customer, their challan no. and date, material, qty, unit, job work, rate, qty sent back, qty billed. Material not yet sent back shows in Store > Job work inward, ready for Send back and Make invoice.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["oinv","Old sales invoices","One row per invoice line: invoice no. (e.g. Z0001 or Z0001/26-27), date, customer, customer PO, item, HSN, qty, unit, rate, discount %, GST %. Kept as history: they show in invoice lists, sales figures and registers, not in amounts to collect.","Excel (.xlsx, .xls), CSV, PDF","PO"],
+  ["oqt","Old quotations","One row per quotation line: quotation no. (e.g. ZQ/0012/26-27, Z = Plant 1, J = Plant 2), date, customer, customer ref, revision, item, qty, unit, rate, GST %. A Sales order No column marks the quotation Won and links it to that order.","Excel (.xlsx, .xls), CSV, PDF","PO"],
+  ["oso","Old sales orders","One row per order line: sales order no. (e.g. J/SO/0245/26-27), date, customer, customer PO no. and date, job no., quotation no., item, qty, unit, rate, qty sent and qty billed in the old ERP. Linked to its quotation; only the balance stays open to dispatch or bill.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["bank","Bank statement","Statement downloaded from net banking. Lines are matched to the bills above in Accounts.","Excel (.xlsx), CSV","Acct"],
   ["restore","Full backup","A ZT-ERP LITE backup file (Home > Backup). Replaces everything.","Backup file (.xlsx)","Admin"]];
 const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN","PAN","Address","City","PIN","State code","Contact person","Phone","Email"],["ABC Engineering Pvt Ltd","Sundry Debtors","27ABCDE1234F1Z5","ABCDE1234F","Plot 12, MIDC","Pune","411019","27","Mr. Patil","9800000000","accounts@abc.in"],["Shree Steels","Sundry Creditors","27AAAAA0000A1Z5","","Bhosari","Pune","411026","27","","",""]]),
@@ -5009,7 +5016,9 @@ const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN
   obc:()=>obTemplate(),obs:()=>obTemplate(),opo:()=>opoTemplate(),
   ojw:()=>tplBook("Old-job-work-inward-template.xlsx",[OJW_FIELDS.map(f=>f[1]),["Z/0012/26-27","05/11/2026","P1","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","DC-881","04/11/2026","","ZT2350","","CORE INSERT 40 X 60","2","NOS","Wire cut","998898","1500","1","0","20/11/2026","Z/0101/26-27"]]),
   ogrn:()=>tplBook("Old-GRN-template.xlsx",[OGRN_FIELDS.map(f=>f[1]),["J/00001/26-27","03/04/2026","P2","EXCEL ENTERPRISES","27CHDPM4358P1ZO","EE-383","30/03/2026","J/2848/25-26","","DIA 3 FLAT STANDARD","83024900","10","10","10","","NOS","600","","18"]]),
-  oinv:()=>tplBook("Old-invoice-template.xlsx",[OINV_FIELDS.map(f=>f[1]),["Z0001/26-27","01/04/2026","P1","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","","","","","Gun drilling of WO-391 cavity","998898","1","NOS","1000","","18"]])};
+  oinv:()=>tplBook("Old-invoice-template.xlsx",[OINV_FIELDS.map(f=>f[1]),["Z0001/26-27","01/04/2026","P1","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","","","","","Gun drilling of WO-391 cavity","998898","1","NOS","1000","","18"]]),
+  oqt:()=>tplBook("Old-quotations-template.xlsx",[OQT_FIELDS.map(f=>f[1]),["JQ/0950/26-27","20/11/2026","P2","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","Mr. Patil","KM276","0","J/SO/0245/26-27","4501501890","26/11/2026","ZT2381","KM276 MOULD BASE WITH CHILDPARTS","84807100","1","NOS","182000","18"]]),
+  oso:()=>tplBook("Old-sales-orders-template.xlsx",[OSO_FIELDS.map(f=>f[1]),["J/SO/0245/26-27","26/11/2026","P2","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","4501501890","26/11/2026","ZT2381","JQ/0950/26-27","KM276 MOULD BASE WITH CHILDPARTS","84807100","1","NOS","182000","","18","0","0"]])};
 async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
   const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=rows[0].map((h,k)=>({wch:Math.max(10,...rows.map(r=>String(r[k]||"").length))+2}));XLSX.utils.book_append_sheet(wb,ws,"Sheet1");
   const blob=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/octet-stream"});
@@ -5025,7 +5034,7 @@ function renderImportHub(){const P=$("#importPanel");if(!P)return;
   ${L.map((x,k)=>`<tr><td>${k+1}</td><td><b>${esc(x[1])}</b></td><td class="note">${esc(x[2])}</td><td style="white-space:nowrap">${esc(x[3])}</td><td style="white-space:nowrap">${IMP_TPL[x[0]]?`<button class="btn" type="button" data-imp="tpl:${x[0]}">Template</button> `:""}<button class="btn primary" type="button" data-imp="${x[0]}">${x[0]==="restore"?"Go to backup":x[0]==="bank"?"Go to Accounts":"Import"}</button></td></tr>`).join("")}
   </tbody></table></div>
   ${L.length?"":`<div class="empty">Only the Admin or Accounts can import old data.</div>`}
-  <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div><div id="ohPrev"></div><div id="ojwPrev"></div>`;renderOpo();renderOh();renderOjw()}
+  <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div><div id="ohPrev"></div><div id="ojwPrev"></div><div id="oqsPrev"></div>`;renderOpo();renderOh();renderOjw();renderOqs()}
 $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!k)return;
   if(k.startsWith("tpl:")){const f=IMP_TPL[k.slice(4)];if(f)f();return}
   if(k==="opo-go"){opoSave();return}
@@ -5034,15 +5043,18 @@ $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!
   if(k==="oh-cancel"){ohPv=null;renderOh();return}
   if(k==="ojw-go"){ojwSave();return}
   if(k==="ojw-cancel"){ojwPv=null;renderOjw();return}
+  if(k==="oqs-go"){oqsSave();return}
+  if(k==="oqs-cancel"){oqsPv=null;renderOqs();return}
   if(k==="restore"){show("home");return}
   if(k==="bank"){show("acct");setTimeout(()=>{const i=$("#bks-file");if(i)i.click()},50);return}
   if(k==="party"){$("#sup-file").click();return}
   if(k==="items"){$("#it-file").click();return}
   const i=$("#imp-file");i.dataset.kind=k;i.click()});
-$("#importPanel").addEventListener("change",e=>{const o=e.target.dataset&&e.target.dataset.ojwopt;if(o&&ojwPv){ojwPv[o]=e.target.checked;ojwFilter();renderOjw();return}if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
+$("#importPanel").addEventListener("change",e=>{const o=e.target.dataset&&e.target.dataset.ojwopt;if(o&&ojwPv){ojwPv[o]=e.target.checked;ojwFilter();renderOjw();return}if(e.target.dataset&&e.target.dataset.oqsopt&&oqsPv){oqsPv.closeOld=e.target.checked;renderOqs();return}if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
   if(k==="opo"){opoImport(f);return}
   if(k==="ogrn"||k==="oinv"){ohImport(f,k);return}
   if(k==="ojw"){ojwImport(f);return}
+  if(k==="oqt"||k==="oso"){oqsImport(f,k);return}
   obImport(f,k==="obc"?"cust":"sup")});
 /* ---------- old job work inward (customer material) from the old ERP, one row per line ---------- */
 const OJW_FIELDS=[["no","Inward No",["inwardno","jwno","jobworkno","jobworkinwardno","inwardnumber","grnno","mrnno","no"]],["date","Received date",["receiveddate","inwarddate","date","grndate"]],["plant","Plant",["plant","branch"]],
@@ -5097,6 +5109,88 @@ function ojwSave(){if(!ojwPv)return;const at=new Date().toISOString(),have=new S
       lines:H.lines.map(l=>({desc:l.desc,qty:l.qty,unit:l.unit,process:l.process,hsn:l.hsn,rate:l.rate,oldBilled:l.oldBilled})),
       outs:sent.some(q=>q>0)?[{n:1,date:H.outDate||H.date,vehicle:"",by:"Old ERP",qty:sent,dc:H.outDC||"",old:true}]:[],importedAt:at,importFile:ojwPv.fname});n++});
   saveJw();if(addC)saveCusts();renderJwin();toast(`${n} old job work inwards imported${addC?`, ${addC} customers added`:""}.`);ojwPv=null;renderOjw()}
+/* ---------- old quotations and old sales orders from the old ERP, one row per line.
+   A sales order made from a quotation is linked both ways (quotation Won with its order; order shows its quotations), whichever file comes in first. ---------- */
+const OQT_FIELDS=[["no","Quotation No",["quotationno","quoteno","qtno","quotno","quotationnumber","offerno"]],["date","Quotation date",["quotationdate","quotedate","qtdate","offerdate","date"]],["plant","Plant",["plant","branch"]],
+  ["cust","Customer",["customer","customername","partyname","party"]],["gstin","Customer GSTIN",["customergstin","gstin","gstno"]],["attn","Kind attn",["kindattn","attn","kindattention","contactperson"]],
+  ["ref","Customer ref",["customerref","yourref","refno","ref","rfqno","enquiryno"]],["rev","Revision",["revision","revno","rev"]],["so","Sales order No",["salesorderno","sono","oursono"]],
+  ["custPO","Customer PO No",["customerpono","pono","ponumber"]],["custPODate","Customer PO date",["customerpodate","podate"]],["job","Job No",["jobno","projectno","projectjobno","project"]],
+  ["desc","Item",["item","itemdescription","description","itemname","particulars"]],["hsn","HSN / SAC",["hsnsac","hsn","hsncode","sac"]],["qty","Qty",["qty","quantity"]],["unit","Unit",["unit","uom","units"]],
+  ["rate","Rate",["rate","unitrate","price"]],["gst","GST %",["gst","gstpercent","gstrate","taxrate"]]];
+const OSO_FIELDS=[["no","Sales order No",["salesorderno","sono","oursono","salesordernumber","orderno"]],["date","Order date",["orderdate","sodate","salesorderdate","date"]],["plant","Plant",["plant","branch"]],
+  ["cust","Customer",["customer","customername","partyname","party"]],["gstin","Customer GSTIN",["customergstin","gstin","gstno"]],
+  ["custPO","Customer PO No",["customerpono","pono","ponumber"]],["custPODate","Customer PO date",["customerpodate","podate"]],["job","Job No",["jobno","projectno","projectjobno","project"]],
+  ["qt","Quotation No",["quotationno","quoteno","qtno","quotno"]],["desc","Item",["item","itemdescription","description","itemname","particulars"]],["hsn","HSN / SAC",["hsnsac","hsn","hsncode","sac"]],
+  ["qty","Qty",["qty","quantity"]],["unit","Unit",["unit","uom","units"]],["rate","Rate",["rate","unitrate","price"]],["dis","Discount %",["discount","discountpercent","disc"]],["gst","GST %",["gst","gstpercent","gstrate","taxrate"]],
+  ["sent","Qty sent",["qtysent","sentqty","dispatchedqty","challanqty"]],["billed","Qty billed",["qtybilled","billedqty","invoicedqty"]]];
+let oqsPv=null;
+/* an old quotation with no sales order, older than this many days, can be closed as Lost when imported so the open pipeline stays real */
+const OQT_STALE=90;
+const oqsStale=H=>!H.so&&H.date<addDays(today(),-OQT_STALE);
+async function oqsImport(f,kind){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  const q=kind==="oqt",F=q?OQT_FIELDS:OSO_FIELDS,lab=q?"Quotation No":"Sales order No";
+  try{toast("Reading the file…");const wb=await readBook(f,F,"csv");let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],F),sc=Object.keys(m).length;
+      if(m.no!=null&&m.desc!=null&&m.cust!=null&&sc>=5&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
+    if(!best){toast(`Could not find the columns. The sheet needs ${lab}, Customer and Item columns. Download the template to see the layout.`);return}
+    const M=best.map,G=new Map(),bad=[];let lastNo="";
+    best.rows.slice(best.hr+1).forEach((r,i)=>{const g=k=>M[k]==null?"":r[M[k]],row=i+best.hr+2;
+      const no=String(g("no")??"").trim()||lastNo,desc=String(g("desc")??"").replace(/\s+/g," ").trim();
+      if(!no&&!desc)return;if(/^(grand\s*)?total/i.test(no)||/^(grand\s*)?total/i.test(desc))return;
+      if(!no){bad.push(`Row ${row}: no ${q?"quotation":"sales order"} number`);return}lastNo=no;if(!desc){bad.push(`Row ${row} (${no}): no item`);return}
+      const qty=Math.abs(obNum(g("qty")))||1;
+      let H=G.get(key(no));if(!H){H={no,lines:[]};G.set(key(no),H)}
+      ["date","plant","cust","gstin","attn","ref","rev","so","custPO","custPODate","job"].forEach(k=>{if(M[k]==null||H[k])return;const v=g(k);if(String(v??"").trim()==="")return;H[k]=/date/i.test(k)?obDate(v):String(v).replace(/\s+/g," ").trim()});
+      const L={desc,hsn:String(g("hsn")??"").trim(),qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||"NOS",rate:Math.abs(obNum(g("rate"))),tax:ohGst(g("gst"))};
+      if(!q){L.dis=Math.abs(obNum(g("dis")));L.qt=String(g("qt")??"").trim();L.oldBilled=r2(Math.min(qty,Math.abs(obNum(g("billed")))));L.oldSent=r2(Math.max(L.oldBilled,Math.min(qty,Math.abs(obNum(g("sent"))))))}
+      H.lines.push(L)});
+    const have=new Set(q?deals.map(d=>key(dealKey(d))):sorders.map(x=>key(x.no))),out=[],dup=[];
+    G.forEach(H=>{if(!H.date){bad.push(`${H.no}: date missing or not readable`);return}if(!H.cust){bad.push(`${H.no}: no customer`);return}
+      if(have.has(key(H.no))){dup.push(H.no);return}H.plant=ohPlant(H.plant,H.no);
+      H.value=Math.round(H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-(l.dis||0)/100),0));
+      const tx={};H.lines.forEach(l=>tx[l.tax]=(tx[l.tax]||0)+1);H.gst=+Object.keys(tx).sort((a,b)=>tx[b]-tx[a])[0];if(!(H.gst>=0))H.gst=18;
+      if(!q)H.qts=[...new Set(H.lines.map(l=>l.qt).filter(Boolean))];
+      out.push(H)});
+    out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true}));
+    const unk=[...new Set(out.filter(H=>!custByName(H.cust)).map(H=>H.cust))];
+    oqsPv={kind,fname:f.name,sn:best.sn,map:M,recs:out,bad,dup,unk,closeOld:true};renderOqs();const el=$("#oqsPrev");if(el)el.scrollIntoView({block:"start"})}
+  catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
+const oqsDone=H=>H.lines.every(l=>l.oldBilled>=l.qty-0.0001);
+function renderOqs(){const P=$("#oqsPrev");if(!P)return;if(!oqsPv){P.innerHTML="";return}const q=oqsPv.kind==="oqt",R=oqsPv.recs,F=q?OQT_FIELDS:OSO_FIELDS,lab=q?"quotations":"sales orders";
+  const soIn=new Set(sorders.map(s=>key(s.no))),qtIn=new Set(deals.map(d=>key(dealKey(d))));
+  const linked=q?R.filter(H=>H.so):R.filter(H=>H.qts.length),linkedIn=q?linked.filter(H=>H.so.split(/\s*,\s*/).some(n=>soIn.has(key(n)))):linked.filter(H=>H.qts.some(n=>qtIn.has(key(n))));
+  const stale=q?R.filter(oqsStale):[];
+  P.innerHTML=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c);margin-top:12px"><h3 class="rg" style="margin:0">Check before importing: old ${lab} from ${esc(oqsPv.fname)}</h3>
+  <div class="note">Sheet "${esc(oqsPv.sn)}". Columns found: ${F.filter(([f])=>oqsPv.map[f]!=null).map(([,l])=>l).join(", ")}.</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip calc">${R.length} ${lab}, ${R.reduce((a,x)=>a+x.lines.length,0)} lines</span><span class="chip">${fmtL(R.reduce((a,x)=>a+x.value,0))} before GST</span>${["P1","P2"].map(p=>`<span class="chip">${esc(plantName(p))}: ${R.filter(H=>H.plant===p).length}</span>`).join("")}
+    <span class="chip sugg">${linked.length} ${q?"with a sales order (come in as Won)":"made from a quotation"}${linked.length?`, ${linkedIn.length} of them ${q?"orders":"quotations"} already in the app`:""}</span>${!q?`<span class="chip">${R.filter(oqsDone).length} fully billed in the old ERP</span>`:""}${oqsPv.dup.length?`<span class="chip">${oqsPv.dup.length} already in the app, skipped</span>`:""}${oqsPv.bad.length?`<span class="chip st-Draft">${oqsPv.bad.length} problems, skipped</span>`:""}</div>
+  ${q&&stale.length?`<label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" data-oqsopt="closeOld"${oqsPv.closeOld?" checked":""} style="width:18px;height:18px"> Close ${stale.length} quotations older than ${OQT_STALE} days that have no sales order as Lost (reason "Other", note "Closed at import"), so Sales shows only live enquiries. Untick to bring them in as Quotation sent.</label>`:""}
+  <div class="note">${q?"They come into Sales with their old numbers, lines and rates, as history from the old ERP. Ones with a sales order are Won, carry the customer PO and job no., and open that order. The rest stay open as Quotation sent unless closed above. Old numbers do not change the ZQ- / JQ- numbers of new quotations.":"They come into Sales orders with their old numbers, linked to the quotations they were made from (those quotations are marked Won). What was already sent and billed in the old ERP is counted, so only the balance can be dispatched or billed here. New sales orders continue after the highest old number of each plant and year."}</div>
+  ${oqsPv.bad.length?`<div class="note" style="color:var(--danger)">${oqsPv.bad.slice(0,8).map(esc).join("<br>")}${oqsPv.bad.length>8?"<br>…":""}</div>`:""}
+  ${oqsPv.unk.length?`<div class="note">${oqsPv.unk.length} customer${oqsPv.unk.length===1?" is":"s are"} not in the master and will be added with the name and GSTIN in the file: ${oqsPv.unk.slice(0,6).map(esc).join("; ")}${oqsPv.unk.length>6?" …":""}</div>`:""}
+  ${R.length?`<div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th>${q?"Quotation":"Sales order"}</th><th>Date</th><th>Customer</th><th>${q?"Sales order":"Quotation"}</th><th>Plant</th><th class="num">Lines</th><th class="num">Value ₹</th></tr></thead><tbody>${R.slice(0,100).map(x=>`<tr><td style="font-family:var(--mono)">${esc(x.no)}${q&&+x.rev?" R"+esc(x.rev):""}</td><td>${dmy(x.date)}</td><td>${esc(x.cust)}</td><td>${esc((q?x.so:x.qts.join(", "))||"")}</td><td>${esc(x.plant)}</td><td class="num">${x.lines.length}</td><td class="num">${fmt0(x.value)}</td></tr>`).join("")}</tbody></table></div>${R.length>100?`<div class="note">Showing the first 100 of ${R.length}.</div>`:""}`:""}
+  <div class="row"><span style="flex:1"></span><button class="btn" type="button" data-imp="oqs-cancel">Cancel</button>${R.length?`<button class="btn primary" type="button" data-imp="oqs-go">Import ${R.length} ${lab}</button>`:""}</div></div>`}
+function oqsSave(){if(!oqsPv)return;const q=oqsPv.kind==="oqt",at=new Date().toISOString(),fname=oqsPv.fname;let n=0,addC=0,won=0,lost=0,lk=0;
+  const cust=H=>{let c=custByName(H.cust);if(!c){c={id:itId(),name:H.cust,gstin:H.gstin||""};customers.push(c);addC++}return c.name};
+  const winDeal=(d,s,txt)=>{if(!d.so)d.so=s.no;if(d.stage!=="Won"){d.stage="Won";d.closedAt=s.date;delete d.lostWhy;delete d.lostNote}
+    if(!d.custPO)d.custPO=s.custPO||"";if(!d.custPODate)d.custPODate=s.custPODate||"";if(!d.job)d.job=s.job||"";d.log=(d.log||[]).concat([{at,by:me.name,text:txt}])};
+  if(q){const have=new Set(deals.map(d=>key(dealKey(d))));
+    oqsPv.recs.forEach(H=>{if(have.has(key(H.no)))return;const o=oldJob(H.job),sos=String(H.so||"").split(/\s*,\s*/).filter(Boolean);
+      const d={no:H.no,pre:"",plant:H.plant,date:H.date,qtDate:H.date,cust:cust(H),title:H.lines[0].desc.slice(0,90),stage:"Quotation sent",owner:"Old ERP",by:"Old ERP",src:"",ref:H.ref||"",attn:H.attn||"",expClose:"",value:"",gst:H.gst,rev:+H.rev||0,
+        lines:H.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:l.qty,unit:l.unit,rate:l.rate})),terms:"",log:[{at,by:me.name,text:`Imported from the old ERP (${fname})`}],old:true,importedAt:at,importFile:fname,updatedAt:at};
+      const s=sos.map(x=>sorders.find(y=>key(y.no)===key(x))).find(Boolean);
+      if(sos.length){Object.assign(d,{stage:"Won",closedAt:(s&&s.date)||H.custPODate||H.date,so:s?s.no:sos[0],custPO:H.custPO||"",custPODate:H.custPODate||"",job:o.job});won++;if(s)lk++}
+      else if(oqsPv.closeOld&&oqsStale(H)){Object.assign(d,{stage:"Lost",closedAt:H.date,lostWhy:"Other",lostNote:"Closed at import: no sales order for it in the old ERP"});lost++}
+      deals.push(d);have.add(key(H.no));n++});
+    saveDeals()}
+  else{const have=new Set(sorders.map(x=>key(x.no)));
+    oqsPv.recs.forEach(H=>{if(have.has(key(H.no)))return;const o=oldJob(H.job);
+      const s={no:H.no,old:true,plant:H.plant,date:H.date,cust:cust(H),deal:H.qts[0]||"",qts:H.qts,custPO:H.custPO||"",custPODate:H.custPODate||"",job:o.job,oldRef:o.oldRef,due:"",gst:H.gst,terms:"",
+        lines:H.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:l.qty,unit:l.unit,rate:l.rate,dis:l.dis||"",qt:l.qt,oldSent:l.oldSent,oldBilled:l.oldBilled})),by:"Old ERP",createdAt:H.date+"T00:00:00.000Z",updatedAt:at,importedAt:at,importFile:fname};
+      sorders.push(s);have.add(key(H.no));n++;
+      H.qts.forEach(k=>{const d=dealBy(k);if(d){winDeal(d,s,`Sales order ${s.no} from the old ERP linked`);lk++}})});
+    sdSave("so");if(lk)saveDeals()}
+  if(addC)saveCusts();toast(`${n} old ${q?"quotations":"sales orders"} imported${q?` (${won} Won${lost?`, ${lost} closed as Lost`:""})`:""}${lk?`, ${lk} ${q?"linked to sales orders already in the app":"quotations linked"}`:""}${addC?`, ${addC} customers added`:""}.`);oqsPv=null;renderOqs()}
 /* ---------- old GRNs and old sales invoices: history only, one row per line ---------- */
 const OGRN_FIELDS=[["no","GRN No",["grnno","grnnumber","inwardno","mrnno","grn","receiptno"]],["date","GRN date",["grndate","inwarddate","receiptdate","date"]],["plant","Plant",["plant","branch"]],
   ["sup","Supplier",["supplier","suppliername","vendor","vendorname","partyname","party"]],["gstin","Supplier GSTIN",["suppliergstin","gstin","gstno"]],
