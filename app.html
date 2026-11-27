@@ -3356,10 +3356,10 @@ function renderMasters(){
   const depts=M.depts.map(d=>d.name),hods=M.users.map(u=>u.name);
   $("#mu-dept").innerHTML=opts(depts,"","Department");
   {const mp=$("#mu-plant"),v=mp.value;mp.innerHTML=`<option value="">Plant (optional)</option>`+plants().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");mp.value=v}
-  const uSee=(u,i)=>["Admin","Director"].includes(u.role)?`<span class="note">Both plants (${esc(u.role)})</span>`:!(u.plant&&plantBy(u.plant))?`<span class="note" title="Set a plant first to keep this person to one plant">Both plants (no plant set)</span>`:`<select id="mu${i}-s" data-f="plants" aria-label="Plants ${esc(u.name)} can see">${[["own","Own plant only"],["both","Both plants"]].map(([v,l])=>`<option value="${v}"${plantsOf(u)===v?" selected":""}>${l}${plantsDef(u)===v?" (usual)":""}</option>`).join("")}</select>`;
-  const uPl=u=>`<option value=""${u.plant?"":" selected"}>Not set (${esc(plantName("P1"))})</option>`+plants().map(p=>`<option value="${p.id}"${p.id===u.plant?" selected":""}>${esc(p.name)}</option>`).join("");
   $("#md-hod").innerHTML=opts(hods,"","Department head (optional)");
-  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><input id="mu${i}-n" data-f="name" value="${esc(u.name)}"></td><td><input id="mu${i}-e" data-f="email" type="email" value="${esc(u.email||"")}" placeholder="name@company.com" style="min-width:180px"></td><td><select id="mu${i}-d" data-f="dept">${opts(depts,u.dept,"None")}</select></td><td><select id="mu${i}-p" data-f="plant" title="Filled in on new documents. They can still pick another plant.">${uPl(u)}</select></td><td>${uSee(u,i)}</td><td><select id="mu${i}-r" data-f="role">${["Staff","Department head","Purchase","Store","Accounts","Sales","Production","Director","Admin"].map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}</select>${jobWarn(u)}</td><td>${(rightsOf(u).includes("po.approve")||u.role==="Department head")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td><button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="8" class="empty">No users yet.</td></tr>`;
+  const uSeeTxt=u=>["Admin","Director"].includes(u.role)?`Both plants (${esc(u.role)})`:!(u.plant&&plantBy(u.plant))?"Both plants (no plant set)":plantsOf(u)==="both"?"Both plants":`${esc(plantName(u.plant))} only`;
+  const uEd=has("users.edit");
+  $("#m-users").innerHTML=M.users.map((u,i)=>`<tr data-t="users" data-i="${i}"><td><b>${esc(u.name)}</b></td><td>${u.email?esc(u.email):`<span class="note">Not set</span>`}</td><td>${u.dept?esc(u.dept):`<span class="note">None</span>`}</td><td>${u.plant&&plantBy(u.plant)?esc(plantBy(u.plant).name):`<span class="note">Not set (${esc(plantName("P1"))})</span>`}</td><td><span class="note">${uSeeTxt(u)}</span></td><td>${esc(u.role)}${jobWarn(u)}</td><td>${(rightsOf(u).includes("po.approve")||u.role==="Department head")?`<span class="row" style="gap:6px;flex-wrap:nowrap">${u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:26px;background:#fff;border-radius:3px">`:""}<button class="btn" type="button" data-sig="${i}" style="font-size:12px;padding:3px 8px">${u.sig?"Change":"Upload"}</button></span>`:`<span class="note">Not needed</span>`}</td><td style="white-space:nowrap">${uEd?`<button class="btn" type="button" data-uedit="${i}" style="font-size:12px;padding:3px 10px" aria-label="Edit ${esc(u.name)}">Edit</button> <button class="x" data-mdel aria-label="Remove ${esc(u.name)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="8" class="empty">No users yet.</td></tr>`;
   $("#m-depts").innerHTML=M.depts.map((d,i)=>`<tr data-t="depts" data-i="${i}"><td><input id="md${i}-n" data-f="name" value="${esc(d.name)}"></td><td><select id="md${i}-h" data-f="hod">${opts(hods,d.hod,"None")}</select></td><td><button class="x" data-mdel aria-label="Remove ${esc(d.name)}">×</button></td></tr>`).join("")||`<tr><td colspan="3" class="empty">No departments yet.</td></tr>`;
   const pjE=projCan("edit"),pjD=projCan("delete"),pjRO=pjE?"":" disabled";$("#m-proj-form").hidden=!projCan("create");
   $("#m-projs").innerHTML=M.projects.map((p,i)=>`<tr data-t="projects" data-i="${i}"><td><input${pjRO} id="mp${i}-n" data-f="no" value="${esc(p.no)}" style="font-family:var(--mono)"></td><td><input${pjRO} id="mp${i}-d" data-f="desc" value="${esc(p.desc)}"></td><td><input${pjRO} id="mp${i}-c" data-f="cust" value="${esc(p.cust)}"></td><td><select${pjRO} id="mp${i}-s" data-f="status">${["Active","Closed"].map(x=>`<option${x===p.status?" selected":""}>${x}</option>`).join("")}</select></td><td>${pjD?`<button class="x" data-mdel aria-label="Remove ${esc(p.no)}">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="empty">No projects yet.</td></tr>`;
@@ -3413,7 +3413,58 @@ $("#who").onchange=e=>setMe(e.target.value);
 let sigFor=null;
 $("#m-users").addEventListener("click",e=>{const i=e.target.dataset.sig;if(i!=null){sigFor=+i;$("#mu-sigfile").click()}});
 $("#mu-sigfile").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f||sigFor==null)return;
-  try{M.users[sigFor].sig=await shrinkSig(f);saveM();renderMasters();toast(`Signature saved for ${M.users[sigFor].name}`)}catch(err){toast("Could not read that image. Try a JPG or PNG.")}};
+  try{M.users[sigFor].sig=await shrinkSig(f);saveM();renderMasters();toast(`Signature saved for ${M.users[sigFor].name}`);if(sigDone)sigDone()}catch(err){toast("Could not read that image. Try a JPG or PNG.")}};
+/* Edit a user (Admin, or anyone with the Users and rights Edit right): one form for name, email, department, job, plant, plants they can see and signature */
+let sigDone=null;
+$("#m-users").addEventListener("click",e=>{const b=e.target.closest("[data-uedit]");if(b)userEdit(+b.dataset.uedit)});
+function userEdit(i){const u=M.users[i];if(!u||!has("users.edit"))return;
+  const JOBS=["Staff","Department head","Purchase","Store","Accounts","Sales","Production","Director","Admin"];
+  const d=document.createElement("div");d.className="modal";d.id="ue-modal";
+  d.innerHTML=`<form class="panel stack" style="max-width:460px;width:100%;max-height:92vh;overflow:auto"><h2 class="sec">Edit user</h2>
+    <label class="f">Name<input id="ue-name" required autocomplete="off"></label>
+    <label class="f">Email (for password reset)<input id="ue-email" type="email" placeholder="name@company.com" autocomplete="off"></label>
+    <label class="f">Department<select id="ue-dept">${opts(M.depts.map(x=>x.name),u.dept,"None")}</select></label>
+    <label class="f">Job<select id="ue-role">${JOBS.map(r=>`<option${r===u.role?" selected":""}>${r}</option>`).join("")}${JOBS.includes(u.role)?"":`<option selected>${esc(u.role)}</option>`}</select></label>
+    <div class="note" id="ue-jobnote" style="white-space:normal"></div>
+    <label class="f">Plant<select id="ue-plant" title="Filled in on this person's new documents. They can still pick another plant."><option value="">Not set (${esc(plantName("P1"))})</option>${plants().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select></label>
+    <label class="f">Can see<select id="ue-plants"></select></label>
+    <div class="note" id="ue-seenote" style="white-space:normal"></div>
+    <div class="f">Signature <span class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px"><span id="ue-sigimg"></span><button class="btn" type="button" id="ue-sig" style="font-size:12px;padding:3px 10px"></button><button class="btn" type="button" id="ue-signo" style="font-size:12px;padding:3px 10px">Remove</button></span><span class="note">Needed only for people who approve (printed on POs and requests).</span></div>
+    <div class="row"><span style="flex:1"></span><button type="button" class="btn" id="ue-x">Cancel</button><button class="btn primary" id="ue-save">Save changes</button></div></form>`;
+  document.body.appendChild(d);const q=s=>d.querySelector(s);
+  q("#ue-name").value=u.name;q("#ue-email").value=u.email||"";q("#ue-plant").value=u.plant&&plantBy(u.plant)?u.plant:"";
+  let seeTouched=false,seeVal=plantsOf(u);
+  const draft=()=>({...u,role:q("#ue-role").value,dept:q("#ue-dept").value,plant:q("#ue-plant").value});
+  const paintSee=()=>{const t=draft(),sel=q("#ue-plants"),boss=["Admin","Director"].includes(t.role),noPl=!(t.plant&&plantBy(t.plant));
+    if(!seeTouched){delete t.plants;if(u.plants)t.plants=u.plants;seeVal=plantsOf(t)}
+    sel.innerHTML=boss?`<option>Both plants (${esc(t.role)})</option>`:noPl?`<option>Both plants (no plant set)</option>`:[["own","Own plant only"],["both","Both plants"]].map(([v,l])=>`<option value="${v}"${seeVal===v?" selected":""}>${l}${plantsDef(t)===v?" (usual)":""}</option>`).join("");
+    sel.disabled=boss||noPl;q("#ue-seenote").textContent=boss?`${t.role} always sees both plants.`:noPl?"Set a plant first to keep this person to one plant.":"";
+    const j=deptJob(t.dept);q("#ue-jobnote").textContent=t.role==="Staff"&&j?`Staff can only ask for material. To do ${t.dept} work, set the job to ${j}.`:"";};
+  const paintSig=()=>{q("#ue-sigimg").innerHTML=u.sig?`<img src="${u.sig}" alt="Signature of ${esc(u.name)}" style="height:30px;background:#fff;border-radius:3px;border:1px solid var(--line)">`:`<span class="note">None</span>`;q("#ue-sig").textContent=u.sig?"Change":"Upload";q("#ue-signo").hidden=!u.sig};
+  paintSee();paintSig();
+  q("#ue-dept").onchange=()=>{const j=deptJob(q("#ue-dept").value);if(q("#ue-role").value==="Staff"&&j){q("#ue-role").value=j;toast(`Job set to ${j}, to match the ${q("#ue-dept").value} department`)}paintSee()};
+  q("#ue-role").onchange=paintSee;q("#ue-plant").onchange=paintSee;
+  q("#ue-plants").onchange=e=>{seeTouched=true;seeVal=e.target.value};
+  q("#ue-sig").onclick=()=>{sigFor=i;sigDone=paintSig;$("#mu-sigfile").click()};
+  q("#ue-signo").onclick=()=>{delete u.sig;saveM();renderMasters();paintSig();toast(`Signature removed for ${u.name}`)};
+  const close=()=>{sigDone=null;d.remove();document.removeEventListener("keydown",esc_)};const esc_=e=>{if(e.key==="Escape")close()};document.addEventListener("keydown",esc_);
+  q("#ue-x").onclick=close;d.addEventListener("click",e=>{if(e.target===d)close()});
+  q("#ue-name").focus();
+  q("form").onsubmit=e=>{e.preventDefault();const t=draft(),nn=q("#ue-name").value.trim(),em=q("#ue-email").value.trim();
+    if(!nn){toast("Fill in the name");return}
+    if(M.users.some(x=>x!==u&&key(x.name)===key(nn))){toast(`${nn} is already in the list`);return}
+    if(u===me&&t.role!==u.role&&!(ROLE_RIGHTS[t.role]||[]).includes("users.edit")){toast("You cannot change your own job to one without Users and rights. Ask another Admin.");return}
+    const old=u.name,ch=[];
+    if(nn!==old){if(CLOUD&&cloud.logins.some(l=>l.name===old))loginAction({action:"rename",name:old,newName:nn});
+      M.depts.forEach(x=>{if(x.hod===old)x.hod=nn});M.users.forEach(x=>{if(x.checker===old)x.checker=nn});u.name=nn;ch.push("name")}
+    if(em!==(u.email||"")){u.email=em;ch.push("email")}
+    if(t.dept!==(u.dept||"")){u.dept=t.dept;ch.push("department")}
+    if(t.role!==u.role){u.role=t.role;if(u.rights)delete u.rights;ch.push("job")}
+    if(t.plant!==(u.plant||"")){u.plant=t.plant;ch.push("plant")}
+    if(seeTouched&&!["Admin","Director"].includes(u.role)&&u.plant&&seeVal!==(u.plants||"")){u.plants=seeVal;ch.push("plants they can see")}
+    close();if(!ch.length){toast("Nothing changed");return}
+    saveM();renderMasters();toast(`Saved ${u.name}: ${ch.join(", ")} changed`)};
+}
 function shrinkSig(file){return new Promise((res,rej)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const s=Math.min(1,500/img.width,160/img.height);const c=document.createElement("canvas");c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const g=c.getContext("2d");g.drawImage(img,0,0,c.width,c.height);
   const d=g.getImageData(0,0,c.width,c.height);for(let k=0;k<d.data.length;k+=4){const l=(d.data[k]+d.data[k+1]+d.data[k+2])/3;if(l>200)d.data[k+3]=0}g.putImageData(d,0,0);URL.revokeObjectURL(u);res(c.toDataURL("image/png"))};img.onerror=rej;img.src=u})}
 function addM(t,rec,check){if(!check){toast("Fill in the name first");return false}
