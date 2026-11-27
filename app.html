@@ -4725,8 +4725,8 @@ const tlDue=(kind,before)=>tlData().B.filter(b=>b.kind===kind&&inPlant(b)&&(!bef
 const tlVch=type=>{const m=tlMap();return tlData().V.filter(v=>v.type===type&&inPlant({plant:m.co[v.co]||""}))};
 /* first day Tally sent receipts and payments for (the sync program sends the last 90 days) */
 const tlVchFrom=()=>{const s=tlStatus();return(s&&s.from)||addDays(today(),-90)};
-/* customer bills in Tally by age, days from the bill date: 0-30, 31-60, 61-90, over 90, and amounts with no bill date (on account) */
-function tlCustAge(){const t=today(),b=[0,0,0,0,0];tlData().B.filter(x=>x.kind==="cust"&&inPlant(x)).forEach(x=>{const d=+x.due||0;if(!x.date){b[4]+=d;return}const age=Math.round((new Date(t)-new Date(x.date))/864e5);b[age<=30?0:age<=60?1:age<=90?2:3]+=d});return b.map(v=>Math.round(v))}
+/* customer ("cust") or supplier ("sup") bills in Tally by age, days from the bill date: 0-30, 31-60, 61-90, over 90, and amounts with no bill date (on account) */
+function tlAge(kind){const t=today(),b=[0,0,0,0,0];tlData().B.filter(x=>x.kind===kind&&inPlant(x)).forEach(x=>{const d=+x.due||0;if(!x.date){b[4]+=d;return}const age=Math.round((new Date(t)-new Date(x.date))/864e5);b[age<=30?0:age<=60?1:age<=90?2:3]+=d});return b.map(v=>Math.round(v))}
 function tlParties(kind){const o60=addDays(today(),-60),m=new Map();
   tlData().B.filter(b=>b.kind===kind&&inPlant(b)).forEach(b=>{const k=b.party||"\u0001"+b.ledger;const r=m.get(k)||m.set(k,{party:b.party,ledgers:new Set(),plants:new Set(),bills:[],due:0,old:0,first:""}).get(k);
     r.ledgers.add(b.ledger);r.plants.add(b.plant);r.bills.push(b);r.due+=+b.due||0;if(b.date&&b.date<o60)r.old+=+b.due||0;if(b.date&&(!r.first||b.date<r.first))r.first=b.date});
@@ -5580,7 +5580,7 @@ function stackBar(parts,o){o=o||{};const T=sum(parts.map(p=>p.val));if(!T)return
   <div class="dlegend">${P.map(p=>`<span><i style="background:${p.c}"></i>${esc(p.label)} <b>${fmt0(p.val)}</b></span>`).join("")}</div>`}
 const SC=["var(--s1)","var(--s2)","var(--s3)","var(--s4)","var(--s5)","var(--s6)","var(--s7)","var(--s8)"];
 const tile=(n,t,d,w,go)=>`<${go?`button type="button" data-dgo="${esc(go)}"`:"div"} class="card dtile${w?" warn":""}"><span class="n">${n}</span><span class="t">${esc(t)}</span><span class="d">${esc(d||"")}</span></${go?"button":"div"}>`;
-const chartBox=(title,sub,body,wide)=>`<div class="panel dchart${wide?" wide":""}"><h3>${esc(title)}</h3>${sub?`<div class="note">${esc(sub)}</div>`:""}${body}</div>`;
+const chartBox=(title,sub,body,wide,link)=>`<div class="panel dchart${wide?" wide":""}">${link&&link.go?`<div class="row" style="align-items:baseline"><h3>${esc(title)}</h3><span style="flex:1"></span><button type="button" class="linkbtn" data-dgo="${esc(link.go)}">${esc(link.label)} →</button></div>`:`<h3>${esc(title)}</h3>`}${sub?`<div class="note">${esc(sub)}</div>`:""}${body}</div>`;
 
 /* everything one person did, as dated events */
 function userEvents(U){const E=[];const add=(t,d,v)=>{if(d)E.push({t,d:d10(d),v:+v||0})};const pl=x=>inPlant(x);
@@ -5713,10 +5713,15 @@ function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today()
     ${tile(moneyTxt(recv),"To collect now",TL?"From Tally":"All open invoices",recv>0,go(TL&&can("tally")?"tally":"inv"))}${tile(moneyTxt(payb),"To pay now",TL?"From Tally":"Booked, not yet paid",false,go(TL&&can("tally")?"tally":"acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
   const ch=[],BP=splitPlants()?dashPlants(MS):null;if(BP){h+=BP.table;ch.push(...BP.charts)}else
   ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
-  ch.push(chartBox("Money in and out by month",TL?`Tally receipts vs payments, from ${dmy(tlFrom)} (Tally sends the last 90 days)`:"Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true})));
-  const B=TL?tlCustAge():(A=>[0,1,2,3].map(i=>sum(A.map(r=>r.b[i]))))(custAgeing());
-  const AG=["0–30 days","31–60 days","61–90 days","Over 90 days","On account, no bill date"].map((l,i)=>({label:l,val:B[i]||0,c:i===3?"var(--danger)":i===4?"var(--s8)":"var(--s1)",go:go(TL&&can("tally")?"tally":"inv")})).filter((r,i)=>i<4||Math.abs(r.val)>=1);
-  ch.push(chartBox("Money to collect, by age",TL?"Customer bills in Tally, days from bill date (as of today)":"Open customer invoices and opening bills",hBars(AG,{money:true,empty:"Nothing to collect."})));
+  ch.push(chartBox("Money in and out by month",TL?`Tally receipts vs payments, from ${dmy(tlFrom)} (Tally sends the last 90 days)`:"Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true}),true));
+  /* money to collect and to pay by age: Tally bills when linked, else open ERP invoices / unpaid booked GRNs and opening bills */
+  const ageOf=L=>{const b=[0,0,0,0];L.forEach(([d,v])=>{const a=Math.round((new Date(t)-new Date(d))/864e5);b[a<=30?0:a<=60?1:a<=90?2:3]+=v});return b};
+  const BC=TL?tlAge("cust"):(A=>[0,1,2,3].map(i=>sum(A.map(r=>r.b[i]))))(custAgeing());
+  const BS=TL?tlAge("sup"):ageOf(grns.filter(g=>inPlant(g)&&g.status!=="With accounts"&&!g.old).map(g=>[g.invDate||g.date,grnBal(g)]).concat(obills.filter(o=>o.kind==="sup"&&inPlant(o)).map(o=>[o.date,Math.max(0,obBal(o))])).filter(x=>x[1]>=0.5));
+  const ageRows=(B,c,g)=>["0–30 days","31–60 days","61–90 days","Over 90 days","On account, no bill date"].map((l,i)=>({label:l,val:B[i]||0,c:i===3?"var(--danger)":i===4?"var(--s8)":c,go:go(g)})).filter((r,i)=>i<4||Math.abs(r.val)>=1);
+  const acc=go("acct")?{go:"acct",label:"Accounts"}:null;
+  ch.push(chartBox("Money to collect, by age",TL?"Customer bills in Tally, days from bill date":"Open customer invoices and opening bills",hBars(ageRows(BC,"var(--s1)",TL&&can("tally")?"tally":"inv"),{money:true,empty:"Nothing to collect."}),false,acc));
+  ch.push(chartBox("Money to pay, by age",TL?"Supplier bills in Tally, days from bill date":"Booked supplier bills not yet paid, and opening bills",hBars(ageRows(BS,"var(--s2)",TL&&can("tally")?"tally":"acct"),{money:true,empty:"Nothing to pay."}),false,acc));
   /* top 7 customers to collect from and suppliers to pay, from Tally when linked */
   const top7=L=>L.filter(r=>r.d>=0.5).sort((x,y)=>y.d-x.d).slice(0,7),tlTop=k=>tlParties(k).map(r=>({n:r.party||[...r.ledgers][0],d:r.due}));
   const TR=top7(TL?tlTop("cust"):custAgeing().map(r=>({n:r.cust,d:r.tot}))),TP=top7(TL?tlTop("sup"):vendSummary().map(v=>({n:v.sup,d:v.booked-v.paid})));
