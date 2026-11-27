@@ -33,6 +33,13 @@ Netlify environment variables (never put these in code):
 
 Test IRNs (sandbox, mock or preview) print "TEST IRN · NOT VALID FOR GST" on the PDF and can be cleared with "Clear test IRN".
 
+## Tally sync (accounts PC, read-only)
+
+`tools/tally-sync/` is a small Windows program for the PC where Tally runs. Every 5 minutes it reads party ledgers, unpaid bills, receipts and payments from Tally's XML port (9000) and sends them to `/api/tally/push`. It never writes to Tally.
+It signs in with a sync key made by the Admin on the **Tally sync** page (only a hash is stored, table `sync_keys`); the key can only write the read-only `tally` records.
+The Tally sync page shows the data, links each Tally ledger to an ERP customer or supplier (same name, or linked by a person; never guessed), and Home / Dashboard use it for To collect / To pay.
+Build and details: `tools/tally-sync/README.md`.
+
 ## Deploy
 
 Netlify: publish directory `public`, functions from `netlify/functions`, no build command. Link the site to this repository; every merge to `main` deploys.

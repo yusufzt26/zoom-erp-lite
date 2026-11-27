@@ -421,6 +421,7 @@ table.hlist{min-width:0}table.hlist td{padding:7px 6px}
     <button id="tab-stock" data-view="stock">Stock &amp; issue</button>
     <button id="tab-prod" data-view="prod">Production</button>
     <button id="tab-acct" data-view="acct">Accounts</button>
+    <button id="tab-tally" data-view="tally">Tally sync</button>
     <button id="tab-sal" data-group="sal">Sales</button>
     <button id="tab-rep" data-view="rep">Reports</button>
     <button id="tab-mast" data-view="mast">Masters</button>
@@ -781,6 +782,9 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 <section id="view-undo" class="stack" hidden>
   <div class="panel stack" id="undoPanel"></div>
 </section>
+<section id="view-tally" class="stack" hidden>
+  <div class="panel stack" id="tallyPanel"></div>
+</section>
 <section id="view-imp" class="stack" hidden>
   <div class="panel stack" id="importPanel"></div>
   <div class="panel stack" id="openPanel"></div>
@@ -860,7 +864,7 @@ const CLOUD=!!BOOT;const LP=CLOUD?"zpo:"+BOOT.me+":":"zpo:";
 const local={get(k,d){try{const v=localStorage.getItem(LP+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(LP+k,JSON.stringify(v))}catch(e){}}};
 /* ---------- cloud sync (shared data for all users) ---------- */
 const SYNC={reqs:{id:r=>String(r.no),newest:1,renum:1},saved:{id:p=>String(p.no),newest:1,renum:1},grns:{id:g=>String(g.no),newest:1,renum:1},pays:{id:p=>String(p.no),renum:1},rgps:{id:c=>String(c.no),newest:1,renum:1},jwins:{id:c=>String(c.no),newest:1,renum:1},slips:{id:s=>s.type+"-"+s.no,newest:1,renum:1},
-  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},costing:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>d.ps&&d.plant&&d.plant!=="P1"?d.plant+"-"+d.no:String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)}};
+  deletedPOs:{id:d=>String(d.no)+"@"+(d.at||"")},suppliers:{id:s=>String(s.name||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()},rates:{map:1},bins:{map:1},masters:{doc:1},costing:{doc:1},items:{id:i=>String(i.id)},customers:{id:c=>String(c.id)},deals:{id:d=>d.ps&&d.plant&&d.plant!=="P1"?d.plant+"-"+d.no:String(d.no),newest:1,renum:1},fups:{id:f=>String(f.id)},sorders:{id:x=>String(x.no),newest:1,renum:1},dchallans:{id:x=>String(x.no),newest:1,renum:1},invoices:{id:x=>(x.plant&&x.plant!=="P1"?x.plant+"-":"")+x.fy+"-"+x.no,newest:1,renum:1},jobs:{id:j=>String(j.no)},dnotes:{id:x=>String(x.no),newest:1,renum:1},cnotes:{id:x=>x.fy+"-"+x.no,newest:1,renum:1},obills:{id:o=>String(o.id)},bank:{id:l=>String(l.id)},tally:{id:x=>String(x.id),ro:1},tallymap:{doc:1}};
 const cloud={cache:{},shadow:{},pending:new Map(),rev:0,logins:[],timer:null,busy:false,status:"ok"};
 function cloudFlat(k,v){const S=SYNC[k],o={};if(S.doc){o._=v}else if(S.map){Object.keys(v||{}).forEach(x=>o[x]=v[x])}else(v||[]).forEach(r=>{if(r)o[S.id(r)]=r});return o}
 function cloudLoad(d){cloud.rev=d.rev;cloud.logins=d.logins||[];const by={};(d.records||[]).forEach(r=>{if(r.deleted||!SYNC[r.coll])return;(by[r.coll]=by[r.coll]||[]).push(r)});
@@ -1090,7 +1094,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users","imp","undo"];
+const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users","imp","undo","tally"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Old pre-estimate (direct PO)"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
@@ -1121,11 +1125,11 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||v==="dash"||(v==="undo"?canUndo():false)||(v==="imp"?(()=>{try{return impRows().length>0}catch(e){return isRole("Admin")}})():false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(v==="undo"?canUndo():false)||(v==="tally"?tlCan():false)||(v==="imp"?(()=>{try{return impRows().length>0}catch(e){return isRole("Admin")}})():false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="tally")renderTally();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
 const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
@@ -1133,7 +1137,7 @@ function setHdrCur(v){const el=$("#hdrCur"),b=$("#tab-"+v);if(el)el.textContent=
 const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Sales invoices"],["cn","↩️","Credit notes"]]],
   ["Purchase",[["req","📝","Purchase requests"],["buy","🧾","Pre-estimate"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["appr","✅","PO approvals"],["rmast","📐","Rates & costing"],["rates","🏷️","Rate list"]]],
-  ["Stock & accounts",[["grn","📦","Goods receipts (GRN)"],["stock","📊","Stock & issue"],["prod","🏭","Production"],["acct","💰","Accounts"],["rep","📈","Reports"]]],
+  ["Stock & accounts",[["grn","📦","Goods receipts (GRN)"],["stock","📊","Stock & issue"],["prod","🏭","Production"],["acct","💰","Accounts"],["tally","🔗","Tally sync"],["rep","📈","Reports"]]],
   ["Masters",[["mast","🗂️","Masters"],["users","👥","Users & rights"],["imp","📥","Import old data"],["undo","⏪","Restore data"]]]];
 function renderMnav(){const cur=views.find(x=>!$("#view-"+x).hidden);const mn=$("#mnav");mn.innerHTML=MNAV.map(([h,L])=>{const vis=L.filter(([v])=>{const b=$("#tab-"+v);return b&&!b.hidden&&can(v)});if(!vis.length)return"";
   return (h?`<div class="mh">${esc(h)}</div>`:"")+vis.map(([v,ic,t])=>{const bd=$("#tab-"+v).querySelector(".badge");return `<button type="button" data-mv="${v}"${v===cur?' aria-current="true"':""}><span class="mi" aria-hidden="true">${ic}</span>${esc(t)}${bd?`<span class="badge">${esc(bd.textContent)}</span>`:""}</button>`}).join("")}).join("");document.body.classList.toggle("has-sb",!!me&&!!mn.children.length)}
@@ -2811,7 +2815,7 @@ new MutationObserver(ms=>{const sync=new Set();
 cbScan(document.body);
 }
 /* ---------- weekly backup ---------- */
-const BK_SKIP=["lastBackup","me","theme","po","est","_rp"];
+const BK_SKIP=["lastBackup","me","theme","po","est","_rp","tally"];
 const isDesktop=()=>!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)&&!(window.matchMedia&&matchMedia("(pointer:coarse)").matches);
 const lastBk=()=>store.get("lastBackup",null);
 async function deliver(blob,filename){
@@ -2821,7 +2825,7 @@ async function deliver(blob,filename){
   toast("Download is not available in this view");return false}
 function backupBook(){
   if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return null}
-  const data={};if(CLOUD){Object.keys(SYNC).forEach(k=>{if(cloud.cache[k]!=null)data[k]=JSON.stringify(cloud.cache[k])})}else for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("zpo:")&&!BK_SKIP.includes(k.slice(4)))data[k.slice(4)]=localStorage.getItem(k)}
+  const data={};if(CLOUD){Object.keys(SYNC).forEach(k=>{if(cloud.cache[k]!=null&&!SYNC[k].ro)data[k]=JSON.stringify(cloud.cache[k])})}else for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith("zpo:")&&!BK_SKIP.includes(k.slice(4)))data[k.slice(4)]=localStorage.getItem(k)}
   const wb=XLSX.utils.book_new();const add=(n,rows)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.length?rows:[{"(none)":""}]),n);
   add("Summary",[{Company:COMPANY.name,"Backup date":dmy(today()),Time:new Date().toLocaleTimeString("en-IN"),"Taken by":me?me.name:"",Requests:reqs.length,POs:saved.length,GRNs:grns.length,Payments:pays.length,"Stock items":stockItems().length,"Issue/return slips":slips.length,"Returnable challans":rgps.length}]);
   add("Requests",reqs.map(r=>({No:r.no,Date:dmy(r.date),By:r.by,Dept:r.dept,"Job No":r.job,"Need by":dmy(r.need),Status:r.status,Lines:r.lines.length})));
@@ -2864,7 +2868,7 @@ async function readRestore(e){const f=e.target.files[0];e.target.value="";if(!f)
   try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});const sh=wb.Sheets["_restore"];if(!sh)throw 0;const rows=XLSX.utils.sheet_to_json(sh,{header:1});const B=JSON.parse(rows.slice(1).map(r=>r[0]||"").join(""));if(B.app!=="zoom-po-desk")throw 0;
     $("#bkConfirm").innerHTML=`<div class="banner back stack" style="gap:8px"><b>Restore the backup taken ${dmy(B.at.slice(0,10))} by ${esc(B.by||"-")}?</b><span>This replaces all requests, POs, GRNs, payments, stock and masters in this browser with the backup. Anything entered after the backup is lost.</span><span class="row"><button class="btn" id="btn-bk-no">Cancel</button><button class="btn primary" id="btn-bk-yes">Restore backup</button></span></div>`;
     $("#btn-bk-no").onclick=()=>$("#bkConfirm").innerHTML="";
-    $("#btn-bk-yes").onclick=async()=>{if(CLOUD){$("#btn-bk-yes").disabled=true;Object.keys(SYNC).forEach(k=>{if(B.data[k]!=null)cloud.set(k,JSON.parse(B.data[k]))});
+    $("#btn-bk-yes").onclick=async()=>{if(CLOUD){$("#btn-bk-yes").disabled=true;Object.keys(SYNC).forEach(k=>{if(B.data[k]!=null&&!SYNC[k].ro)cloud.set(k,JSON.parse(B.data[k]))});
       /* big backups go up in several batches: keep sending until everything is saved, then reload */
       for(let i=0;i<400&&(cloud.pending.size||cloud.busy);i++){if(!cloud.busy&&cloud.status!=="offline")await cloudFlush();else await new Promise(r=>setTimeout(r,500))}
       if(cloud.pending.size){toast("Not everything is saved yet. Keep this page open; it will keep trying.");$("#btn-bk-yes").disabled=false;return}
@@ -2879,9 +2883,9 @@ const canUndo=()=>!!me&&(isRole("Admin","Director","Approver")||has("page.users"
 const UNDO_AREAS=[["pur","Purchase","requests, POs, deleted-PO log, rate list, rates & costing",["reqs","saved","deletedPOs","rates","costing"]],
   ["store","Store & production","GRNs, returnable challans, issue slips, stock bins, job work inward, jobs",["grns","rgps","slips","bins","jwins","jobs"]],
   ["sales","Sales","RFQs and quotations, follow-ups, sales orders, delivery challans, invoices, credit notes",["deals","fups","sorders","dchallans","invoices","cnotes"]],
-  ["acct","Accounts","payments, debit notes, opening bills, bank statement lines",["pays","dnotes","obills","bank"]],
+  ["acct","Accounts","payments, debit notes, opening bills, bank statement lines, Tally ledger links",["pays","dnotes","obills","bank","tallymap"]],
   ["mast","Masters","suppliers, customers, items, departments, plants, projects and settings",["suppliers","customers","items","masters"]]];
-const U_WORDS={reqs:"Purchase requests",saved:"POs",grns:"GRNs",pays:"Payments",rgps:"Returnable challans",slips:"Issue slips",deletedPOs:"Deleted-PO log",suppliers:"Suppliers",rates:"Rate list",bins:"Stock bins",masters:"Masters and settings",costing:"Rates & costing",items:"Items",customers:"Customers",deals:"RFQs and quotations",fups:"Follow-ups",sorders:"Sales orders",dchallans:"Delivery challans",invoices:"Sales invoices",jobs:"Jobs",dnotes:"Debit notes",cnotes:"Credit notes",obills:"Opening bills",bank:"Bank statement lines",jwins:"Job work inward"};
+const U_WORDS={reqs:"Purchase requests",saved:"POs",grns:"GRNs",pays:"Payments",rgps:"Returnable challans",slips:"Issue slips",deletedPOs:"Deleted-PO log",suppliers:"Suppliers",rates:"Rate list",bins:"Stock bins",masters:"Masters and settings",costing:"Rates & costing",items:"Items",customers:"Customers",deals:"RFQs and quotations",fups:"Follow-ups",sorders:"Sales orders",dchallans:"Delivery challans",invoices:"Sales invoices",jobs:"Jobs",dnotes:"Debit notes",cnotes:"Credit notes",obills:"Opening bills",bank:"Bank statement lines",jwins:"Job work inward",tallymap:"Tally ledger links"};
 const U={data:null,loading:false,pick:null,all:true,areas:new Set(UNDO_AREAS.map(a=>a[0])),prev:null,ask:false,busy:false,done:null,err:"",more:false};
 try{const d=sessionStorage.getItem("zpo:_rpdone");if(d){U.done=JSON.parse(d);sessionStorage.removeItem("zpo:_rpdone")}}catch(e){}
 const dtIN=t=>new Date(t).toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
@@ -3487,7 +3491,7 @@ function salesTiles(){const D=deals.filter(myDeal),t=today(),mo=t.slice(0,7),d90
     {n:fmtL(won.reduce((a,d)=>a+dealVal(d),0)),t:"Orders won this month",d:`${won.length} order${won.length===1?"":"s"}`},
     {n:av?Math.round(wv*100/av)+"%":"-",t:"Win rate",d:"Last 90 days, by value",zero:!av},
     {n:sorders.filter(s=>["Open","Part dispatched"].includes(soStatus(s))).length,t:"Orders to dispatch",d:"Sales orders not fully sent"},
-    {n:fmtL(invoices.reduce((a,x)=>a+invDue(x),0)+obCustDue()),t:"To collect",d:"Invoices not fully paid"}]}
+    {n:fmtL(tlOn()?tlDue("cust"):invoices.reduce((a,x)=>a+invDue(x),0)+obCustDue()),t:"To collect",d:tlOn()?"From Tally":"Invoices not fully paid"}]}
 function renderSales(){{const b=$("#btn-deal-new");if(b)b.hidden=!has("sales.create");const m=$("#btn-deal-mould");if(m)m.hidden=!has("sales.create")}
   if(!$("#view-sales")||$("#view-sales").hidden)return;
   $("#salesTiles").innerHTML=salesTiles().map(w=>`<div class="card${w.warn?" warn":""}${w.zero?" zero":""}" style="cursor:default"><span class="n">${esc(w.n)}</span><span class="t">${esc(w.t)}</span><span class="d">${esc(w.d)}</span></div>`).join("");
@@ -4242,10 +4246,10 @@ function renderOwner(){const P=$("#ownerPanel");if(!P)return;P.hidden=true;retur
   const coll=invoices.concat(obills.filter(o=>o.kind==="cust")).reduce((a,v)=>a+rcptsOf(v).filter(r=>(r.date||"").slice(0,7)===mo).reduce((b,r)=>b+(+r.amt||0),0),0);
   const pur=grns.filter(g=>g.status!=="With accounts"&&(g.bookedAt||g.date).slice(0,7)===mo).reduce((a,g)=>a+grnCalc(g).total,0);
   const paid=pays.filter(p=>(p.date||"").slice(0,7)===mo).reduce((a,p)=>a+(+p.amount||0),0);
-  const recv=invoices.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
+  const TL=tlOn(),recv=TL?tlDue("cust"):invoices.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=TL?tlDue("sup"):vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
   const openSO=sorders.filter(s=>["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),late=J.filter(j=>j.due&&j.due<today()).length,low=lowStock().length;
   const T=[["Sales this month",fmtL(sales),"Invoices less credit notes","inv"],["Collected this month",fmtL(coll),"Customer receipts","inv"],["Purchases this month",fmtL(pur),"Booked GRNs","acct"],["Paid to vendors",fmtL(paid),"This month","acct"],
-    ["To collect",fmtL(recv),"All open invoices","inv",recv>0],["To pay",fmtL(payb),"All booked GRNs","acct"],["Orders to dispatch",String(openSO.length),fmtL(openSO.reduce((a,s)=>a+sdSub(s),0))+" order value","so"],["Jobs on the floor",String(J.length),late?late+" past due date":"None past due","prod",late>0],
+    ["To collect",fmtL(recv),TL?"From Tally":"All open invoices",TL&&can("tally")?"tally":"inv",recv>0],["To pay",fmtL(payb),TL?"From Tally":"All booked GRNs",TL&&can("tally")?"tally":"acct"],["Orders to dispatch",String(openSO.length),fmtL(openSO.reduce((a,s)=>a+sdSub(s),0))+" order value","so"],["Jobs on the floor",String(J.length),late?late+" past due date":"None past due","prod",late>0],
     ["Stock value",fmtL(stv),"At average purchase rate","stock"],["Below minimum stock",String(low),"Items to reorder","stock",low>0]];
   P.innerHTML=`<h2 class="sec">Business at a glance</h2><div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr))">${T.map(([t,n,d,v,w])=>`<button type="button" class="card${w?" warn":""}" data-go="${v}"><span class="n">${esc(n)}</span><span class="t">${esc(t)}</span><span class="d">${esc(d)}</span></button>`).join("")}</div>`}
 $("#ownerPanel").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b&&can(b.dataset.go))show(b.dataset.go)});
@@ -4348,6 +4352,133 @@ $("#openPanel").addEventListener("click",e=>{const t=e.target;
   if(t.dataset.obrcdel){e.preventDefault();const [id,i]=t.dataset.obrcdel.split(":");const o=obills.find(x=>x.id===id);if(!o||!confirm("Remove this receipt?"))return;o.rcpts.splice(+i,1);saveOB();renderOpening();return}});
 $("#openPanel").addEventListener("change",e=>{if(e.target.id==="ob-file"){const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(f)obImport(f,k);return}if(e.target.id==="ob-t")renderOpening()});
 $("#openPanel").addEventListener("input",e=>{if(e.target.id==="ob-q"){const pos=e.target.selectionStart;renderOpening();const q=$("#ob-q");q.focus();q.setSelectionRange(pos,pos)}});
+/* ---------- Tally sync: read-only copy of Tally from the accounts PC ----------
+   The sync program on the accounts PC reads Tally every 5 minutes and sends: a status, party ledgers (t "l"), unpaid bills (t "b"),
+   receipts and payments (t "v"). Only the server writes these; the app reads them. Nothing is ever written to Tally.
+   Each Tally ledger is linked to one ERP customer or supplier: by a person (tallymap), or automatically when the names are the same
+   (ignoring case, spaces and dots) and only one ERP party has that name. Anything else waits under "Needs linking"; nothing is guessed. */
+let tlTab="cust",tlQ="",tlParty=null,tlKeys=null,tlNewKey="",tlKeyErr="";
+const tlAll=()=>store.get("tally",[])||[];
+const tlStatus=()=>tlAll().find(x=>x&&x.t==="s")||null;
+const tlMap=()=>{let m=store.get("tallymap",null);if(!m||typeof m!=="object")m={};m.led=m.led||{};m.co=m.co||{};return m};
+const saveTlMap=m=>store.set("tallymap",m);
+const tlCan=()=>!!me&&(isRole("Admin","Director")||has("acct.book")||has("page.acct")||has("page.users"));
+const tlEdit=()=>!!me&&(isRole("Admin")||has("acct.book")||has("page.users"));
+const tlAdmin=()=>!!me&&(isRole("Admin")||has("page.users"));
+const tlOn=()=>!!tlStatus()&&tlMap().use!==false;
+const tlAgo=iso=>{const t=new Date(iso).getTime();if(!t)return"";const m=Math.round((Date.now()-t)/60000);return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" days ago"};
+const tlStale=()=>{const s=tlStatus();return!!s&&Date.now()-new Date(s.at).getTime()>20*60000};
+const tlKindW=k=>k==="cust"?"Customer":"Supplier";
+function tlData(){const S=tlStatus(),m=tlMap(),A=tlAll();const sig=(S&&S.at)+"|"+A.length+"|"+JSON.stringify(m)+"|"+customers.length+"|"+suppliers.length;
+  if(tlData.c&&tlData.sig===sig)return tlData.c;
+  const L=A.filter(x=>x&&x.t==="l"),B0=A.filter(x=>x&&x.t==="b"),V0=A.filter(x=>x&&x.t==="v");
+  const idx={};[["cust",customers],["sup",suppliers]].forEach(([k,P])=>{const mp=new Map();(P||[]).forEach(p=>{const kk=key(p&&p.name);if(!kk)return;mp.set(kk,mp.has(kk)&&mp.get(kk)!==p.name?null:p.name)});idx[k]=mp});
+  const link=(name,kind)=>{const e=m.led[name];if(e&&e.skip)return{party:"",how:"skip",by:e.by,at:e.at};if(e&&e.party)return{party:e.party,how:"hand",by:e.by,at:e.at};const n=idx[kind]&&idx[kind].get(key(name));return n?{party:n,how:"name"}:{party:"",how:""}};
+  const plantOf=(co,kind,bill)=>{const p=m.co[co];if(p)return p;return kind==="cust"?ohPlant("",bill):"P1"};
+  // a ledger's balance that is not in its bill list (on-account amounts, or a ledger not kept bill-by-bill) is shown as one line, so totals match Tally
+  const bsum=new Map();B0.forEach(b=>{const k=b.co+"\u0001"+b.ledger;bsum.set(k,(bsum.get(k)||0)+(+b.due||0))});
+  const B=B0.map(b=>Object.assign({},b));L.forEach(l=>{const r=Math.round(((+l.due||0)-(bsum.get(l.co+"\u0001"+l.name)||0))*100)/100;if(Math.abs(r)>=1)B.push({t:"b",co:l.co,kind:l.kind,ledger:l.name,bill:"",date:"",due:r,oa:true})});
+  B.forEach(b=>{Object.assign(b,link(b.ledger,b.kind));b.plant=plantOf(b.co,b.kind,b.bill)});
+  const kindOf=new Map();L.forEach(l=>kindOf.set(l.name,l.kind));
+  const V=V0.map(v=>Object.assign({},v,link(v.ledger,kindOf.get(v.ledger)||(v.type==="rcpt"?"cust":"sup")),{kind:kindOf.get(v.ledger)||""})).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||String(b.no).localeCompare(String(a.no),undefined,{numeric:true}));
+  // one row per Tally ledger name (all companies together); its balance is the sum of its bills, so it matches Tally
+  const led=new Map(),lk=(k,n)=>k+"\u0001"+n;
+  L.forEach(l=>{const k=lk(l.kind,l.name);const o=led.get(k)||led.set(k,{name:l.name,kind:l.kind,gstin:"",due:0}).get(k);if(l.gstin)o.gstin=l.gstin});
+  B.forEach(b=>{const k=lk(b.kind,b.ledger);const o=led.get(k)||led.set(k,{name:b.ledger,kind:b.kind,gstin:"",due:0}).get(k);o.due+=+b.due||0});
+  const LED=[...led.values()].map(o=>Object.assign(o,link(o.name,o.kind),{due:Math.round(o.due*100)/100}));
+  const gst={};[["cust",customers],["sup",suppliers]].forEach(([k,P])=>{const mp=new Map();(P||[]).forEach(p=>{const g=String(p&&p.gstin||"").trim().toUpperCase();if(g.length===15)mp.set(g,mp.has(g)&&mp.get(g)!==p.name?null:p.name)});gst[k]=mp});
+  LED.forEach(o=>{if(!o.party&&o.how!=="skip"&&o.gstin){const s=gst[o.kind].get(o.gstin);if(s)o.sugg=s}});
+  const need=LED.filter(o=>!o.party&&o.how!=="skip"&&Math.abs(o.due)>=1).sort((a,b)=>Math.abs(b.due)-Math.abs(a.due));
+  tlData.sig=sig;tlData.c={S,B,V,LED,need,cos:(S&&S.companies)||[]};return tlData.c}
+/* totals for To collect / To pay: plant picked in the header (both when none); before = only bills dated before that day */
+const tlDue=(kind,before)=>tlData().B.filter(b=>b.kind===kind&&inPlant(b)&&(!before||(b.date&&b.date<before))).reduce((a,b)=>a+(+b.due||0),0);
+function tlParties(kind){const o60=addDays(today(),-60),m=new Map();
+  tlData().B.filter(b=>b.kind===kind&&inPlant(b)).forEach(b=>{const k=b.party||"\u0001"+b.ledger;const r=m.get(k)||m.set(k,{party:b.party,ledgers:new Set(),plants:new Set(),bills:[],due:0,old:0,first:""}).get(k);
+    r.ledgers.add(b.ledger);r.plants.add(b.plant);r.bills.push(b);r.due+=+b.due||0;if(b.date&&b.date<o60)r.old+=+b.due||0;if(b.date&&(!r.first||b.date<r.first))r.first=b.date});
+  return[...m.values()].filter(r=>Math.abs(r.due)>=0.5).sort((a,b)=>b.due-a.due)}
+const tlHint=()=>{const s=tlStatus();return s?`from Tally · ${tlStale()?`<b class="down">last update ${esc(tlAgo(s.at))}</b>`:esc(tlAgo(s.at))}`:""};
+async function tlLoadKeys(){if(!CLOUD||!tlAdmin())return;try{const j=await api("tally/key");tlKeys=j.keys||[];tlKeyErr=""}catch(e){tlKeyErr=e.message||"Could not load the keys"}if(!$("#view-tally").hidden)renderTally()}
+const tlCode=s=>{const o=location.origin;let b="";try{b=btoa(o).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}catch(e){}return"ZTS1."+b+"."+s};
+function tlSample(){const C=customers.slice(0,7),Sp=suppliers.slice(0,5),t=today(),d=n=>addDays(t,-n),R=[];let i=0;const id=p=>p+":"+(++i);
+  const co="Zoom Technologies 26-27";
+  const led=(name,kind,due,gstin)=>R.push({id:id("l"),t:"l",co,name,kind,group:kind==="cust"?"Sundry Debtors":"Sundry Creditors",gstin:gstin||"",due,bw:true});
+  const bill=(ledger,kind,bill,days,due)=>R.push({id:id("b"),t:"b",co,kind,ledger,bill,date:d(days),dueOn:d(days-45),due});
+  C.forEach((c,k)=>{const nm=k===5?String(c.name).toLowerCase()+" ltd.":c.name;const a=118000+k*23600,b2=56640+k*11800;bill(nm,"cust",(k%2?"J":"Z")+(1601+k)+"/26-27",20+k*17,a);bill(nm,"cust",(k%2?"J":"Z")+(1650+k)+"/26-27",5+k*3,b2);led(nm,"cust",a+b2+(k===2?25000:0),c.gstin)});
+  bill("SHREE SAI ENGINEERING WORKS","cust","Z1590/26-27",75,212400);led("SHREE SAI ENGINEERING WORKS","cust",212400,"");
+  Sp.forEach((s,k)=>{const nm=k===3?String(s.name).toUpperCase()+" PVT LTD":s.name;const a=47200+k*9440;bill(nm,"sup","INV-"+(880+k),30+k*9,a);led(nm,"sup",a,s.gstin)});
+  bill("MAHALAXMI STEELS","sup","MS/2231",12,154340);led("MAHALAXMI STEELS","sup",154340,"");
+  C.slice(0,4).forEach((c,k)=>R.push({id:id("v"),t:"v",co,type:"rcpt",vtype:"Receipt",date:d(2+k*4),no:String(410+k),ledger:c.name,amt:50000+k*12500,narr:"NEFT"}));
+  Sp.slice(0,3).forEach((s,k)=>R.push({id:id("v"),t:"v",co,type:"pay",vtype:"Payment",date:d(3+k*5),no:String(220+k),ledger:s.name,amt:30000+k*8000,narr:"RTGS"}));
+  R.push({id:"status",t:"s",at:new Date().toISOString(),pc:"ACCOUNTS-PC (sample)",v:"1.0.0",key:"Sample",companies:[{name:co,ok:true,error:"",bills:R.filter(x=>x.t==="b").length,ledgers:R.filter(x=>x.t==="l").length,vch:R.filter(x=>x.t==="v").length}]});
+  store.set("tally",R);tlData.c=null}
+function renderTally(){const P=$("#tallyPanel");if(!P)return;const D=tlData(),S=D.S,m=tlMap(),ed=tlEdit(),adm=tlAdmin();
+  const pl=plants(),plOpt=v=>[["","By bill number (Z = "+(plantName("P1")||"Plant 1")+", J = "+(plantName("P2")||"Plant 2")+"); suppliers "+(plantName("P1")||"Plant 1")],...pl.map(p=>[p.id,p.name||p.id])].map(([id,l])=>`<option value="${id}"${(v||"")===id?" selected":""}>${esc(l)}</option>`).join("");
+  const head=`<div class="row"><h2 class="sec">Tally sync</h2>${S?(tlStale()?`<span class="chip st-Back">Last update ${esc(tlAgo(S.at))}</span>`:`<span class="chip calc">Live · ${esc(tlAgo(S.at))}</span>`):`<span class="chip st-Draft">Not connected yet</span>`}<span style="flex:1"></span></div>
+  <div class="note">A small program on the accounts PC reads Tally every 5 minutes and sends the unpaid bills, party balances, receipts and payments here. It <b>only reads</b>: nothing is ever written into Tally, and Tally stays the books of accounts. Each Tally ledger is linked once to its ERP customer or supplier; ledgers that cannot be linked for sure wait under <b>Needs linking</b>. Nothing is guessed.</div>`;
+  let st="";if(S){const cs=D.cos;
+    st=`<div class="note">Last update ${esc(ltDT(S.at))} (${esc(tlAgo(S.at))}) from <b>${esc(S.pc||"accounts PC")}</b>${S.v?" · program "+esc(S.v):""}.${tlStale()?` <b style="color:var(--danger)">No update for a while: check that the accounts PC is on, someone is logged in, Tally is open and the company is loaded.</b>`:""}${S.error?` <b style="color:var(--danger)">${esc(S.error)}</b>`:""}</div>
+    ${cs.length?`<div class="tablebox"><table class="mt" style="min-width:640px"><thead><tr><th>Tally company</th><th>Read</th><th class="num">Bills</th><th class="num">Ledgers</th><th class="num">Receipts &amp; payments</th><th>Plant for its bills</th></tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${c.ok?`<span class="chip calc">OK</span>`:`<span class="chip st-Back" title="${esc(c.error)}">${esc(c.error||"Not read")}</span>`}</td><td class="num">${fmt0(c.bills||0)}</td><td class="num">${fmt0(c.ledgers||0)}</td><td class="num">${fmt0(c.vch||0)}</td><td>${ed?`<select data-tlco="${esc(c.name)}" style="width:auto;max-width:360px">${plOpt(m.co[c.name])}</select>`:esc(m.co[c.name]?plantName(m.co[c.name]):"By bill number")}</td></tr>`).join("")}</tbody></table></div>`:""}
+    <label class="row" style="gap:8px;align-items:center;cursor:${ed?"pointer":"default"}"><input type="checkbox" id="tl-use" style="width:18px;height:18px"${m.use!==false?" checked":""}${ed?"":" disabled"}> Use Tally for the <b>To collect</b> and <b>To pay</b> figures on Home and Dashboard (instead of ERP invoices, GRNs and old ERP bills)</label>`}
+  const tc=tlDue("cust"),tp=tlDue("sup"),cm=today().slice(0,7),inP=x=>inPlant(x);
+  const rc=D.V.filter(v=>v.type==="rcpt"&&(v.date||"").slice(0,7)===cm).reduce((a,v)=>a+(+v.amt||0),0),py=D.V.filter(v=>v.type==="pay"&&(v.date||"").slice(0,7)===cm).reduce((a,v)=>a+(+v.amt||0),0);
+  const tiles=S?`<div class="kpis">${kpi("To collect (Tally)",kpiL(tc),`${kpiL(tlDue("cust",addDays(today(),-60)))} older than 60 days`,{tone:tc>0.5?"warn":""})}${kpi("To pay (Tally)",kpiL(tp),"to suppliers")}${kpi("Received this month",kpiL(rc),"Tally receipts")}${kpi("Paid this month",kpiL(py),"Tally payments")}${kpi("Needs linking",fmt0(D.need.length),D.need.length?"Tally ledgers with a balance":"all ledgers with a balance are linked",{tone:D.need.length?"warn":"ok"})}</div>`:"";
+  const tabs=[["cust","To collect"],["sup","To pay"],["vch","Receipts & payments"],["need",`Needs linking (${D.need.length})`],["link","Linked ledgers"],["setup","Setup"]];if(!S&&tlTab!=="setup")tlTab="setup";
+  const bar=`<div class="row" style="gap:8px;flex-wrap:wrap"><span class="dseg" role="group" aria-label="Tally sync">${tabs.map(([k,l])=>`<button type="button" data-tltab="${k}" aria-pressed="${k===tlTab}"${!S&&k!=="setup"?" disabled":""}>${esc(l)}</button>`).join("")}</span>${tlTab!=="setup"?`<input id="tl-q" placeholder="Search party, ledger, bill" style="max-width:240px" value="${esc(tlQ)}">`:""}</div>`;
+  const q=key(tlQ),hit=(...a)=>!q||key(a.join(" ")).includes(q);
+  const who=r=>r.party?`<b>${esc(r.party)}</b>`:`<b>${esc(r.ledger||r.name||"")}</b> <span class="chip st-Draft">Not linked</span>`;
+  let body="";
+  if(tlTab==="cust"||tlTab==="sup"){const R=tlParties(tlTab).filter(r=>hit(r.party,...r.ledgers,...r.bills.map(b=>b.bill)));
+    body=R.length?ltT([[tlTab==="cust"?"Customer":"Supplier"],["Tally ledger"],["Plant"],["Bills","num"],["Oldest bill","dt"],["Over 60 days","num"],[tlTab==="cust"?"To collect":"To pay","num"],["Actions","act"]],R.map(r=>{const k=r.party||"\u0001"+[...r.ledgers][0];return{a:tlParty===k?' aria-selected="true"':"",c:[who({party:r.party,ledger:[...r.ledgers][0]}),esc([...r.ledgers].join(", ")),esc([...r.plants].map(plantName).join(", ")),r.bills.filter(b=>!b.oa).length,r.first?ltD(r.first):"-",r.old?fmt0(Math.round(r.old)):"",`<b>${fmt0(Math.round(r.due))}</b>`,`<button class="btn" type="button" data-tlp="${esc(k)}">${tlParty===k?"Hide bills":"Bills"}</button>`]}}))
+      :`<div class="empty">${tlQ?"Nothing matches.":tlTab==="cust"?"No unpaid customer bills in Tally.":"No unpaid supplier bills in Tally."}</div>`;
+    const sel=tlParty&&R.find(r=>(r.party||"\u0001"+[...r.ledgers][0])===tlParty);
+    if(sel){const t=today();body+=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c)"><div class="row"><h3 class="rg" style="margin:0">Bills of ${esc(sel.party||[...sel.ledgers][0])}</h3><span style="flex:1"></span><button class="btn" type="button" data-tlp="${esc(tlParty)}">Close</button></div>
+      <div class="tablebox"><table class="mt" style="min-width:640px"><thead><tr><th>Bill No</th><th>Bill date</th><th>Due on</th><th class="num">Days</th><th>Tally company</th><th class="num">Amount</th></tr></thead><tbody>${sel.bills.slice().sort((a,b)=>(a.date||"9").localeCompare(b.date||"9")).map(b=>{const days=b.date?Math.round((new Date(t)-new Date(b.date))/864e5):"";return`<tr><td>${b.oa?`<span class="note">On account / not bill-wise</span>`:esc(b.bill||"(no number)")}</td><td>${b.date?dmy(b.date):""}</td><td style="${b.dueOn&&b.dueOn<t?"color:var(--danger);font-weight:600":""}">${b.dueOn?dmy(b.dueOn):""}</td><td class="num">${days}</td><td>${esc(b.co)}</td><td class="num"><b>${fmt(b.due)}</b></td></tr>`}).join("")}</tbody></table></div></div>`}}
+  else if(tlTab==="vch"){const R=D.V.filter(v=>inPlant({plant:m.co[v.co]||""})||!m.co[v.co]).filter(v=>hit(v.party,v.ledger,v.no,v.narr,v.vtype));
+    body=R.length?ltT([["Date","dt"],["Type"],["Voucher No."],["Party"],["Tally ledger"],["Amount","num"],["Narration"]],R.slice(0,1000).map(v=>({c:[ltD(v.date),v.type==="rcpt"?`<span class="chip calc">${esc(v.vtype||"Receipt")}</span>`:`<span class="chip sugg">${esc(v.vtype||"Payment")}</span>`,esc(v.no),v.party?`<b>${esc(v.party)}</b>`:(v.kind?`<span class="chip st-Draft">Not linked</span>`:`<span class="note">not a party ledger</span>`),esc(v.ledger),fmt0(v.amt),esc(v.narr)]})))+(R.length>1000?`<div class="note">Showing the latest 1,000.</div>`:"")
+      :`<div class="empty">${tlQ?"Nothing matches.":"No receipts or payments in the last 90 days."}</div>`;
+    body=`<div class="note">Receipts and payments entered in Tally in the last 90 days${S&&S.from?" (from "+dmy(S.from)+")":""}.</div>`+body}
+  else if(tlTab==="need"){const R=D.need.filter(o=>hit(o.name,o.gstin));
+    body=`<div class="note">These Tally ledgers have a balance but are not linked to an ERP ${"customer or supplier"}. Type the ERP name (the list shows matching names) and press <b>Link</b>, or press <b>Not in ERP</b> if the party is not kept in the ERP. A link is made once and kept; the next sync uses it. Their bills are still counted in the totals.</div>
+    <datalist id="tl-dl-cust">${customers.map(c=>`<option value="${esc(c.name)}">`).join("")}</datalist><datalist id="tl-dl-sup">${suppliers.map(c=>`<option value="${esc(c.name)}">`).join("")}</datalist>`+
+    (R.length?`<div class="tablebox"><table class="mt" style="min-width:860px"><thead><tr><th>Tally ledger</th><th>Type</th><th>GSTIN</th><th class="num">Balance</th><th>ERP ${"party"}</th><th></th></tr></thead><tbody>${R.map((o,i)=>`<tr><td><b>${esc(o.name)}</b></td><td>${tlKindW(o.kind)}</td><td>${esc(o.gstin)}</td><td class="num">${fmt0(Math.round(o.due))}</td><td>${ed?`<input data-tlin="${i}" list="tl-dl-${o.kind}" placeholder="Type the ${o.kind==="cust"?"customer":"supplier"} name" style="min-width:240px">${o.sugg?`<div class="note">Same GSTIN as <b>${esc(o.sugg)}</b> <button class="btn" type="button" data-tlsg="${i}">Link to it</button></div>`:""}`:`<span class="note">Accounts or Admin links it</span>`}</td><td style="white-space:nowrap">${ed?`<button class="btn primary" type="button" data-tllk="${i}">Link</button> <button class="btn" type="button" data-tlskip="${i}" title="This party is not in the ERP">Not in ERP</button>`:""}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">${tlQ?"Nothing matches.":"Every Tally ledger with a balance is linked. Nothing to do."}</div>`)}
+  else if(tlTab==="link"){const R=D.LED.filter(o=>(o.party||o.how==="skip")&&hit(o.name,o.party)).sort((a,b)=>a.kind.localeCompare(b.kind)||a.name.localeCompare(b.name));
+    body=R.length?ltT([["Tally ledger"],["Type"],["ERP party"],["How"],["Balance","num"],["Actions","act"]],R.map(o=>({c:[esc(o.name),tlKindW(o.kind),o.party?`<b>${esc(o.party)}</b>`:`<span class="note">Not in ERP</span>`,o.how==="name"?"Same name":`${o.how==="skip"?"Marked not in ERP":"Linked"} by ${esc(o.by||"-")}${o.at?" on "+dmy(o.at):""}`,fmt0(Math.round(o.due)),ed&&o.how!=="name"?`<button class="btn" type="button" data-tlun="${esc(o.name)}">Unlink</button>`:""]}))):`<div class="empty">No linked ledgers yet.</div>`}
+  else{const code=tlNewKey?tlCode(tlNewKey):"";
+    body=`<div class="stack"><h3 class="rg" style="margin:0">Connect the accounts PC (one time)</h3>
+    <ol style="margin:0 0 0 18px;line-height:1.7"><li>On the accounts PC, in Tally: <b>TallyPrime</b>: press <b>F1 (Help) &gt; Settings &gt; Connectivity</b>, set <b>TallyPrime acts as</b> = <b>Both</b> (or Server) and <b>Port</b> = <b>9000</b>, then restart Tally. <b>Tally.ERP 9</b>: <b>F12 &gt; Advanced Configuration</b>, Tally.ERP 9 is acting as <b>Both</b>, Port <b>9000</b>.</li>
+    <li>The Admin makes a <b>sync key</b> below and sends the setup code to the accounts person.</li>
+    <li>Copy <b>ZT-Tally-Sync.exe</b> to the accounts PC and double-click it. Paste the setup code when it asks. It checks Tally, installs itself and sends the first data. Nothing else to set.</li>
+    <li>Come back here: the status turns <b>Live</b>, then link any ledgers under <b>Needs linking</b>.</li></ol>
+    <div class="note">Party ledgers in Tally should have <b>Maintain balances bill-by-bill</b> = Yes, so each unpaid bill shows on its own. Balances of other ledgers still come across as one "On account" line.</div>
+    <h3 class="rg" style="margin:8px 0 0">Sync keys</h3>
+    ${!CLOUD?`<div class="note">This is the preview: sync keys are made on the live app. To see these screens with made-up Tally data, use the button.</div><div class="row"><button class="btn primary" type="button" id="tl-sample">Load sample Tally data (preview only)</button>${tlAll().length?`<button class="btn" type="button" id="tl-clear">Remove sample data</button>`:""}</div>`
+    :!adm?`<div class="note">Only the Admin can make sync keys.</div>`
+    :`${tlKeyErr?`<div class="note" style="color:var(--danger)">${esc(tlKeyErr)}</div>`:""}
+    ${code?`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c)"><b>Setup code for the sync program (shown only now; copy it before leaving this page)</b><textarea id="tl-code" readonly rows="2" style="font-family:'IBM Plex Mono',monospace;font-size:13px">${esc(code)}</textarea><div class="row"><button class="btn primary" type="button" id="tl-copy">Copy setup code</button><span class="note">Send it to the accounts person (WhatsApp or email). Anyone with this code can send Tally data to the ERP, but cannot read or change anything else. Stop the key below if it is lost.</span></div></div>`:""}
+    <div class="row" style="gap:8px;flex-wrap:wrap"><input id="tl-klabel" placeholder="Name for the key, e.g. Accounts PC" style="max-width:260px"><button class="btn primary" type="button" id="tl-knew">Make sync key</button></div>
+    ${tlKeys==null?`<div class="note">Loading keys…</div>`:tlKeys.length?`<div class="tablebox"><table class="mt" style="min-width:640px"><thead><tr><th>Key</th><th>Made by</th><th>Made on</th><th>Last used</th><th>Status</th><th></th></tr></thead><tbody>${tlKeys.map(k=>`<tr><td><b>${esc(k.label)}</b></td><td>${esc(k.created_by||"")}</td><td>${esc(ltDT(k.created_at))}</td><td>${k.last_used_at?esc(ltDT(k.last_used_at))+(k.last_pc?" · "+esc(k.last_pc):""):"Not used yet"}</td><td>${k.revoked?`<span class="chip st-Back">Stopped</span>`:`<span class="chip calc">Working</span>`}</td><td>${k.revoked?"":`<button class="btn" type="button" data-tlrv="${k.id}">Stop</button>`}</td></tr>`).join("")}</tbody></table></div>`:`<div class="note">No keys yet.</div>`}`}</div>`}
+  P.innerHTML=head+st+tiles+bar+body;
+  if(tlTab==="setup"&&CLOUD&&adm&&tlKeys==null&&!tlKeyErr)tlLoadKeys()}
+function tlLink(o,party,skip){const m=tlMap();if(skip)m.led[o.name]={skip:true,kind:o.kind,by:me.name,at:today()};else m.led[o.name]={party,kind:o.kind,by:me.name,at:today()};saveTlMap(m);tlData.c=null}
+$("#tallyPanel").addEventListener("click",async e=>{const t=e.target.closest("button,a")||e.target;const D=tlData();
+  if(t.dataset.tltab){tlTab=t.dataset.tltab;tlParty=null;renderTally();return}
+  if(t.dataset.tlp!=null){tlParty=tlParty===t.dataset.tlp?null:t.dataset.tlp;renderTally();return}
+  if(t.dataset.tllk!=null||t.dataset.tlsg!=null||t.dataset.tlskip!=null){if(!tlEdit())return;const i=+(t.dataset.tllk??t.dataset.tlsg??t.dataset.tlskip),R=D.need.filter(o=>!tlQ||key([o.name,o.gstin].join(" ")).includes(key(tlQ))),o=R[i];if(!o)return;
+    if(t.dataset.tlskip!=null){tlLink(o,"",true);toast(`${o.name} marked as not in the ERP`);renderTally();return}
+    let nm=t.dataset.tlsg!=null?o.sugg:(($(`[data-tlin="${i}"]`)||{}).value||"").trim();const P=o.kind==="cust"?customers:suppliers;const hitP=P.find(p=>p.name===nm)||P.find(p=>key(p.name)===key(nm)&&key(nm));
+    if(!nm){toast(`Type the ${o.kind==="cust"?"customer":"supplier"} name first`);return}
+    if(!hitP){toast(`"${nm}" is not in the ERP ${o.kind==="cust"?"customer":"supplier"} list. Pick a name from the list.`);return}
+    tlLink(o,hitP.name,false);toast(`${o.name} linked to ${hitP.name}`);renderTally();return}
+  if(t.dataset.tlun!=null){if(!tlEdit())return;const m=tlMap();delete m.led[t.dataset.tlun];saveTlMap(m);tlData.c=null;toast("Link removed");renderTally();return}
+  if(t.id==="tl-sample"&&!CLOUD){tlSample();tlTab="cust";toast("Sample Tally data loaded (preview only)");renderTally();return}
+  if(t.id==="tl-clear"&&!CLOUD){store.set("tally",[]);tlData.c=null;renderTally();return}
+  if(t.id==="tl-copy"){const ta=$("#tl-code");try{await navigator.clipboard.writeText(ta.value);toast("Setup code copied")}catch(err){ta.select();document.execCommand("copy");toast("Setup code copied")}return}
+  if(t.id==="tl-knew"&&CLOUD&&tlAdmin()){t.disabled=true;try{const j=await api("tally/key",{method:"POST",body:{action:"new",label:($("#tl-klabel")||{}).value||""}});tlNewKey=j.secret;tlKeys=j.keys;tlKeyErr="";toast("Sync key made. Copy the setup code now.")}catch(err){tlKeyErr=err.message}renderTally();return}
+  if(t.dataset.tlrv&&CLOUD&&tlAdmin()){if(!confirm("Stop this sync key? The program using it stops sending Tally data until it gets a new key."))return;try{const j=await api("tally/key",{method:"POST",body:{action:"revoke",id:+t.dataset.tlrv}});tlKeys=j.keys;tlNewKey="";toast("Key stopped")}catch(err){tlKeyErr=err.message}renderTally();return}});
+$("#tallyPanel").addEventListener("change",e=>{const t=e.target;if(!tlEdit())return;
+  if(t.dataset.tlco!=null){const m=tlMap();if(t.value)m.co[t.dataset.tlco]=t.value;else delete m.co[t.dataset.tlco];saveTlMap(m);tlData.c=null;renderTally();return}
+  if(t.id==="tl-use"){const m=tlMap();m.use=t.checked;saveTlMap(m);toast(t.checked?"Home and Dashboard now use Tally for To collect / To pay":"Home and Dashboard use ERP figures again");renderTally()}});
+$("#tallyPanel").addEventListener("input",e=>{if(e.target.id==="tl-q"){tlQ=e.target.value;const pos=e.target.selectionStart;renderTally();const q=$("#tl-q");if(q){q.focus();q.setSelectionRange(pos,pos)}}});
 /* ---------- bank statement: import, match to pending bills ---------- */
 let bkF="open",bkMore=60,bkPick=null,bkPrev=null;
 const BK_FIELDS=[["date","Date",["txndate","transactiondate","trandate","postingdate","date","valuedate","valuedt"]],
@@ -5043,11 +5174,11 @@ function dashMoney(MS){const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN
   const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]),purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
   const R=[];invoices.filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.filter(inPlant).forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s)));
-  return{sales,purch,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb:plantDue()+obSupDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
+  return{sales,purch,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:tlOn()?tlDue("cust"):INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb:tlOn()?tlDue("sup"):plantDue()+obSupDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
 function dashPlants(MS){const PL=plants(),X=PL.map(p=>({p,d:withPlant(p.id,()=>dashMoney(MS))}));
   const rows=[["Sales","inv",x=>sum(x.sales)],["Purchases","acct",x=>sum(x.purch)],["Collected","inv",x=>sum(x.coll)],["To collect now","inv",x=>x.recv],["To pay now","acct",x=>x.payb],["Orders to dispatch","so",x=>x.soVal]].filter(r=>can(r[1]));
   const mx=niceMax(Math.max(1000,...X.flatMap(x=>x.d.sales.concat(x.d.purch))));
-  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period, incl. GST. To collect / to pay are as of today, including unpaid bills from the old ERP.</div>
+  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period, incl. GST. To collect / to pay are as of today, ${tlOn()?"from Tally":"including unpaid bills from the old ERP"}.</div>
     <div class="tablebox"><table class="est dplant"><thead><tr><th></th>${X.map(x=>`<th class="num">${esc(x.p.name)}</th>`).join("")}<th class="num">Both plants</th></tr></thead><tbody>${rows.map(([l,,f])=>{const v=X.map(x=>f(x.d));return`<tr><td>${esc(l)}</td>${v.map(n=>`<td class="num">${moneyTxt(n)}</td>`).join("")}<td class="num"><b>${moneyTxt(sum(v))}</b></td></tr>`}).join("")}</tbody></table></div></div>`,
     charts:X.map(x=>chartBox(`Sales and purchases · ${x.p.name}`,"Same scale for both plants, incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:x.d.sales},{name:"Purchases",c:"var(--s2)",vals:x.d.purch}],{money:true,max:mx})))}}
 function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
@@ -5056,11 +5187,11 @@ function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today()
   const purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
   const R=[];invoices.concat(obills.filter(o=>o.kind==="cust")).filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
   const coll=byMonth(MS,R,r=>r.date,r=>r.amt),paid=byMonth(MS,pays,p=>p.date,p=>p.amount);
-  const recv=invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
+  const TL=tlOn(),recv=TL?tlDue("cust"):invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=TL?tlDue("sup"):curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),lateJ=J.filter(j=>j.due&&j.due<t);
   const go=v=>can(v)?v:"";
   let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales","Invoices less credit notes",false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases","Booked GRNs",false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
-    ${tile(moneyTxt(recv),"To collect now","All open invoices",recv>0,go("inv"))}${tile(moneyTxt(payb),"To pay now","Booked, not yet paid",false,go("acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
+    ${tile(moneyTxt(recv),"To collect now",TL?"From Tally":"All open invoices",recv>0,go(TL&&can("tally")?"tally":"inv"))}${tile(moneyTxt(payb),"To pay now",TL?"From Tally":"Booked, not yet paid",false,go(TL&&can("tally")?"tally":"acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
   const ch=[],BP=splitPlants()?dashPlants(MS):null;if(BP){h+=BP.table;ch.push(...BP.charts)}else
   ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
   ch.push(chartBox("Money in and out by month","Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true})));
@@ -5132,13 +5263,13 @@ function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS
   const sOf=x=>invCalc(x).ass,cOf=n=>ntCalc("cn",n).ass,pOf=g=>grnCalc(g).sub,gd=g=>g.bookedAt||g.date;
   const salesIn=f=>sum(INV.filter(x=>f(x.date)).map(sOf))-sum(CN.filter(n=>f(n.date)).map(cOf));
   const sales12=MS.map(k=>salesIn(d=>m7(d)===k)),purch12=MS.map(k=>sum(GR.filter(g=>m7(gd(g))===k).map(pOf)));
-  const o60=addDays(t,-60),recv=INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),old=INV.filter(v=>v.date<o60).reduce((a,v)=>a+invDue(v),0)+obills.filter(o=>o.kind==="cust"&&inPlant(o)&&o.date<o60).reduce((a,o)=>a+Math.max(0,obBal(o)),0);
-  const payb=curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0);
+  const o60=addDays(t,-60),TL=tlOn(),recv=TL?tlDue("cust"):INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),old=TL?tlDue("cust",o60):INV.filter(v=>v.date<o60).reduce((a,v)=>a+invDue(v),0)+obills.filter(o=>o.kind==="cust"&&inPlant(o)&&o.date<o60).reduce((a,o)=>a+Math.max(0,obBal(o)),0);
+  const payb=TL?tlDue("sup"):curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0);
   const SI=stockItems(),zero=new Set(SI.filter(i=>i.bal<=0.0001).map(i=>i.k));lowStock().forEach(r=>zero.add(key(r.it.name)));
   const wk=weekMon(),J=jobs.filter(j=>j.status!=="Completed"),OPS=jobs.flatMap(j=>(j.ops||[]).filter(o=>o.status==="Done"&&d10(o.end)>=wk));
   return{t,cm,pm,fs,MS,INV,GR,sales12,purch12,
     salesM:salesIn(d=>m7(d)===cm),salesPM:salesIn(d=>m7(d)===pm),salesFY:salesIn(d=>d>=fs&&d<=t),purFY:sum(GR.filter(g=>gd(g)>=fs).map(pOf)),purM:sum(GR.filter(g=>m7(gd(g))===cm).map(pOf)),
-    recv,recvP:recv,old,payb,paybP:plantDue()+obSupDue(),obC:obills.some(o=>o.kind==="cust"),obS:obills.some(o=>o.kind==="sup"),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
+    recv,recvP:recv,old,payb,paybP:TL?payb:plantDue()+obSupDue(),TL,obC:TL||obills.some(o=>o.kind==="cust"),obS:TL||obills.some(o=>o.kind==="sup"),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
 function homeTabs(){return[["ov","🏢","Overview",true],["sal","📈","Sales",["sales","so","dc","inv","cn"].some(can)],["pur","🛒","Purchase",["req","buy","po","saved","appr"].some(can)],["store","📦","Store",["grn","stock"].some(can)],["prod","🏭","Production",can("prod")]].filter(x=>x[3])}
 const HQA=[["inv","🧾","New sales invoice","From a customer order","inv"],["prod","🏭","Production","Job cards, log what's made"],["stock","📊","Stock entry","Opening, issue, return"],["inv","💰","Payment received","From a customer"],["so","📥","New sales order","From a customer PO","so"],
   ["grn","📦","Receive material","GRN against a PO"],["req","📝","New request","Ask for material or a service"],["appr","✅","Approve POs","Review and sign"],["po","🛒","Purchase order","From a pre-estimate"],["acct","💳","Bills & payments","Book bills, pay vendors"],["sales","💬","Quotation","RFQ and quote a customer"],["mast","➕","New product","Item code is automatic"]];
@@ -5156,7 +5287,7 @@ function renderHome(){
   $("#homeQuick").innerHTML=QA.map(([v,ic,t,d,nw],i)=>`<button type="button" class="qact" data-qa="${i}" data-go="${v}"${nw?` data-new="${nw}"`:""}><b><i aria-hidden="true">${ic}</i>${esc(t)}</b><span>${esc(d)}</span></button>`).join("");
   const K=[];
   if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",split:hSplit("salesFY")}));
-    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days`:obHint("cust",D)||"from customers",{go:obGo("cust",D)||"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
+    K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days${D.TL?" · "+tlHint():""}`:obHint("cust",D)||"from customers",{go:obGo("cust",D)||"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
   if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),obHint("sup",D)||"to vendors",{go:obGo("sup",D)||"acct",split:hSplit("paybP",D.payb)}));
   if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
   if(can("stock"))K.push(kpi("Stock alerts",fmt0(D.alerts),"items at zero or below minimum",{go:"stock",tone:D.alerts?"warn":""}));
@@ -5175,8 +5306,8 @@ function renderHome(){
   $("#flowBox").innerHTML=[["Requests with checker",st("Submitted")],["Requests with approver",st("Checked")],["Approved requests",st("Approved")+st("Estimated")],["POs for approval",saved.filter(p=>p.status==="Pending approval").length],["Approved POs open",saved.filter(p=>p.status==="Approved"&&!p.closed).length],["GRNs to book",grns.filter(g=>g.status==="With accounts").length],["GRNs unpaid",grns.filter(g=>["Booked","Part paid"].includes(g.status)).length],["POs closed",saved.filter(p=>p.closed).length]].map(([t,n])=>`<div><b>${n}</b><span>${t}</span></div>`).join("");
 }
 /* before the old ERP's unpaid bills are imported, the To collect / To pay tiles say so and open Import old data */
-const obHint=(k,D)=>(k==="cust"?D.obC:D.obS)?"":`<b class="down">Old ERP unpaid bills not imported yet</b>`;
-const obGo=(k,D)=>!(k==="cust"?D.obC:D.obS)&&can("imp")&&obCan()?"imp":"";
+const obHint=(k,D)=>D.TL?tlHint():(k==="cust"?D.obC:D.obS)?"":`<b class="down">Old ERP unpaid bills not imported yet</b>`;
+const obGo=(k,D)=>D.TL&&can("tally")?"tally":!(k==="cust"?D.obC:D.obS)&&can("imp")&&obCan()?"imp":"";
 /* a short table for a home tab */
 /* both plants: per-plant figures under a tile, and one series per plant on the single-measure charts */
 let HP=null;
@@ -5187,13 +5318,13 @@ $("#homePlant").addEventListener("click",e=>{const b=e.target.closest("[data-hpl
 const homeList=(title,cols,rows,empty,go)=>`<div class="panel stack"><div class="row"><h2 class="sec">${esc(title)}</h2><span style="flex:1"></span>${go&&can(go)?`<button type="button" class="linkbtn" data-go="${go}">Open all</button>`:""}</div>${rows.length?`<div class="tablebox"><table class="est hlist"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${esc(c[0])}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${cols[i][1]?` class="${cols[i][1]}"`:""}>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:`<div class="empty">${esc(empty)}</div>`}</div>`;
 function homeTabHtml(k,D){const t=today(),K=[];let h="";
   if(k==="sal"){const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),D2=deals.filter(d=>inPlant(d)&&!["Won","Lost"].includes(d.stage));
-    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv",split:hSplit("salesFY")}),kpi("To collect",kpiL(D.recv),"all open invoices",{go:"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":"",split:hSplit("old")}))}
+    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv",split:hSplit("salesFY")}),kpi("To collect",kpiL(D.recv),D.TL?tlHint():"all open invoices",{go:D.TL&&can("tally")?"tally":"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":"",split:hSplit("old")}))}
     if(can("so"))K.push(kpi("Orders to dispatch",fmt0(openSO.length),kpiL(sum(openSO.map(sdSub)))+" order value",{go:"so"}));
     if(can("sales"))K.push(kpi("Open enquiries",fmt0(D2.length),kpiL(sum(D2.map(dealVal))),{go:"sales"}));
     h+=`<div class="kpis">${K.join("")}</div>`;
     if(can("inv"))h+=`<div class="panel dchart"><h3>Sales, last 12 months</h3><div class="note">Invoices less credit notes, before GST</div>${hBars12("sales12","Sales","var(--s1)",D)}</div>`;
     if(can("so"))h+=homeList("Orders to dispatch",[["SO"],["Customer"],["Date","dt"],["Value","num"],["Status"]],openSO.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).slice(0,8).map(s=>[esc(soLbl(s.no)),esc(s.cust||""),dmy(s.date),fmt0(Math.round(sdSub(s))),stChip(soStatus(s))]),"No open sales orders.","so");
-    if(can("inv")){const A=custAgeing().map(r=>({c:r.cust,d:r.tot})).filter(r=>r.d>0.5).sort((a,b)=>b.d-a.d).slice(0,8);
+    if(can("inv")){const A=(tlOn()?tlParties("cust").map(r=>({c:r.party||[...r.ledgers][0],d:r.due})):custAgeing().map(r=>({c:r.cust,d:r.tot}))).filter(r=>r.d>0.5).sort((a,b)=>b.d-a.d).slice(0,8);
       h+=homeList("Biggest amounts to collect",[["Customer"],["To collect","num"]],A.map(r=>[esc(r.c||""),fmt0(Math.round(r.d))]),"Nothing to collect.","inv")}}
   if(k==="pur"){const st=s=>reqs.filter(r=>inPlant(r)&&r.status===s).length,P=saved.filter(inPlant);
     K.push(kpi("Requests waiting",fmt0(st("Submitted")+st("Checked")),"with department head or approver",{go:"req"}),kpi("Lines to buy",fmt0(pendToOrder().length),"approved, not on a PO yet",{go:can("buy")?"buy":"req",tone:pendToOrder().length?"warn":""}),
