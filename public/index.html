@@ -428,6 +428,7 @@ table.hlist{min-width:0}table.hlist td{padding:7px 6px}
     <button id="tab-pur" data-group="pur">Purchase</button>
     <button id="tab-appr" data-view="appr">PO approvals</button>
     <button id="tab-grn" data-view="grn">Store / GRN</button>
+    <button id="tab-jw" data-view="jw">Job work</button>
     <button id="tab-stock" data-view="stock">Stock &amp; issue</button>
     <button id="tab-prod" data-view="prod">Production</button>
     <button id="tab-acct" data-view="acct">Accounts</button>
@@ -672,10 +673,20 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
     <div id="rgpList"></div></div>
   <div class="panel stack" id="rgpForm" hidden></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Job work inward (customer material)</h2><span class="note">Material a customer sends in on their challan for job work. Bill it from Tax invoices &gt; New invoice &gt; Job work.</span><span style="flex:1"></span><button class="btn primary" id="btn-jw-new">New job work inward</button></div>
+    <div class="row" style="gap:8px"><input class="lq" id="jw-q" placeholder="Search customer, challan, material, job" style="max-width:280px"><select id="jw-f" style="width:auto" aria-label="Show"><option value="">All inwards</option><option value="with">Material still with us</option><option value="bill">Still to bill</option></select></div>
     <div id="jwList"></div></div>
-  <div class="panel stack" id="jwForm" hidden></div>
+  <div id="jwGrnSlot"><div class="panel stack" id="jwForm" hidden></div></div>
 </section>
 
+<section id="view-jw" class="stack" hidden>
+  <div class="panel stack"><div class="row"><h2 class="sec">Job work desk</h2><span class="note">Customer material that came in for job work: record it, send it back with the invoice, and see what is still to bill.</span><span style="flex:1"></span><button class="btn" type="button" id="btn-jwd-rates">Rate card</button><button class="btn primary" type="button" id="btn-jwd-new">New inward</button></div>
+    <div class="cards" id="jwdCards"></div>
+    <div class="row" style="gap:8px"><input class="lq" id="jwd-q" placeholder="Search customer, challan, part, job" style="max-width:280px"></div></div>
+  <div class="panel stack" id="jwdRates" hidden></div>
+  <div id="jwdSlot"></div>
+  <div class="panel stack" id="jwbForm" hidden></div>
+  <div class="panel stack"><div id="jwdList"></div></div>
+</section>
 <!-- STOCK -->
 <section id="view-stock" class="stack" hidden>
   <div class="cards" id="stkCards"></div>
@@ -1105,7 +1116,7 @@ const rkey=(i,sp)=>key(i+" "+(sp||""));
 function suggest(item,spec){const r=rates[rkey(item,spec)];if(r)return r.rate;const it=typeof itemByName==="function"&&itemByName(item);return it&&+it.rate?+it.rate:null}
 
 /* ---------- views ---------- */
-const views=["home","dash","req","buy","est","po","saved","appr","grn","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users","imp","undo","tally"];
+const views=["home","dash","req","buy","est","po","saved","appr","grn","jw","stock","prod","acct","sales","so","dc","inv","cn","rep","rates","rmast","mast","users","imp","undo","tally"];
 const RIGHTS=[
  ["Pages","page.req","Purchase request"],["Pages","page.est","Old pre-estimate (direct PO)"],["Pages","page.po","Purchase order"],["Pages","page.saved","PO list"],["Pages","page.appr","PO approvals"],["Pages","page.grn","Store / GRN"],["Pages","page.stock","Stock & issue"],["Pages","page.acct","Accounts"],["Pages","page.sales","Sales & CRM"],["Pages","page.prod","Production"],["Pages","page.rep","Reports"],["Pages","page.rates","Rate list"],["Pages","page.mast","Masters"],["Pages","page.users","Users & rights"],
  ["Actions","req.create","Raise purchase requests","Own requests only"],["Actions","req.check","Approve or send back requests (department head)","For their own department"],["Actions","req.approve","Approve or send back checked requests (approver)","Any department"],["Actions","req.all","See all departments' requests","Check any department if also allowed to check"],
@@ -1136,11 +1147,11 @@ const ALIAS={"page.req":["req.view"],"page.est":["est.view"],"page.po":["po.view
   "sales.edit":["sales.create","sales.edit"],"prod.edit":["prod.create","prod.edit"]};
 const has=r=>{const s=rightsOf(me);if(s.includes(r))return true;const a=ALIAS[r];return!!a&&a.some(x=>s.includes(x))};
 const TABS={req:["Staff","Department head","Director","Purchase","Admin"],est:["Purchase","Admin"],po:["Purchase","Director","Admin"],saved:["Purchase","Director","Admin"],appr:["Director","Admin"],grn:["Store","Admin"],acct:["Accounts","Admin"],rates:["Purchase","Admin"],mast:["Admin"]};
-const can=v=>v==="home"||v==="dash"||(v==="undo"?canUndo():false)||(v==="tally"?tlCan():false)||(v==="imp"?(()=>{try{return impRows().length>0}catch(e){return isRole("Admin")}})():false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
+const can=v=>v==="home"||v==="dash"||(v==="jw"?(has("page.grn")||has("rgp.manage")||has("inv.view")):false)||(v==="undo"?canUndo():false)||(v==="tally"?tlCan():false)||(v==="imp"?(()=>{try{return impRows().length>0}catch(e){return isRole("Admin")}})():false)||(v==="buy"?has("po.create"):v==="rmast"?(has("po.create")||isRole("Admin")||has("page.rates")):false)||(["so","dc","inv","cn"].includes(v)?has(v+".view"):has("page."+v));
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){renderGRN();renderRgp();renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="tally")renderTally();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){jwFormHome("grn");renderGRN();renderRgp();renderJwin()}if(v==="jw"){jwFormHome("jw");renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="tally")renderTally();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
 const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
@@ -1148,7 +1159,7 @@ function setHdrCur(v){const el=$("#hdrCur"),b=$("#tab-"+v);if(el)el.textContent=
 const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Sales invoices"],["cn","↩️","Credit notes"]]],
   ["Purchase",[["req","📝","Purchase requests"],["buy","🧾","Pre-estimate"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["appr","✅","PO approvals"],["rmast","📐","Rates & costing"],["rates","🏷️","Rate list"]]],
-  ["Stock & accounts",[["grn","📦","Goods receipts (GRN)"],["stock","📊","Stock & issue"],["prod","🏭","Production"],["acct","💰","Accounts"],["tally","🔗","Tally sync"],["rep","📈","Reports"]]],
+  ["Stock & accounts",[["grn","📦","Goods receipts (GRN)"],["jw","🔧","Job work desk"],["stock","📊","Stock & issue"],["prod","🏭","Production"],["acct","💰","Accounts"],["tally","🔗","Tally sync"],["rep","📈","Reports"]]],
   ["Masters",[["mast","🗂️","Masters"],["users","👥","Users & rights"],["imp","📥","Import old data"],["undo","⏪","Restore data"]]]];
 function renderMnav(){const cur=views.find(x=>!$("#view-"+x).hidden);const mn=$("#mnav");mn.innerHTML=MNAV.map(([h,L])=>{const vis=L.filter(([v])=>{const b=$("#tab-"+v);return b&&!b.hidden&&can(v)});if(!vis.length)return"";
   return (h?`<div class="mh">${esc(h)}</div>`:"")+vis.map(([v,ic,t])=>{const bd=$("#tab-"+v).querySelector(".badge");return `<button type="button" data-mv="${v}"${v===cur?' aria-current="true"':""}><span class="mi" aria-hidden="true">${ic}</span>${esc(t)}${bd?`<span class="badge">${esc(bd.textContent)}</span>`:""}</button>`}).join("")}).join("");document.body.classList.toggle("has-sb",!!me&&!!mn.children.length)}
@@ -2265,7 +2276,7 @@ async function scanDoc(kind,file,ctx){
   if(!isPdf)throw userErr("Reading photos is not switched on yet. Upload the PDF, or fill the form by hand.");
   const rows=await pdfRows(buf);
   if(rows.join("").replace(/\s/g,"").length<40)throw userErr("This PDF is a scanned image, so its text cannot be read here yet. Fill the form by hand.");
-  return{via:"text",f:textParse(kind,rows)}}
+  return{via:"text",f:textParse(kind==="jw"?"so":kind,rows)}}
 /* text PDFs without the server: pdf.js text, grouped into rows */
 let pdfjsP=null;
 function pdfjs(){return pdfjsP||(pdfjsP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=()=>{const L=window.pdfjsLib;L.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";res(L)};s.onerror=()=>{pdfjsP=null;rej(userErr("No internet connection to read the PDF. Fill the form by hand."))};document.head.appendChild(s)}))}
@@ -2319,6 +2330,17 @@ SCAN_H.grn=async file=>{if(!grn)return;const g=grn;
   return`Filled ${A.size} field${A.size===1?"":"s"} from ${file.name}.`};
 
 /* Sales order from a customer PO */
+SCAN_H.jw=async file=>{if(!jwin)return;const cur=jwin;const {f}=await scanDoc("jw",file,{});if(jwin!==cur)return"The inward was closed before the challan was read.";
+  const gin=String(f.customer_gstin||"").toUpperCase();let c=gin&&customers.find(c=>String(c.gstin||"").toUpperCase()===gin);
+  if(!c&&f.customer_name){c=custByName(f.customer_name);if(!c){const j=bestMatch(f.customer_name,customers.map(c=>c.name),new Set());if(j>=0)c=customers[j]}}
+  const got=[];if(c||f.customer_name){cur.cust=c?c.name:String(f.customer_name).trim();got.push("customer")}
+  if(String(f.challan_no||"").trim()){cur.custDC=String(f.challan_no).trim();got.push("challan No.")}
+  const cd=isoDate(f.challan_date||"");if(cd){cur.custDCDate=cd;got.push("challan date")}
+  if(String(f.po_no||"").trim()){cur.custPO=String(f.po_no).trim();got.push("PO No.")}
+  if(String(f.vehicle_no||"").trim())cur.vehicle=String(f.vehicle_no).trim();
+  const L=(f.lines||[]).filter(l=>String(l.description||"").trim()&&+l.qty>0);
+  if(L.length){cur.lines=L.map(l=>{const p=String(l.process||"").trim();return{desc:String(l.description).replace(/\s+/g," ").trim(),qty:+l.qty,unit:String(l.unit||"").trim().toUpperCase()||"NOS",process:p,hsn:"998898",rate:jwRateFor(cur.cust,p)||""}});got.push(L.length+" line"+(L.length===1?"":"s"))}
+  renderJwForm();return got.length?`Filled ${got.join(", ")} from ${file.name}. Check them, add the job work to do, then save.`:`Nothing could be read from ${file.name}. Fill the form by hand.`};
 SCAN_H.so=async file=>{if(!sdCur||sdCur.t!=="so")return;const cur=sdCur,x=cur.rec;
   const {via,f}=await scanDoc("so",file,{});
   if(sdCur!==cur)return"The sales order was closed before the document was read.";
@@ -2442,29 +2464,35 @@ $("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),pdfName("PO",po.no,po.sup,
 /* ---------- returnable challans ---------- */
 let jwins=store.get("jwins",[]);const saveJw=()=>store.set("jwins",jwins);let jwin=null;
 const nextJW=()=>Math.max(400,...jwins.map(c=>+c.no||0))+1;
+/* inwards from the old ERP keep their own number (Z/0012/26-27); new ones are JW-401 */
+const jwLbl=c=>c.old?String(c.no):"JW-"+c.no;const jwoLbl=(c,o)=>"JWO-"+String(c.no).replace(/\//g,"-")+"-"+o.n;
 const jwBilled=(no,i)=>invoices.filter(v=>String(v.jw)===String(no)).reduce((a,v)=>a+v.lines.filter(l=>l.jwi===i).reduce((b,l)=>b+(+l.qty||0),0),0);
-const jwPend=c=>c.lines.map((l,i)=>Math.max(0,+((+l.qty||0)-jwBilled(c.no,i)).toFixed(3)));
-const jwOut=(c,i)=>(c.outs||[]).reduce((a,o)=>a+(+o.qty[i]||0),0);
+const jwBill=(c,i)=>jwBilled(c.no,i)+(+(c.lines[i]||{}).oldBilled||0);
+const jwPend=c=>c.lines.map((l,i)=>Math.max(0,+((+l.qty||0)-jwBill(c,i)-jwRejQ(c,i)).toFixed(3)));
+const jwOkOut=(c,i)=>(c.outs||[]).reduce((a,o)=>a+(+o.qty[i]||0),0),jwRejQ=(c,i)=>(c.outs||[]).reduce((a,o)=>a+(+((o.rej||[])[i])||0),0);
+const jwOut=(c,i)=>jwOkOut(c,i)+jwRejQ(c,i);
+const jwSentUnbilled=c=>c.lines.reduce((a,l,i)=>a+Math.max(0,jwOkOut(c,i)-jwBill(c,i)),0);
 const jwOutPend=c=>c.lines.map((l,i)=>Math.max(0,+((+l.qty||0)-jwOut(c,i)).toFixed(3)));
 function docJwOut(c,o){const cu=custByName(c.cust)||{name:c.cust};
   return docHead("DELIVERY CHALLAN",`<p class="small" style="text-align:center;margin:0 0 4px">Return of your material after job work. Received on your challan ${esc(c.custDC)}${c.custDCDate?" dt "+dmy(c.custDCDate):""}. Not for sale.</p>`)+
-  `<div class="two"><div><b>To: ${esc(cu.name)}</b><br>${esc(cu.addr||"").replace(/\n/g,"<br>")}${cu.gstin?`<br>GSTIN: ${esc(cu.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>JWO-${c.no}-${o.n}</span><b>Date</b><span>${dmy(o.date)}</span><b>Your challan</b><span>${esc(c.custDC)}</span><b>Our inward</b><span>JW-${c.no}</span><b>Vehicle</b><span>${esc(o.vehicle||"")}</span><b>Job No.</b><span>${esc(c.job||"")}</span></div></div>
-  <table><thead><tr><th>Sr</th><th>Description</th><th>Job work done</th><th>Qty</th><th>Unit</th></tr></thead><tbody>${c.lines.map((l,i)=>+o.qty[i]>0?`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.process||"")}</td><td class="r">${fmt0(o.qty[i])}</td><td>${esc(l.unit)}</td></tr>`:"").join("")}</tbody></table>
+  `<div class="two"><div><b>To: ${esc(cu.name)}</b><br>${esc(cu.addr||"").replace(/\n/g,"<br>")}${cu.gstin?`<br>GSTIN: ${esc(cu.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>${jwoLbl(c,o)}</span><b>Date</b><span>${dmy(o.date)}</span><b>Your challan</b><span>${esc(c.custDC)}</span><b>Our inward</b><span>${esc(jwLbl(c))}</span><b>Vehicle</b><span>${esc(o.vehicle||"")}</span><b>Job No.</b><span>${esc(c.job||"")}</span></div></div>
+  <table><thead><tr><th>Sr</th><th>Description</th><th>Job work done</th><th>Qty</th><th>Unit</th></tr></thead><tbody>${c.lines.map((l,i)=>{const rq=+((o.rej||[])[i])||0;return(+o.qty[i]||0)+rq>0?`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(l.process||"")}${rq?`<br><small>${+o.qty[i]>0?fmt0(o.qty[i])+" done, ":""}${fmt0(rq)} rejected, returned without job work</small>`:""}</td><td class="r">${fmt0((+o.qty[i]||0)+rq)}</td><td>${esc(l.unit)}</td></tr>`:""}).join("")}</tbody></table>
   <div class="foot small" style="margin-top:46px"><div>Issued by (Store): <b>${esc(o.by||"")}</b></div><div style="text-align:right">For ZOOM TECHNOLOGIES<br><br><br>Authorised Signatory</div></div>
   <p class="small" style="margin-top:24px">Receiver's signature &amp; stamp: ____________________________</p>`}
-const jwStatus=c=>{const p=jwPend(c),t=p.reduce((a,b)=>a+b,0);return t<=0.0001?"Billed":c.lines.some((l,i)=>jwBilled(c.no,i)>0)?"Part billed":"Open"};
+const jwStatus=c=>{const p=jwPend(c),t=p.reduce((a,b)=>a+b,0);return t<=0.0001?"Billed":c.lines.some((l,i)=>jwBill(c,i)>0)?"Part billed":"Open"};
 function renderJwin(){const B=$("#btn-jw-new");if(!B)return;B.hidden=!has("rgp.manage");
-  const L=byNew(jwins.filter(inPlant));
-  $("#jwList").innerHTML=L.length?L.map(c=>{const st=jwStatus(c),p=jwPend(c).reduce((a,b)=>a+b,0);return`<div class="listrow"><b style="font-family:var(--mono)">JW-${c.no}</b><span class="wide">${esc(c.cust)} · their challan ${esc(c.custDC||"-")}${c.custDCDate?" dt "+dmy(c.custDCDate):""} · <span class="note">received ${dmy(c.date)} · ${c.lines.map(l=>esc(l.desc)+(l.process?" ("+esc(l.process)+")":"")).join(", ")}${st!=="Billed"?" · "+fmt0(p)+" to bill":""}${(()=>{const r=jwOutPend(c).reduce((a,b)=>a+b,0);return r>0.0001?" · "+fmt0(r)+" still with us":" · all sent back"})()}${c.job?" · Job "+esc(c.job):""}</span></span><span class="chip ${st==="Billed"?"st-Approved":st==="Open"?"st-Submitted":"st-Draft"}">${st}</span><span class="row" style="gap:6px;flex-wrap:nowrap">${st!=="Billed"&&has("inv.create")?`<button class="btn primary" data-jwinv="${esc(c.no)}">Make invoice</button>`:""}${has("rgp.manage")&&jwOutPend(c).some(q=>q>0)?`<button class="btn" data-jwout="${esc(c.no)}">Send back</button>`:""}${(c.outs||[]).length?`<button class="btn" data-jwpdf="${esc(c.no)}">Challan PDF</button>`:""}${has("prod.create")||jobs.some(j=>c.job&&key(j.no)===key(c.job))?`<button class="btn" data-jwjob="${esc(c.no)}">Job card</button>`:""}${st==="Open"&&!(c.outs||[]).length&&has("rgp.manage")?`<button class="btn" data-jwdel="${esc(c.no)}">Delete</button>`:""}</span></div>`}).join(""):`<div class="empty">No customer material received for job work yet.</div>`;
-  renderJwForm()}
+  const q=key(($("#jw-q")||{}).value||""),fv=($("#jw-f")||{}).value||"";
+  const all=jwins.filter(inPlant),L=byNew(all.filter(c=>(!q||key([c.no,c.cust,c.custDC,c.custPO,c.job,...c.lines.map(l=>l.desc+" "+(l.process||""))].join(" ")).includes(q))&&(fv!=="with"||jwOutPend(c).some(x=>x>0.0001))&&(fv!=="bill"||jwStatus(c)!=="Billed")));
+  $("#jwList").innerHTML=L.length?L.slice(0,300).map(c=>{const st=jwStatus(c),p=jwPend(c).reduce((a,b)=>a+b,0);return`<div class="listrow"><b style="font-family:var(--mono)">${esc(jwLbl(c))}</b><span class="wide">${esc(c.cust)} · their challan ${esc(c.custDC||"-")}${c.custDCDate?" dt "+dmy(c.custDCDate):""} · <span class="note">received ${dmy(c.date)} · ${c.lines.map(l=>esc(l.desc)+(l.process?" ("+esc(l.process)+")":"")).join(", ")}${st!=="Billed"?" · "+fmt0(p)+" to bill":""}${(()=>{const r=jwOutPend(c).reduce((a,b)=>a+b,0);return r>0.0001?" · "+fmt0(r)+" still with us":" · all sent back"})()}${c.job?" · Job "+esc(c.job):""}${c.old?" · from old ERP":""}</span></span><span class="chip ${st==="Billed"?"st-Approved":st==="Open"?"st-Submitted":"st-Draft"}">${st}</span><span class="row" style="gap:6px;flex-wrap:nowrap">${st!=="Billed"&&has("inv.create")?`<button class="btn primary" data-jwinv="${esc(c.no)}">Make invoice</button>`:""}${has("rgp.manage")&&jwOutPend(c).some(q=>q>0)?`<button class="btn" data-jwout="${esc(c.no)}">Send back</button>`:""}${(c.outs||[]).some(o=>!o.old&&!o.inv)?`<button class="btn" data-jwpdf="${esc(c.no)}">Challan PDF</button>`:""}${has("prod.create")||jobs.some(j=>c.job&&key(j.no)===key(c.job))?`<button class="btn" data-jwjob="${esc(c.no)}">Job card</button>`:""}${st==="Open"&&!(c.outs||[]).length&&!c.old&&has("rgp.manage")?`<button class="btn" data-jwdel="${esc(c.no)}">Delete</button>`:""}</span></div>`}).join("")+(L.length>300?`<div class="note">Showing the newest 300 of ${L.length}. Search to find older ones.</div>`:""):all.length?`<div class="empty">Nothing matches.</div>`:`<div class="empty">No customer material received for job work yet.</div>`;
+  renderJwForm();renderJwDesk()}
 let jwSend=null;
 function renderJwForm(){const F=$("#jwForm");if(jwSend){const c=jwSend,P=jwOutPend(c);F.hidden=false;
-    F.innerHTML=`<div class="row"><h2 class="sec">Send back · JW-${c.no}</h2><span class="note">${esc(c.cust)} · their challan ${esc(c.custDC)}</span><span style="flex:1"></span><button class="btn" id="btn-jw-cancel">Cancel</button></div>
+    F.innerHTML=`<div class="row"><h2 class="sec">Send back · ${esc(jwLbl(c))}</h2><span class="note">${esc(c.cust)} · their challan ${esc(c.custDC)}</span><span style="flex:1"></span><button class="btn" id="btn-jw-cancel">Cancel</button></div>
     <div class="grid-fields"><label class="f">Challan date<input id="jwo-date" type="date" value="${today()}"></label><label class="f">Vehicle No.<input id="jwo-vehicle" value="${esc(c.vehicle||"")}"></label></div>
-    <div class="tablebox"><table class="est" style="min-width:560px"><thead><tr><th>Material</th><th>Job work</th><th class="num">Received</th><th class="num">Already sent</th><th class="num">Send now</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${esc(l.desc)}</td><td>${esc(l.process||"")}</td><td class="num">${fmt0(l.qty)}</td><td class="num">${fmt0(jwOut(c,i))}</td><td class="num"><input id="jwo${i}" class="qty" type="number" step="any" min="0" value="${P[i]}"></td></tr>`).join("")}</tbody></table></div>
+    <div class="tablebox"><table class="est" style="min-width:560px"><thead><tr><th>Material</th><th>Job work</th><th class="num">Received</th><th class="num">Already sent</th><th class="num">Send now (done)</th><th class="num">Rejected</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${esc(l.desc)}</td><td>${esc(l.process||"")}</td><td class="num">${fmt0(l.qty)}</td><td class="num">${fmt0(jwOut(c,i))}</td><td class="num"><input id="jwo${i}" class="qty" type="number" step="any" min="0" value="${P[i]}"></td><td class="num"><input id="jwr${i}" class="qty" type="number" step="any" min="0" value="0"></td></tr>`).join("")}</tbody></table></div>
     <div class="row"><span style="flex:1"></span><button class="btn primary" id="btn-jwo-save">Save and download challan</button></div>`;return}
   if(!jwin){F.hidden=true;return}F.hidden=false;const c=jwin;
-  F.innerHTML=`<div class="row"><h2 class="sec">New job work inward · JW-${c.no}</h2><span style="flex:1"></span><button class="btn" id="btn-jw-cancel">Cancel</button></div>
+  F.innerHTML=`<div class="row"><h2 class="sec">New job work inward · JW-${c.no}</h2><span style="flex:1"></span><button class="btn" id="btn-jw-cancel">Cancel</button></div>${scanBar("jw","Fill from customer's challan")}
   <div class="grid-fields"><label class="f">Plant<select id="jw-plant">${plantOpts(c.plant)}</select></label><label class="f">Customer<input id="jw-cust" list="custnames" value="${esc(c.cust)}"></label><label class="f">Their challan No.<input id="jw-custDC" value="${esc(c.custDC)}"></label><label class="f">Their challan date<input id="jw-custDCDate" type="date" value="${c.custDCDate}"></label><label class="f">Received date<input id="jw-date" type="date" value="${c.date}"></label><label class="f">Customer PO No.<input id="jw-custPO" value="${esc(c.custPO)}"></label><label class="f">Job No.<input id="jw-job" list="projects" value="${esc(c.job)}"></label><label class="f">Vehicle No.<input id="jw-vehicle" value="${esc(c.vehicle)}"></label></div>
   <div class="tablebox"><table class="est" style="min-width:820px"><thead><tr><th>Sr</th><th>Material / part received</th><th class="num">Qty</th><th>Unit</th><th>Job work to do</th><th>SAC</th><th class="num">Rate ₹ / unit</th><th></th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input data-jl="desc" value="${esc(l.desc)}"></td><td class="num"><input class="qty" data-jl="qty" type="number" step="any" value="${l.qty}"></td><td><input data-jl="unit" value="${esc(l.unit)}" style="width:60px"></td><td><input data-jl="process" value="${esc(l.process)}" placeholder="Wire cut, EDM, grinding..."></td><td><input data-jl="hsn" value="${esc(l.hsn)}" style="width:80px"></td><td class="num"><input class="rate" data-jl="rate" type="number" step="0.01" value="${l.rate||""}"></td><td><button class="x" data-jldel="${i}" aria-label="Remove line">×</button></td></tr>`).join("")}</tbody></table></div>
   <div class="row"><button class="btn" id="btn-jw-line">Add line</button><span style="flex:1"></span><button class="btn primary" id="btn-jw-save">Save inward</button></div>`}
@@ -2472,13 +2500,14 @@ const jwLine=()=>({desc:"",qty:1,unit:"NOS",process:"",hsn:"998898",rate:""});
 $("#btn-jw-new").onclick=()=>{jwin={no:nextJW(),plant:defPlant(),date:today(),cust:"",custDC:"",custDCDate:today(),custPO:"",job:"",vehicle:"",by:me.name,lines:[jwLine()]};renderJwForm();$("#jw-cust").focus()};
 $("#jwForm").addEventListener("input",e=>{if(!jwin)return;const t=e.target;
   if(t.id&&t.id.startsWith("jw-"))jwin[t.id.slice(3)]=t.value;
-  else if(t.dataset.jl){const l=jwin.lines[+t.closest("tr").dataset.i];l[t.dataset.jl]=["qty","rate"].includes(t.dataset.jl)?+t.value:t.value}});
+  else if(t.dataset.jl){const l=jwin.lines[+t.closest("tr").dataset.i];l[t.dataset.jl]=["qty","rate"].includes(t.dataset.jl)?+t.value:t.value;
+    if(t.dataset.jl==="process"&&!(+l.rate>0)){const r=jwRateFor(jwin.cust,t.value);if(r){l.rate=r;const ri=t.closest("tr").querySelector('[data-jl="rate"]');if(ri)ri.value=r}}}});
 $("#jwForm").addEventListener("click",e=>{const id=e.target.id;
   if(id==="btn-jw-cancel"){jwin=null;jwSend=null;renderJwForm();return}
-  if(id==="btn-jwo-save"){const c=jwSend,P=jwOutPend(c),qs=c.lines.map((l,i)=>Math.max(0,+($("#jwo"+i).value)||0));
-    if(qs.some((q,i)=>q>P[i]+0.0001)){toast("More than what is still with us");return}if(!qs.some(q=>q>0)){toast("Enter the qty being sent back");return}
-    c.outs=c.outs||[];const o={n:c.outs.length+1,date:$("#jwo-date").value||today(),vehicle:$("#jwo-vehicle").value.trim(),by:me.name,qty:qs};c.outs.push(o);saveJw();jwSend=null;renderJwin();
-    toast(`Challan JWO-${c.no}-${o.n} saved`);savePDF(docJwOut(c,o),pdfName("Job-work-return","JWO-"+c.no+"-"+o.n,c.cust));return}
+  if(id==="btn-jwo-save"){const c=jwSend,P=jwOutPend(c),qs=c.lines.map((l,i)=>Math.max(0,+($("#jwo"+i).value)||0)),rj=c.lines.map((l,i)=>Math.max(0,+(($("#jwr"+i)||{}).value)||0));
+    if(qs.some((q,i)=>q+rj[i]>P[i]+0.0001)){toast("More than what is still with us");return}if(!qs.some(q=>q>0)&&!rj.some(q=>q>0)){toast("Enter the qty being sent back");return}
+    c.outs=c.outs||[];const o={n:c.outs.length+1,date:$("#jwo-date").value||today(),vehicle:$("#jwo-vehicle").value.trim(),by:me.name,qty:qs,rej:rj};c.outs.push(o);saveJw();jwSend=null;renderJwin();
+    toast(`Challan ${jwoLbl(c,o)} saved`);savePDF(docJwOut(c,o),pdfName("Job-work-return",jwoLbl(c,o),c.cust));return}
   if(e.target.dataset.jldel!=null){jwin.lines.splice(+e.target.dataset.jldel,1);renderJwForm();return}
   if(id==="btn-jw-line"){jwin.lines.push(jwLine());renderJwForm();return}
   if(id==="btn-jw-save"){const c=jwin;c.lines=c.lines.filter(l=>String(l.desc).trim()&&+l.qty>0);
@@ -2486,17 +2515,74 @@ $("#jwForm").addEventListener("click",e=>{const id=e.target.id;
     if(!c.custDC.trim()){toast("Enter the customer's challan No.");renderJwForm();return}
     if(!c.lines.length){toast("Add at least one item with qty");c.lines.push(jwLine());renderJwForm();return}
     jwins.unshift(c);saveJw();jwin=null;renderJwin();toast(`Job work inward JW-${c.no} saved`)}});
+["jw-q","jw-f"].forEach(id=>{const el=$("#"+id);if(el)el.addEventListener(id==="jw-q"?"input":"change",()=>renderJwin())});
 $("#jwList").addEventListener("click",e=>{const a=e.target.dataset.jwinv,d=e.target.dataset.jwdel,O=e.target.dataset.jwout,pd=e.target.dataset.jwpdf,jb=e.target.dataset.jwjob;const F=n=>jwins.find(x=>String(x.no)===n);
   if(O!=null){const c=F(O);if(c){jwin=null;jwSend=c;renderJwForm();$("#jwForm").scrollIntoView({block:"start"})}return}
-  if(pd!=null){const c=F(pd);if(c&&c.outs&&c.outs.length){const o=c.outs[c.outs.length-1];savePDF(docJwOut(c,o),pdfName("Job-work-return","JWO-"+c.no+"-"+o.n,c.cust))}return}
-  if(jb!=null){const c=F(jb);if(!c)return;if(!c.job){const n=prompt(`Job No. for job work JW-${c.no} (${c.cust})`,"");if(!n||!n.trim())return;c.job=n.trim().toUpperCase();saveJw();renderJwin()}
+  if(pd!=null){const c=F(pd),o=c&&(c.outs||[]).filter(x=>!x.old&&!x.inv).pop();if(o)savePDF(docJwOut(c,o),pdfName("Job-work-return",jwoLbl(c,o),c.cust));return}
+  if(jb!=null){const c=F(jb);if(!c)return;if(!c.job){const n=prompt(`Job No. for job work ${jwLbl(c)} (${c.cust})`,"");if(!n||!n.trim())return;c.job=n.trim().toUpperCase();saveJw();renderJwin()}
     jobFor(c.job,{cust:c.cust,desc:"Job work: "+c.lines.map(l=>(l.process?l.process+" on ":"")+l.desc).join(", "),jw:c.no,start:c.date});return}
   if(a!=null){const c=jwins.find(x=>String(x.no)===a);if(c)invFromJW(c)}
-  if(d!=null){const c=jwins.find(x=>String(x.no)===d);if(!c||!confirm(`Delete job work inward JW-${c.no}?`))return;jwins.splice(jwins.indexOf(c),1);saveJw();renderJwin()}});
-function invFromJW(c){const P=jwPend(c),L=c.lines.map((l,i)=>({jwi:i,desc:`Job work: ${l.process||"processing"} on ${l.desc}`,hsn:l.hsn||"998898",qty:P[i],unit:l.unit,rate:l.rate})).filter(l=>l.qty>0);
+  if(d!=null){const c=jwins.find(x=>String(x.no)===d);if(!c||!confirm(`Delete job work inward ${jwLbl(c)}?`))return;jwins.splice(jwins.indexOf(c),1);saveJw();renderJwin()}});
+function invFromJW(c,Q){const P=Q||jwPend(c),L=c.lines.map((l,i)=>({jwi:i,desc:`Job work: ${l.process||"processing"} on ${l.desc}`,hsn:l.hsn||"998898",qty:P[i],unit:l.unit,rate:+l.rate||jwRateFor(c.cust,l.process)||""})).filter(l=>l.qty>0);
   if(!L.length){toast("Everything on this inward has been billed");return}
   if(!has("inv.create")){toast("You can view but not create sales documents");return}
   sdOpen("inv",sdNew("inv",{plant:c.plant||defPlant(),cust:c.cust,jw:c.no,job:c.job||"",custDC:c.custDC,custDCDate:c.custDCDate,custPO:c.custPO||"",vehicle:c.vehicle||"",gst:18,lines:L}),true)}
+/* ---------- Job work desk: one screen for Plant 1, which works mostly on customer material ---------- */
+const jwHome=()=>{try{return !!me&&!isRole("Admin","Director")&&(curPlant||userPlant())==="P1"&&has("rgp.manage")}catch(e){return false}};
+function jwFormHome(v){const F=$("#jwForm"),S=$(v==="jw"?"#jwdSlot":"#jwGrnSlot");if(F&&S&&F.parentNode!==S)S.appendChild(F)}
+/* rate: the rate card (this customer, then any customer), else the last rate this customer had for the same job work */
+function jwRateFor(cust,proc){const kc=key(cust||""),kp=key(proc||"");if(!kp)return"";const R=M.jwRates||[];
+  const r=R.find(x=>key(x.cust||"")===kc&&key(x.proc||"")===kp&&+x.rate>0)||R.find(x=>!String(x.cust||"").trim()&&key(x.proc||"")===kp&&+x.rate>0);if(r)return +r.rate;
+  for(const c of byNew(jwins.filter(c=>key(c.cust)===kc))){const l=c.lines.find(l=>+l.rate>0&&key(l.process||"")===kp);if(l)return +l.rate}return""}
+let jwSB=null,jwdF="with",jwdRates=false;
+const jwAge=c=>Math.max(0,Math.round((Date.parse(today())-Date.parse(c.date))/864e5))||0;
+function jwdRow(c){const P=jwOutPend(c),st=jwStatus(c),un=jwSentUnbilled(c),w=P.reduce((a,b)=>a+b,0),ag=jwAge(c);
+  return`<div class="listrow"><b style="font-family:var(--mono)">${esc(jwLbl(c))}</b><span class="wide">Their challan ${esc(c.custDC||"-")}${c.custDCDate?" dt "+dmy(c.custDCDate):""} · received ${dmy(c.date)}${w>0.0001?` · <span style="${ag>30?"color:var(--danger);font-weight:600":""}">${ag} day${ag===1?"":"s"} with us</span>`:""}${c.job?" · Job "+esc(c.job):""}${c.old?" · from old ERP":""}<br><span class="note">${c.lines.map((l,i)=>`${esc(l.desc)}${l.process?" ("+esc(l.process)+")":""}: ${fmt0(l.qty)} ${esc(l.unit||"")}${P[i]>0.0001?`, <b>${fmt0(P[i])} with us</b>`:", all sent back"}${jwRejQ(c,i)>0?`, ${fmt0(jwRejQ(c,i))} rejected`:""}`).join(" · ")}${un>0.0001?` · <b style="color:var(--danger)">${fmt0(un)} sent back, not billed</b>`:""}</span></span><span class="chip ${st==="Billed"?"st-Approved":st==="Open"?"st-Submitted":"st-Draft"}">${st}</span><span class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end">${w>0.0001&&has("rgp.manage")?`<button class="btn primary" type="button" data-jwsb="${esc(c.no)}">Send back and bill</button>`:""}${un>0.0001&&has("inv.create")?`<button class="btn primary" type="button" data-jwdinv="${esc(c.no)}">Make invoice</button>`:""}${w>0.0001&&has("rgp.manage")?`<button class="btn" type="button" data-jwout="${esc(c.no)}">Send back only</button>`:""}${(c.outs||[]).some(o=>!o.old&&!o.inv)?`<button class="btn" type="button" data-jwpdf="${esc(c.no)}">Challan PDF</button>`:""}${has("prod.create")||jobs.some(j=>c.job&&key(j.no)===key(c.job))?`<button class="btn" type="button" data-jwjob="${esc(c.no)}">Job card</button>`:""}</span></div>`}
+function renderJwDesk(){const P=$("#jwdList");if(!P||$("#view-jw").hidden)return;$("#btn-jwd-new").hidden=!has("rgp.manage");
+  const all=jwins.filter(inPlant),withQ=c=>jwOutPend(c).reduce((a,b)=>a+b,0),W=all.filter(c=>withQ(c)>0.0001),O=W.filter(c=>jwAge(c)>30),U=all.filter(c=>jwSentUnbilled(c)>0.0001);
+  const tb=all.reduce((a,c)=>a+jwPend(c).reduce((b,q,i)=>b+q*(+c.lines[i].rate||jwRateFor(c.cust,c.lines[i].process)||0),0),0);
+  $("#jwdCards").innerHTML=[["with",W.length,"Inwards with material here",fmt0(W.reduce((a,c)=>a+withQ(c),0))+" pcs with us"],["old",O.length,"With us over 30 days","Finish, send back or follow up",O.length>0],["unb",U.length,"Sent back, not billed","Make the invoice",U.length>0],["bill","₹"+fmt0(Math.round(tb)),"Still to bill","At inward or rate card rates, before GST"],["all",all.length,"All inwards","Including billed ones"]]
+    .map(([f,n,t,d,w])=>`<button type="button" class="card${w?" warn":""}" data-jwdf="${f}"${jwdF===f?' aria-pressed="true" style="outline:2px solid #1f66a8;outline-offset:-2px"':""}><span class="n">${n}</span><span class="t">${esc(t)}</span><span class="d">${esc(d)}</span></button>`).join("");
+  const q=key($("#jwd-q").value||""),F={with:c=>withQ(c)>0.0001,old:c=>withQ(c)>0.0001&&jwAge(c)>30,unb:c=>jwSentUnbilled(c)>0.0001,bill:c=>jwStatus(c)!=="Billed"}[jwdF]||(()=>true);
+  const L=all.filter(c=>F(c)&&(!q||key([c.no,c.cust,c.custDC,c.custPO,c.job,...c.lines.map(l=>l.desc+" "+(l.process||""))].join(" ")).includes(q))).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const G=new Map();L.forEach(c=>{const k=key(c.cust);if(!G.has(k))G.set(k,{cust:c.cust,L:[]});G.get(k).L.push(c)});
+  P.innerHTML=G.size?[...G.values()].map(g=>`<div class="row" style="gap:10px;border-bottom:2px solid var(--line);padding:10px 0 4px"><b>${esc(g.cust)}</b><span class="note">${g.L.length} inward${g.L.length===1?"":"s"} · ${fmt0(g.L.reduce((a,c)=>a+withQ(c),0))} with us${g.L.some(c=>jwSentUnbilled(c)>0.0001)?" · some not billed":""}</span></div>${g.L.slice(0,200).map(jwdRow).join("")}`).join(""):`<div class="empty">${all.length?"Nothing here for this filter.":"No customer material recorded yet. Press New inward when material arrives, or bring old inwards in from Import old data."}</div>`;
+  renderJwSB();renderJwRates()}
+function renderJwSB(){const F=$("#jwbForm");if(!F)return;if(!jwSB){F.hidden=true;F.innerHTML="";return}const c=jwSB,P=jwOutPend(c);F.hidden=false;
+  F.innerHTML=`<div class="row"><h2 class="sec">Send back and bill · ${esc(jwLbl(c))}</h2><span class="note">${esc(c.cust)} · their challan ${esc(c.custDC||"-")}</span><span style="flex:1"></span><button class="btn" type="button" id="btn-jwb-x">Cancel</button></div>
+  <div class="note">Enter what goes back now. OK qty is billed at the rate. Rejected qty goes back without job work and is not billed. The tax invoice is also the delivery challan, with the same number.</div>
+  <div class="grid-fields"><label class="f">Date<input id="jwb-date" type="date" value="${today()}"></label><label class="f">Vehicle No.<input id="jwb-veh" value="${esc(c.vehicle||"")}"></label></div>
+  <div class="tablebox"><table class="est" style="min-width:640px"><thead><tr><th>Material</th><th>Job work</th><th class="num">With us</th><th class="num">OK: send and bill</th><th class="num">Rejected</th><th class="num">Rate ₹ / unit</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${esc(l.desc)}</td><td>${esc(l.process||"")}</td><td class="num">${fmt0(P[i])}</td><td class="num"><input id="jwb-q${i}" class="qty" type="number" step="any" min="0" value="${P[i]}"${P[i]>0?"":" disabled"}></td><td class="num"><input id="jwb-r${i}" class="qty" type="number" step="any" min="0" value="0"${P[i]>0?"":" disabled"}></td><td class="num"><input id="jwb-p${i}" class="rate" type="number" step="0.01" value="${+l.rate||jwRateFor(c.cust,l.process)||""}"></td></tr>`).join("")}</tbody></table></div>
+  <div class="row"><span style="flex:1"></span><button class="btn primary" type="button" id="btn-jwb-go">Make challan and invoice</button></div>`}
+const jwRateEdit=()=>has("rgp.manage")||has("inv.create")||isRole("Admin");
+function renderJwRates(){const P=$("#jwdRates");if(!P)return;P.hidden=!jwdRates;if(!jwdRates)return;const R=M.jwRates||[],ed=jwRateEdit();
+  P.innerHTML=`<div class="row"><h3 class="rg" style="margin:0">Rate card</h3><span class="note">These rates fill in by themselves on new inwards and when billing. Leave Customer empty for a rate that suits every customer. Without a rate here, the customer's last rate for the same job work is used.</span></div>
+  <div class="tablebox"><table class="est" style="min-width:560px"><thead><tr><th>Customer</th><th>Job work</th><th>Unit</th><th class="num">Rate ₹</th><th></th></tr></thead><tbody>${R.length?R.map((r,i)=>`<tr data-i="${i}"><td><input data-jr="cust" list="custnames" value="${esc(r.cust||"")}" placeholder="All customers"${ed?"":" disabled"}></td><td><input data-jr="proc" value="${esc(r.proc||"")}" placeholder="Wire cut, EDM, grinding..."${ed?"":" disabled"}></td><td><input data-jr="unit" value="${esc(r.unit||"")}" style="width:70px" placeholder="NOS"${ed?"":" disabled"}></td><td class="num"><input class="rate" data-jr="rate" type="number" step="0.01" value="${r.rate??""}"${ed?"":" disabled"}></td><td>${ed?`<button class="x" type="button" data-jrdel="${i}" aria-label="Remove rate">×</button>`:""}</td></tr>`).join(""):`<tr><td colspan="5" class="note">No rates yet.</td></tr>`}</tbody></table></div>
+  ${ed?`<div class="row"><button class="btn" type="button" id="btn-jr-add">Add rate</button></div>`:""}`}
+$("#jwdRates").addEventListener("change",e=>{const t=e.target,k=t.dataset.jr;if(!k||!jwRateEdit())return;const r=(M.jwRates||[])[+t.closest("tr").dataset.i];if(!r)return;r[k]=k==="rate"?(t.value===""?"":+t.value):t.value.trim();saveM()});
+$("#jwdRates").addEventListener("click",e=>{if(!jwRateEdit())return;if(e.target.id==="btn-jr-add"){M.jwRates=M.jwRates||[];M.jwRates.push({cust:"",proc:"",unit:"NOS",rate:""});saveM();renderJwRates();return}
+  const d=e.target.dataset.jrdel;if(d!=null){M.jwRates.splice(+d,1);saveM();renderJwRates()}});
+$("#btn-jwd-rates").onclick=()=>{jwdRates=!jwdRates;renderJwRates();if(jwdRates)$("#jwdRates").scrollIntoView({block:"start"})};
+$("#btn-jwd-new").onclick=()=>{jwFormHome("jw");$("#btn-jw-new").click();$("#jwForm").scrollIntoView({block:"start"})};
+$("#jwd-q").addEventListener("input",()=>renderJwDesk());
+$("#jwdCards").addEventListener("click",e=>{const b=e.target.closest("[data-jwdf]");if(!b)return;jwdF=b.dataset.jwdf;renderJwDesk()});
+$("#jwdList").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const F=n=>jwins.find(x=>String(x.no)===n);
+  if(b.dataset.jwsb!=null){const c=F(b.dataset.jwsb);if(!c)return;jwin=null;jwSend=null;renderJwForm();jwSB=c;renderJwSB();$("#jwbForm").scrollIntoView({block:"start"});return}
+  if(b.dataset.jwdinv!=null){const c=F(b.dataset.jwdinv);if(c)invFromJW(c,c.lines.map((l,i)=>Math.max(0,+(jwOkOut(c,i)-jwBill(c,i)).toFixed(3))));return}
+  if(b.dataset.jwout!=null||b.dataset.jwpdf!=null||b.dataset.jwjob!=null){jwSB=null;renderJwSB();const x=b.cloneNode();x.hidden=true;$("#jwList").appendChild(x);x.click();x.remove()}});
+$("#jwbForm").addEventListener("click",e=>{const id=e.target.id;if(id==="btn-jwb-x"){jwSB=null;renderJwSB();return}if(id!=="btn-jwb-go"||!jwSB)return;
+  const c=jwSB,P=jwOutPend(c),v=x=>+(($(x)||{}).value)||0,qs=c.lines.map((l,i)=>Math.max(0,v("#jwb-q"+i))),rj=c.lines.map((l,i)=>Math.max(0,v("#jwb-r"+i))),rt=c.lines.map((l,i)=>Math.max(0,v("#jwb-p"+i)));
+  if(qs.some((q,i)=>q+rj[i]>P[i]+0.0001)){toast("More than what is still with us");return}
+  if(!qs.some(q=>q>0)&&!rj.some(q=>q>0)){toast("Enter the qty going back");return}
+  const date=$("#jwb-date").value||today(),veh=$("#jwb-veh").value.trim();let ch=false;
+  c.lines.forEach((l,i)=>{if(!(+l.rate>0)&&rt[i]>0){l.rate=rt[i];ch=true}});
+  if(!qs.some(q=>q>0)){c.outs=c.outs||[];const o={n:c.outs.length+1,date,vehicle:veh,by:me.name,qty:qs,rej:rj};c.outs.push(o);saveJw();jwSB=null;renderJwin();
+    toast(`Challan ${jwoLbl(c,o)} saved. Nothing to bill: all of it was rejected.`);savePDF(docJwOut(c,o),pdfName("Job-work-return",jwoLbl(c,o),c.cust));return}
+  if(!has("inv.create")){toast("You can't make invoices. Use Send back only, and Accounts will bill it.");return}
+  if(ch)saveJw();jwSB=null;renderJwSB();
+  const L=c.lines.map((l,i)=>({jwi:i,desc:`Job work: ${l.process||"processing"} on ${l.desc}`,hsn:l.hsn||"998898",qty:qs[i],unit:l.unit,rate:rt[i]||""})).filter(l=>l.qty>0);
+  sdOpen("inv",sdNew("inv",{plant:c.plant||defPlant(),date,cust:c.cust,jw:c.no,jwOut:{rej:rj,vehicle:veh},job:c.job||"",custDC:c.custDC,custDCDate:c.custDCDate,custPO:c.custPO||"",vehicle:veh,gst:18,lines:L}),true);
+  toast("Check the invoice and press Save. Saving it also records the material as sent back.")});
 let rgps=store.get("rgps",[]);const saveRgps=()=>store.set("rgps",rgps);let rgp=null,rgpMode="new";
 const rgpPend=c=>c.lines.reduce((a,l)=>a+Math.max(0,(+l.qty||0)-(+l.ret||0)),0);
 function renderRgp(){
@@ -3190,6 +3276,7 @@ function workItems(){
     add(saved.filter(p=>p.status==="Pending approval").length,"POs with approver","Waiting for approval","saved");
     add(saved.filter(p=>!p.closed&&p.needBy&&p.needBy<today()&&p.status!=="Draft").length,"POs past required date","Material is late, follow up with the supplier","saved",true)}
   if(has("po.approve"))add(saved.filter(p=>p.status==="Pending approval").length,"POs to approve","Review, approve and sign","appr",true);
+  if(can("jw")){const A=jwins.filter(inPlant);add(A.filter(c=>jwOutPend(c).some(x=>x>0.0001)).length,"Customer material with us","Job work to finish, send back and bill","jw");add(A.filter(c=>jwSentUnbilled(c)>0.0001).length,"Job work sent back, not billed","Make the invoice","jw",true)}
   if(has("rgp.manage")){add(rgps.filter(c=>c.status!=="Closed").length,"Returnable challans open","Material out, not yet back","grn");
     add(rgps.filter(c=>c.status!=="Closed"&&c.expected&&c.expected<today()).length,"Challans overdue for return","Follow up with the party","grn",true)}
   if(has("grn.create")||has("page.grn"))add(saved.filter(p=>p.status==="Approved"&&!p.closed&&pendingLines(p).length).length,"POs waiting for material","Create GRN when material arrives","grn",true);
@@ -3328,7 +3415,7 @@ function refreshWho(){
 function setMe(name){
   me=CLOUD?(M.users.find(u=>u.name===BOOT.me)||{name:BOOT.me,dept:"",role:"Staff",rights:[]}):(M.users.find(u=>u.name===name)||M.users.find(u=>u.role==="Admin")||M.users[0]);store.set("me",me&&me.name);if(CLOUD&&$("#cuName"))$("#cuName").textContent=`${me.name} · ${me.role}`;
   views.forEach(v=>$("#tab-"+v).hidden=!can(v));refreshWho();
-  cur=null;const open=views.find(v=>!$("#view-"+v).hidden);show("home");codesSoon("sup");codesSoon("cust");
+  cur=null;const open=views.find(v=>!$("#view-"+v).hidden);show(jwHome()?"jw":"home");codesSoon("sup");codesSoon("cust");
 }
 $("#who").onchange=e=>setMe(e.target.value);
 let sigFor=null;
@@ -3879,7 +3966,7 @@ function invStart(){const blank=()=>sdOpen("inv",sdNew("inv",{lines:[{desc:"",hs
     ${opt("po","From customer PO",PO.length?`Picks up the customer, PO No. and date, and the items on that PO. A sales order is made for it if there is none yet, so quantities billed are tracked (${PO.length} available)`:"No customer POs recorded on open orders or won quotations",PO.length)}
     <select id="inv-po" hidden>${PO.map(x=>`<option value="${esc(x.k)}">PO ${esc(x.po)}${x.pd?" dt "+dmy(x.pd):""} · ${esc(x.cust)} · ${esc(x.via)}</option>`).join("")}</select>
     ${opt("jw","Job work (customer material inward)",JW.length?`Bills job work on material received on the customer's challan (${JW.length} to bill)`:"No customer material inward waiting to be billed (record it in Store)",JW.length)}
-    <select id="inv-jw" hidden>${JW.map(c=>`<option value="${esc(c.no)}">JW-${esc(c.no)} · ${esc(c.cust)} · challan ${esc(c.custDC)}${c.custDCDate?" dt "+dmy(c.custDCDate):""}</option>`).join("")}</select>
+    <select id="inv-jw" hidden>${JW.map(c=>`<option value="${esc(c.no)}">${esc(jwLbl(c))} · ${esc(c.cust)} · challan ${esc(c.custDC)}${c.custDCDate?" dt "+dmy(c.custDCDate):""}</option>`).join("")}</select>
     ${opt("direct","Direct","Start a blank invoice and type in the customer and items",1)}
     <div class="row"><span style="flex:1"></span><button type="button" class="btn" id="inv-src-x">Cancel</button><button class="btn primary" id="inv-src-ok" disabled>Continue</button></div></form>`;
   document.body.appendChild(d);const q=x=>d.querySelector(x);
@@ -3988,6 +4075,8 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
   if(t==="inv"&&isNew&&(invFirst(fyOf(x.date),x.plant)||isRole("Admin"))){const n=$("#sd-no");if(!okNo(x.no)){toast("Type the invoice number in digits, e.g. 1");if(n)n.focus();return}if(invoices.some(r=>r.fy===fyOf(x.date)&&(r.plant||"P1")===(x.plant||"P1")&&+r.no===+x.no)){toast(`Invoice ${invPreOf(x.plant)}${pad4(x.no)} (${fyOf(x.date)}) already exists. Pick another number.`);if(n)n.focus();return}}
   const A=SD[t].arr();x.updatedAt=new Date().toISOString();
   if(isNew){if(t==="inv"){x.fy=fyOf(x.date);x.no=(invFirst(x.fy,x.plant)||isRole("Admin"))&&okNo(x.no)?+x.no:nextInvNo(x.fy,x.plant);x.pre=invPreOf(x.plant)}x.createdAt=x.updatedAt;A.unshift(x)}else{const o=A.find(r=>sdId(t,r)===sdId(t,x));Object.assign(o,x)}
+  if(t==="inv"&&isNew&&x.jwOut){const jc=jwins.find(r=>String(r.no)===String(x.jw)),o0=x.jwOut;delete x.jwOut;
+    if(jc){const qs=jc.lines.map((l,i)=>x.lines.filter(y=>y.jwi===i).reduce((a,y)=>a+(+y.qty||0),0));jc.outs=jc.outs||[];jc.outs.push({n:jc.outs.length+1,date:x.date,vehicle:x.vehicle||o0.vehicle||"",by:me.name,qty:qs,rej:o0.rej||[],inv:sdId("inv",x)});saveJw()}}
   if(t==="inv"&&isNew&&x.dc)x.dc.forEach(n=>{const d=dchallans.find(r=>String(r.no)===String(n));if(d)d.inv=sdId("inv",x)});
   if(t==="so"&&isNew&&x.deal){const d=dealBy(x.deal);if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
   sdSave(t);if(t==="inv")sdSave("dc");const saved=A.find(r=>sdId(t,r)===sdId(t,x));sdCur={t,rec:JSON.parse(JSON.stringify(saved)),isNew:false};renderSD(t);
@@ -4777,12 +4866,14 @@ const IMP_LIST=[
   ["obs","Suppliers' unpaid bills","Outstanding payables on the start date, same columns as customers' bills.","Excel (.xlsx, .xls), CSV, PDF","Acct"],
   ["opo","Old purchase orders","One row per PO line: PO no., date, supplier, item, qty, unit, rate, GST %, received qty. Fully received POs come in closed; the rest stay open for a GRN.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["ogrn","Old GRNs","One row per GRN line: GRN no., date, supplier, supplier invoice no., PO no., item, qty, unit, rate, GST %. Kept as history: they do not add stock, do not add to vendor dues, and do not change PO received qty.","Excel (.xlsx, .xls), CSV, PDF","PO"],
+  ["ojw","Old job work inward","One row per line of customer material received for job work: inward no., date, customer, their challan no. and date, material, qty, unit, job work, rate, qty sent back, qty billed. Material not yet sent back shows in Store > Job work inward, ready for Send back and Make invoice.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["oinv","Old sales invoices","One row per invoice line: invoice no. (e.g. Z0001 or Z0001/26-27), date, customer, customer PO, item, HSN, qty, unit, rate, discount %, GST %. Kept as history: they show in invoice lists, sales figures and registers, not in amounts to collect.","Excel (.xlsx, .xls), CSV, PDF","PO"],
   ["bank","Bank statement","Statement downloaded from net banking. Lines are matched to the bills above in Accounts.","Excel (.xlsx), CSV","Acct"],
   ["restore","Full backup","A ZT-ERP LITE backup file (Home > Backup). Replaces everything.","Backup file (.xlsx)","Admin"]];
 const IMP_TPL={party:()=>tplBook("Parties-template.xlsx",[["Name","Group","GSTIN","PAN","Address","City","PIN","State code","Contact person","Phone","Email"],["ABC Engineering Pvt Ltd","Sundry Debtors","27ABCDE1234F1Z5","ABCDE1234F","Plot 12, MIDC","Pune","411019","27","Mr. Patil","9800000000","accounts@abc.in"],["Shree Steels","Sundry Creditors","27AAAAA0000A1Z5","","Bhosari","Pune","411026","27","","",""]]),
   items:()=>tplBook("Items-template.xlsx",[["Item name","Item code","HSN / SAC","GST %","Unit","Rate","Opening stock"],["Ejector pin 6 x 200","","84807100","18","NOS","85","40"],["Wire cutting","","998898","18","HR","450",""]]),
   obc:()=>obTemplate(),obs:()=>obTemplate(),opo:()=>opoTemplate(),
+  ojw:()=>tplBook("Old-job-work-inward-template.xlsx",[OJW_FIELDS.map(f=>f[1]),["Z/0012/26-27","05/11/2026","P1","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","DC-881","04/11/2026","","ZT2350","","CORE INSERT 40 X 60","2","NOS","Wire cut","998898","1500","1","0","20/11/2026","Z/0101/26-27"]]),
   ogrn:()=>tplBook("Old-GRN-template.xlsx",[OGRN_FIELDS.map(f=>f[1]),["J/00001/26-27","03/04/2026","P2","EXCEL ENTERPRISES","27CHDPM4358P1ZO","EE-383","30/03/2026","J/2848/25-26","","DIA 3 FLAT STANDARD","83024900","10","10","10","","NOS","600","","18"]]),
   oinv:()=>tplBook("Old-invoice-template.xlsx",[OINV_FIELDS.map(f=>f[1]),["Z0001/26-27","01/04/2026","P1","KRAFTSMAN TOOLING PRIVATE LIMITED","27AACCK4322L1ZI","","","","","Gun drilling of WO-391 cavity","998898","1","NOS","1000","","18"]])};
 async function tplBook(fn,rows){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
@@ -4800,22 +4891,78 @@ function renderImportHub(){const P=$("#importPanel");if(!P)return;
   ${L.map((x,k)=>`<tr><td>${k+1}</td><td><b>${esc(x[1])}</b></td><td class="note">${esc(x[2])}</td><td style="white-space:nowrap">${esc(x[3])}</td><td style="white-space:nowrap">${IMP_TPL[x[0]]?`<button class="btn" type="button" data-imp="tpl:${x[0]}">Template</button> `:""}<button class="btn primary" type="button" data-imp="${x[0]}">${x[0]==="restore"?"Go to backup":x[0]==="bank"?"Go to Accounts":"Import"}</button></td></tr>`).join("")}
   </tbody></table></div>
   ${L.length?"":`<div class="empty">Only the Admin or Accounts can import old data.</div>`}
-  <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div><div id="ohPrev"></div>`;renderOpo();renderOh()}
+  <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.pdf" hidden><div id="opoPrev"></div><div id="ohPrev"></div><div id="ojwPrev"></div>`;renderOpo();renderOh();renderOjw()}
 $("#importPanel").addEventListener("click",e=>{const k=e.target.dataset.imp;if(!k)return;
   if(k.startsWith("tpl:")){const f=IMP_TPL[k.slice(4)];if(f)f();return}
   if(k==="opo-go"){opoSave();return}
   if(k==="opo-cancel"){opoPv=null;renderOpo();return}
   if(k==="oh-go"){ohSave();return}
   if(k==="oh-cancel"){ohPv=null;renderOh();return}
+  if(k==="ojw-go"){ojwSave();return}
+  if(k==="ojw-cancel"){ojwPv=null;renderOjw();return}
   if(k==="restore"){show("home");return}
   if(k==="bank"){show("acct");setTimeout(()=>{const i=$("#bks-file");if(i)i.click()},50);return}
   if(k==="party"){$("#sup-file").click();return}
   if(k==="items"){$("#it-file").click();return}
   const i=$("#imp-file");i.dataset.kind=k;i.click()});
-$("#importPanel").addEventListener("change",e=>{if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
+$("#importPanel").addEventListener("change",e=>{const o=e.target.dataset&&e.target.dataset.ojwopt;if(o&&ojwPv){ojwPv[o]=e.target.checked;ojwFilter();renderOjw();return}if(e.target.id!=="imp-file")return;const f=e.target.files[0],k=e.target.dataset.kind;e.target.value="";if(!f)return;
   if(k==="opo"){opoImport(f);return}
   if(k==="ogrn"||k==="oinv"){ohImport(f,k);return}
+  if(k==="ojw"){ojwImport(f);return}
   obImport(f,k==="obc"?"cust":"sup")});
+/* ---------- old job work inward (customer material) from the old ERP, one row per line ---------- */
+const OJW_FIELDS=[["no","Inward No",["inwardno","jwno","jobworkno","jobworkinwardno","inwardnumber","grnno","mrnno","no"]],["date","Received date",["receiveddate","inwarddate","date","grndate"]],["plant","Plant",["plant","branch"]],
+  ["cust","Customer",["customer","customername","partyname","party"]],["gstin","Customer GSTIN",["customergstin","gstin","gstno"]],
+  ["custDC","Their challan No",["theirchallanno","customerchallanno","challanno","dcno","partydcno","custdcno"]],["custDCDate","Their challan date",["theirchallandate","customerchallandate","challandate","dcdate","partydcdate"]],
+  ["custPO","Customer PO No",["customerpono","pono","ponumber"]],["job","Job No",["jobno","projectno","projectjobno","project"]],["vehicle","Vehicle No",["vehicleno","vehicle"]],
+  ["desc","Material / part",["materialpart","material","item","itemdescription","description","itemname","particulars","part"]],["qty","Qty received",["qtyreceived","receivedqty","qty","quantity"]],["unit","Unit",["unit","uom","units"]],
+  ["process","Job work to do",["jobworktodo","jobwork","process","operation","work"]],["hsn","SAC / HSN",["sachsn","sac","hsnsac","hsn"]],["rate","Rate",["rate","unitrate","price"]],
+  ["sent","Qty sent back",["qtysentback","sentback","returnedqty","qtyreturned","dispatchedqty","sentqty"]],["billed","Qty billed",["qtybilled","billedqty","invoicedqty"]],
+  ["outDate","Last send-back date",["lastsendbackdate","sendbackdate","returndate","dispatchdate"]],["outDC","Our return challan No",["ourreturnchallannos","ourreturnchallanno","returnchallanno","ourchallanno","ourdcno"]]];
+let ojwPv=null;
+async function ojwImport(f){if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  try{toast("Reading the file…");const wb=await readBook(f,OJW_FIELDS,"csv");let best=null;
+    wb.SheetNames.forEach(sn=>{const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false,defval:"",raw:true});for(let r=0;r<Math.min(25,rows.length);r++){const m=itGuess(rows[r],OJW_FIELDS),sc=Object.keys(m).length;
+      if(m.no!=null&&m.desc!=null&&m.qty!=null&&m.cust!=null&&sc>=5&&(!best||sc>best.sc))best={sc,rows,hr:r,map:m,sn}}});
+    if(!best){toast("Could not find the columns. The sheet needs Inward No, Customer, Material and Qty columns. Download the template to see the layout.");return}
+    const M=best.map,G=new Map(),bad=[];let lastNo="";
+    best.rows.slice(best.hr+1).forEach((r,i)=>{const g=k=>M[k]==null?"":r[M[k]],row=i+best.hr+2;
+      const no=String(g("no")??"").trim()||lastNo,desc=String(g("desc")??"").replace(/\s+/g," ").trim();
+      if(!no&&!desc)return;if(/^(grand\s*)?total/i.test(no)||/^(grand\s*)?total/i.test(desc))return;
+      if(!no){bad.push(`Row ${row}: no inward number`);return}lastNo=no;if(!desc){bad.push(`Row ${row} (${no}): no material`);return}
+      const qty=Math.abs(obNum(g("qty")));if(!(qty>0)){bad.push(`Row ${row} (${no}): no qty`);return}
+      let H=G.get(key(no));if(!H){H={no,lines:[]};G.set(key(no),H)}
+      ["date","plant","cust","gstin","custDC","custDCDate","custPO","job","vehicle","outDate","outDC"].forEach(k=>{if(M[k]==null||H[k])return;const v=g(k);if(String(v??"").trim()==="")return;H[k]=/date/i.test(k)?obDate(v):String(v).replace(/\s+/g," ").trim()});
+      const sent=Math.min(qty,Math.abs(obNum(g("sent")))),billed=Math.min(qty,Math.abs(obNum(g("billed"))));
+      H.lines.push({desc,qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||"NOS",process:String(g("process")??"").replace(/\s+/g," ").trim(),hsn:String(g("hsn")??"").trim()||"998898",rate:Math.abs(obNum(g("rate")))||"",sent:r2(sent),oldBilled:r2(billed)})});
+    const have=new Set(jwins.map(x=>key(x.no))),out=[],dup=[];
+    G.forEach(H=>{if(!H.date){bad.push(`${H.no}: date missing or not readable`);return}if(!H.cust){bad.push(`${H.no}: no customer`);return}
+      if(have.has(key(H.no))){dup.push(H.no);return}H.plant=ohPlant(H.plant,H.no);out.push(H)});
+    out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true}));
+    const unk=[...new Set(out.filter(H=>!custByName(H.cust)).map(H=>H.cust))];
+    ojwPv={fname:f.name,sn:best.sn,map:M,all:out,recs:out,bad,dup,unk,skipOld:true,skipOwn:false};ojwFilter();renderOjw();const el=$("#ojwPrev");if(el)el.scrollIntoView({block:"start"})}
+  catch(err){console.error(err);toast(err&&err.user?err.user:"Could not read that file. Save it as .xlsx, .csv or a text PDF and try again.")}}
+const ojwWith=H=>H.lines.reduce((a,l)=>a+Math.max(0,l.qty-l.sent),0);
+/* the old ERP keeps many inwards from past years that were never linked to an invoice, and our own Jadhavwadi plant sends parts to Talwade as a customer */
+const OJW_FROM="2026-04-01",ojwOld=H=>H.date<OJW_FROM,ojwOwn=H=>/zoom\s*tech/i.test(H.cust)||(H.gstin&&ownGstins().includes(String(H.gstin).toUpperCase()));
+function ojwFilter(){if(!ojwPv)return;ojwPv.recs=ojwPv.all.filter(H=>!(ojwPv.skipOld&&ojwOld(H))&&!(ojwPv.skipOwn&&ojwOwn(H)))}
+function renderOjw(){const P=$("#ojwPrev");if(!P)return;if(!ojwPv){P.innerHTML="";return}const R=ojwPv.recs,W=R.filter(H=>ojwWith(H)>0.0001);
+  P.innerHTML=`<div class="panel stack" style="border:2px solid var(--accent,#0e6e8c);margin-top:12px"><h3 class="rg" style="margin:0">Check before importing: old job work inward from ${esc(ojwPv.fname)}</h3>
+  <div class="note">Sheet "${esc(ojwPv.sn)}". Columns found: ${OJW_FIELDS.filter(([f])=>ojwPv.map[f]!=null).map(([,l])=>l).join(", ")}.</div>
+  <div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip calc">${R.length} inwards, ${R.reduce((a,x)=>a+x.lines.length,0)} lines</span><span class="chip sugg">${W.length} with material still with us</span>${["P1","P2"].map(p=>`<span class="chip">${esc(plantName(p))}: ${R.filter(H=>H.plant===p).length}</span>`).join("")}${ojwPv.dup.length?`<span class="chip">${ojwPv.dup.length} already in the app, skipped</span>`:""}${ojwPv.bad.length?`<span class="chip st-Draft">${ojwPv.bad.length} problems, skipped</span>`:""}</div>
+  ${ojwPv.all.some(ojwOld)||ojwPv.all.some(ojwOwn)?`<div class="stack" style="gap:4px">${ojwPv.all.some(ojwOld)?`<label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" data-ojwopt="skipOld"${ojwPv.skipOld?" checked":""} style="width:18px;height:18px"> Leave out ${ojwPv.all.filter(ojwOld).length} inwards from before 1 Apr 2026 (old records still open in the old ERP, mostly never linked to an invoice)</label>`:""}${ojwPv.all.some(ojwOwn)?`<label class="row" style="gap:8px;cursor:pointer"><input type="checkbox" data-ojwopt="skipOwn"${ojwPv.skipOwn?" checked":""} style="width:18px;height:18px"> Leave out ${ojwPv.all.filter(ojwOwn).length} inwards from our own plant (Zoom Technologies Jadhavwadi)</label>`:""}</div>`:""}
+  <div class="note">They come into Store > Job work inward with their old numbers. What was already sent back and billed in the old ERP is counted, so only the balance can be sent back or billed here. They do not touch your own stock.</div>
+  ${ojwPv.bad.length?`<div class="note" style="color:var(--danger)">${ojwPv.bad.slice(0,8).map(esc).join("<br>")}${ojwPv.bad.length>8?"<br>…":""}</div>`:""}
+  ${ojwPv.unk.length?`<div class="note">${ojwPv.unk.length} customer${ojwPv.unk.length===1?" is":"s are"} not in the master and will be added with the name and GSTIN in the file: ${ojwPv.unk.slice(0,6).map(esc).join("; ")}${ojwPv.unk.length>6?" …":""}</div>`:""}
+  ${R.length?`<div class="tablebox"><table class="mt" style="min-width:760px"><thead><tr><th>Inward</th><th>Date</th><th>Customer</th><th>Their challan</th><th>Plant</th><th class="num">Lines</th><th class="num">Still with us</th></tr></thead><tbody>${R.slice(0,100).map(x=>`<tr><td style="font-family:var(--mono)">${esc(x.no)}</td><td>${dmy(x.date)}</td><td>${esc(x.cust)}</td><td>${esc(x.custDC||"")}</td><td>${esc(x.plant)}</td><td class="num">${x.lines.length}</td><td class="num">${fmt0(ojwWith(x))}</td></tr>`).join("")}</tbody></table></div>${R.length>100?`<div class="note">Showing the first 100 of ${R.length}.</div>`:""}`:""}
+  <div class="row"><span style="flex:1"></span><button class="btn" type="button" data-imp="ojw-cancel">Cancel</button>${R.length?`<button class="btn primary" type="button" data-imp="ojw-go">Import ${R.length} inwards</button>`:""}</div></div>`}
+function ojwSave(){if(!ojwPv)return;const at=new Date().toISOString(),have=new Set(jwins.map(x=>key(x.no)));let n=0,addC=0;
+  ojwPv.recs.forEach(H=>{if(have.has(key(H.no)))return;let c=custByName(H.cust);if(!c){c={id:itId(),name:H.cust,gstin:H.gstin||""};customers.push(c);addC++}
+    const sent=H.lines.map(l=>l.sent||0),o=oldJob(H.job);
+    jwins.push({no:H.no,old:true,plant:H.plant,date:H.date,cust:c.name,custDC:H.custDC||"",custDCDate:H.custDCDate||"",custPO:H.custPO||"",job:o.job,oldRef:o.oldRef,vehicle:H.vehicle||"",by:"Old ERP",
+      lines:H.lines.map(l=>({desc:l.desc,qty:l.qty,unit:l.unit,process:l.process,hsn:l.hsn,rate:l.rate,oldBilled:l.oldBilled})),
+      outs:sent.some(q=>q>0)?[{n:1,date:H.outDate||H.date,vehicle:"",by:"Old ERP",qty:sent,dc:H.outDC||"",old:true}]:[],importedAt:at,importFile:ojwPv.fname});n++});
+  saveJw();if(addC)saveCusts();renderJwin();toast(`${n} old job work inwards imported${addC?`, ${addC} customers added`:""}.`);ojwPv=null;renderOjw()}
 /* ---------- old GRNs and old sales invoices: history only, one row per line ---------- */
 const OGRN_FIELDS=[["no","GRN No",["grnno","grnnumber","inwardno","mrnno","grn","receiptno"]],["date","GRN date",["grndate","inwarddate","receiptdate","date"]],["plant","Plant",["plant","branch"]],
   ["sup","Supplier",["supplier","suppliername","vendor","vendorname","partyname","party"]],["gstin","Supplier GSTIN",["suppliergstin","gstin","gstno"]],
