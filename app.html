@@ -376,6 +376,7 @@ button.kpi{cursor:pointer}button.kpi:hover{background:#f7fafd}
 .kpi .t{font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);line-height:1.3}
 .kpi .n{font-size:26px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .kpi .d{font-size:12.5px;color:var(--muted);line-height:1.35}
+.kpi .kgst{font-size:12px;color:var(--muted);line-height:1.35;font-variant-numeric:tabular-nums}.kpi .kgst b{color:var(--ink);font-weight:600}
 .kpi .d b.up{color:#16794a}.kpi .d b.down{color:var(--danger)}
 .kpi.warn{border-left-color:var(--danger)}.kpi.warn .n{color:var(--danger)}
 #homeChart .vb{height:240px}
@@ -5620,12 +5621,16 @@ const last12=()=>{const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),o=[];for(let i
 const prevMon=()=>{const t=today();return new Date(Date.UTC(+t.slice(0,4),+t.slice(5,7)-2,1)).toISOString().slice(0,7)};
 const weekMon=()=>{const t=new Date(today()+"T00:00:00Z"),d=(t.getUTCDay()+6)%7;return addDays(today(),-d)};
 /* a tile: label, figure, line under it; tone "warn" = red edge and figure, "ok" = green */
-const kpi=(t,n,d,o)=>{o=o||{};const go=o.go&&can(o.go)?o.go:"";return`<${go?`button type="button" data-go="${esc(go)}"`:"div"} class="kpi${o.tone?" "+o.tone:""}"><span class="t">${esc(t)}</span><span class="n">${n}</span><span class="d">${d}</span>${o.split?`<span class="ksplit">${o.split.map(([l,v])=>`<span><i>${esc(l)}</i><b>${v}</b></span>`).join("")}</span>`:""}</${go?"button":"div"}>`};
+const kpi=(t,n,d,o)=>{o=o||{};const go=o.go&&can(o.go)?o.go:"";return`<${go?`button type="button" data-go="${esc(go)}"`:"div"} class="kpi${o.tone?" "+o.tone:""}"><span class="t">${esc(t)}</span><span class="n">${n}</span><span class="d">${d}</span>${o.gst!=null?`<span class="kgst">${o.gst}</span>`:""}${o.split?`<span class="ksplit">${o.split.map(([l,v])=>`<span><i>${esc(l)}</i><b>${v}</b></span>`).join("")}</span>`:""}</${go?"button":"div"}>`};
+/* small line under a before-GST figure: total with GST and the GST in it */
+const gstTxt=(base,incl)=>`With GST <b>${kpiL(incl)}</b><br>GST amount ${kpiL(incl-base)}`;
 const trendTxt=(a,b)=>{if(!b)return a?`<b class="up">new</b> vs last month`:"nothing last month";const p=Math.round((a-b)/b*100);return`<b class="${p>=0?"up":"down"}">${p>=0?"▲":"▼"} ${Math.abs(p)}%</b> vs last month`};
 function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS=last12();
   const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
   const sOf=x=>invCalc(x).ass,cOf=n=>ntCalc("cn",n).ass,pOf=g=>grnCalc(g).sub,gd=g=>g.bookedAt||g.date;
   const salesIn=f=>sum(INV.filter(x=>f(x.date)).map(sOf))-sum(CN.filter(n=>f(n.date)).map(cOf));
+  const gOf=x=>{const c=invCalc(x);return c.ass+c.cg+c.sg+c.ig},gcOf=n=>{const c=ntCalc("cn",n);return c.ass+c.tax},pgOf=g=>{const c=grnCalc(g);return c.sub+c.tax};
+  const salesInG=f=>sum(INV.filter(x=>f(x.date)).map(gOf))-sum(CN.filter(n=>f(n.date)).map(gcOf));
   const sales12=MS.map(k=>salesIn(d=>m7(d)===k)),purch12=MS.map(k=>sum(GR.filter(g=>m7(gd(g))===k).map(pOf)));
   const o60=addDays(t,-60),TL=tlOn(),recv=TL?tlDue("cust"):INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),old=TL?tlDue("cust",o60):INV.filter(v=>v.date<o60).reduce((a,v)=>a+invDue(v),0)+obills.filter(o=>o.kind==="cust"&&inPlant(o)&&o.date<o60).reduce((a,o)=>a+Math.max(0,obBal(o)),0);
   const payb=TL?tlDue("sup"):curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0);
@@ -5633,6 +5638,7 @@ function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS
   const wk=weekMon(),J=jobs.filter(j=>j.status!=="Completed"),OPS=jobs.flatMap(j=>(j.ops||[]).filter(o=>o.status==="Done"&&d10(o.end)>=wk));
   return{t,cm,pm,fs,MS,INV,GR,sales12,purch12,
     salesM:salesIn(d=>m7(d)===cm),salesPM:salesIn(d=>m7(d)===pm),salesFY:salesIn(d=>d>=fs&&d<=t),purFY:sum(GR.filter(g=>gd(g)>=fs).map(pOf)),purM:sum(GR.filter(g=>m7(gd(g))===cm).map(pOf)),
+    salesMG:salesInG(d=>m7(d)===cm),salesFYG:salesInG(d=>d>=fs&&d<=t),purFYG:sum(GR.filter(g=>gd(g)>=fs).map(pgOf)),purMG:sum(GR.filter(g=>m7(gd(g))===cm).map(pgOf)),
     recv,recvP:recv,old,payb,paybP:TL?payb:plantDue()+obSupDue(),TL,obC:TL||obills.some(o=>o.kind==="cust"),obS:TL||obills.some(o=>o.kind==="sup"),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
 function homeTabs(){return[["ov","🏢","Overview",true],["sal","📈","Sales",["sales","so","dc","inv","cn"].some(can)],["pur","🛒","Purchase",["req","buy","po","saved","appr"].some(can)],["store","📦","Store",["grn","stock"].some(can)],["prod","🏭","Production",can("prod")]].filter(x=>x[3])}
 const HQA=[["inv","🧾","New sales invoice","From a customer order","inv"],["prod","🏭","Production","Job cards, log what's made"],["stock","📊","Stock entry","Opening, issue, return"],["inv","💰","Payment received","From a customer"],["so","📥","New sales order","From a customer PO","so"],
@@ -5650,10 +5656,10 @@ function renderHome(){
   const seen=new Set(),QA=HQA.filter(([v,,t])=>{if(!can(v)||seen.has(t))return false;seen.add(t);return true}).slice(0,7);
   $("#homeQuick").innerHTML=QA.map(([v,ic,t,d,nw],i)=>`<button type="button" class="qact" data-qa="${i}" data-go="${v}"${nw?` data-new="${nw}"`:""}><b><i aria-hidden="true">${ic}</i>${esc(t)}</b><span>${esc(d)}</span></button>`).join("");
   const K=[];
-  if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",split:hSplit("salesFY")}));
+  if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",gst:gstTxt(D.salesM,D.salesMG),split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",gst:gstTxt(D.salesFY,D.salesFYG),split:hSplit("salesFY")}));
     K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days${D.TL?" · "+tlHint():""}`:obHint("cust",D)||"from customers",{go:obGo("cust",D)||"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
   if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),obHint("sup",D)||"to vendors",{go:obGo("sup",D)||"acct",split:hSplit("paybP",D.payb)}));
-  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
+  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purFY,D.purFYG),split:hSplit("purFY")}));
   if(can("stock"))K.push(kpi("Stock alerts",fmt0(D.alerts),"items at zero or below minimum",{go:"stock",tone:D.alerts?"warn":""}));
   if(can("prod"))K.push(kpi("Production this week",D.ops.length?fmt0(Math.round(D.hrs*10)/10)+" h":"—",D.ops.length?`${D.ops.length} operation${D.ops.length>1?"s":""} done · ${D.J.length} jobs open`:D.J.length?`${D.J.length} jobs open, nothing logged yet`:"no job cards yet",{go:"prod",tone:D.late.length?"warn":""}));
   $("#homeKpi").innerHTML=K.join("");$("#homeKpi").hidden=!K.length;
@@ -5682,7 +5688,7 @@ $("#homePlant").addEventListener("click",e=>{const b=e.target.closest("[data-hpl
 const homeList=(title,cols,rows,empty,go)=>`<div class="panel stack"><div class="row"><h2 class="sec">${esc(title)}</h2><span style="flex:1"></span>${go&&can(go)?`<button type="button" class="linkbtn" data-go="${go}">Open all</button>`:""}</div>${rows.length?`<div class="tablebox"><table class="est hlist"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${esc(c[0])}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${cols[i][1]?` class="${cols[i][1]}"`:""}>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`:`<div class="empty">${esc(empty)}</div>`}</div>`;
 function homeTabHtml(k,D){const t=today(),K=[];let h="";
   if(k==="sal"){const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),D2=deals.filter(d=>inPlant(d)&&!["Won","Lost"].includes(d.stage));
-    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",split:hSplit("salesM")}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv",split:hSplit("salesFY")}),kpi("To collect",kpiL(D.recv),D.TL?tlHint():"all open invoices",{go:D.TL&&can("tally")?"tally":"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":"",split:hSplit("old")}))}
+    if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",gst:gstTxt(D.salesM,D.salesMG),split:hSplit("salesM")}),kpi("Sales this year (FY)",kpiL(D.salesFY),"before GST",{go:"inv",gst:gstTxt(D.salesFY,D.salesFYG),split:hSplit("salesFY")}),kpi("To collect",kpiL(D.recv),D.TL?tlHint():"all open invoices",{go:D.TL&&can("tally")?"tally":"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}),kpi("Over 60 days",kpiL(D.old),"follow up for payment",{go:"inv",tone:D.old>0.5?"warn":"",split:hSplit("old")}))}
     if(can("so"))K.push(kpi("Orders to dispatch",fmt0(openSO.length),kpiL(sum(openSO.map(sdSub)))+" order value",{go:"so"}));
     if(can("sales"))K.push(kpi("Open enquiries",fmt0(D2.length),kpiL(sum(D2.map(dealVal))),{go:"sales"}));
     h+=`<div class="kpis">${K.join("")}</div>`;
@@ -5694,7 +5700,7 @@ function homeTabHtml(k,D){const t=today(),K=[];let h="";
     K.push(kpi("Requests waiting",fmt0(st("Submitted")+st("Checked")),"with department head or approver",{go:"req"}),kpi("Lines to buy",fmt0(pendToOrder().length),"approved, not on a PO yet",{go:can("buy")?"buy":"req",tone:pendToOrder().length?"warn":""}),
       kpi("POs for approval",fmt0(P.filter(p=>p.status==="Pending approval").length),"waiting to be signed",{go:can("appr")?"appr":"saved"}),kpi("Material due",fmt0(P.filter(p=>p.status==="Approved"&&!p.closed).length),"approved POs still open",{go:"saved"}),
       kpi("Late from supplier",fmt0(P.filter(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved").length),"past the required date",{go:"saved",tone:P.some(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved")?"warn":""}));
-    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),"booked GRNs, before GST",{go:can("acct")?"acct":"saved",split:hSplit("purM")}),kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",split:hSplit("purFY")}));
+    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),"booked GRNs, before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purM,D.purMG),split:hSplit("purM")}),kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purFY,D.purFYG),split:hSplit("purFY")}));
     h+=`<div class="kpis">${K.join("")}</div>`;
     if(can("acct")||can("saved"))h+=`<div class="panel dchart"><h3>Purchases, last 12 months</h3><div class="note">Booked GRNs, before GST</div>${hBars12("purch12","Purchases","var(--s4)",D)}</div>`;
     h+=homeList("POs waiting for approval",[["PO"],["Supplier"],["Date","dt"],["Value","num"]],P.filter(p=>p.status==="Pending approval").slice(0,8).map(p=>[esc(p.no),esc(p.sup||""),dmy(p.date),fmt0(Math.round(+p.total||0))]),"Nothing is waiting for approval.",can("appr")?"appr":"saved")}
