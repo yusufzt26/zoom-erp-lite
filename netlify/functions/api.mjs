@@ -6,6 +6,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { gstCall, gstStatus } from "../gst/gsp.mjs";
 import { allotPartyCodes } from "../codes.mjs";
 import { tallyRecords, tallyDiff } from "../tally.mjs";
+import { ALERTS, eligible, wants, alertsFor, linkCode, maskToken, tokenOk, tg, userHas, telegramOn } from "../telegram.mjs";
+import { tgService } from "../tgsend.mjs";
+import { pushService } from "../pushsend.mjs";
+import { subOk, deviceName, pushPayload } from "../push.mjs";
 
 const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "costing", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins", "tallymap"]);
 const SESSION_DAYS = 30;
@@ -252,7 +256,166 @@ async function tallyKeyApi(me, m, req) {
   return json({ error: "Unknown action" }, 400);
 }
 
-export default async (req) => {
+// ---------- Telegram alerts (free bot made by the Admin with @BotFather) ----------
+const TG = () => tgService(q);
+const ALERT_INFO = ALERTS.map(({ k, label, group }) => ({ k, label, group }));
+async function tgReply(tok, chat, text) { try { await tg(tok, "sendMessage", { chat_id: chat, text, parse_mode: "HTML", disable_web_page_preview: true }); } catch (e) { console.error("tg reply", e && e.message); } }
+// updates from Telegram (webhook): people tapping Start with their link code, and the bot being added to or removed from groups
+async function tgHook(req) {
+  const T = TG(); const secret = await T.get("hook_secret"); const tok = await T.token();
+  if (!secret || !tok || req.headers.get("x-telegram-bot-api-secret-token") !== secret) return json({ ok: false }, 401);
+  const u = await body(req);
+  const mc = u.my_chat_member;
+  if (mc && mc.chat && mc.chat.type !== "private") {
+    const st = mc.new_chat_member && mc.new_chat_member.status, id = String(mc.chat.id), title = String(mc.chat.title || "Group").slice(0, 120);
+    if (st === "member" || st === "administrator") {
+      await q("INSERT INTO tg_groups(chat_id,title,active) VALUES($1,$2,TRUE) ON CONFLICT (chat_id) DO UPDATE SET title=EXCLUDED.title,active=TRUE", [id, title]);
+      await tgReply(tok, id, "👋 ZT-ERP alerts bot added to <b>" + title.replace(/[<>&]/g, "") + "</b>.\nThe ERP Admin now picks which alerts this group gets: ZT-ERP > Users &amp; rights > Telegram alerts.");
+    } else if (st === "left" || st === "kicked") await q("UPDATE tg_groups SET active=FALSE WHERE chat_id=$1", [id]);
+    return json({ ok: true });
+  }
+  const msg = u.message; if (!msg || !msg.chat) return json({ ok: true });
+  const chat = String(msg.chat.id);
+  if (msg.migrate_to_chat_id) { await q("UPDATE tg_groups SET chat_id=$2 WHERE chat_id=$1", [chat, String(msg.migrate_to_chat_id)]).catch(() => {}); return json({ ok: true }); }
+  const text = String(msg.text || "").trim(); const cmd = text.split(/\s+/)[0].replace(/@\w+$/, "").toLowerCase();
+  if (msg.chat.type !== "private") { if (cmd === "/id") await tgReply(tok, chat, "This group's chat ID: <code>" + chat + "</code>"); return json({ ok: true }); }
+  if (cmd === "/start") {
+    const code = text.split(/\s+/)[1] || "";
+    if (!code) { const l = (await q("SELECT name FROM tg_links WHERE chat_id=$1", [chat]))[0];
+      await tgReply(tok, chat, l ? `You are linked to ZT-ERP as <b>${l.name.replace(/[<>&]/g, "")}</b>. Send /stop to unlink.` : "To get ZT-ERP alerts here, open ZT-ERP, tap <b>Telegram</b> at the top, then <b>Link my Telegram</b>. It opens this chat with your own code."); return json({ ok: true }); }
+    const r = (await q("DELETE FROM tg_codes WHERE code_hash=$1 RETURNING name, expires_at>NOW() AS live", [sha(code.toUpperCase())]))[0];
+    if (!r || !r.live) { await tgReply(tok, chat, "This link has expired or was already used. In ZT-ERP tap <b>Telegram</b> > <b>Link my Telegram</b> again."); return json({ ok: true }); }
+    const who = [msg.from && msg.from.first_name, msg.from && msg.from.last_name].filter(Boolean).join(" ") + (msg.from && msg.from.username ? " (@" + msg.from.username + ")" : "");
+    await q("DELETE FROM tg_links WHERE chat_id=$1 AND name<>$2", [chat, r.name]);
+    await q("INSERT INTO tg_links(name,chat_id,tg_name) VALUES($1,$2,$3) ON CONFLICT (name) DO UPDATE SET chat_id=EXCLUDED.chat_id,tg_name=EXCLUDED.tg_name,linked_at=NOW()", [r.name, chat, who.slice(0, 120)]);
+    await tgReply(tok, chat, `✅ Linked to ZT-ERP as <b>${r.name.replace(/[<>&]/g, "")}</b>.\nYou will get alerts here for the work that needs you. Pick which ones in ZT-ERP > Telegram. Send /stop to unlink.`);
+    return json({ ok: true });
+  }
+  if (cmd === "/stop") { const d = await q("DELETE FROM tg_links WHERE chat_id=$1 RETURNING name", [chat]); await tgReply(tok, chat, d[0] ? "Unlinked. You will not get ZT-ERP alerts here any more." : "This chat is not linked to ZT-ERP."); return json({ ok: true }); }
+  if (cmd === "/id") { await tgReply(tok, chat, "Your chat ID: <code>" + chat + "</code>"); return json({ ok: true }); }
+  await tgReply(tok, chat, "This bot only sends ZT-ERP alerts. Open ZT-ERP to approve or reply.");
+  return json({ ok: true });
+}
+async function telegramApi(me, m, req, url) {
+  const T = TG(); const admin = await isAdmin(me); const ms = await mastersDoc(); const u = ((ms && ms.users) || []).find((x) => x && x.name === me) || { name: me, role: admin ? "Admin" : "" };
+  const envTok = !!process.env.TELEGRAM_BOT_TOKEN;
+  const state = async () => {
+    const tok = await T.token(); const bot = await T.get("bot"); const l = (await q("SELECT tg_name,prefs,linked_at FROM tg_links WHERE name=$1", [me]))[0];
+    const el = eligible(u);
+    const out = { configured: !!tok && !!bot, bot, admin, link: l ? { tg_name: l.tg_name, at: l.linked_at } : null,
+      alerts: ALERT_INFO.filter((a) => el.includes(a.k)).map((a) => ({ ...a, on: wants(u, l && l.prefs, a.k) })), allAlerts: ALERT_INFO };
+    if (admin) {
+      out.masked = envTok ? "Set on Netlify (TELEGRAM_BOT_TOKEN)" : maskToken(await T.get("token")); out.envToken = envTok; out.site = await T.get("site");
+      out.links = (await q("SELECT name,tg_name,linked_at FROM tg_links ORDER BY name")).map((r) => ({ name: r.name, tg_name: r.tg_name, at: r.linked_at }));
+      out.groups = (await q("SELECT chat_id,title,alerts,active,added_at FROM tg_groups ORDER BY active DESC, added_at DESC LIMIT 50"));
+      out.log = await q("SELECT at,kind,ok,info FROM tg_log ORDER BY id DESC LIMIT 15");
+      const d = (await q("SELECT at,by_name,jsonb_array_length(COALESCE(data->'bills','[]'::jsonb))::int AS n FROM tg_dues WHERE id='_'"))[0]; out.dues = d || null;
+    }
+    return out;
+  };
+  if (m === "GET") return json(telegramOn() ? await state() : { configured: false, off: true });
+  const b = await body(req); const action = String(b.action || "");
+  // while Telegram is off, only the open-bills upload and the payments digest (for phone pop-ups) are served here
+  if (!telegramOn() && action !== "dues" && action !== "daily-now") return json({ error: "Telegram alerts are not switched on" }, 404);
+  const needAdmin = () => json({ error: "Only the Admin can change the Telegram bot and groups" }, 403);
+  if (action === "token") {
+    if (!admin) return needAdmin();
+    const t = String(b.token || "").trim(); if (!tokenOk(t)) return json({ error: "That does not look like a bot token. It looks like 1234567890:AAH... (numbers, a colon, then about 35 letters). Copy it again from @BotFather." }, 400);
+    let bot; try { bot = await tg(t, "getMe"); } catch (e) { return json({ error: "Telegram did not accept this token: " + e.message + ". Copy it again from @BotFather." }, 400); }
+    const site = (process.env.URL || url.origin).replace(/\/$/, ""); const secret = randomBytes(24).toString("hex");
+    if (!/^https:\/\//.test(site)) return json({ error: "Telegram needs the ERP on an https address. Open the ERP from its Netlify address and try again." }, 400);
+    try { await tg(t, "setWebhook", { url: site + "/api/telegram/hook", secret_token: secret, allowed_updates: ["message", "my_chat_member"], drop_pending_updates: true }); }
+    catch (e) { return json({ error: "Telegram could not connect to the ERP: " + e.message }, 502); }
+    await T.set("token", t, me); await T.set("bot", bot.username, me); await T.set("hook_secret", secret, me); await T.set("site", site, me);
+    return json({ ok: true, ...(await state()) });
+  }
+  if (action === "remove") {
+    if (!admin) return needAdmin();
+    const t = await T.get("token"); if (t) await tg(t, "deleteWebhook", {}).catch(() => {});
+    for (const k of ["token", "bot", "hook_secret"]) await T.set(k, null);
+    return json({ ok: true, ...(await state()) });
+  }
+  if (action === "link") {
+    const bot = await T.get("bot"); if (!bot || !(await T.token())) return json({ error: "Telegram alerts are not set up yet. Ask the Admin to add the bot token in Users & rights > Telegram alerts." }, 400);
+    const code = linkCode((n) => randomInt(0, n));
+    await q("DELETE FROM tg_codes WHERE name=$1 OR expires_at<NOW()", [me]);
+    await q("INSERT INTO tg_codes(code_hash,name,expires_at) VALUES($1,$2,NOW()+interval '30 minutes')", [sha(code), me]);
+    return json({ ok: true, url: `https://t.me/${bot}?start=${code}`, code, bot });
+  }
+  if (action === "unlink") { await q("DELETE FROM tg_links WHERE name=$1", [me]); return json({ ok: true, ...(await state()) }); }
+  if (action === "prefs") {
+    const p = {}; const el = eligible(u); Object.entries(b.prefs || {}).forEach(([k, v]) => { if (el.includes(k)) p[k] = !!v; });
+    await q("UPDATE tg_links SET prefs=$2 WHERE name=$1", [me, JSON.stringify(p)]); return json({ ok: true, ...(await state()) });
+  }
+  if (action === "test") {
+    const tok = await T.token(); const l = (await q("SELECT chat_id FROM tg_links WHERE name=$1", [me]))[0];
+    if (!tok || !l) return json({ error: "Link your Telegram first" }, 400);
+    const ok = await T.send(tok, l.chat_id, `🔔 Test from ZT-ERP for <b>${me.replace(/[<>&]/g, "")}</b>. Alerts are working.`, "test", await T.get("site"));
+    return ok ? json({ ok: true }) : json({ error: "Telegram did not deliver it. Open the bot and tap Start, then link again." }, 502);
+  }
+  if (action === "group" || action === "group-test" || action === "group-remove") {
+    if (!admin) return needAdmin();
+    const id = String(b.chat_id || ""); const g = (await q("SELECT chat_id,title FROM tg_groups WHERE chat_id=$1", [id]))[0]; if (!g) return json({ error: "Group not found" }, 404);
+    if (action === "group") { const al = (Array.isArray(b.alerts) ? b.alerts : []).map(String).filter((k) => ALERTS.some((a) => a.k === k && a.group)); await q("UPDATE tg_groups SET alerts=$2 WHERE chat_id=$1", [id, JSON.stringify(al)]); }
+    if (action === "group-remove") { await q("DELETE FROM tg_groups WHERE chat_id=$1", [id]); const tok = await T.token(); if (tok) await tg(tok, "leaveChat", { chat_id: id }).catch(() => {}); }
+    if (action === "group-test") { const tok = await T.token(); const ok = tok && (await T.send(tok, id, "🔔 Test from ZT-ERP. Alerts for this group are working.", "test", await T.get("site"))); if (!ok) return json({ error: "Telegram did not deliver it. Check that the bot is still in the group." }, 502); }
+    return json({ ok: true, ...(await state()) });
+  }
+  if (action === "daily-now") { if (!admin) return needAdmin(); return json({ ok: true, ...(await T.daily(ms, true, [PUSH().dispatch])) }); }
+  if (action === "dues") {
+    if (!(admin || userHas(u, "acct.view"))) return json({ ok: true, skipped: true });
+    const S = (v, n) => String(v ?? "").slice(0, n);
+    const bills = (Array.isArray(b.bills) ? b.bills : []).slice(0, 5000).map((x) => ({ sup: S(x.sup, 120), ref: S(x.ref, 60), due: S(x.due, 10), bal: Math.round((+x.bal || 0) * 100) / 100, plant: S(x.plant, 40) })).filter((x) => x.bal > 0);
+    await q("INSERT INTO tg_dues(id,data,at,by_name) VALUES('_',$1,NOW(),$2) ON CONFLICT (id) DO UPDATE SET data=EXCLUDED.data,at=NOW(),by_name=EXCLUDED.by_name", [JSON.stringify({ bills }), me]);
+    return json({ ok: true, n: bills.length });
+  }
+  return json({ error: "Unknown action" }, 400);
+}
+
+// ---------- Phone pop-up notifications (free Web Push from the installed app; same alerts as Telegram) ----------
+const PUSH = () => pushService(q);
+async function pushApi(me, m, req, url) {
+  const P = PUSH(); const admin = await isAdmin(me); const ms = await mastersDoc(); const u = ((ms && ms.users) || []).find((x) => x && x.name === me) || { name: me, role: admin ? "Admin" : "" };
+  const state = async () => {
+    const K = await P.keys(); const p = (await q("SELECT prefs FROM push_prefs WHERE name=$1", [me]))[0]; const el = eligible(u);
+    const devices = (await q("SELECT endpoint,device,created_at,last_ok_at FROM push_subs WHERE name=$1 ORDER BY created_at", [me])).map((r) => ({ id: sha(r.endpoint).slice(0, 16), device: r.device, at: r.created_at, ok: r.last_ok_at }));
+    const out = { publicKey: K.publicKey, devices, alerts: ALERT_INFO.filter((a) => el.includes(a.k)).map((a) => ({ ...a, on: wants(u, p && p.prefs, a.k) })),
+      any: (await q("SELECT COUNT(*)::int AS n FROM push_subs"))[0].n > 0 };
+    if (admin) out.people = await q("SELECT name,COUNT(*)::int AS n,MAX(created_at) AS at FROM push_subs GROUP BY name ORDER BY name");
+    return out;
+  };
+  if (m === "GET") return json(await state());
+  const b = await body(req); const action = String(b.action || "");
+  if (action === "subscribe") {
+    if (!subOk(b.sub)) return json({ error: "This browser gave a notification address the ERP does not accept. Use Chrome, Safari, Edge or Firefox." }, 400);
+    const site = (process.env.URL || url.origin).replace(/\/$/, ""); if (/^https:\/\//.test(site)) await P.set("site", site);
+    const dev = deviceName(req.headers.get("user-agent")).slice(0, 60);
+    await q("INSERT INTO push_subs(endpoint,name,keys,device) VALUES($1,$2,$3,$4) ON CONFLICT (endpoint) DO UPDATE SET name=EXCLUDED.name,keys=EXCLUDED.keys,device=EXCLUDED.device,fails=0",
+      [b.sub.endpoint, me, JSON.stringify({ p256dh: b.sub.keys.p256dh, auth: b.sub.keys.auth }), dev]);
+    await q("DELETE FROM push_subs WHERE name=$1 AND endpoint NOT IN (SELECT endpoint FROM push_subs WHERE name=$1 ORDER BY created_at DESC LIMIT 8)", [me]);
+    return json({ ok: true, ...(await state()) });
+  }
+  if (action === "unsubscribe") {
+    if (b.endpoint) await q("DELETE FROM push_subs WHERE name=$1 AND endpoint=$2", [me, String(b.endpoint)]);
+    else if (b.id) { const rows = await q("SELECT endpoint FROM push_subs WHERE name=$1", [me]); for (const r of rows) if (sha(r.endpoint).slice(0, 16) === String(b.id)) await q("DELETE FROM push_subs WHERE endpoint=$1", [r.endpoint]); }
+    return json({ ok: true, ...(await state()) });
+  }
+  if (action === "prefs") {
+    const p = {}; const el = eligible(u); Object.entries(b.prefs || {}).forEach(([k, v]) => { if (el.includes(k)) p[k] = !!v; });
+    await q("INSERT INTO push_prefs(name,prefs) VALUES($1,$2) ON CONFLICT (name) DO UPDATE SET prefs=EXCLUDED.prefs", [me, JSON.stringify(p)]); return json({ ok: true, ...(await state()) });
+  }
+  if (action === "test") {
+    const rows = await q("SELECT endpoint,keys FROM push_subs WHERE name=$1" + (b.endpoint ? " AND endpoint=$2" : ""), b.endpoint ? [me, String(b.endpoint)] : [me]);
+    if (!rows.length) return json({ error: "Turn on notifications on this phone first" }, 400);
+    const K = await P.keys(), subj = await P.subject();
+    const pl = pushPayload("test", `🔔 <b>Test from ZT-ERP</b>\nPop-up alerts are working for ${me}.`, { tag: "test" });
+    const ok = (await Promise.all(rows.map((r) => P.send(r, pl, K, subj)))).filter(Boolean).length;
+    return ok ? json({ ok: true, sent: ok }) : json({ error: "The phone's notification service did not accept it. Turn notifications off and on again on this phone." }, 502);
+  }
+  return json({ error: "Unknown action" }, 400);
+}
+
+export default async (req, context) => {
   const url = new URL(req.url); const path = url.pathname.replace(/^\/api\/?/, "").replace(/\/$/, ""); const m = req.method;
   try {
     if (path === "status" && m === "GET") { const r = await q("SELECT COUNT(*)::int AS n FROM logins"); return json({ ok: true, needsSetup: r[0].n === 0 }); }
@@ -316,6 +479,9 @@ export default async (req) => {
       return json(await tallyPush(b, k.label));
     }
 
+    // Telegram calls this with its own secret header (set when the Admin saved the bot token)
+    if (path === "telegram/hook" && m === "POST" && telegramOn()) { try { return await tgHook(req); } catch (e) { console.error("tg hook", e && e.message); return json({ ok: true }); } }
+
     const me = await auth(req);
     if (!me) return json({ error: "Please log in" }, 401);
 
@@ -341,6 +507,10 @@ export default async (req) => {
       if (!admin) for (const c of list) if (c && c.coll === "reqs" && c.deleted && c.id && (await canDelReq(me, String(c.id)))) reqDelOK.add(String(c.id));
       const reqDelBlocked = (c) => !admin && c.coll === "reqs" && c.deleted && !reqDelOK.has(String(c.id));
       const plain = list.filter((c) => COLLS.has(String(c.coll || "")) && c.id && String(c.id).length <= 200 && !c.isNew && c.coll !== "masters" && !reqDelBlocked(c));
+      // Telegram alerts: note the status of requests and POs before this save, to see what changed
+      const watch = list.filter((c) => c && (c.coll === "reqs" || c.coll === "saved") && c.id && !c.deleted && c.data && typeof c.data === "object");
+      const before = new Map();
+      if (watch.length && watch.length <= 100) (await q("SELECT coll,id,data FROM records WHERE coll IN ('reqs','saved') AND id=ANY($1) AND NOT deleted", [watch.map((c) => String(c.id))])).forEach((x) => before.set(x.coll + "\u0001" + x.id, x.data));
       const done = new Map();
       if (plain.length) {
         const seen = new Set(); const rows = [];
@@ -372,6 +542,13 @@ export default async (req) => {
           ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=EXCLUDED.deleted,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by`),
           [coll, id, c.deleted ? null : JSON.stringify(c.data ?? null), !!c.deleted, me]);
         results.push({ coll, id, rev: Number(r[0].rev), created_rev: Number(r[0].created_rev) });
+      }
+      if (watch.length && watch.length <= 100) {
+        const saved = new Set(results.filter((x) => x && x.rev).map((x) => x.coll + "\u0001" + x.id));
+        const send = (async () => { const md = await mastersDoc();
+          const al = watch.filter((c) => saved.has(c.coll + "\u0001" + c.id)).flatMap((c) => alertsFor(c.coll, before.get(c.coll + "\u0001" + c.id) || null, c.data, md, me));
+          if (al.length) await Promise.all([TG().dispatch(al, md).catch((e) => console.error("telegram", e && e.message)), PUSH().dispatch(al, md).catch((e) => console.error("push", e && e.message))]); })().catch((e) => console.error("telegram", e && e.message));
+        if (context && typeof context.waitUntil === "function") context.waitUntil(send); else await send;
       }
       return json({ results });
     }
@@ -418,7 +595,7 @@ export default async (req) => {
         return json({ ok: true });
       }
       if (action === "disable") { if (n === me) return json({ error: "You cannot disable your own login" }, 400); await q("UPDATE logins SET active=FALSE WHERE name=$1", [n]); await q("DELETE FROM sessions WHERE name=$1", [n]); return json({ ok: true }); }
-      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); return json({ ok: true }); }
+      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE tg_links SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_subs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_prefs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); return json({ ok: true }); }
       return json({ error: "Unknown action" }, 400);
     }
     if (path === "scan-doc" && m === "POST") {
@@ -445,6 +622,8 @@ export default async (req) => {
     }
 
     if (path === "tally/key" && (m === "GET" || m === "POST")) return await tallyKeyApi(me, m, req);
+    if (path === "telegram" && (m === "GET" || m === "POST")) return await telegramApi(me, m, req, url);
+    if (path === "push" && (m === "GET" || m === "POST")) return await pushApi(me, m, req, url);
 
     if (path === "restore" && (m === "GET" || m === "POST")) {
       try { return await restoreApi(me, m, url, req); } catch (e) { if (e.status) return json({ error: e.message }, e.status); throw e; }
