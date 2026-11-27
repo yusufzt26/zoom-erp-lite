@@ -378,6 +378,7 @@ button.kpi{cursor:pointer}button.kpi:hover{background:#f7fafd}
 .kpi .n{font-size:26px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .kpi .d{font-size:12.5px;color:var(--muted);line-height:1.35}
 .kpi .kgst{font-size:12px;color:var(--muted);line-height:1.35;font-variant-numeric:tabular-nums}.kpi .kgst b{color:var(--ink);font-weight:600}
+.dplant .dbr{font-size:12px;color:var(--muted);font-weight:400;white-space:nowrap}
 .kpi .d b.up{color:#16794a}.kpi .d b.down{color:var(--danger)}
 .kpi.warn{border-left-color:var(--danger)}.kpi.warn .n{color:var(--danger)}
 #homeChart .vb{height:240px}
@@ -5682,25 +5683,27 @@ function dashMine(U){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today(),c
 /* company money figures for the plant picked in the header (all plants when none) */
 function dashMoney(MS){const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
   const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]),purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
+  const salesB=byMonth(MS,INV,x=>x.date,x=>invCalc(x).ass).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).ass)[i]),purchB=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).sub);
   const R=[];invoices.filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.filter(inPlant).forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s)));
-  return{sales,purch,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:tlOn()?tlDue("cust"):INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb:tlOn()?tlDue("sup"):plantDue()+obSupDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
+  return{sales,purch,salesB,purchB,coll:byMonth(MS,R,r=>r.date,r=>r.amt),recv:tlOn()?tlDue("cust"):INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb:tlOn()?tlDue("sup"):plantDue()+obSupDue(),so:openSO.length,soVal:sum(openSO.map(sdSub))}}
 function dashPlants(MS){const PL=plants(),X=PL.map(p=>({p,d:withPlant(p.id,()=>dashMoney(MS))}));
-  const rows=[["Sales","inv",x=>sum(x.sales)],["Purchases","acct",x=>sum(x.purch)],["Collected","inv",x=>sum(x.coll)],["To collect now","inv",x=>x.recv],["To pay now","acct",x=>x.payb],["Orders to dispatch","so",x=>x.soVal]].filter(r=>can(r[1]));
+  const rows=[["Sales","inv",x=>sum(x.sales),x=>sum(x.salesB)],["Purchases","acct",x=>sum(x.purch),x=>sum(x.purchB)],["Collected","inv",x=>sum(x.coll)],["To collect now","inv",x=>x.recv],["To pay now","acct",x=>x.payb],["Orders to dispatch","so",x=>x.soVal]].filter(r=>can(r[1]));
   const mx=niceMax(Math.max(1000,...X.flatMap(x=>x.d.sales.concat(x.d.purch))));
-  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period, incl. GST. To collect / to pay are as of today, ${tlOn()?"from Tally":"including unpaid bills from the old ERP"}.</div>
-    <div class="tablebox"><table class="est dplant"><thead><tr><th></th>${X.map(x=>`<th class="num">${esc(x.p.name)}</th>`).join("")}<th class="num">Both plants</th></tr></thead><tbody>${rows.map(([l,,f])=>{const v=X.map(x=>f(x.d));return`<tr><td>${esc(l)}</td>${v.map(n=>`<td class="num">${moneyTxt(n)}</td>`).join("")}<td class="num"><b>${moneyTxt(sum(v))}</b></td></tr>`}).join("")}</tbody></table></div></div>`,
+  return{table:`<div class="panel dchart wide"><h3>By plant</h3><div class="note">Selected period. Sales and purchases are with GST, the amount before GST is in brackets. To collect / to pay are as of today, ${tlOn()?"from Tally":"including unpaid bills from the old ERP"}.</div>
+    <div class="tablebox"><table class="est dplant"><thead><tr><th></th>${X.map(x=>`<th class="num">${esc(x.p.name)}</th>`).join("")}<th class="num">Both plants</th></tr></thead><tbody>${rows.map(([l,,f,fb])=>{const v=X.map(x=>f(x.d)),vb=fb?X.map(x=>fb(x.d)):null,br=n=>vb?` <span class="dbr">(${moneyTxt(n)} before GST)</span>`:"";return`<tr><td>${esc(l)}</td>${v.map((n,i)=>`<td class="num">${moneyTxt(n)}${br(vb&&vb[i])}</td>`).join("")}<td class="num"><b>${moneyTxt(sum(v))}</b>${br(vb&&sum(vb))}</td></tr>`}).join("")}</tbody></table></div></div>`,
     charts:X.map(x=>chartBox(`Sales and purchases · ${x.p.name}`,"Same scale for both plants, incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:x.d.sales},{name:"Purchases",c:"var(--s2)",vals:x.d.purch}],{money:true,max:mx})))}}
 function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
   const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
   const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]);
   const purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
+  const salesB=sum(INV.filter(x=>inP(x.date)).map(x=>invCalc(x).ass))-sum(CN.filter(n=>inP(n.date)).map(n=>ntCalc("cn",n).ass)),purchB=sum(GR.filter(g=>inP(g.bookedAt||g.date)).map(g=>grnCalc(g).sub));
   const R=[];invoices.concat(obills.filter(o=>o.kind==="cust")).filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
   const coll=byMonth(MS,R,r=>r.date,r=>r.amt),paid=byMonth(MS,pays,p=>p.date,p=>p.amount);
   const TL=tlOn(),recv=TL?tlDue("cust"):invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=TL?tlDue("sup"):curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),lateJ=J.filter(j=>j.due&&j.due<t);
   const go=v=>can(v)?v:"";
-  let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales","Invoices less credit notes",false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases","Booked GRNs",false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
+  let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales",`With GST (${moneyTxt(salesB)} before GST)`,false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases",`With GST (${moneyTxt(purchB)} before GST)`,false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected","Customer receipts and advances",false,go("inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors","Payments made",false,go("acct"))}
     ${tile(moneyTxt(recv),"To collect now",TL?"From Tally":"All open invoices",recv>0,go(TL&&can("tally")?"tally":"inv"))}${tile(moneyTxt(payb),"To pay now",TL?"From Tally":"Booked, not yet paid",false,go(TL&&can("tally")?"tally":"acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
   const ch=[],BP=splitPlants()?dashPlants(MS):null;if(BP){h+=BP.table;ch.push(...BP.charts)}else
   ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
