@@ -45,10 +45,21 @@ Build and details: `tools/tally-sync/README.md`.
 A Telegram bot sends alerts to each person's phone and to team groups: purchase request waiting for the department head or director, approved request ready for a PO, PO waiting for approval, your request or PO approved / sent back, and a daily 9:30 AM list of supplier payments overdue or due in 3 days.
 
 - The Admin makes a bot with @BotFather and pastes its token in **Users & rights > Telegram alerts**. The server checks it, sets the webhook (`/api/telegram/hook`, with a secret header) and keeps the token in `tg_settings`; it is never sent back to the browser. `TELEGRAM_BOT_TOKEN` on Netlify can be used instead.
-- Each person taps **Telegram** at the top > **Link my Telegram** > **Start** in Telegram (one-time 30-minute code), and picks which alerts they want.
+- Each person taps **🔔 Alerts** at the top > **Link my Telegram** > **Start** in Telegram (one-time 30-minute code), and picks which alerts they want.
 - Groups: add the bot to a Telegram group; it appears in the Telegram alerts panel, where the Admin ticks the alerts that group gets.
 - Alerts are worked out on the server when a request or PO changes status (`netlify/telegram.mjs`). The daily payments alert is the scheduled function `netlify/functions/tg-daily.mjs`, using the open supplier bills the app last sent (refreshed while someone in Accounts has the ERP open).
 - Setup guide for people: `Telegram-alerts-setup-guide.pdf` in the project files.
+
+## Phone pop-up alerts (free Web Push)
+
+The same alerts also pop up on the phone like a WhatsApp or SMS message, from the installed app, even when it is closed. No account or service to sign up for.
+
+- Each person opens the ERP on their phone, taps **🔔 Alerts** > **Turn on pop-ups**, allows notifications, and ticks which alerts they want (chosen separately for pop-ups and Telegram, from the one alert list in `netlify/telegram.mjs`). A small bar on phones offers this once.
+- iPhone: only from the app added to the home screen (Safari > Share > Add to Home Screen), iOS 16.4 or newer. The app says so.
+- Server: `netlify/pushsend.mjs` (sending, with the `web-push` package) and `netlify/push.mjs` (pop-up text, page to open). Devices are in `push_subs`, choices in `push_prefs`. Dead devices are removed automatically.
+- VAPID keys are made on first use and kept in `push_settings`. To set your own, add `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (and optionally `VAPID_SUBJECT`, a `mailto:` or https address) on Netlify; changing keys means everyone turns pop-ups on again.
+- Admin sees who has turned them on in **Users & rights > Phone pop-up alerts**.
+- Tapping a pop-up opens the ERP on the page it is about (`/#go=appr` etc., handled in `public/sw.js`).
 
 ## Deploy
 

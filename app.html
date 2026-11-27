@@ -264,6 +264,12 @@ body.ready #boot,body.gated #boot{display:none}
 #boot .spin{width:34px;height:34px;border:4px solid var(--line);border-top-color:#1f66a8;border-radius:50%;animation:bootspin .9s linear infinite}
 @keyframes bootspin{to{transform:rotate(360deg)}}
 #boot .slow{max-width:340px}
+.pushask{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:39;max-width:460px;margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;box-shadow:0 6px 24px rgba(0,0,0,.18)}
+.pushask .t{flex:1 1 200px;font-size:13.5px}
+.pushmock{position:fixed;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;z-index:60;max-width:420px;margin:0 auto;background:#fff;color:#111;border-radius:16px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:flex;gap:10px;font-size:13px;line-height:1.4;cursor:pointer}
+.pushmock img{width:36px;height:36px;border-radius:8px}
+.pushmock b{display:block}
+.alt-grid{width:100%;border-collapse:collapse}.alt-grid td,.alt-grid th{padding:6px 4px;vertical-align:middle;border-bottom:1px solid var(--line)}.alt-grid th{font-size:12px;font-weight:600;text-align:center}.alt-grid td:not(:first-child){text-align:center;width:72px}.alt-grid input{width:19px;height:19px}
 .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
 @media (max-width:640px){table.est input:not(.qty):not(.rate):not([type=number]){min-width:150px}table.est input,table.est select{border:1px solid var(--line)!important;border-radius:4px;background:var(--panel)}}
 @media (pointer:coarse){.xlhint{display:none}}
@@ -470,7 +476,7 @@ h2.dsec{margin-top:6px}
   </nav>
   <label class="who">Signed in as<select id="who"></select></label><label class="who">Plant<select id="plantSel"></select></label>
   <span class="who" id="cloudUser" hidden><b id="cuName"></b><span id="syncState" class="chip calc">Saved</span><button class="btn" type="button" id="btn-cu-pw">Password</button><button class="btn" type="button" id="btn-cu-out">Log out</button></span>
-  <button class="btn" type="button" id="btn-tg" title="Telegram alerts on your phone">Telegram</button>
+  <button class="btn" type="button" id="btn-tg" title="Pop-up and Telegram alerts on your phone">🔔 Alerts</button>
   <button type="button" class="btn installbtn" data-install title="Install ZT-ERP LITE as an app on this device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Install app</button><button type="button" class="linkbtn install-help hdr-install" data-install>Install as an app</button>
   </div>
 </div>
@@ -782,6 +788,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
+    <div class="panel stack" id="pushPanel" hidden style="grid-column:1/-1"></div>
     <div class="panel stack" id="tgPanel" hidden style="grid-column:1/-1"></div>
     <div class="panel stack" id="rightsPanel" style="grid-column:1/-1">
       <div class="row"><h2 class="sec">Rights for</h2><select id="r-user" style="width:auto"></select><span id="r-badge"></span><span style="flex:1"></span><button class="btn" id="btn-r-reset" type="button">Reset to role defaults</button></div>
@@ -1181,7 +1188,7 @@ const can=v=>v==="home"||v==="dash"||(v==="jw"?(has("page.grn")||has("rgp.manage
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins();renderTg()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){jwFormHome("grn");renderGRN();renderRgp();renderJwin()}if(v==="jw"){jwFormHome("jw");renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="tally")renderTally();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins();renderPush();renderTg()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){jwFormHome("grn");renderGRN();renderRgp();renderJwin()}if(v==="jw"){jwFormHome("jw");renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="tally")renderTally();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
 const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
@@ -5538,37 +5545,119 @@ async function tgLoad(){if(!CLOUD){tgS=tgDemoState();return tgS}try{tgS=await ap
 /* open supplier bills (balance, due date) for the daily payments alert; sent to the server when they change */
 function tgDueBills(){const B=[];try{grns.filter(g=>g.status!=="With accounts"&&!g.old).forEach(g=>{const b=grnBal(g),d=dueDate(g);if(b>0.5&&d)B.push({sup:g.sup||"",ref:"GRN "+g.no+(g.inv?" / inv "+g.inv:""),due:d,bal:b,plant:g.plant||""})});
   obills.filter(o=>o.kind==="sup").forEach(o=>{const b=obBal(o),d=obDue(o);if(b>0.5&&d)B.push({sup:o.party||"",ref:"Bill "+(o.bill||""),due:d,bal:b,plant:o.plant||""})})}catch(e){}return B}
-async function tgDuesPush(){if(!CLOUD||!me||!(has("acct.view")||isRole("Admin"))||!tgS||!tgS.configured)return;const B=tgDueBills(),s=JSON.stringify(B);if(s===tgDuesPush.last)return;
+async function tgDuesPush(){if(!CLOUD||!me||!(has("acct.view")||isRole("Admin"))||!((tgS&&tgS.configured)||(pushS&&pushS.any)))return;const B=tgDueBills(),s=JSON.stringify(B);if(s===tgDuesPush.last)return;
   try{await api("telegram",{method:"POST",body:{action:"dues",bills:B}});tgDuesPush.last=s}catch(e){}}
-if(BOOT){setTimeout(async()=>{await tgLoad();tgDuesPush()},20000);setInterval(()=>{if(document.visibilityState==="visible")tgDuesPush()},600000)}
+if(BOOT){setTimeout(async()=>{await tgLoad();await pushLoad();tgDuesPush()},20000);setInterval(()=>{if(document.visibilityState==="visible")tgDuesPush()},600000)}
 const tgWhen=t=>t?new Date(t).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"";
 const tgSample=()=>`<div style="background:var(--soft,#eef3f7);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;max-width:340px"><div class="note" style="margin-bottom:4px">Example alert on the phone</div>🟡 <b>PO 2056</b> · Plant 2<br>Shree Steels · ₹48,260<br>EN31 round bar 40 dia + 2 more<br>Sent for approval by Purchase.<div style="margin-top:6px;text-align:center;border:1px solid var(--line,#ccd);border-radius:8px;padding:4px">Open ZT-ERP</div></div>`;
-/* my Telegram: link, pick alerts, test */
+/* my alerts: pop-ups on this phone, Telegram, and which alerts go where (one alert list for both) */
 async function tgMine(){const d=document.createElement("div");d.className="modal";document.body.appendChild(d);
   const close=()=>d.remove();d.addEventListener("click",e=>{if(e.target===d)close()});
-  const draw=()=>{const S=tgS||{};const L=S.link;
-    d.innerHTML=`<div class="panel stack" style="max-width:440px;width:100%;max-height:90vh;overflow:auto"><div class="row"><h2 class="sec" style="margin:0">Telegram alerts</h2><span style="flex:1"></span><button class="btn" type="button" data-tgx>Close</button></div>
-    ${tgErr?`<div class="banner back">${esc(tgErr)}</div>`:""}${S.preview?`<div class="note">Preview: nothing is sent to Telegram here. On the live ERP this links your real Telegram.</div>`:""}
+  const draw=async()=>{const S=tgS||{},P=pushS||{},L=S.link,dev=await pushDevState();
+    const pOn=dev.on,tOn=!!(S.configured&&L);
+    const keys=[...new Set([...(P.alerts||[]).map(a=>a.k),...(S.alerts||[]).map(a=>a.k)])];
+    const lab=k=>((P.alerts||[]).concat(S.alerts||[]).find(a=>a.k===k)||{}).label||k;
+    const pon=k=>((P.alerts||[]).find(a=>a.k===k)||{}).on,ton=k=>((S.alerts||[]).find(a=>a.k===k)||{}).on;
+    d.innerHTML=`<div class="panel stack" style="max-width:460px;width:100%;max-height:90vh;overflow:auto"><div class="row"><h2 class="sec" style="margin:0">Alerts on your phone</h2><span style="flex:1"></span><button class="btn" type="button" data-tgx>Close</button></div>
+    ${tgErr?`<div class="banner back">${esc(tgErr)}</div>`:""}${S.preview?`<div class="note">Preview: nothing is sent here. On the live ERP these are real alerts.</div>`:""}
+    <h3 class="sec" style="font-size:15px;margin:4px 0 0">Pop-up notifications on this ${pushIsPhone()?"phone":"device"}</h3>
+    ${pushHelp(dev)}
+    ${(P.devices||[]).length?`<div class="note">On for you on: ${(P.devices||[]).map(x=>esc(x.device||"device")).join(", ")}</div>`:""}
+    <h3 class="sec" style="font-size:15px;margin:8px 0 0">Telegram</h3>
     ${!S.configured?`<div class="note">Telegram alerts are not set up yet. ${S.admin?"Add the bot token in <b>Users &amp; rights &gt; Telegram alerts</b> first.":"Ask the Admin to add the bot in Users &amp; rights."}</div>`:
-    L?`<div class="row" style="gap:8px"><span class="chip st-PO">Linked</span><span>${esc(L.tg_name||"Telegram")}</span></div>
-      <div class="note">Get a message on Telegram for:</div>
-      <div class="stack" style="gap:6px">${(S.alerts||[]).map(a=>`<label class="row" style="gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-tgp="${a.k}" style="width:18px;height:18px"${a.on?" checked":""}> ${esc(a.label)}</label>`).join("")}</div>
-      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" data-tgtest>Send me a test</button><button class="btn" type="button" data-tgun>Unlink</button></div>`
-    :`<div class="note">Get a Telegram message when something needs you: a request or PO to approve, your request approved, payments due.</div>
-      <ol class="note" style="margin:0;padding-left:18px;line-height:1.6"><li>Install Telegram on your phone and sign in.</li><li>Tap <b>Link my Telegram</b> below. Telegram opens the bot <b>@${esc(S.bot)}</b>.</li><li>Tap <b>Start</b> in Telegram. Done: the bot replies "Linked".</li></ol>
-      <button class="btn primary" type="button" data-tglink>Link my Telegram</button><div id="tg-linkbox"></div>`}
+    L?`<div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip st-PO">Linked</span><span>${esc(L.tg_name||"Telegram")}</span><span style="flex:1"></span><button class="btn" type="button" data-tgtest>Test</button><button class="btn" type="button" data-tgun>Unlink</button></div>`
+    :`<ol class="note" style="margin:0;padding-left:18px;line-height:1.6"><li>Install Telegram on your phone and sign in.</li><li>Tap <b>Link my Telegram</b> below. Telegram opens the bot <b>@${esc(S.bot)}</b>.</li><li>Tap <b>Start</b> in Telegram. Done: the bot replies "Linked".</li></ol>
+      <button class="btn" type="button" data-tglink>Link my Telegram</button><div id="tg-linkbox"></div>`}
+    ${keys.length&&(pOn||tOn||(P.devices||[]).length)?`<h3 class="sec" style="font-size:15px;margin:8px 0 0">Which alerts</h3>
+      <table class="alt-grid"><thead><tr><th style="text-align:left">Alert</th><th>Pop-up</th>${tOn?"<th>Telegram</th>":""}</tr></thead><tbody>
+      ${keys.map(k=>`<tr><td>${esc(lab(k))}</td><td><input type="checkbox" data-pp="${k}"${pon(k)?" checked":""} aria-label="Pop-up: ${esc(lab(k))}"></td>${tOn?`<td>${(S.alerts||[]).some(a=>a.k===k)?`<input type="checkbox" data-tgp="${k}"${ton(k)?" checked":""} aria-label="Telegram: ${esc(lab(k))}">`:""}</td>`:""}</tr>`).join("")}</tbody></table>
+      <div class="note">You never get an alert for something you did yourself.</div>`:`<div class="note">Once on, you get: ${keys.map(k=>esc(lab(k))).join("; ")}.</div>`}
     ${tgSample()}</div>`};
-  if(!tgS)await tgLoad();draw();
+  await Promise.all([tgS?0:tgLoad(),pushLoad()]);await draw();
   d.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;
     if(t.dataset.tgx!=null)return close();
-    try{if(t.dataset.tglink!=null){const j=await tgCall({action:"link"});if(j.demo){tgS=tgDemoState();toast("Preview: linked as if you tapped Start");return draw()}
+    try{if(t.dataset.pushon!=null){t.disabled=true;await pushTurnOn();toast("Pop-up alerts are on for this phone");return draw()}
+      if(t.dataset.pushoff!=null){await pushTurnOff();toast("Pop-up alerts off on this phone");return draw()}
+      if(t.dataset.pushtest!=null){await pushTest();return}
+      if(t.dataset.tglink!=null){const j=await tgCall({action:"link"});if(j.demo){tgS=tgDemoState();toast("Preview: linked as if you tapped Start");return draw()}
         const box=d.querySelector("#tg-linkbox");box.innerHTML=`<div class="stack" style="gap:6px"><a class="btn primary" href="${esc(j.url)}" target="_blank" rel="noopener">Open Telegram and tap Start</a><div class="note">On a PC: open Telegram on your phone, search <b>@${esc(j.bot)}</b>, tap Start, and send <code>/start ${esc(j.code)}</code>. This code works for 30 minutes.</div><button class="btn" type="button" data-tgchk>I tapped Start</button></div>`;window.open(j.url,"_blank","noopener");return}
       if(t.dataset.tgchk!=null){await tgLoad();if(!(tgS&&tgS.link))toast("Not linked yet. Tap Start in Telegram, then try again.");return draw()}
       if(t.dataset.tgtest!=null){await tgCall({action:"test"});toast(CLOUD?"Test sent. Check Telegram.":"Preview: a test would be sent");return}
       if(t.dataset.tgun!=null){if(!confirm("Stop Telegram alerts for you?"))return;await tgCall({action:"unlink"});toast("Unlinked");return draw()}}
-    catch(err){if(!err.auth)toast(err.message)}});
-  d.addEventListener("change",async e=>{if(!e.target.dataset.tgp)return;const p={};d.querySelectorAll("[data-tgp]").forEach(x=>p[x.dataset.tgp]=x.checked);try{await tgCall({action:"prefs",prefs:p});toast("Saved")}catch(err){if(!err.auth)toast(err.message)}});}
+    catch(err){if(!err.auth)toast(err.message);t.disabled=false;draw()}});
+  d.addEventListener("change",async e=>{const x=e.target;
+    try{if(x.dataset.tgp){const p={};d.querySelectorAll("[data-tgp]").forEach(y=>p[y.dataset.tgp]=y.checked);await tgCall({action:"prefs",prefs:p});toast("Saved")}
+      if(x.dataset.pp){const p={};d.querySelectorAll("[data-pp]").forEach(y=>p[y.dataset.pp]=y.checked);await pushCall({action:"prefs",prefs:p});toast("Saved")}}
+    catch(err){if(!err.auth)toast(err.message)}});}
 $("#btn-tg").onclick=()=>{if(!me){toast("Pick who is signed in first");return}if(document.body.classList.contains("menu-open"))setMenu(false);tgMine()};
+/* ---------- Phone pop-up notifications (free Web Push, like WhatsApp or SMS alerts). Same alert list as Telegram; each person turns them on per phone ---------- */
+let pushS=null,pushBusy=false;
+const pushDemo={get(){try{return JSON.parse(localStorage.getItem("zpo:pushdemo")||"{}")}catch(e){return{}}},put(d){try{localStorage.setItem("zpo:pushdemo",JSON.stringify(d))}catch(e){}}};
+const pushIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const pushApp=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+const pushIsPhone=()=>matchMedia("(pointer:coarse)").matches||/Android|iPhone|iPad/.test(navigator.userAgent);
+const pushOK=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window&&isSecureContext;
+function pushDemoState(){const d=pushDemo.get(),T=tgDemoState();return{preview:true,publicKey:"",devices:d.on?[{id:"demo",device:"This device (preview)",at:d.at}]:[],any:!!d.on,
+  alerts:T.alerts.map(a=>({...a,on:d.prefs&&a.k in d.prefs?d.prefs[a.k]:a.on})),people:d.on&&me?[{name:me.name,n:1,at:d.at}]:[]}}
+async function pushLoad(){if(!CLOUD){pushS=pushDemoState();return pushS}try{pushS=await api("push")}catch(e){}return pushS}
+async function pushCall(b){if(!CLOUD){const d=pushDemo.get();if(b.action==="prefs")d.prefs=b.prefs;pushDemo.put(d);pushS=pushDemoState();return pushS}const j=await api("push",{method:"POST",body:b});if(j.publicKey)pushS=j;return j}
+const pushKey=s=>{const p="=".repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function pushReg(){if(!pushOK())return null;try{return await navigator.serviceWorker.getRegistration("/")||await navigator.serviceWorker.register("/sw.js")}catch(e){return null}}
+/* what this phone can do right now */
+async function pushDevState(){const st={ok:pushOK(),ios:pushIOS(),app:pushApp(),perm:"Notification" in window?Notification.permission:"default",on:false,sub:null};
+  if(!CLOUD){st.on=!!pushDemo.get().on;st.ok=true;return st}
+  if(st.ok&&st.perm==="granted"){const r=await pushReg();try{st.sub=r&&await r.pushManager.getSubscription()}catch(e){}st.on=!!st.sub}return st}
+function pushHelp(st){
+  const iosAdd=`<div class="banner"><b>iPhone:</b> pop-ups only work from the ZT-ERP app on your home screen (iOS 16.4 or newer).<ol style="margin:6px 0 0;padding-left:18px;line-height:1.6"><li>Open the ERP in <b>Safari</b>.</li><li>Tap the <b>Share</b> button, then <b>Add to Home Screen</b>.</li><li>Open ZT-ERP from the new icon, log in, tap <b>🔔 Alerts</b> and <b>Turn on pop-ups</b>.</li></ol></div>`;
+  const on=`<div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip st-PO">On</span><span class="note">Alerts pop up on this ${pushIsPhone()?"phone":"device"}, even when the app is closed.</span><span style="flex:1"></span><button class="btn primary" type="button" data-pushtest>Send me a test</button><button class="btn" type="button" data-pushoff>Turn off</button></div>`;
+  const btn=`<div class="note">Get a pop-up like a WhatsApp or SMS message when something needs you: a request or PO to approve, your request approved or sent back, payments due. Free, no app to install.</div><button class="btn primary" type="button" data-pushon>Turn on pop-ups</button>`;
+  if(!CLOUD)return(st.on?on:btn)+(pushIOS()&&!pushApp()?iosAdd:"");
+  if(st.ios&&!st.app)return iosAdd;
+  if(!st.ok)return st.ios?`<div class="banner">This iPhone cannot show pop-ups yet. Update it to <b>iOS 16.4 or newer</b> (Settings &gt; General &gt; Software Update), then open ZT-ERP from the home screen.</div>`:`<div class="banner">This browser cannot show pop-ups. Open the ERP in <b>Chrome</b> (Android or PC), <b>Edge</b>, or Safari on iPhone from the home screen.</div>`;
+  if(st.perm==="denied")return`<div class="banner back">Notifications are blocked for ZT-ERP on this ${pushIsPhone()?"phone":"browser"}.</div><div class="note">${st.ios?"iPhone: Settings &gt; Notifications &gt; ZT-ERP &gt; Allow Notifications.":/Android/.test(navigator.userAgent)?"Android: press and hold the ZT-ERP icon &gt; App info &gt; Notifications &gt; turn on. Or in Chrome: ⋮ &gt; Settings &gt; Site settings &gt; Notifications &gt; allow this site.":"Click the lock icon left of the address, set Notifications to Allow, then reload."} Then come back and tap Turn on.</div><button class="btn" type="button" data-pushon>Turn on pop-ups</button>`;
+  return st.on?on:btn}
+async function pushTurnOn(){
+  if(!CLOUD){const d=pushDemo.get();d.on=true;d.at=new Date().toISOString();pushDemo.put(d);pushS=pushDemoState();try{localStorage.setItem("zpo:pushask","done")}catch(e){}return}
+  if(pushIOS()&&!pushApp())throw new Error("On iPhone, add ZT-ERP to the home screen first (Share > Add to Home Screen), then open it from there.");
+  if(!pushOK())throw new Error("This browser cannot show pop-ups. Use Chrome.");
+  const perm=await Notification.requestPermission();
+  if(perm!=="granted")throw new Error(perm==="denied"?"Notifications were blocked. Allow them for ZT-ERP in the phone's settings, then try again.":"Tap Allow when the phone asks, to get pop-ups.");
+  if(!pushS||!pushS.publicKey)await pushLoad();if(!pushS||!pushS.publicKey)throw new Error("Could not reach the server. Check the internet and try again.");
+  await pushReg();const reg=await navigator.serviceWorker.ready;const key=pushKey(pushS.publicKey);
+  let sub=await reg.pushManager.getSubscription();
+  if(sub){const k=sub.options&&sub.options.applicationServerKey?new Uint8Array(sub.options.applicationServerKey):null;if(!k||k.length!==key.length||k.some((x,i)=>x!==key[i])){await sub.unsubscribe().catch(()=>{});sub=null}}
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+  await pushCall({action:"subscribe",sub:sub.toJSON()});try{localStorage.setItem("zpo:pushask","done");localStorage.setItem(LP+"pushsync",String(Date.now()))}catch(e){}}
+async function pushTurnOff(){if(!CLOUD){const d=pushDemo.get();d.on=false;pushDemo.put(d);pushS=pushDemoState();return}
+  const r=await pushReg();const sub=r&&await r.pushManager.getSubscription().catch(()=>null);if(sub){await pushCall({action:"unsubscribe",endpoint:sub.endpoint});await sub.unsubscribe().catch(()=>{})}else await pushLoad()}
+async function pushTest(){if(!CLOUD){pushMock("🔔 Test from ZT-ERP","Pop-up alerts are working for "+(me?me.name:"you")+".\n(Preview: on the live ERP this pops up on the phone.)");return}
+  const r=await pushReg();const sub=r&&await r.pushManager.getSubscription().catch(()=>null);await pushCall({action:"test",endpoint:sub?sub.endpoint:undefined});toast("Test sent. It pops up in a few seconds.")}
+/* preview only: what a pop-up looks like */
+function pushMock(t,b){const x=document.createElement("div");x.className="pushmock";x.innerHTML=`<img src="/icon-192.png" alt="" onerror="this.remove()"><div><b>${esc(t)}</b>${esc(b).replace(/\n/g,"<br>")}<div style="font-size:11px;color:#666;margin-top:2px">ZT-ERP · now</div></div>`;x.onclick=()=>x.remove();document.body.appendChild(x);setTimeout(()=>x.remove(),6000)}
+/* tapping a pop-up opens the page it is about (#go=appr etc.) */
+function pushGo(u){const m=/#go=(\w+)/.exec(String(u||""));if(!m)return;if(me&&views.includes(m[1]))show(m[1]);try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",async e=>{const d=e.data||{};
+  if(d.type==="zt-go")pushGo(d.url);
+  if(d.type==="zt-resub"&&CLOUD&&d.sub){try{if(d.old)await api("push",{method:"POST",body:{action:"unsubscribe",endpoint:d.old}});await pushCall({action:"subscribe",sub:d.sub})}catch(err){}}});
+if(BOOT){setTimeout(()=>pushGo(location.href),400);
+  /* keep this phone's notification address with the person now logged in (twice a day at most) */
+  setTimeout(async()=>{try{if(!pushOK()||Notification.permission!=="granted")return;const r=await pushReg();const sub=r&&await r.pushManager.getSubscription();if(!sub)return;
+    const last=+(localStorage.getItem(LP+"pushsync")||0);if(Date.now()-last<12*3600e3)return;await pushCall({action:"subscribe",sub:sub.toJSON()});localStorage.setItem(LP+"pushsync",String(Date.now()))}catch(e){}},6000);
+  /* ask once on phones: a small bar at the bottom; "Not now" asks again after a week */
+  setTimeout(async()=>{try{if(!me||!(pushIsPhone()||pushApp()))return;const a=localStorage.getItem("zpo:pushask")||"";if(a==="done"||(+a&&Date.now()-+a<7*864e5))return;
+    const st=await pushDevState();if(st.on||st.perm==="denied"||(!st.ok&&!(st.ios&&!st.app)))return;
+    const bar=document.createElement("div");bar.className="panel pushask";const ios=st.ios&&!st.app;
+    bar.innerHTML=`<span class="t">🔔 ${ios?"Add ZT-ERP to your home screen to get pop-up alerts for approvals and payments.":"Get pop-up alerts on this phone for approvals and payments, like WhatsApp."}</span><button class="btn primary" type="button" data-a="on">${ios?"Show me how":"Turn on"}</button><button class="btn" type="button" data-a="no">Not now</button>`;
+    document.body.appendChild(bar);
+    bar.onclick=async e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.a==="no"){try{localStorage.setItem("zpo:pushask",String(Date.now()))}catch(err){}bar.remove();return}
+      bar.remove();if(ios){tgMine();return}try{await pushTurnOn();toast("Pop-up alerts are on for this phone")}catch(err){if(!err.auth)toast(err.message)}}}catch(e){}},9000)}
+/* Admin: Users & rights > Phone pop-up alerts (who has turned them on) */
+async function renderPush(){const P=$("#pushPanel");if(!P)return;P.hidden=!has("page.users");if(P.hidden)return;if(!pushS&&!pushBusy){pushBusy=true;await pushLoad();pushBusy=false}const S=pushS||{};
+  const on=new Map((S.people||[]).map(x=>[x.name,x]));
+  P.innerHTML=`<div class="row"><h2 class="sec" style="margin:0">Phone pop-up alerts</h2><span class="chip st-PO">Free</span><span style="flex:1"></span><button class="btn" type="button" data-pr>Refresh</button></div>
+  <div class="note">Pop-ups on the phone like WhatsApp or SMS, for the same alerts as Telegram: requests and POs waiting for approval, approved requests ready for a PO, your own request or PO approved or sent back, and supplier payments due at 9:30 AM. Nothing to set up here: each person opens the ERP on their phone, taps <b>🔔 Alerts</b> at the top, then <b>Turn on pop-ups</b>, and picks which alerts they want. <b>iPhone:</b> add ZT-ERP to the home screen first (Safari &gt; Share &gt; Add to Home Screen), iOS 16.4 or newer.${S.preview?" <b>Preview:</b> nothing is sent from here.":""}</div>
+  <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Job</th><th>Pop-ups</th></tr></thead><tbody>${M.users.map(u=>{const x=on.get(u.name);return`<tr><td>${esc(u.name)}</td><td>${esc(u.role||"")}</td><td>${x?`<span class="chip st-PO">On</span> <span class="note">${x.n} device${x.n>1?"s":""} · ${tgWhen(x.at)}</span>`:`<span class="chip st-Draft">Not on</span>`}</td></tr>`}).join("")}</tbody></table></div>`}
+$("#pushPanel").addEventListener("click",async e=>{const t=e.target.closest("button");if(!t||t.dataset.pr==null)return;await pushLoad();renderPush()});
 /* Admin: Users & rights > Telegram alerts */
 async function renderTg(){const P=$("#tgPanel");if(!P)return;P.hidden=!has("page.users");if(P.hidden)return;if(!tgS&&!tgBusy){tgBusy=true;await tgLoad();tgBusy=false}const S=tgS||{};
   const linked=new Map((S.links||[]).map(l=>[l.name,l]));const GA=(S.allAlerts||[]).filter(a=>a.group);

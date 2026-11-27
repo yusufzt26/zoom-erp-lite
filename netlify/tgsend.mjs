@@ -46,8 +46,9 @@ export function tgService(q) {
   }
 
   // 9:30 AM India time: overdue and soon-due supplier bills, to accounts people and groups that want it. Once a day.
-  async function daily(masters, force) {
-    const tok = await token(); if (!tok) return { sent: 0, why: "no bot" };
+  // also: other channels (phone pop-ups) given as dispatch functions, so the same digest goes everywhere
+  async function daily(masters, force, also = []) {
+    const tok = await token(); if (!tok && !also.length) return { sent: 0, why: "no bot" };
     const day = todayIST(); if (!force && (await get("daily_last")) === day) return { sent: 0, why: "already sent today" };
     const d = (await q("SELECT data FROM tg_dues WHERE id='_'"))[0];
     const text = dueDigest(d && d.data && d.data.bills, day);
@@ -55,8 +56,9 @@ export function tgService(q) {
     if (!text) return { sent: 0, why: "nothing due" };
     const users = ((masters && masters.users) || []).filter(Boolean);
     const to = users.filter((u) => userHas(u, "acct.view")).map((u) => u.name);
-    const sent = await dispatch([{ k: "pay_due", to, text }], masters);
-    return { sent };
+    const al = [{ k: "pay_due", to, text }];
+    const n = await Promise.all([tok ? dispatch(al, masters) : 0, ...also.map((f) => f(al, masters).catch(() => 0))]);
+    return { sent: n.reduce((a, b) => a + b, 0) };
   }
   return { get, set, token, send, dispatch, daily, log };
 }

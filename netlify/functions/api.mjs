@@ -8,6 +8,8 @@ import { allotPartyCodes } from "../codes.mjs";
 import { tallyRecords, tallyDiff } from "../tally.mjs";
 import { ALERTS, eligible, wants, alertsFor, linkCode, maskToken, tokenOk, tg, userHas } from "../telegram.mjs";
 import { tgService } from "../tgsend.mjs";
+import { pushService } from "../pushsend.mjs";
+import { subOk, deviceName, pushPayload } from "../push.mjs";
 
 const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "costing", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins", "tallymap"]);
 const SESSION_DAYS = 30;
@@ -357,13 +359,56 @@ async function telegramApi(me, m, req, url) {
     if (action === "group-test") { const tok = await T.token(); const ok = tok && (await T.send(tok, id, "🔔 Test from ZT-ERP. Alerts for this group are working.", "test", await T.get("site"))); if (!ok) return json({ error: "Telegram did not deliver it. Check that the bot is still in the group." }, 502); }
     return json({ ok: true, ...(await state()) });
   }
-  if (action === "daily-now") { if (!admin) return needAdmin(); return json({ ok: true, ...(await T.daily(ms, true)) }); }
+  if (action === "daily-now") { if (!admin) return needAdmin(); return json({ ok: true, ...(await T.daily(ms, true, [PUSH().dispatch])) }); }
   if (action === "dues") {
     if (!(admin || userHas(u, "acct.view"))) return json({ ok: true, skipped: true });
     const S = (v, n) => String(v ?? "").slice(0, n);
     const bills = (Array.isArray(b.bills) ? b.bills : []).slice(0, 5000).map((x) => ({ sup: S(x.sup, 120), ref: S(x.ref, 60), due: S(x.due, 10), bal: Math.round((+x.bal || 0) * 100) / 100, plant: S(x.plant, 40) })).filter((x) => x.bal > 0);
     await q("INSERT INTO tg_dues(id,data,at,by_name) VALUES('_',$1,NOW(),$2) ON CONFLICT (id) DO UPDATE SET data=EXCLUDED.data,at=NOW(),by_name=EXCLUDED.by_name", [JSON.stringify({ bills }), me]);
     return json({ ok: true, n: bills.length });
+  }
+  return json({ error: "Unknown action" }, 400);
+}
+
+// ---------- Phone pop-up notifications (free Web Push from the installed app; same alerts as Telegram) ----------
+const PUSH = () => pushService(q);
+async function pushApi(me, m, req, url) {
+  const P = PUSH(); const admin = await isAdmin(me); const ms = await mastersDoc(); const u = ((ms && ms.users) || []).find((x) => x && x.name === me) || { name: me, role: admin ? "Admin" : "" };
+  const state = async () => {
+    const K = await P.keys(); const p = (await q("SELECT prefs FROM push_prefs WHERE name=$1", [me]))[0]; const el = eligible(u);
+    const devices = (await q("SELECT endpoint,device,created_at,last_ok_at FROM push_subs WHERE name=$1 ORDER BY created_at", [me])).map((r) => ({ id: sha(r.endpoint).slice(0, 16), device: r.device, at: r.created_at, ok: r.last_ok_at }));
+    const out = { publicKey: K.publicKey, devices, alerts: ALERT_INFO.filter((a) => el.includes(a.k)).map((a) => ({ ...a, on: wants(u, p && p.prefs, a.k) })),
+      any: (await q("SELECT COUNT(*)::int AS n FROM push_subs"))[0].n > 0 };
+    if (admin) out.people = await q("SELECT name,COUNT(*)::int AS n,MAX(created_at) AS at FROM push_subs GROUP BY name ORDER BY name");
+    return out;
+  };
+  if (m === "GET") return json(await state());
+  const b = await body(req); const action = String(b.action || "");
+  if (action === "subscribe") {
+    if (!subOk(b.sub)) return json({ error: "This browser gave a notification address the ERP does not accept. Use Chrome, Safari, Edge or Firefox." }, 400);
+    const site = (process.env.URL || url.origin).replace(/\/$/, ""); if (/^https:\/\//.test(site)) await P.set("site", site);
+    const dev = deviceName(req.headers.get("user-agent")).slice(0, 60);
+    await q("INSERT INTO push_subs(endpoint,name,keys,device) VALUES($1,$2,$3,$4) ON CONFLICT (endpoint) DO UPDATE SET name=EXCLUDED.name,keys=EXCLUDED.keys,device=EXCLUDED.device,fails=0",
+      [b.sub.endpoint, me, JSON.stringify({ p256dh: b.sub.keys.p256dh, auth: b.sub.keys.auth }), dev]);
+    await q("DELETE FROM push_subs WHERE name=$1 AND endpoint NOT IN (SELECT endpoint FROM push_subs WHERE name=$1 ORDER BY created_at DESC LIMIT 8)", [me]);
+    return json({ ok: true, ...(await state()) });
+  }
+  if (action === "unsubscribe") {
+    if (b.endpoint) await q("DELETE FROM push_subs WHERE name=$1 AND endpoint=$2", [me, String(b.endpoint)]);
+    else if (b.id) { const rows = await q("SELECT endpoint FROM push_subs WHERE name=$1", [me]); for (const r of rows) if (sha(r.endpoint).slice(0, 16) === String(b.id)) await q("DELETE FROM push_subs WHERE endpoint=$1", [r.endpoint]); }
+    return json({ ok: true, ...(await state()) });
+  }
+  if (action === "prefs") {
+    const p = {}; const el = eligible(u); Object.entries(b.prefs || {}).forEach(([k, v]) => { if (el.includes(k)) p[k] = !!v; });
+    await q("INSERT INTO push_prefs(name,prefs) VALUES($1,$2) ON CONFLICT (name) DO UPDATE SET prefs=EXCLUDED.prefs", [me, JSON.stringify(p)]); return json({ ok: true, ...(await state()) });
+  }
+  if (action === "test") {
+    const rows = await q("SELECT endpoint,keys FROM push_subs WHERE name=$1" + (b.endpoint ? " AND endpoint=$2" : ""), b.endpoint ? [me, String(b.endpoint)] : [me]);
+    if (!rows.length) return json({ error: "Turn on notifications on this phone first" }, 400);
+    const K = await P.keys(), subj = await P.subject();
+    const pl = pushPayload("test", `🔔 <b>Test from ZT-ERP</b>\nPop-up alerts are working for ${me}.`, { tag: "test" });
+    const ok = (await Promise.all(rows.map((r) => P.send(r, pl, K, subj)))).filter(Boolean).length;
+    return ok ? json({ ok: true, sent: ok }) : json({ error: "The phone's notification service did not accept it. Turn notifications off and on again on this phone." }, 502);
   }
   return json({ error: "Unknown action" }, 400);
 }
@@ -500,7 +545,7 @@ export default async (req, context) => {
         const saved = new Set(results.filter((x) => x && x.rev).map((x) => x.coll + "\u0001" + x.id));
         const send = (async () => { const md = await mastersDoc();
           const al = watch.filter((c) => saved.has(c.coll + "\u0001" + c.id)).flatMap((c) => alertsFor(c.coll, before.get(c.coll + "\u0001" + c.id) || null, c.data, md, me));
-          if (al.length) await TG().dispatch(al, md); })().catch((e) => console.error("telegram", e && e.message));
+          if (al.length) await Promise.all([TG().dispatch(al, md).catch((e) => console.error("telegram", e && e.message)), PUSH().dispatch(al, md).catch((e) => console.error("push", e && e.message))]); })().catch((e) => console.error("telegram", e && e.message));
         if (context && typeof context.waitUntil === "function") context.waitUntil(send); else await send;
       }
       return json({ results });
@@ -548,7 +593,7 @@ export default async (req, context) => {
         return json({ ok: true });
       }
       if (action === "disable") { if (n === me) return json({ error: "You cannot disable your own login" }, 400); await q("UPDATE logins SET active=FALSE WHERE name=$1", [n]); await q("DELETE FROM sessions WHERE name=$1", [n]); return json({ ok: true }); }
-      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE tg_links SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); return json({ ok: true }); }
+      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE tg_links SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_subs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_prefs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); return json({ ok: true }); }
       return json({ error: "Unknown action" }, 400);
     }
     if (path === "scan-doc" && m === "POST") {
@@ -576,6 +621,7 @@ export default async (req, context) => {
 
     if (path === "tally/key" && (m === "GET" || m === "POST")) return await tallyKeyApi(me, m, req);
     if (path === "telegram" && (m === "GET" || m === "POST")) return await telegramApi(me, m, req, url);
+    if (path === "push" && (m === "GET" || m === "POST")) return await pushApi(me, m, req, url);
 
     if (path === "restore" && (m === "GET" || m === "POST")) {
       try { return await restoreApi(me, m, url, req); } catch (e) { if (e.status) return json({ error: e.message }, e.status); throw e; }
