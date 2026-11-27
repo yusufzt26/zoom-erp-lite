@@ -2064,7 +2064,7 @@ function buyTotals(all){all=all||buyRows();const on=all.filter(b=>b.on),ready=on
   const sups=new Set(out.filter(o=>String(o.sup||"").trim()).map(o=>key(o.sup)+"|"+(o.b.x.r.plant||"P1"))).size;
   $("#buy-tot").textContent=ready.length?`${ready.length} line${ready.length>1?"s":""} ready in all tabs · ₹ ${fmt(out.reduce((a,o)=>a+o.amt,0))} before GST`:on.length?"":"Tick the lines to order now.";
   $("#buy-msg").innerHTML=bad.length?`<span style="color:var(--danger)">${bad.length} ticked line${bad.length>1?"s have":" has"} no supplier, rate or size yet (${[...new Set(bad.map(b=>b.cat))].map(esc).join(", ")}) and will stay pending.</span>`:on.length?"Unticked lines stay pending for the next PO.":"";
-  const B=$("#btn-buy-make");B.textContent=sups?`Make ${sups} PO${sups>1?"s":""} and send for approval`:"Make POs";B.disabled=!ready.length||!has("po.create")}
+  const B=$("#btn-buy-make");B.textContent=sups?`Preview ${sups} PO${sups>1?"s":""} and send for approval`:"Make POs";B.disabled=!ready.length||!has("po.create")}
 $("#buyTabs").addEventListener("click",e=>{const b=e.target.closest("[data-btab]");if(b){buyTab=b.dataset.btab;renderBuy()}});
 $("#buy-q").addEventListener("input",e=>{buyQ=e.target.value;renderBuy()});
 const bDraft=k=>buyDraft[k]=buyDraft[k]||{};
@@ -2085,25 +2085,50 @@ $("#buyBody").addEventListener("click",e=>{const btn=e.target.closest("button");
   if(btn.dataset.osave!=null){let n=b.x.name;if(costing.tpl[n])n=n+" ("+today()+")";costing.tpl[n]=b.c.ops.map(p=>[p.op,p.autoQ?0:p.q]);bDraft(k).tpl=n;delete bDraft(k).ops;saveCosting();saveBuy();renderBuy();toast(`Saved template "${n}"`);return}
   if(btn.dataset.bsave){const L=costing[btn.dataset.bsave];L.push({type:b.x.name,size:lineX(b.x.l,"Size"),len:lineX(b.x.l,"L"),brand:"",price:+b.c.rate,sup:b.c.sup||"",upd:today(),by:me?me.name:""});costLog(`${COST_LISTS[btn.dataset.bsave].t}: added ${b.x.name} ${lineX(b.x.l,"Size")} ${lineX(b.x.l,"L")}`.trim(),"",+b.c.rate);delete bDraft(k).rate;saveCosting();saveBuy();renderBuy();toast("Saved to the price list");return}});
 $("#buy-all").onchange=e=>{const q=key(buyQ);buyRows().filter(b=>b.cat===buyTab&&bMatch(b,q)).forEach(b=>{bDraft(b.k).on=e.target.checked});saveBuy();renderBuy()};
-$("#btn-buy-make").onclick=()=>{
-  const all=buyRows(),on=all.filter(b=>b.on&&b.c.ok);if(!on.length){buyTotals(all);return}
+/* Make POs: build them first and show each one exactly as the approver and supplier will see it.
+   "Back to correct" closes the preview and keeps everything on the Pre-estimate; "Send for approval" saves them. */
+function buyBuild(all){
   const G={};buyLines(all).forEach(o=>{const sp=supOf(o.sup),nm=sp?sp.name:String(o.sup).trim(),pl=o.b.x.r.plant||defPlant(),g=nm+"|"+pl;(G[g]=G[g]||{sup:nm,sp,plant:pl,rows:[]}).rows.push(o)});
-  const made=[];
+  const out=[],cnt={},fy=fyOf(today());
   Object.values(G).forEach(g=>{const sp=g.sp||{name:g.sup,addr:"",state:"27"},R=g.rows;
     const nos=[...new Set(R.map(o=>o.b.x.r.no))],jobs=[...new Set(R.map(o=>o.b.x.r.job).filter(Boolean))],needs=R.map(o=>o.b.x.r.need).filter(Boolean).sort();
-    po={no:nextPONo(g.plant),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
+    const n=(serMax("po",g.plant,fy)||0)+1+(cnt[g.plant]||0);cnt[g.plant]=(cnt[g.plant]||0)+1;
+    const p={no:serFmt("po",g.plant,fy,n),status:"Pending approval",date:today(),sup:sp.name,supAddr:sp.addr||"",ref:jobs.join(", "),refDate:today(),attn:"",venCode:sp.gstin||"",terms:sp.terms||"60 Days",transport:"",validity:"",
       reqNo:nos.join(", "),reqNos:nos,needBy:needs[0]||"",plant:g.plant,deliv:plantAddr(g.plant),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:"",notes:String(buyNotes||"").trim(),xcols:[],
       lines:R.map(o=>{const b=o.b,x=b.x,c=b.c,cat=b.cat,base={hsn:"84801000",tax:18,dis:0,rqNo:x.r.no,cat};
         if(cat==="Raw material"){const l=Object.assign(base,{item:"",spec:x.name,fin:c.fin,raw:c.raw,rawAuto:false,grade:c.grade,rawOn:true,pcs:c.qty,qty:Math.round(c.wpc*c.qty*100)/100,unit:"KG",rate:+c.rate,rq:x.i,hsn:"72269990"});poSetDesc(l);return l}
         const it=itemByName(x.name),sz=[lineX(x.l,"Size"),lineX(x.l,"L")].filter(Boolean).join(" x "),spec=cat==="BOP"||cat==="Tools & cutters"?[sz,x.l.spec].filter(Boolean).join(" · "):b.spec,full=[x.name,spec].filter(Boolean).join(" - ");
         return Object.assign(base,{desc:full,item:it?it.name:"",spec:it?spec:full,hsn:(it&&it.hsn)||base.hsn,tax:it&&it.gst!==""&&it.gst!=null?+it.gst:18,qty:+c.qty,unit:x.unit||(it&&it.unit)||"NOS",rate:+c.rate,rq:x.i})})};
+    out.push(p)});
+  return out}
+function buySend(list,on){
+  const made=[];
+  list.forEach(p=>{po=p;po.no=nextPONo(po.plant);
     recordPO("Pending approval","Made on the Pre-estimate and sent for approval");learnFromPO();
     poReqs(po).forEach(r=>{r.status="PO raised";r.poNo=po.no});made.push(po)});
   on.forEach(b=>{delete buyDraft[b.k];buyOpen.delete(b.k)});
   saveReqs();saveBuy();buyNotes="";store.set("buyNotes","");$("#buy-notes").value="";po=made[made.length-1];store.set("po",po);
   const D=$("#buyDone");D.hidden=false;D.className="banner";
   D.innerHTML=`<b>${made.length} PO${made.length>1?"s":""} sent for approval:</b> ${made.map(p=>`<button class="linkbtn" type="button" data-bpo="${esc(p.no)}">PO ${esc(p.no)} · ${esc(p.sup)}</button>`).join(" · ")}`;
-  toast(`${made.length} PO${made.length>1?"s":""} made and sent for approval`);renderBuy();renderBadges()};
+  toast(`${made.length} PO${made.length>1?"s":""} made and sent for approval`);renderBuy();renderBadges()}
+function buyPreview(list,on){
+  const d=document.createElement("div");d.className="modal";d.id="buyPrev";d.setAttribute("role","dialog");d.setAttribute("aria-label","PO preview");
+  const n=list.length,tot=p=>{const o=po;po=p;const r=poCalc();po=o;return r.total};
+  d.innerHTML=`<div class="panel stack" style="max-width:880px;width:100%;max-height:94vh;overflow:auto">
+    <div class="row"><h2 class="sec">Preview: ${n} PO${n>1?"s":""} to send for approval</h2><span style="flex:1"></span><button class="btn" type="button" data-pv="back">Back to correct</button><button class="btn primary" type="button" data-pv="send">Send ${n>1?n+" POs":"PO"} for approval</button></div>
+    <div class="note">This is how ${n>1?"each PO":"the PO"} will look to the approver and the supplier. If anything is wrong (supplier, qty, rate, size, notes), click <b>Back to correct</b>, change it on the Pre-estimate and preview again. Nothing is saved until you send.${n>1?" The PO number is the next free one and can move up by one if someone else makes a PO before you send.":""}</div>
+    ${n>1?`<div class="row" style="flex-wrap:wrap;gap:6px">${list.map((p,i)=>`<button class="btn" type="button" data-pj="${i}">PO ${i+1}: ${esc(p.sup||"No supplier")} · ₹ ${fmt(tot(p))}</button>`).join("")}</div>`:""}
+    ${list.map((p,i)=>`<div class="stack" id="bpv-${i}">${n>1?`<b>PO ${i+1} of ${n} · ${esc(p.sup||"No supplier")} · ${p.lines.length} line${p.lines.length>1?"s":""} · ₹ ${fmt(tot(p))} with GST</b>`:""}<div class="paperbox"><div class="paper">${docPO(p)}</div></div></div>`).join("")}
+    <div class="row"><span style="flex:1"></span><button class="btn" type="button" data-pv="back">Back to correct</button><button class="btn primary" type="button" data-pv="send">Send ${n>1?n+" POs":"PO"} for approval</button></div></div>`;
+  const close=()=>{d.remove();document.removeEventListener("keydown",esc_)},esc_=e=>{if(e.key==="Escape")close()};
+  d.addEventListener("click",e=>{if(e.target===d){close();return}const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.pj!=null){const t=d.querySelector("#bpv-"+b.dataset.pj);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});return}
+    if(b.dataset.pv==="back"){close();toast("Correct the lines, then click Make POs again");return}
+    if(b.dataset.pv==="send"){if(!has("po.create"))return;close();buySend(list,on)}});
+  document.addEventListener("keydown",esc_);document.body.appendChild(d);d.querySelector('[data-pv="send"]').focus()}
+$("#btn-buy-make").onclick=()=>{
+  const all=buyRows(),on=all.filter(b=>b.on&&b.c.ok);if(!on.length){buyTotals(all);return}
+  const list=buyBuild(all);if(!list.length)return;buyPreview(list,on)};
 $("#buyDone").addEventListener("click",e=>{const n=e.target.dataset.bpo;if(n==null)return;const s=saved.find(x=>String(x.no)===String(n));if(s){po=JSON.parse(JSON.stringify(s));store.set("po",po);show("po")}});
 
 
@@ -2593,7 +2618,7 @@ function renderRgp(){
   renderRgpForm();
 }
 function renderRgpForm(){
-  const F=$("#rgpForm");if(!rgp){F.hidden=true;return}F.hidden=false;
+  const F=$("#rgpForm");if(!rgp){F.hidden=true;return}F.hidden=false;{const d=$("#suppliers");if(d)d.innerHTML=partyOpts(suppliers)}
   if(rgpMode==="ret"){const c=rgp;
     F.innerHTML=`<div class="row"><h2 class="sec">Receive back · RC-${c.no}</h2><span class="note">${esc(c.party)}</span><span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
     <div class="grid-fields"><label class="f">Received date<input id="rr-date" type="date" value="${today()}"></label><label class="f">Their challan no.<input id="rr-dc"></label></div>
