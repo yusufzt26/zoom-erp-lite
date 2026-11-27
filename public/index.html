@@ -2593,7 +2593,7 @@ function renderRgp(){
   renderRgpForm();
 }
 function renderRgpForm(){
-  const F=$("#rgpForm");if(!rgp){F.hidden=true;return}F.hidden=false;
+  const F=$("#rgpForm");if(!rgp){F.hidden=true;return}F.hidden=false;{const d=$("#suppliers");if(d)d.innerHTML=partyOpts(suppliers)}
   if(rgpMode==="ret"){const c=rgp;
     F.innerHTML=`<div class="row"><h2 class="sec">Receive back · RC-${c.no}</h2><span class="note">${esc(c.party)}</span><span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
     <div class="grid-fields"><label class="f">Received date<input id="rr-date" type="date" value="${today()}"></label><label class="f">Their challan no.<input id="rr-dc"></label></div>
