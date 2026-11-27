@@ -320,6 +320,7 @@ body.ready #boot,body.gated #boot{display:none}
   .hdrmenu #cloudUser{order:3;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:4px;padding:12px 16px 0;color:var(--ink);font-size:13px}
   .hdrmenu #cloudUser b{flex:1 1 100%}
   .hdrmenu .installbtn,.hdrmenu .hdr-install{order:4;align-self:flex-start;margin-left:16px}
+  .hdrmenu #btn-tg{order:3;align-self:flex-start;margin:10px 0 4px 16px}
   .subnav{display:flex;flex-wrap:nowrap;gap:4px;overflow-x:auto;padding:0 10px 8px;scrollbar-width:none}
   .subnav::-webkit-scrollbar{display:none}
   .subnav .subnav-t{display:none}
@@ -469,6 +470,7 @@ h2.dsec{margin-top:6px}
   </nav>
   <label class="who">Signed in as<select id="who"></select></label><label class="who">Plant<select id="plantSel"></select></label>
   <span class="who" id="cloudUser" hidden><b id="cuName"></b><span id="syncState" class="chip calc">Saved</span><button class="btn" type="button" id="btn-cu-pw">Password</button><button class="btn" type="button" id="btn-cu-out">Log out</button></span>
+  <button class="btn" type="button" id="btn-tg" title="Telegram alerts on your phone">Telegram</button>
   <button type="button" class="btn installbtn" data-install title="Install ZT-ERP LITE as an app on this device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg>Install app</button><button type="button" class="linkbtn install-help hdr-install" data-install>Install as an app</button>
   </div>
 </div>
@@ -780,6 +782,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
       <input type="file" id="mu-sigfile" accept="image/*" hidden>
       <div class="note">Upload a signature (photo of a signature on white paper) for approvers. It is printed on every PO they approve.</div></div>
     <div class="panel stack" id="loginPanel" hidden style="grid-column:1/-1"></div>
+    <div class="panel stack" id="tgPanel" hidden style="grid-column:1/-1"></div>
     <div class="panel stack" id="rightsPanel" style="grid-column:1/-1">
       <div class="row"><h2 class="sec">Rights for</h2><select id="r-user" style="width:auto"></select><span id="r-badge"></span><span style="flex:1"></span><button class="btn" id="btn-r-reset" type="button">Reset to role defaults</button></div>
       <div id="rightsBox" class="stack"></div>
@@ -1178,7 +1181,7 @@ const can=v=>v==="home"||v==="dash"||(v==="jw"?(has("page.grn")||has("rgp.manage
 const isRole=(...r)=>!!me&&r.includes(me.role);
 const LAND={Director:"appr",Store:"grn",Accounts:"acct"};
 const landing=()=>"home";
-function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){jwFormHome("grn");renderGRN();renderRgp();renderJwin()}if(v==="jw"){jwFormHome("jw");renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="tally")renderTally();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
+function show(v){if(!can(v))v=landing();if(isRole("Admin","Director")&&v!=="imp"&&v!=="mast"){let jf=null;try{jf=oldJobFix()}catch(e){}if(jf)setTimeout(()=>toast(`Project numbers cleaned on ${[jf.po&&jf.po+" old POs",jf.grn&&jf.grn+" old GRNs",jf.inv&&jf.inv+" old invoices"].filter(Boolean).join(", ")}: only ZT numbers stay as the project, other old ERP text is kept under it`),400)}fillPlantSels();setTimeout(renderBadges,0);views.forEach(x=>{$("#view-"+x).hidden=x!==v;$("#tab-"+x).setAttribute("aria-current",x===v?"true":"false")});if(v==="po")renderPO();if(v==="req"){if(cur&&cur.status!=="Draft")cur=null;renderReq()}if(v==="mast"||v==="users"){renderMasters();renderPlants()}if(v==="users"){renderRights();renderLogins();renderTg()}if(v==="est")renderEstReq();if(v==="buy")renderBuy();if(v==="saved")renderSaved();if(v==="appr")renderAppr();if(v==="home")renderHome();if(v==="dash")renderDash();if(v==="rep")renderRep();if(v==="grn"){jwFormHome("grn");renderGRN();renderRgp();renderJwin()}if(v==="jw"){jwFormHome("jw");renderJwin()}if(v==="acct")renderAcct();if(v==="stock")renderStock();if(v==="rates")renderRates();if(v==="rmast")renderCost();if(v==="tally")renderTally();if(v==="imp"){renderImportHub();renderOpening()}if(v==="undo")renderUndo();if(v==="sales")renderSales();if(v==="prod")renderProd();if(["so","dc","inv"].includes(v))renderSD(v);if(v==="cn")renderNotes("cn");if(v==="stock")renderReorder();if(v==="inv")renderAgeing();if(v==="rep"){renderJobCost();renderGstReg()}if(v==="home")renderOwner();if(v==="acct")renderNotes("dn");syncGroups(v);setHdrCur(v);renderMnav();window.scrollTo(0,0)}
 const GROUPS={pur:["buy","po","saved","rmast","rates"],sal:["sales","so","dc","inv","cn"]};
 document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{if(b.dataset.group){const v=GROUPS[b.dataset.group].find(x=>can(x));if(v)show(v);return}show(b.dataset.view)});
 /* phone menu: open/close the slide-out section menu; show the current section and a dot when anything is waiting */
@@ -5511,6 +5514,93 @@ function renderLogins(){const P=$("#loginPanel");if(!P)return;if(!CLOUD){P.hidde
   P.innerHTML=`<h2 class="sec">Logins</h2><div class="note">Each user logs in with their name and a password you set here. They can change it later from "Password" at the top. Passwords are stored encrypted.</div>
   ${M.users.map((u,i)=>`<div class="listrow"><b>${esc(u.name)}</b><span class="wide">${esc(u.role)}${u.dept?" · "+esc(u.dept):""}</span><span>${L[u.name]===true?`<span class="chip st-PO">Can log in</span>`:L[u.name]===false?`<span class="chip st-Back">Disabled</span>`:`<span class="chip st-Draft">No password</span>`}</span><span></span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" data-lpw="${i}">${L[u.name]==null?"Set password":"Reset password"}</button>${L[u.name]===true&&u.name!==me.name?`<button class="btn" data-loff="${i}">Disable</button>`:""}</span></div>`).join("")}`}
 async function loginAction(body,ok){try{await api("logins",{method:"POST",body});await cloudPull();renderLogins();if(ok)toast(ok)}catch(e){if(!e.auth)toast(e.message)}}
+/* ---------- Telegram alerts (free bot): each user links their own Telegram, the Admin adds the bot token and picks alerts for groups ---------- */
+const TG_ALERTS=[["req_check","Purchase request waiting for my approval",1],["req_approve","Purchase request waiting for director approval",1],["req_ready","Approved purchase request ready for PO",1],["po_approval","PO waiting for approval",1],["my_req","My purchase request approved or sent back",0],["my_po","My PO approved or sent back",0],["pay_due","Supplier payments due (daily, 9:30 AM)",1]];
+let tgS=null,tgErr="",tgBusy=false;
+/* preview (no server): a pretend bot kept in this browser, so the screens can be tried */
+const tgDemo={get(){try{return JSON.parse(localStorage.getItem("zpo:tgdemo")||"{}")}catch(e){return{}}},put(d){try{localStorage.setItem("zpo:tgdemo",JSON.stringify(d))}catch(e){}}};
+function tgDemoState(){const d=tgDemo.get(),nm=me?me.name:"",adm=has("page.users");const el=TG_ALERTS.filter(([k])=>({req_approve:has("req.approve"),req_ready:has("po.create"),po_approval:has("po.approve"),pay_due:has("acct.view")||isRole("Admin")})[k]!==false);
+  const l=(d.links||{})[nm];return{preview:true,configured:!!d.bot,bot:d.bot||"",admin:adm,link:l?{tg_name:l.tg_name,at:l.at}:null,alerts:el.map(([k,label,group])=>({k,label,group:!!group,on:l&&l.prefs&&k in l.prefs?l.prefs[k]:!(isRole("Admin")&&!["po_approval","pay_due","my_req","my_po"].includes(k))})),allAlerts:TG_ALERTS.map(([k,label,group])=>({k,label,group:!!group})),
+    masked:d.token?d.token.split(":")[0]+":…"+d.token.slice(-4):"",site:location.origin,links:Object.entries(d.links||{}).map(([name,x])=>({name,tg_name:x.tg_name,at:x.at})),groups:d.bot?(d.groups||[]):[],log:d.log||[],dues:d.bot?{at:new Date().toISOString(),by_name:nm,n:tgDueBills().length}:null}}
+function tgDemoDo(b){const d=tgDemo.get(),nm=me?me.name:"";d.links=d.links||{};d.log=d.log||[];const L=(kind,info)=>d.log.unshift({at:new Date().toISOString(),kind,ok:true,info});
+  if(b.action==="token"){if(!/^\d{5,15}:[A-Za-z0-9_-]{30,60}$/.test(String(b.token||"").trim()))throw new Error("That does not look like a bot token. It looks like 1234567890:AAH... (numbers, a colon, then about 35 letters). Copy it again from @BotFather.");d.token=b.token.trim();d.bot="zt_erp_alerts_bot";d.groups=[{chat_id:"-1001",title:"Purchase approvals (example group)",alerts:["po_approval","req_ready"],active:true,added_at:new Date().toISOString()}]}
+  else if(b.action==="remove"){delete d.token;delete d.bot}
+  else if(b.action==="link"){if(!d.bot)throw new Error("Telegram alerts are not set up yet. Ask the Admin to add the bot token in Users & rights > Telegram alerts.");d.links[nm]={tg_name:nm+" (preview phone)",at:new Date().toISOString(),prefs:{}};tgDemo.put(d);return{url:"",code:"PREVIEW1",bot:d.bot,demo:true}}
+  else if(b.action==="unlink")delete d.links[nm];
+  else if(b.action==="prefs"){if(d.links[nm])d.links[nm].prefs=b.prefs}
+  else if(b.action==="test"||b.action==="group-test"){if(b.action==="test"&&!d.links[nm])throw new Error("Link your Telegram first");L("test","preview, nothing sent")}
+  else if(b.action==="group"){const g=(d.groups||[]).find(x=>x.chat_id===b.chat_id);if(g)g.alerts=b.alerts}
+  else if(b.action==="group-remove")d.groups=(d.groups||[]).filter(x=>x.chat_id!==b.chat_id);
+  else if(b.action==="daily-now")L("pay_due","preview, nothing sent");
+  tgDemo.put(d);return{}}
+async function tgCall(b){if(!CLOUD){const r=tgDemoDo(b);tgS=tgDemoState();return r}const j=await api("telegram",{method:"POST",body:b});if(j.configured!==undefined)tgS=j;return j}
+async function tgLoad(){if(!CLOUD){tgS=tgDemoState();return tgS}try{tgS=await api("telegram");tgErr=""}catch(e){if(!e.auth)tgErr=e.message}return tgS}
+/* open supplier bills (balance, due date) for the daily payments alert; sent to the server when they change */
+function tgDueBills(){const B=[];try{grns.filter(g=>g.status!=="With accounts"&&!g.old).forEach(g=>{const b=grnBal(g),d=dueDate(g);if(b>0.5&&d)B.push({sup:g.sup||"",ref:"GRN "+g.no+(g.inv?" / inv "+g.inv:""),due:d,bal:b,plant:g.plant||""})});
+  obills.filter(o=>o.kind==="sup").forEach(o=>{const b=obBal(o),d=obDue(o);if(b>0.5&&d)B.push({sup:o.party||"",ref:"Bill "+(o.bill||""),due:d,bal:b,plant:o.plant||""})})}catch(e){}return B}
+async function tgDuesPush(){if(!CLOUD||!me||!(has("acct.view")||isRole("Admin"))||!tgS||!tgS.configured)return;const B=tgDueBills(),s=JSON.stringify(B);if(s===tgDuesPush.last)return;
+  try{await api("telegram",{method:"POST",body:{action:"dues",bills:B}});tgDuesPush.last=s}catch(e){}}
+if(BOOT){setTimeout(async()=>{await tgLoad();tgDuesPush()},20000);setInterval(()=>{if(document.visibilityState==="visible")tgDuesPush()},600000)}
+const tgWhen=t=>t?new Date(t).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"";
+const tgSample=()=>`<div style="background:var(--soft,#eef3f7);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.45;max-width:340px"><div class="note" style="margin-bottom:4px">Example alert on the phone</div>🟡 <b>PO 2056</b> · Plant 2<br>Shree Steels · ₹48,260<br>EN31 round bar 40 dia + 2 more<br>Sent for approval by Purchase.<div style="margin-top:6px;text-align:center;border:1px solid var(--line,#ccd);border-radius:8px;padding:4px">Open ZT-ERP</div></div>`;
+/* my Telegram: link, pick alerts, test */
+async function tgMine(){const d=document.createElement("div");d.className="modal";document.body.appendChild(d);
+  const close=()=>d.remove();d.addEventListener("click",e=>{if(e.target===d)close()});
+  const draw=()=>{const S=tgS||{};const L=S.link;
+    d.innerHTML=`<div class="panel stack" style="max-width:440px;width:100%;max-height:90vh;overflow:auto"><div class="row"><h2 class="sec" style="margin:0">Telegram alerts</h2><span style="flex:1"></span><button class="btn" type="button" data-tgx>Close</button></div>
+    ${tgErr?`<div class="banner back">${esc(tgErr)}</div>`:""}${S.preview?`<div class="note">Preview: nothing is sent to Telegram here. On the live ERP this links your real Telegram.</div>`:""}
+    ${!S.configured?`<div class="note">Telegram alerts are not set up yet. ${S.admin?"Add the bot token in <b>Users &amp; rights &gt; Telegram alerts</b> first.":"Ask the Admin to add the bot in Users &amp; rights."}</div>`:
+    L?`<div class="row" style="gap:8px"><span class="chip st-PO">Linked</span><span>${esc(L.tg_name||"Telegram")}</span></div>
+      <div class="note">Get a message on Telegram for:</div>
+      <div class="stack" style="gap:6px">${(S.alerts||[]).map(a=>`<label class="row" style="gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-tgp="${a.k}" style="width:18px;height:18px"${a.on?" checked":""}> ${esc(a.label)}</label>`).join("")}</div>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" data-tgtest>Send me a test</button><button class="btn" type="button" data-tgun>Unlink</button></div>`
+    :`<div class="note">Get a Telegram message when something needs you: a request or PO to approve, your request approved, payments due.</div>
+      <ol class="note" style="margin:0;padding-left:18px;line-height:1.6"><li>Install Telegram on your phone and sign in.</li><li>Tap <b>Link my Telegram</b> below. Telegram opens the bot <b>@${esc(S.bot)}</b>.</li><li>Tap <b>Start</b> in Telegram. Done: the bot replies "Linked".</li></ol>
+      <button class="btn primary" type="button" data-tglink>Link my Telegram</button><div id="tg-linkbox"></div>`}
+    ${tgSample()}</div>`};
+  if(!tgS)await tgLoad();draw();
+  d.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;
+    if(t.dataset.tgx!=null)return close();
+    try{if(t.dataset.tglink!=null){const j=await tgCall({action:"link"});if(j.demo){tgS=tgDemoState();toast("Preview: linked as if you tapped Start");return draw()}
+        const box=d.querySelector("#tg-linkbox");box.innerHTML=`<div class="stack" style="gap:6px"><a class="btn primary" href="${esc(j.url)}" target="_blank" rel="noopener">Open Telegram and tap Start</a><div class="note">On a PC: open Telegram on your phone, search <b>@${esc(j.bot)}</b>, tap Start, and send <code>/start ${esc(j.code)}</code>. This code works for 30 minutes.</div><button class="btn" type="button" data-tgchk>I tapped Start</button></div>`;window.open(j.url,"_blank","noopener");return}
+      if(t.dataset.tgchk!=null){await tgLoad();if(!(tgS&&tgS.link))toast("Not linked yet. Tap Start in Telegram, then try again.");return draw()}
+      if(t.dataset.tgtest!=null){await tgCall({action:"test"});toast(CLOUD?"Test sent. Check Telegram.":"Preview: a test would be sent");return}
+      if(t.dataset.tgun!=null){if(!confirm("Stop Telegram alerts for you?"))return;await tgCall({action:"unlink"});toast("Unlinked");return draw()}}
+    catch(err){if(!err.auth)toast(err.message)}});
+  d.addEventListener("change",async e=>{if(!e.target.dataset.tgp)return;const p={};d.querySelectorAll("[data-tgp]").forEach(x=>p[x.dataset.tgp]=x.checked);try{await tgCall({action:"prefs",prefs:p});toast("Saved")}catch(err){if(!err.auth)toast(err.message)}});}
+$("#btn-tg").onclick=()=>{if(!me){toast("Pick who is signed in first");return}if(document.body.classList.contains("menu-open"))setMenu(false);tgMine()};
+/* Admin: Users & rights > Telegram alerts */
+async function renderTg(){const P=$("#tgPanel");if(!P)return;P.hidden=!has("page.users");if(P.hidden)return;if(!tgS&&!tgBusy){tgBusy=true;await tgLoad();tgBusy=false}const S=tgS||{};
+  const linked=new Map((S.links||[]).map(l=>[l.name,l]));const GA=(S.allAlerts||[]).filter(a=>a.group);
+  P.innerHTML=`<div class="row"><h2 class="sec" style="margin:0">Telegram alerts</h2><span class="chip ${S.configured?"st-PO":"st-Draft"}">${S.configured?"On":"Not set up"}</span><span style="flex:1"></span><button class="btn" type="button" data-tgrf>Refresh</button></div>
+  <div class="note">Free alerts on Telegram for requests and POs waiting for approval, approved requests ready for a PO, and supplier payments due. Each person links their own Telegram from the <b>Telegram</b> button at the top. For a team, add the bot to a Telegram group.${S.preview?" <b>Preview:</b> nothing is sent from here.":""}</div>
+  ${tgErr?`<div class="banner back">${esc(tgErr)}</div>`:""}
+  <h3 class="sec" style="font-size:15px;margin:6px 0 0">1. Bot</h3>
+  ${S.configured?`<div class="row" style="gap:8px;flex-wrap:wrap"><span>Bot <b>@${esc(S.bot)}</b> connected</span><span class="note">Token ${esc(S.masked||"")}</span><span style="flex:1"></span>${S.envToken?"":`<button class="btn" type="button" data-tgrm>Remove bot</button>`}</div>`
+   :`<div class="note">Make a bot with <b>@BotFather</b> in Telegram (send <code>/newbot</code>), then paste the token it gives you here. It is kept on the server and never shown again in full.</div>
+   <form class="row" id="tg-tokform" style="gap:8px;flex-wrap:wrap"><input id="tg-tok" type="password" autocomplete="off" placeholder="Paste bot token, like 1234567890:AAH…" style="flex:1;min-width:220px"><button class="btn primary">Save and connect</button></form>`}
+  ${S.configured?`<h3 class="sec" style="font-size:15px;margin:6px 0 0">2. People</h3>
+  <div class="tablebox"><table class="mt"><thead><tr><th>Name</th><th>Job</th><th>Telegram</th></tr></thead><tbody>${M.users.map(u=>{const l=linked.get(u.name);return`<tr><td>${esc(u.name)}</td><td>${esc(u.role||"")}</td><td>${l?`<span class="chip st-PO">Linked</span> <span class="note">${esc(l.tg_name||"")} · ${tgWhen(l.at)}</span>`:`<span class="chip st-Draft">Not linked</span>`}</td></tr>`}).join("")}</tbody></table></div>
+  <div class="note">Not linked yet? Ask the person to tap <b>Telegram</b> at the top of the ERP, then <b>Link my Telegram</b>, then <b>Start</b> in Telegram.</div>
+  <h3 class="sec" style="font-size:15px;margin:6px 0 0">3. Groups</h3>
+  ${(S.groups||[]).length?(S.groups||[]).map(g=>`<div class="listrow" style="align-items:flex-start"><b>${esc(g.title||"Group")}</b><span class="wide">${g.active?"":`<span class="chip st-Back">Bot removed</span> `}${GA.map(a=>`<label style="display:inline-flex;gap:6px;align-items:center;margin:2px 12px 2px 0;cursor:pointer"><input type="checkbox" data-tgg="${esc(g.chat_id)}" value="${a.k}" style="width:17px;height:17px"${(g.alerts||[]).includes(a.k)?" checked":""}${g.active?"":" disabled"}>${esc(a.label)}</label>`).join("")}</span><span class="row" style="gap:6px;flex-wrap:nowrap">${g.active?`<button class="btn" type="button" data-tggt="${esc(g.chat_id)}">Test</button>`:""}<button class="btn" type="button" data-tggr="${esc(g.chat_id)}">Remove</button></span></div>`).join("")
+   :`<div class="empty">No groups yet. In Telegram, open the group (for example "Purchase approvals"), tap its name &gt; <b>Add members</b>, search <b>@${esc(S.bot)}</b> and add it. Then tap Refresh here and tick the alerts the group should get.</div>`}
+  <h3 class="sec" style="font-size:15px;margin:6px 0 0">4. Payments alert</h3>
+  <div class="note">Every day at 9:30 AM, people with Accounts rights (and groups ticked for it) get supplier bills that are overdue or due in the next 3 days. ${S.dues?`It uses the open bills last worked out ${tgWhen(S.dues.at)} by ${esc(S.dues.by_name||"")} (${S.dues.n} bills); this refreshes whenever someone in Accounts has the ERP open.`:"It starts after someone with Accounts rights opens the ERP once."}</div>
+  <div class="row"><button class="btn" type="button" data-tgday>Send payments alert now</button></div>
+  ${(S.log||[]).length?`<details><summary class="note" style="cursor:pointer">Last messages sent</summary><div class="note" style="line-height:1.6">${S.log.map(x=>`${tgWhen(x.at)} · ${esc(x.kind||"")} · ${x.ok?"sent":"<b>failed</b>: "+esc(x.info||"")}`).join("<br>")}</div></details>`:""}`:""}
+  ${tgSample()}`}
+$("#tgPanel").addEventListener("submit",async e=>{if(e.target.id!=="tg-tokform")return;e.preventDefault();const b=e.target.querySelector("button");b.disabled=true;
+  try{await tgCall({action:"token",token:$("#tg-tok").value});tgErr="";toast(`Bot @${tgS.bot} connected`)}catch(err){if(!err.auth)tgErr=err.message}b.disabled=false;renderTg()});
+$("#tgPanel").addEventListener("click",async e=>{const t=e.target.closest("button");if(!t||!Object.keys(t.dataset).some(k=>/^tg/.test(k)))return;
+  try{if(t.dataset.tgrf!=null){await tgLoad();return renderTg()}
+    if(t.dataset.tgrm!=null){if(!confirm("Remove the Telegram bot? All Telegram alerts stop until a token is added again."))return;await tgCall({action:"remove"});toast("Bot removed")}
+    if(t.dataset.tggt){await tgCall({action:"group-test",chat_id:t.dataset.tggt});toast(CLOUD?"Test sent to the group":"Preview: a test would be sent")}
+    if(t.dataset.tggr){if(!confirm("Remove this group? The bot leaves it."))return;await tgCall({action:"group-remove",chat_id:t.dataset.tggr});toast("Group removed")}
+    if(t.dataset.tgday!=null){const j=await tgCall({action:"daily-now"});toast(CLOUD?(j.sent?`Payments alert sent to ${j.sent} chat${j.sent>1?"s":""}`:j.why==="nothing due"?"Nothing is overdue or due in the next 3 days":"Nobody to send it to yet: link Accounts people or tick a group"):"Preview: the payments alert would be sent")}
+    tgErr=""}catch(err){if(!err.auth){tgErr="";toast(err.message)}}renderTg()});
+$("#tgPanel").addEventListener("change",async e=>{e.stopPropagation();const id=e.target.dataset.tgg;if(!id)return;const al=[...$("#tgPanel").querySelectorAll(`[data-tgg="${CSS.escape(id)}"]`)].filter(x=>x.checked).map(x=>x.value);
+  try{await tgCall({action:"group",chat_id:id,alerts:al});toast("Saved")}catch(err){if(!err.auth)toast(err.message)}});
 function cloudWire(){
   $("label.who").hidden=true;const box=$("#cloudUser");box.hidden=false;$("#cuName").textContent=me?`${me.name} · ${me.role}`:BOOT.me;
   $("#btn-cu-out").onclick=async()=>{if(cloud.pending.size)await cloudFlush();try{await api("logout",{method:"POST"})}catch(e){}try{localStorage.removeItem("zpo:token")}catch(e){}location.reload()};
