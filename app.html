@@ -2527,10 +2527,10 @@ function docChallan(c){
   <p class="small" style="margin-top:24px">Receiver's signature &amp; stamp: ____________________________</p>`;
 }
 const pdfName=(...parts)=>parts.map(x=>String(x??"").replace(/[\\/:*?"<>|\u0000-\u001f]+/g,"-").replace(/\s+/g," ").trim()).filter(Boolean).join("-").replace(/-{2,}/g,"-").replace(/^[-. ]+|[-. ]+$/g,"").slice(0,150)+".pdf";
-/* html may be a list of documents (e.g. the three copies of a tax invoice): each one starts on a new page of the same PDF */
 async function savePDF(html,filename){
   if(!window.jspdf||!window.html2canvas){toast("PDF tools did not load. Check the connection and reload.");return}
   toast("Preparing PDF...");
+  /* html may be a list of documents (e.g. the three copies of a tax invoice): each one starts on a new page of the same PDF */
   const parts=Array.isArray(html)?html:[html];let pdf=null,host=null;
   try{
     for(const part of parts){
@@ -4298,7 +4298,7 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
   if(t==="so"&&isNew&&x.deal){const d=dealBy(x.deal);if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
   sdSave(t);if(t==="inv")sdSave("dc");const saved=A.find(r=>sdId(t,r)===sdId(t,x));sdCur={t,rec:JSON.parse(JSON.stringify(saved)),isNew:false};renderSD(t);
   toast(`${sdNo(t,saved)} saved`);if(isNew&&t!=="so")savePDF(sdDoc(t,saved),pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,saved),saved.cust))}
-function sdDoc(t,x){if(t==="inv")return INV_COPIES.map(c=>docTaxInvoice(x,c));const dD=t==="dc"?dmon:dmy;const c=custByName(x.cust)||{name:x.cust},cfg=salesCfg(),intra=isIntra(x.cust);
+function sdDoc(t,x){if(t==="inv")return docTaxInvoice(x);const dD=t==="dc"?dmon:dmy;const c=custByName(x.cust)||{name:x.cust},cfg=salesCfg(),intra=isIntra(x.cust);
   const to=`<div><b>${t==="inv"?"Bill to":"To"},</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${t==="inv"?`<br>Place of supply: ${c.gstin&&/^\d\d/.test(c.gstin)?c.gstin.slice(0,2):"27"}${intra?" Maharashtra":""}`:""}</div>`;
   const kv={so:[["Order No.",sdNo(t,x)],["Date",dD(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dD(x.custPODate):"-"],["Job No.",x.job||"-"],["Delivery",x.due?dD(x.due):"-"]],
     dc:[["Challan No.",sdNo(t,x)],["Date",dD(x.date)],["Our order",x.so?soLbl(x.so):"-"],["Vehicle No.",x.vehicle||"-"],["Transporter",x.transporter||"-"],["LR No.",x.lr||"-"]],
@@ -4497,7 +4497,8 @@ function einvRow(x,cols){if(!x||!String(x.irn||"").trim())return"";const qr=x.qr
   return`<tr class="einv"><td colspan="${cols-1}" style="border-right:none;vertical-align:middle">${gstPdfMark(x)}<table class="ti0 einvt"><tr><td><b>Ack. No.</b></td><td>${esc(x.ackNo||"")}</td></tr><tr><td><b>Ack. Date.</b></td><td>${esc(ackDmy(x.ackDt))}</td></tr><tr><td><b>IRN No.</b></td><td style="word-break:break-all">${esc(x.irn)}</td></tr>${x.eway&&!x.ewbCnl&&x.ewbDt?`<tr><td><b>E-way Bill</b></td><td>${esc(x.eway)} &nbsp; Dt. ${esc(ackDmy(x.ewbDt))}${x.ewbValidTill?` &nbsp; Valid till ${esc(ackDmy(x.ewbValidTill))}`:""}</td></tr>`:""}</table></td><td style="border-left:none;text-align:right;vertical-align:middle;width:30mm">${qr?`<img src="${qr}" style="width:24mm;height:24mm;display:inline-block" alt="e-invoice QR code">`:""}</td></tr>`}
 /* a tax invoice PDF holds three copies, one after another, each starting on a new page (Rule 48 of the CGST Rules) */
 const INV_COPIES=["ORIGINAL FOR RECIPIENT","DUPLICATE FOR TRANSPORTER","TRIPLICATE FOR SUPPLIER"];
-function docTaxInvoice(x,copy=INV_COPIES[0]){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.cust},sh=(x.consignee&&custByName(x.consignee))||c,k=invCalc(x);
+const docTaxInvoice=x=>INV_COPIES.map(c=>taxInvCopy(x,c));
+function taxInvCopy(x,copy){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.cust},sh=(x.consignee&&custByName(x.consignee))||c,k=invCalc(x);
   const party=(p,lab)=>`<b>${lab} : ${esc(p.name)}</b><br>${esc(String(p.addr||"").replace(/\s*\n\s*/g," "))}${p.city&&!(p.addr||"").toUpperCase().includes(String(p.city).toUpperCase())?"<br>"+esc(p.city):""}${p.pin?" - "+esc(p.pin):""}<br>${STATES[stOf(p)]||""}<br>INDIA`;
   const pg=p=>`<table class="ti0"><tr><td><b>GST. No. :</b> ${esc(p.gstin||"Unregistered")}</td><td><b>PAN No. :</b> ${esc(panOf(p.gstin))}</td></tr><tr><td colspan="2"><b>Reg.Type :</b> ${p.gstin?"Registered":"Unregistered"}</td></tr><tr><td><b>State Code :</b> ${stOf(p)} ${STATES[stOf(p)]||""}</td><td style="text-align:right">${k.intra?"SC-GST (Local)":"IGST (Inter-state)"}</td></tr></table>`;
   const due=x.payDays!==""&&x.payDays!=null?addDays(x.date,+x.payDays):x.date,qr=x.qr?qrURL(x.qr):"";
