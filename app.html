@@ -3860,7 +3860,10 @@ const dealBy=k=>deals.find(x=>dealKey(x)===String(k));
 const qtPreOf=pl=>{const P=plantBy(pl||"P1")||{};return P.qpre!=null?String(P.qpre):"QT-"};
 const qtNo=d=>(d.pre!=null?d.pre:d.ps?qtPreOf(d.plant):"QT-")+d.no;
 const nextDealNo=pl=>{pl=pl||"P1";const P=plantBy(pl)||{};return Math.max(1000,+P.qLast||0,...deals.filter(d=>(d.plant||"P1")===pl||(pl==="P1"&&!d.ps)).map(d=>+d.no||0))+1};
-const newDeal=()=>{const pl=defPlant();return{_new:true,ps:1,no:nextDealNo(pl),plant:pl,date:today(),cust:"",title:qtTitleFor(pl),stage:"Enquiry",owner:me.name,by:me.name,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:qtTermsFor(pl),log:[]}};
+/* Authorised signatory printed on the quotation: free text, defaults to the name used on the latest quotation of the plant (then any plant, then the user). */
+const qtSignOf=d=>d.sign!=null?String(d.sign):(d.owner==="Old ERP"?"":String(d.owner||""));
+const lastQtSign=pl=>{const by=f=>deals.filter(x=>f(x)&&String(x.sign||"").trim()).sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")))[0];const x=by(x=>x.plant===pl)||by(()=>true);return x?String(x.sign).trim():me.name};
+const newDeal=()=>{const pl=defPlant(),sg=lastQtSign(pl);return{_signDef:sg,_new:true,ps:1,no:nextDealNo(pl),plant:pl,date:today(),cust:"",title:qtTitleFor(pl),stage:"Enquiry",owner:me.name,by:me.name,sign:sg,src:"",ref:"",expClose:"",value:"",gst:18,rev:0,lines:[],terms:qtTermsFor(pl),log:[]}};
 const dealVal=d=>{const L=(d.lines||[]).filter(l=>+l.qty&&+l.rate);return L.length?L.reduce((a,l)=>a+(+l.qty)*(+l.rate),0):(+d.value||0)};
 const fmtL=v=>v>=100000?"₹ "+(v/100000).toFixed(v>=1e7?0:1)+" L":"₹ "+fmt0(Math.round(v));
 const seeAllSales=()=>has("sales.all");
@@ -3923,7 +3926,7 @@ function renderMouldPick(){const P=$("#mouldPick");if(P.hidden)return;
   const msg=!hasQ?"Type the customer name to list the best-matching estimates first.":L.length?`Estimates whose customer name matches the most words of “${esc(mouldQ)}” are listed first.`:"";
   P.innerHTML=head+(mouldEst.note?`<div class="note">${esc(mouldEst.note)}</div>`:"")+(msg?`<div class="note">${msg}</div>`:"")+(L.length?`<div class="tablebox"><table class="mt" style="min-width:900px"><thead><tr><th></th>${hasQ?"<th>Match</th>":""}<th>Estimate</th><th>Date</th><th>Customer</th><th>Part</th><th>Mould No.</th><th>Status</th><th class="num">Price before GST</th><th></th></tr></thead><tbody>${L.map(({e,m})=>{const u=used(e.id),other=u&&!(dealCur&&!dealCur._new&&dealKey(dealCur)===dealKey(u));return `<tr><td><input type="checkbox" style="width:auto" data-mp-sel="${esc(e.id)}"${mouldSel.has(e.id)?" checked":""}${other?" disabled title=\"Already used in "+esc(qtNo(u))+"\"":""}></td>${hasQ?`<td>${m.n?`<span class="chip ${m.n===m.of?"st-PO":"sugg"}">${m.n} of ${m.of} words</span>`:"—"}</td>`:""}<td>${esc(e.no||"—")}</td><td>${esc(e.date)}</td><td>${esc(e.customer)}</td><td>${esc(e.part)}</td><td>${esc(e.mouldNo)}</td><td>${esc(e.status)}</td><td class="num">${e.price==null?"Open and save it in Mould Estimator":"₹ "+fmt(e.price)}</td><td>${other?`<button class="btn" type="button" data-mp-open="${esc(dealKey(u))}">Open ${esc(qtNo(u))}</button>`:`<button class="btn primary" type="button" data-mp-use="${esc(e.id)}">Use</button>`}</td></tr>`}).join("")}</tbody></table></div>`:`<div class="note">${hasQ?`No estimate has a customer matching “${esc(mouldQ)}”. Tick Show all estimates to see every one.`:"No estimates found."}</div>`)+`<div class="note">Only the estimate No., customer, part, mould No., status and price before GST come across. Nothing is changed in Mould Estimator.</div>`}
 function useMouldEst(list){if(!list.length)return;
-  if(!dealCur){dealCur=newDeal();if(qtJW(dealCur)&&plantBy("P2")){dealCur.plant="P2";dealCur.no=nextDealNo("P2");dealCur.terms=QT_TERMS;dealCur.title=""}}
+  if(!dealCur){dealCur=newDeal();if(qtJW(dealCur)&&plantBy("P2")){dealCur.plant="P2";dealCur.no=nextDealNo("P2");dealCur.terms=QT_TERMS;dealCur.title="";dealCur.sign=dealCur._signDef=lastQtSign("P2")}}
   const d=dealCur,e0=list[0],at=new Date().toISOString(),c=e0.customer&&custByName(e0.customer);
   if(!String(d.cust||"").trim())d.cust=c?c.name:String(e0.customer||"").trim();
   const parts=[...new Set(list.map(e=>String(e.part||"").trim()).filter(Boolean))];
@@ -3958,6 +3961,7 @@ function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.in
     <label class="f">Plant<select id="dl-plant"${!d._new&&d.ps?" disabled title=\"Quotation number already given for this plant\"":""}>${plantOpts(d.plant)}</select></label>
     <label class="f">Stage<select id="dl-stage">${STAGES.map(s=>`<option${s===d.stage?" selected":""}>${s}</option>`).join("")}</select></label>
     <label class="f">Salesperson<select id="dl-owner">${owners.map(o=>`<option${o===d.owner?" selected":""}>${esc(o)}</option>`).join("")}</select></label>
+    <label class="f" title="Name printed above Authorised Signatory on the quotation. Starts with the name used on the last quotation.">Authorised signatory<input id="dl-sign" list="dl-signs" value="${esc(qtSignOf(d))}" placeholder="Name printed above Authorised Signatory"><datalist id="dl-signs">${[...new Set(deals.map(x=>String(x.sign||"").trim()).filter(Boolean))].map(x=>`<option value="${esc(x)}">`).join("")}</datalist></label>
     <label class="f">Expected order date<input id="dl-expClose" type="date" value="${esc(d.expClose)}"></label>
     <label class="f">Source<select id="dl-src"><option value="">Choose</option>${SOURCES.map(s=>`<option${s===d.src?" selected":""}>${s}</option>`).join("")}</select></label>
     <label class="f">Customer RFQ / ref.<input id="dl-ref" value="${esc(d.ref)}"></label>
@@ -3979,9 +3983,9 @@ function renderDealForm(){const F=$("#dealForm");if(!dealCur){F.hidden=true;F.in
   </div>`;
   if(ro)F.querySelectorAll("input,select,textarea").forEach(el=>{if(!el.id.startsWith("dl-note"))el.disabled=true});
 }
-const DL_FIELDS=["plant","cust","title","date","stage","owner","expClose","src","ref","value","custPO","custPODate","job","lostWhy","lostNote","gst","rev","terms"];
+const DL_FIELDS=["plant","cust","title","date","stage","owner","expClose","src","ref","value","custPO","custPODate","job","lostWhy","lostNote","gst","rev","terms","sign"];
 $("#dealForm").addEventListener("input",e=>{if(!dealCur)return;const t=e.target;
-  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-plant"){if(dealCur._new&&dealCur.ps)dealCur.no=nextDealNo(dealCur.plant);if([QT_TERMS,JW_QT_TERMS].includes(dealCur.terms))dealCur.terms=qtTermsFor(dealCur.plant);if(["",JW_QT_TITLE].includes(String(dealCur.title||"").trim()))dealCur.title=qtTitleFor(dealCur.plant);qtFillJw(dealCur);renderDealForm()}if(t.id==="dl-stage")renderDealForm();return}
+  if(t.id&&t.id.startsWith("dl-")&&DL_FIELDS.includes(t.id.slice(3))){dealCur[t.id.slice(3)]=t.value;if(t.id==="dl-plant"){if(dealCur._new&&dealCur.ps)dealCur.no=nextDealNo(dealCur.plant);if(dealCur._new&&dealCur.sign===dealCur._signDef)dealCur.sign=dealCur._signDef=lastQtSign(dealCur.plant);if([QT_TERMS,JW_QT_TERMS].includes(dealCur.terms))dealCur.terms=qtTermsFor(dealCur.plant);if(["",JW_QT_TITLE].includes(String(dealCur.title||"").trim()))dealCur.title=qtTitleFor(dealCur.plant);qtFillJw(dealCur);renderDealForm()}if(t.id==="dl-stage")renderDealForm();return}
   const q=t.dataset.q;if(!q)return;const tr=t.closest("tr"),l=dealCur.lines[+tr.dataset.i];l[q]=["qty","rate"].includes(q)?(t.value===""?"":+t.value):t.value;
   tr.querySelector("[data-amt]").textContent=fmt((+l.qty||0)*(+l.rate||0));$("#dl-tot").textContent=fmt(dealCur.lines.reduce((a,x)=>a+(+x.qty||0)*(+x.rate||0),0))});
 $("#dealForm").addEventListener("change",e=>{if(!dealCur)return;const t=e.target;
@@ -4012,7 +4016,7 @@ function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=Str
   if(prev!==d.stage){d.log=d.log||[];d.log.push({at:new Date().toISOString(),by:me.name,text:prev?`Stage changed from ${prev} to ${d.stage}`:`Enquiry created (${d.stage})`})}
   if(["Won","Lost"].includes(d.stage)){if(!["Won","Lost"].includes(prev)||!d.closedAt)d.closedAt=today()}else delete d.closedAt;
   if(d.stage==="Won"&&d.job&&!M.projects.some(p=>key(p.no)===key(d.job))){if(isRole("Admin")){M.projects.push({no:d.job,desc:d.title,cust:d.cust,status:"Active"});saveM();toast(`Job ${d.job} added to Projects`)}else toast(`Ask the admin to add Job ${d.job} in Masters, Projects`)}
-  const {_new,...rec}=d;rec.updatedAt=new Date().toISOString();
+  d.sign=qtSignOf(d).replace(/\s+/g," ").trim();const {_new,_signDef,...rec}=d;rec.updatedAt=new Date().toISOString();
   if(old)Object.assign(old,rec);else{rec.createdAt=rec.updatedAt;deals.unshift(rec)}
   saveDeals();dealCur=JSON.parse(JSON.stringify(rec));dealCur._new=false;renderSales();toast(`${qtNo(rec)} saved`)}
 function renderFups(){const t=today();const L=fups.filter(f=>!f.done&&myFup(f)).sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||"")));
@@ -4115,7 +4119,7 @@ function docQuote(d){const c=custByName(d.cust)||{name:d.cust};const L=(d.lines|
   ${terms.length?`<table class="small"><thead><tr><th style="width:30px">S.N.</th><th>Terms and conditions</th></tr></thead><tbody>${terms.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t)}</td></tr>`).join("")}</tbody></table>`:""}
   <p class="small" style="margin:8px 0">We hope our offer is in line with your requirement and look forward to your valued order.</p>
   <div class="row small" style="justify-content:space-between;margin-top:6px"><span>" Subject to Pune jurisdiction only "</span><b>For ZOOM TECHNOLOGIES</b></div>
-  <div class="row small" style="justify-content:flex-end;margin-top:34px"><span>${esc(d.owner||"")}<br>Authorised Signatory</span></div>`}
+  <div class="row small" style="justify-content:flex-end;margin-top:34px"><span>${esc(qtSignOf(d))}<br>Authorised Signatory</span></div>`}
 
 /* ---------- sales documents: order, challan, invoice ---------- */
 const fyOf=d=>{const y=+d.slice(0,4),m=+d.slice(5,7);const s=m>=4?y:y-1;return String(s%100).padStart(2,"0")+"-"+String((s+1)%100).padStart(2,"0")};
