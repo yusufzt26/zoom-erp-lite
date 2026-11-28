@@ -17,6 +17,15 @@ const ex = [...r.recs].map(([id, data]) => ({ id, data: JSON.parse(JSON.stringif
 d = tallyDiff(ex, r.recs, r.okCos); assert.equal(d.write.length, 0, "nothing changed, nothing written");
 const r2 = tallyRecords(P([]), "x"); d = tallyDiff(ex, r2.recs, r2.okCos); assert.equal(d.del.length, 1, "paid bill disappears");
 const r3 = tallyRecords(P([], false), "x"); d = tallyDiff(ex, r3.recs, r3.okCos); assert.equal(d.del.length, 0, "company not readable: keep its last data");
+// purchase totals by month
+const PP = (pur, purOk = true) => { const p = P([]); p.purFrom = "2025-04-01"; Object.assign(p.companies[0], { pur, purOk }); return p; };
+const r4 = tallyRecords(PP([{ m: "2026-11", t: "pur", amt: 118000, net: 100000, n: 3 }, { m: "2026-11", t: "dn", amt: 11800, net: 10000, n: 1 }, { m: "bad", t: "pur", amt: 1 }, { m: "2026-10", t: "x", amt: 1 }]), "x");
+const P4 = [...r4.recs.values()].filter((x) => x.t === "p");
+assert.equal(P4.length, 2, "bad months and types skipped"); assert.equal(r4.status.purFrom, "2025-04-01"); assert.equal(r4.status.companies[0].pur, 118000); assert.ok(r4.purCos.has("Zoom Technologies"));
+const ex4 = [...r4.recs].map(([id, data]) => ({ id, data: JSON.parse(JSON.stringify(data)) }));
+const r5 = tallyRecords(PP([], false), "x"); d = tallyDiff(ex4, r5.recs, r5.okCos, r5.purCos); assert.equal(d.del.filter((id) => id.startsWith("p:")).length, 0, "purchases not read: keep the last totals");
+const r6 = tallyRecords(P([]), "x"); d = tallyDiff(ex4, r6.recs, r6.okCos, r6.purCos); assert.equal(d.del.filter((id) => id.startsWith("p:")).length, 0, "older sync program: keep the last totals");
+const r7 = tallyRecords(PP([]), "x"); d = tallyDiff(ex4, r7.recs, r7.okCos, r7.purCos); assert.equal(d.del.filter((id) => id.startsWith("p:")).length, 2, "month no longer sent: removed");
 
 if (!process.env.ZPO_DB_URL) { console.log("tally: pure part ok, DB part skipped (set ZPO_DB_URL to a test database)"); process.exit(0); }
 const pg = (await import("pg")).default;

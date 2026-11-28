@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const version = "1.0.0"
+const version = "1.1.0"
 const taskName = "ZT Tally Sync"
 const defaultERP = "https://zoom-erp-lite.netlify.app"
 const voucherDays = 90
@@ -167,6 +167,7 @@ type Payload struct {
 	User      string    `json:"user"`
 	Tally     string    `json:"tally"`
 	From      string    `json:"from"`
+	PurFrom   string    `json:"purFrom"`
 	Error     string    `json:"error,omitempty"`
 	Companies []Company `json:"companies"`
 }
@@ -180,7 +181,7 @@ func syncOnce(c *Config, say func(string, ...any)) (string, error) {
 	now := time.Now()
 	t := newTally(c.Tally)
 	pc, _ := os.Hostname()
-	p := Payload{V: version, At: now.Format(time.RFC3339), PC: pc, User: os.Getenv("USERNAME"), Tally: c.Tally, From: now.AddDate(0, 0, -voucherDays).Format("2006-01-02"), Companies: []Company{}}
+	p := Payload{V: version, At: now.Format(time.RFC3339), PC: pc, User: os.Getenv("USERNAME"), Tally: c.Tally, From: now.AddDate(0, 0, -voucherDays).Format("2006-01-02"), PurFrom: purFrom(now).Format("2006-01-02"), Companies: []Company{}}
 	say("Reading Tally at %s ...", c.Tally)
 	cos, terr := t.Companies()
 	if terr != nil {
@@ -195,7 +196,7 @@ func syncOnce(c *Config, say func(string, ...any)) (string, error) {
 		if co := t.ReadCompany("", now, voucherDays); co.OK {
 			co.Name = "Current company in Tally"
 			say("  Company: (current company)")
-			say("    %d unpaid bills, %d party ledgers, %d receipts/payments", len(co.Bills), len(co.Ledgers), len(co.Vch))
+			say("    %d unpaid bills, %d party ledgers, %d receipts/payments, %s", len(co.Bills), len(co.Ledgers), len(co.Vch), purSay(co))
 			p.Companies, p.Error = append(p.Companies, co), ""
 			cos = []string{co.Name}
 		}
@@ -210,7 +211,7 @@ func syncOnce(c *Config, say func(string, ...any)) (string, error) {
 		say("  Company: %s", name)
 		co := t.ReadCompany(name, now, voucherDays)
 		if co.OK {
-			say("    %d unpaid bills, %d party ledgers, %d receipts/payments", len(co.Bills), len(co.Ledgers), len(co.Vch))
+			say("    %d unpaid bills, %d party ledgers, %d receipts/payments, %s", len(co.Bills), len(co.Ledgers), len(co.Vch), purSay(co))
 		} else {
 			say("    Could not read: %s", co.Error)
 		}
@@ -488,6 +489,16 @@ func main() {
 	header()
 	c, err := loadCfg()
 	if err == nil && c.Key != "" {
+		// a newer copy opened from Downloads: put it in place of the installed one, so the 5-minute task runs the new version
+		if me, e := os.Executable(); e == nil {
+			if a, _ := filepath.Abs(me); !strings.EqualFold(a, exeTarget()) {
+				if _, e := selfInstall(); e != nil {
+					fmt.Printf("  [!] Could not update the installed program (%v). Close this window and open it again in a minute.\n\n", e)
+				} else {
+					fmt.Printf("  [OK] Installed program updated to version %s.\n\n", version)
+				}
+			}
+		}
 		menu(c)
 		return
 	}
@@ -495,3 +506,14 @@ func main() {
 }
 
 func b64(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
+
+func purSay(co Company) string {
+	if !co.PurOK {
+		return "purchases not read (" + co.PurErr + ")"
+	}
+	n := 0
+	for _, p := range co.Pur {
+		n += p.N
+	}
+	return fmt.Sprintf("%d purchase vouchers and debit notes", n)
+}

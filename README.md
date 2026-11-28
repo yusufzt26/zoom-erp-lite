@@ -40,6 +40,13 @@ It signs in with a sync key made by the Admin on the **Tally sync** page (only a
 The Tally sync page shows the data, links each Tally ledger to an ERP customer or supplier (same name, or linked by a person; never guessed), and Home / Dashboard use it for To collect / To pay.
 Build and details: `tools/tally-sync/README.md`.
 
+## Google Sheet link (sales orders and mould tracking, read only)
+
+The team's "Sales Order" Google Sheet (one row per mould: Proforma Number, ZT Mould Number, customer, value, dates, size, scope, dispatch) is linked from **Masters > Import old data > Google Sheet link**.
+The Admin presses *Make sheet key* and pastes the script it shows into the sheet (Extensions > Apps Script, then Run `setupErpLink`). Every 5 minutes the script sends the sheet's visible tabs to `/api/gsheet/push` with the key (`x-sync-key`, `sync_keys.kind='gsheet'`), only when something changed. It never writes to the sheet and the ERP never writes back.
+The server keeps each tab as a read-only `gsheet` record (`netlify/gsheet.mjs`, written only when the tab changed). The app reads moulds from tabs with ZT Mould Number and Customer columns (open tabs first, report tabs that only repeat them are skipped) and shows each mould's tracking on its sales order, its job card and the Mould tracker (Sales orders page).
+With the link turned on, a mould whose job is not on any ERP sales order and whose sheet SO number (SO-245 = J/SO/0245/26-27, FY from Final Data Date) is not in the ERP becomes a sales order marked "from the Google Sheet", and follows later changes in the sheet. Moulds with no SO number get a *Make SO* button instead.
+
 ## Telegram alerts (free) — built, switched off
 
 Telegram is switched off until the owner asks for it: nothing about it shows in the app and nothing is sent. To switch it on, set `TG_ON=true` in `app.html` and the Netlify env var `TELEGRAM_ALERTS=on`. Phone pop-ups below work either way.
