@@ -2566,22 +2566,27 @@ const rqFile=r=>pdfDoc("Purchase-request",r.no,r.dept||r.by,pdfRef(r.job,pdfLine
 async function savePDF(html,filename){
   if(!window.jspdf||!window.html2canvas){toast("PDF tools did not load. Check the connection and reload.");return}
   toast("Preparing PDF...");
-  const host=document.createElement("div");host.style.cssText="position:fixed;left:-10000px;top:0;width:794px";
-  host.innerHTML=`<div class="paper" style="box-shadow:none;width:794px">${html}</div>`;document.body.appendChild(host);
+  /* html may be a list of documents (e.g. the three copies of a tax invoice): each one starts on a new page of the same PDF */
+  const parts=Array.isArray(html)?html:[html];let pdf=null,host=null;
   try{
+    for(const part of parts){
+    host=document.createElement("div");host.style.cssText="position:fixed;left:-10000px;top:0;width:794px";
+    host.innerHTML=`<div class="paper" style="box-shadow:none;width:794px">${part}</div>`;document.body.appendChild(host);
     /* a document wider than A4 portrait (many columns) is widened to fit all columns, then printed landscape and scaled to the page */
     const el=host.firstChild,need=Math.max(794,...[...el.querySelectorAll("table")].map(t=>t.scrollWidth+(el.scrollWidth-el.clientWidth)+60),el.scrollWidth);
     const land=need>820,W=land?Math.max(1123,need):794;if(W!==794){host.style.width=W+"px";el.style.width=W+"px"}
     const canvas=await html2canvas(el,{scale:2,backgroundColor:"#ffffff",useCORS:true,windowWidth:W+40});
-    const pw=land?297:210,ph=land?210:297;
-    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:land?"landscape":"portrait"});const ih=canvas.height*pw/canvas.width;const img=canvas.toDataURL("image/jpeg",0.92);
-    let y=0;for(;;){pdf.addImage(img,"JPEG",0,-y,pw,ih);y+=ph;if(y>=ih-1)break;pdf.addPage()}
+    const pw=land?297:210,ph=land?210:297,ori=land?"landscape":"portrait";
+    if(!pdf)pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:ori});else pdf.addPage("a4",ori);
+    const ih=canvas.height*pw/canvas.width;const img=canvas.toDataURL("image/jpeg",0.92);
+    let y=0;for(;;){pdf.addImage(img,"JPEG",0,-y,pw,ih);y+=ph;if(y>=ih-1)break;pdf.addPage("a4",ori)}
+    host.remove();host=null}
     const blob=pdf.output("blob");
     let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null}catch(e){dl=null}
     if(dl){try{await dl.save({filename,data:blob});toast(`Saved ${filename}`)}catch(e){if(e&&e.code!=="declined")toast("Download is not available in this view")}}
     else if(!inFrame){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();toast(`Saved ${filename}`)}
     else toast("Download is not available in this view");
-  }catch(err){toast("Could not make the PDF. Try again.")}finally{host.remove()}
+  }catch(err){toast("Could not make the PDF. Try again.")}finally{if(host)host.remove()}
 }
 /* delete purchase requests: the requester or their department head may delete while no PO has been made from the request; Admin may delete at any time (the POs stay as they are) */
 const reqPO=r=>saved.find(p=>p.reqNo!=null&&String(p.reqNo)===String(r.no))||(r.poNo?{no:r.poNo}:null);
@@ -4601,7 +4606,10 @@ function qrURL(s){try{const q=qrcode(0,"L");q.addData(String(s));q.make();return
 const ackDmy=s=>{const m=String(s||"").match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}:\d{2}(?::\d{2})?))?/);return m?`${m[3]}/${m[2]}/${m[1]}${m[4]?" "+m[4]:""}`:String(s||"")};
 function einvRow(x,cols){if(!x||!String(x.irn||"").trim())return"";const qr=x.qr?qrURL(x.qr):"";
   return`<tr class="einv"><td colspan="${cols-1}" style="border-right:none;vertical-align:middle">${gstPdfMark(x)}<table class="ti0 einvt"><tr><td><b>Ack. No.</b></td><td>${esc(x.ackNo||"")}</td></tr><tr><td><b>Ack. Date.</b></td><td>${esc(ackDmy(x.ackDt))}</td></tr><tr><td><b>IRN No.</b></td><td style="word-break:break-all">${esc(x.irn)}</td></tr>${x.eway&&!x.ewbCnl&&x.ewbDt?`<tr><td><b>E-way Bill</b></td><td>${esc(x.eway)} &nbsp; Dt. ${esc(ackDmy(x.ewbDt))}${x.ewbValidTill?` &nbsp; Valid till ${esc(ackDmy(x.ewbValidTill))}`:""}</td></tr>`:""}</table></td><td style="border-left:none;text-align:right;vertical-align:middle;width:30mm">${qr?`<img src="${qr}" style="width:24mm;height:24mm;display:inline-block" alt="e-invoice QR code">`:""}</td></tr>`}
-function docTaxInvoice(x){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.cust},sh=(x.consignee&&custByName(x.consignee))||c,k=invCalc(x),ih=invHdr(x),mj=lnMulti(ih);
+/* a tax invoice PDF holds three copies, one after another, each starting on a new page (Rule 48 of the CGST Rules) */
+const INV_COPIES=["ORIGINAL FOR RECIPIENT","DUPLICATE FOR TRANSPORTER","TRIPLICATE FOR SUPPLIER"];
+const docTaxInvoice=x=>INV_COPIES.map(c=>taxInvCopy(x,c));
+function taxInvCopy(x,copy){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.cust},sh=(x.consignee&&custByName(x.consignee))||c,k=invCalc(x),ih=invHdr(x),mj=lnMulti(ih);
   const party=(p,lab)=>`<b>${lab} : ${esc(p.name)}</b><br>${esc(String(p.addr||"").replace(/\s*\n\s*/g," "))}${p.city&&!(p.addr||"").toUpperCase().includes(String(p.city).toUpperCase())?"<br>"+esc(p.city):""}${p.pin?" - "+esc(p.pin):""}<br>${STATES[stOf(p)]||""}<br>INDIA`;
   const pg=p=>`<table class="ti0"><tr><td><b>GST. No. :</b> ${esc(p.gstin||"Unregistered")}</td><td><b>PAN No. :</b> ${esc(panOf(p.gstin))}</td></tr><tr><td colspan="2"><b>Reg.Type :</b> ${p.gstin?"Registered":"Unregistered"}</td></tr><tr><td><b>State Code :</b> ${stOf(p)} ${STATES[stOf(p)]||""}</td><td style="text-align:right">${k.intra?"SC-GST (Local)":"IGST (Inter-state)"}</td></tr></table>`;
   const due=x.payDays!==""&&x.payDays!=null?addDays(x.date,+x.payDays):x.date,qr=x.qr?qrURL(x.qr):"";
@@ -4609,7 +4617,7 @@ function docTaxInvoice(x){const cfg=sellerCfg(x),c=custByName(x.cust)||{name:x.c
   const taxRows=k.groups.map(g=>k.intra?`<tr><td class="tl">C-Gst ${g.rt/2}% On Amt : ${r2(g.base).toFixed(2)}</td><td class="r">${fmt(g.c)}</td></tr><tr><td class="tl">S-Gst ${g.rt/2}% On Amt : ${r2(g.base).toFixed(2)}</td><td class="r">${fmt(g.s)}</td></tr>`:`<tr><td class="tl">I-Gst ${g.rt}% On Amt : ${r2(g.base).toFixed(2)}</td><td class="r">${fmt(g.i)}</td></tr>`).join("");
   const iss=x.createdAt?new Date(x.createdAt):new Date();
   return`<div class="co"><img class="cologo" src="${window.ZT_LOGO}" alt="${COMPANY.name}"><p class="coname">${COMPANY.name}</p><p class="ln">${esc(cfg.sAddr1)}${cfg.sAddr2?",":""}</p><p class="ln">${esc(cfg.sAddr2)}${cfg.sAddr2?", ":""}${esc(cfg.sLoc)} - ${esc(cfg.sPin)}</p><p class="ln">Mob: ${esc(cfg.sPh)}</p><p class="ln">Email: ${esc(cfg.sEm)}</p></div>
-  <div class="tihead"><b>ORIGINAL FOR RECIPIENT</b><span>(U/s 31 of CGST Act &amp; SGST Act R.W. Sec. 20 of IGST Act)</span><b class="tibox">GST Tax Invoice</b></div>
+  <div class="tihead"><b>${esc(copy)}</b><span>(U/s 31 of CGST Act &amp; SGST Act R.W. Sec. 20 of IGST Act)</span><b class="tibox">GST Tax Invoice</b></div>
   <table class="ti"><tr><td><b>GSTIN :</b> ${COMPANY.gstin}</td><td><b>W.E.F.</b> 01/07/2017</td><td><b>State Code :</b> 27 Maharashtra</td><td><b>PAN No.</b> ${COMPANY.pan}</td></tr>
   ${einvRow(x,4)}
   <tr><td colspan="2"><b>Invoice No. :</b> ${esc(invNo(x))} &nbsp;&nbsp; <b>Date :</b> ${dmon(x.date)}</td><td colspan="2"><b>Challan No. :</b> ${esc(invChNo(x,dcs))} &nbsp;&nbsp; <b>Date :</b> ${dmon(dcs[0]?dcs[0].date:x.date)}</td></tr>
