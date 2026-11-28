@@ -33,6 +33,16 @@ Netlify environment variables (never put these in code):
 
 Test IRNs (sandbox, mock or preview) print "TEST IRN · NOT VALID FOR GST" on the PDF and can be cleared with "Clear test IRN".
 
+## Sending documents (email from each person's own mailbox, or WhatsApp)
+
+Every PDF button (PO, PO list, tax invoice, delivery challan, sales order, quotation, debit/credit note, returnable challan, job work challan, customer statement) has **✉ Send by mail** and **WhatsApp** beside it.
+
+- **Who gets what:** Masters > Suppliers / Customers (and the Sales customer list) > **Contacts**. Each contact has a name, email and mobile, and ticks for the documents they get (supplier: POs, challans, debit notes; customer: quotations, sales orders, challans, invoices, credit notes, statements). A document type nobody is ticked for goes to the party's main email / mobile. A new address typed in the Send window can be remembered for next time.
+- **Email goes from the logged-in person's address in Users & rights**, signed with their name; replies come back to that mailbox. The address can be their own or a department's (purchase@, sales@...): a mailbox is set up once and everyone with that address sends from it. The Admin sees every address in **✉ My email** (who uses it, set up or not) and can set any of them up; others set up their own. Setup: paste an app password (Gmail: myaccount.google.com/apppasswords; Microsoft 365: app password and "Authenticated SMTP"; Zoho / Yahoo / company mail also work). The server works out the SMTP server from the address (and the domain's MX for company domains, else mail.<domain> on 465 then 587), checks the password with the mail server, sends a test email, and stores the password encrypted (AES-256-GCM, key from `MAIL_SECRET` if set, else a random key kept in `mail_settings`). It is never sent back to the browser. If the Admin changes a person's email, they send from the new address once that one is set up. Table `mail_accounts` has one row per address. Every email is logged in `mail_log` (no attachment kept). Code: `netlify/mail.mjs`, `/api/mail` in `api.mjs`.
+- Not set up yet: **Open in my email app** downloads the PDF and opens the person's own email program with To, CC, subject and message filled in.
+- **WhatsApp** saves the PDF and opens WhatsApp (app or web) on the mapped number with the message filled in; the person attaches the PDF and presses send (WhatsApp does not accept a file from a link). On phones, **Share PDF** shares the file itself.
+- Sending a signed PO marks it "Sent to vendor".
+
 ## Tally sync (accounts PC, read-only)
 
 `tools/tally-sync/` is a small Windows program for the PC where Tally runs. Every 5 minutes it reads party ledgers, unpaid bills, receipts and payments from Tally's XML port (9000) and sends them to `/api/tally/push`. It never writes to Tally.
