@@ -701,7 +701,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
     <div class="tablebox"><table class="est" style="min-width:980px"><thead id="buyHead"></thead><tbody id="buyBody"></tbody></table></div>
     <div class="note" id="buyNote"></div>
     <label class="f" style="max-width:760px">Notes for the PO (terms and conditions)<textarea id="buy-notes" rows="2" placeholder="Any comment for the supplier. It goes into the Notes row of the terms on each PO made here, and you can still change it on the PO." style="font:inherit;resize:vertical"></textarea></label>
-    <div class="row"><b id="buy-tot"></b><span style="flex:1"></span><span class="note" id="buy-msg"></span><button class="btn primary" id="btn-buy-make">Make POs</button></div>
+    <div class="row"><b id="buy-tot"></b><span style="flex:1"></span><span class="note" id="buy-msg"></span><button class="btn primary" id="btn-buy-make">Preview POs and send for approval</button></div>
   </div>
 </section>
 
@@ -2153,7 +2153,7 @@ function buyTotals(all){all=all||buyRows();const on=all.filter(b=>b.on),ready=on
   const sups=new Set(out.filter(o=>String(o.sup||"").trim()).map(o=>key(o.sup)+"|"+(o.b.x.r.plant||"P1"))).size;
   $("#buy-tot").textContent=ready.length?`${ready.length} line${ready.length>1?"s":""} ready in all tabs · ₹ ${fmt(out.reduce((a,o)=>a+o.amt,0))} before GST`:on.length?"":"Tick the lines to order now.";
   $("#buy-msg").innerHTML=bad.length?`<span style="color:var(--danger)">${bad.length} ticked line${bad.length>1?"s have":" has"} no supplier, rate or size yet (${[...new Set(bad.map(b=>b.cat))].map(esc).join(", ")}) and will stay pending.</span>`:on.length?"Unticked lines stay pending for the next PO.":"";
-  const B=$("#btn-buy-make");B.textContent=sups?`Preview ${sups} PO${sups>1?"s":""} and send for approval`:"Make POs";B.disabled=!ready.length||!has("po.create")}
+  const B=$("#btn-buy-make");B.textContent=sups?`Preview ${sups} PO${sups>1?"s":""} and send for approval`:"Preview POs and send for approval";B.title=ready.length?"Opens each PO as the approver and supplier will see it. Nothing is saved until you click Send.":"Tick the lines to order, with supplier and rate, to preview the POs";B.disabled=!ready.length||!has("po.create")}
 $("#buyTabs").addEventListener("click",e=>{const b=e.target.closest("[data-btab]");if(b){buyTab=b.dataset.btab;renderBuy()}});
 $("#buy-q").addEventListener("input",e=>{buyQ=e.target.value;renderBuy()});
 const bDraft=k=>buyDraft[k]=buyDraft[k]||{};
@@ -2212,7 +2212,7 @@ function buyPreview(list,on){
   const close=()=>{d.remove();document.removeEventListener("keydown",esc_)},esc_=e=>{if(e.key==="Escape")close()};
   d.addEventListener("click",e=>{if(e.target===d){close();return}const b=e.target.closest("button");if(!b)return;
     if(b.dataset.pj!=null){const t=d.querySelector("#bpv-"+b.dataset.pj);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});return}
-    if(b.dataset.pv==="back"){close();toast("Correct the lines, then click Make POs again");return}
+    if(b.dataset.pv==="back"){close();toast("Correct the lines, then click Preview POs again");return}
     if(b.dataset.pv==="send"){if(!has("po.create"))return;close();buySend(list,on)}});
   document.addEventListener("keydown",esc_);document.body.appendChild(d);d.querySelector('[data-pv="send"]').focus()}
 $("#btn-buy-make").onclick=()=>{
