@@ -1688,7 +1688,7 @@ function renderSaved(){
   L.innerHTML=S.length?ltT(bd?[["Select","sel act"],...PO_COLS]:PO_COLS,S.map(([s,i])=>({c:[...(bd?[poHasGrn(s)&&!poClosable(s)?`<input type="checkbox" disabled title="Material has been received against this PO and it is closed" style="width:18px;height:18px">`:`<input type="checkbox" data-dsel="${esc(s.no)}" aria-label="Select PO ${esc(s.no)}" style="width:18px;height:18px"${delSel.has(String(s.no))?" checked":""}>`]:[]),`${esc(s.no)}<small>${esc(plantName(s.plant))}</small>`,ltPrj(docJob(s))+oldRefNote(s),`${esc(s.sup||"No supplier")}<br><span class="note">${s.reqNo?"Request "+esc(s.reqNo):"Direct"}</span>`,ltD(s.date),ltAmt(s.total),esc(poBy(s)),`${s.status==="Approved"&&!s.closed&&s.recv?stChip(s.recv).replace('<span ','<span title="Approved'+(s.sentAt?", sent to vendor "+dmy(s.sentAt):"")+'" '):s.status==="Approved"&&!s.closed?(s.sentAt?'<span class="chip st-PO" title="Approved, sent to vendor '+dmy(s.sentAt)+'">Sent to vendor</span>':'<span class="chip st-Submitted" title="Approved, not sent to vendor yet">Not sent yet</span>'):stChip(s.status||"Draft")+(s.recv?" "+stChip(s.recv):"")}${payChip(s)}`,ltDT(poUpd(s)),ltActs(`<button class="btn" type="button" data-open="${i}">View</button>`,poPdfBtn(i))]}))):lfNone;
   if(bd)delSelSync();
 }
-function poPdfClick(e){const b=e.target.closest("[data-pdf]");if(!b)return;const p=saved[+b.dataset.pdf];if(p)savePDF(docPO(p),pdfName("PO",p.no,p.sup,p.status==="Approved"?"":String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase()))}
+function poPdfClick(e){const b=e.target.closest("[data-pdf]");if(!b)return;const p=saved[+b.dataset.pdf];if(p)savePDF(docPO(p),poFile(p))}
 const apprTbl=(L,bulk)=>ltT(PO_COLS,L.map(s=>{const i=saved.indexOf(s);return{c:[bulk?`<label style="display:inline-flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-bsel="${esc(s.no)}" style="width:18px;height:18px"${apprSel.has(String(s.no))?" checked":""}>${esc(s.no)}</label>`:esc(s.no),ltPrj(docJob(s)),esc(s.sup||"No supplier"),ltD(s.date),ltAmt(s.total),esc(poBy(s)),stChip(s.status),ltDT(poUpd(s)),ltActs(`<button class="btn${s.status==="Pending approval"?" primary":""}" type="button" data-open="${i}">${s.status==="Pending approval"?"Review":"View"}</button>`,poPdfBtn(i))]}}));
 function apprRow(s){const i=saved.indexOf(s);const last=(s.history||[]).slice(-1)[0]||{};return`<div class="listrow"><b style="font-family:var(--mono)">PO ${esc(s.no)}</b><span class="wide">${[s.sup,docJob(s)].filter(Boolean).map(esc).join(" · ")||"No supplier"} · <span class="note">by ${esc((s.history||[]).find(h=>h.action==="Sent for approval")?.by||"purchaser")}</span></span><span>${stChip(s.status)}</span><span style="font-family:var(--mono);text-align:right">₹ ${fmt(s.total)}</span><button class="btn${s.status==="Pending approval"?" primary":""}" data-open="${i}">${s.status==="Pending approval"?"Review":"Open"}</button></div>`}
 function renderAppr(){
@@ -1896,7 +1896,7 @@ function renderReqList(){
   [...reqSel].forEach(r=>{if(!vis.includes(r)||!canDelReq(r))reqSel.delete(r)});reqSelBtn();
   $("#reqList").innerHTML=vis.length?ltT([["Request No.","no"],["Project"],["Requested by"],["Request date","dt"],["Need by","dt"],["Items","num"],["Status"],["Updated","upd"],["Actions","act"]],vis.map(r=>{const ri=reqs.indexOf(r);return{a:` data-ri="${ri}" aria-selected="${r===cur}" tabindex="0"`,c:[(canDelReq(r)?`<input type="checkbox" data-rsel="${ri}"${reqSel.has(r)?" checked":""} aria-label="Select request ${esc(r.no)} to delete" title="Select to delete" style="width:auto;margin:0 6px 0 0;vertical-align:middle">`:"")+esc(r.no)+(r.cat?`<small>${esc(r.cat)}</small>`:""),ltPrj(r.job),`${esc(r.by||"-")}${r.dept?`<br><span class="note">${esc(r.dept)}</span>`:""}`,ltD(r.date),r.need?ltD(r.need):"-",r.lines.length,stChip(r.status)+reqPendChip(r),ltD([r.apprAt,r.chkAt,r.subAt,r.date].filter(Boolean).sort().pop()),ltActs(`<button class="btn" type="button">View</button>`,`<button class="btn${["Approved","Estimated","PO raised","PO approved"].includes(r.status)?" pdf":""}" type="button" data-rpdf="${ri}">PDF</button>`,reqDelShow(r)?`<button class="btn" type="button" data-rdel="${ri}" style="color:var(--danger);border-color:var(--danger)" title="Delete this request">Delete</button>`:"")]}})):all.length?lfNone:`<div class="empty">${!has("req.create")?"No requests waiting for you yet.":"No requests yet. Click \"New request\" to raise one."}</div>`;
 }
-$("#reqList").addEventListener("click",e=>{const cb=e.target.closest("[data-rsel]");if(cb){const r=reqs[+cb.dataset.rsel];if(r){cb.checked?reqSel.add(r):reqSel.delete(r);reqSelBtn()}return}const db=e.target.closest("[data-rdel]");if(db){const r=reqs[+db.dataset.rdel];if(r)reqDelAsk($("#reqDelSel"),[r]);return}const pb=e.target.closest("[data-rpdf]");if(pb){const r=reqs[+pb.dataset.rpdf];if(r)savePDF(docRequest(r),`Purchase-request-${r.no}.pdf`);return}const row=e.target.closest("[data-ri]");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
+$("#reqList").addEventListener("click",e=>{const cb=e.target.closest("[data-rsel]");if(cb){const r=reqs[+cb.dataset.rsel];if(r){cb.checked?reqSel.add(r):reqSel.delete(r);reqSelBtn()}return}const db=e.target.closest("[data-rdel]");if(db){const r=reqs[+db.dataset.rdel];if(r)reqDelAsk($("#reqDelSel"),[r]);return}const pb=e.target.closest("[data-rpdf]");if(pb){const r=reqs[+pb.dataset.rpdf];if(r)savePDF(docRequest(r),rqFile(r));return}const row=e.target.closest("[data-ri]");if(row){cur=reqs[+row.dataset.ri];renderReq();window.scrollTo(0,0)}});
 $("#reqList").addEventListener("keydown",e=>{if(e.key==="Enter"){const row=e.target.closest("[data-ri]");if(row){cur=reqs[+row.dataset.ri];renderReq()}}});
 ["no","date","by","dept","job","need","plant"].forEach(k=>$("#q-"+k).addEventListener("input",e=>{cur[k]=e.target.value;if(k==="job")$("#q-dept-req").hidden=!!cur.job;cur.example=false;if(cur.status!=="Draft")saveReqs()}));
 $("#q-by").addEventListener("change",()=>{const u=M.users.find(x=>x.name===cur.by);if(u&&u.dept){cur.dept=u.dept;fillReqSelects()}});
@@ -2552,7 +2552,23 @@ function docChallan(c){const mj=lnMulti(c);
   <div class="foot small" style="margin-top:46px"><div>Issued by (Store): <b>${esc(c.by)}</b></div><div style="text-align:right">For ZOOM TECHNOLOGIES<br><br><br>Authorised Signatory</div></div>
   <p class="small" style="margin-top:24px">Receiver's signature &amp; stamp: ____________________________</p>`;
 }
-const pdfName=(...parts)=>parts.map(x=>String(x??"").replace(/[\\/:*?"<>|\u0000-\u001f]+/g,"-").replace(/\s+/g," ").trim()).filter(Boolean).join("-").replace(/-{2,}/g,"-").replace(/^[-. ]+|[-. ]+$/g,"").slice(0,150)+".pdf";
+const pdfName=(...parts)=>parts.map(x=>String(x??"").replace(/[\\/:*?"<>|\u0000-\u001f]+/g,"-").replace(/\s+/g," ").trim()).filter(Boolean).join("-").replace(/-{2,}/g,"-").replace(/^[-. ]+|[-. ]+$/g,"").slice(0,120).replace(/[-. ]+$/,"")+".pdf";
+/* PDF file names: document no. - party - project. The project part is the job number, else a short description (title, purpose, first line) */
+const pdfShort=(v,n)=>{const t=String(v??"").replace(/[\\/:*?"<>|\u0000-\u001f]+/g," ").replace(/\s+/g," ").trim();if(t.length<=n)return t;const c=t.slice(0,n+1),i=c.lastIndexOf(" ");return(i>n/2?c.slice(0,i):t.slice(0,n)).replace(/[-,.;: ]+$/,"")};
+const pdfLine=L=>(L||[]).map(l=>l&&(typeof l==="string"?l:l.desc||l.item||l.name)).find(x=>String(x||"").trim())||"";
+const pdfRef=(job,...alt)=>{const j=String(job??"").trim();if(j)return pdfShort(j,30);const a=alt.find(x=>String(x??"").trim());return a?pdfShort(a,30):""};
+const pdfDoc=(type,no,party,ref,...more)=>pdfName(type,no,pdfShort(party,40),ref,...more);
+/* the project of a PO, challan, sales order or invoice (PO header keeps it in ref, the others in job) */
+/* lines with different projects (picked per line) name the file "Multiple" */
+const pdfPrj=x=>{const J=docJobs(x);return J.length>1?"Multiple":String(J[0]||"").trim()};
+const sdJob=x=>{const j=pdfPrj(x);if(j)return j;const so=x.so!=null&&sorders.find(s=>String(s.no)===String(x.so));if(so&&so.job)return so.job;const d=(x.dc||[]).map(n=>dchallans.find(c=>String(c.no)===String(n))).find(c=>c&&sdJob(c));return d?sdJob(d):""};
+const ntJob=(t,x)=>{if(x.job)return x.job;if(t==="dn"&&x.grn){const g=grns.find(r=>String(r.no)===String(x.grn));return g?g.job||"":""}if(x.inv){const v=invoices.find(r=>ntInvId(r)===x.inv);return v?sdJob(v):""}return""};
+const poFile=p=>pdfDoc("PO",p.no,p.sup,pdfRef(pdfPrj(p),pdfLine(p.lines)),p.status==="Approved"?"":String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase());
+const sdFile=(t,x)=>pdfDoc(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,x),x.cust,pdfRef(sdJob(x),pdfLine(x.lines)));
+const ntFile=(t,x)=>pdfDoc(NT[t].name.replace(/ /g,"-"),ntNo(t,x),x.party,pdfRef(ntJob(t,x),x.reason,pdfLine(x.lines)));
+const jwFile=(c,o)=>pdfDoc("Job-work-return",jwoLbl(c,o),c.cust,pdfRef(pdfPrj(c),pdfLine(c.lines)));
+const rcFile=c=>pdfDoc("Returnable-challan","RC-"+c.no,c.party,pdfRef(pdfPrj(c),c.purpose,pdfLine(c.lines)));
+const rqFile=r=>pdfDoc("Purchase-request",r.no,r.dept||r.by,pdfRef(r.job,pdfLine((r.lines||[]).map(rqText))));
 async function savePDF(html,filename){
   if(!window.jspdf||!window.html2canvas){toast("PDF tools did not load. Check the connection and reload.");return}
   toast("Preparing PDF...");
@@ -2603,9 +2619,9 @@ $("#btn-q-del").onclick=()=>{const r=cur;if(!reqDelShow(r))return;reqDelFor=r;re
 $("#btn-req-delsel").onclick=()=>{if(reqSel.size)reqDelAsk($("#reqDelSel"),[...reqSel])};
 ["#reqDelete","#reqDelSel"].forEach(id=>$(id).addEventListener("click",e=>{const b=e.target.closest("[data-qd]");if(!b)return;const P=$(id);
   if(b.dataset.qd==="cancel"){P.hidden=true;if(id==="#reqDelete")reqDelFor=null;return}reqDelDo(P._list||[])}));
-$("#btn-q-pdf").onclick=()=>{if(cur)savePDF(docRequest(cur),`Purchase-request-${cur.no}.pdf`)};
-$("#btn-e-pdf").onclick=()=>{if(!est.lines.length){toast("Add some lines first");return}savePDF(docEstimate(est),`Pre-estimate-${est.job||est.reqNo||"direct"}.pdf`)};
-$("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),pdfName("PO",po.no,po.sup,po.status==="Approved"?"":String(po.status||"Draft").replace(/\s+/g,"-").toLowerCase()))};
+$("#btn-q-pdf").onclick=()=>{if(cur)savePDF(docRequest(cur),rqFile(cur))};
+$("#btn-e-pdf").onclick=()=>{if(!est.lines.length){toast("Add some lines first");return}savePDF(docEstimate(est),pdfName("Pre-estimate",est.reqNo?"PR-"+est.reqNo:"direct",pdfRef(est.job,pdfLine(est.lines))))};
+$("#btn-po-pdf").onclick=()=>{if(po)savePDF(docPO(po),poFile(po))};
 
 /* ---------- returnable challans ---------- */
 let jwins=store.get("jwins",[]);const saveJw=()=>store.set("jwins",jwins);let jwin=null;
@@ -2655,7 +2671,7 @@ $("#jwForm").addEventListener("click",e=>{const id=e.target.id;
   if(id==="btn-jwo-save"){const c=jwSend,P=jwOutPend(c),qs=c.lines.map((l,i)=>Math.max(0,+($("#jwo"+i).value)||0)),rj=c.lines.map((l,i)=>Math.max(0,+(($("#jwr"+i)||{}).value)||0));
     if(qs.some((q,i)=>q+rj[i]>P[i]+0.0001)){toast("More than what is still with us");return}if(!qs.some(q=>q>0)&&!rj.some(q=>q>0)){toast("Enter the qty being sent back");return}
     c.outs=c.outs||[];const o={n:c.outs.length+1,date:$("#jwo-date").value||today(),vehicle:$("#jwo-vehicle").value.trim(),by:me.name,qty:qs,rej:rj};c.outs.push(o);saveJw();jwSend=null;renderJwin();
-    toast(`Challan ${jwoLbl(c,o)} saved`);savePDF(docJwOut(c,o),pdfName("Job-work-return",jwoLbl(c,o),c.cust));return}
+    toast(`Challan ${jwoLbl(c,o)} saved`);savePDF(docJwOut(c,o),jwFile(c,o));return}
   if(e.target.dataset.jldel!=null){jwin.lines.splice(+e.target.dataset.jldel,1);renderJwForm();return}
   if(id==="btn-jw-line"){jwin.lines.push(jwLine());renderJwForm();return}
   if(id==="btn-jw-save"){const c=jwin;c.lines=c.lines.filter(l=>String(l.desc).trim()&&+l.qty>0);
@@ -2666,7 +2682,7 @@ $("#jwForm").addEventListener("click",e=>{const id=e.target.id;
 ["jw-q","jw-f"].forEach(id=>{const el=$("#"+id);if(el)el.addEventListener(id==="jw-q"?"input":"change",()=>renderJwin())});
 $("#jwList").addEventListener("click",e=>{const a=e.target.dataset.jwinv,d=e.target.dataset.jwdel,O=e.target.dataset.jwout,pd=e.target.dataset.jwpdf,jb=e.target.dataset.jwjob;const F=n=>jwins.find(x=>String(x.no)===n);
   if(O!=null){const c=F(O);if(c){jwin=null;jwSend=c;renderJwForm();$("#jwForm").scrollIntoView({block:"start"})}return}
-  if(pd!=null){const c=F(pd),o=c&&(c.outs||[]).filter(x=>!x.old&&!x.inv&&!x.closed).pop();if(o)savePDF(docJwOut(c,o),pdfName("Job-work-return",jwoLbl(c,o),c.cust));return}
+  if(pd!=null){const c=F(pd),o=c&&(c.outs||[]).filter(x=>!x.old&&!x.inv&&!x.closed).pop();if(o)savePDF(docJwOut(c,o),jwFile(c,o));return}
   if(jb!=null){const c=F(jb);if(!c)return;if(!c.job){const n=prompt(`Job No. for job work ${jwLbl(c)} (${c.cust})`,"");if(!n||!n.trim())return;c.job=n.trim().toUpperCase();saveJw();renderJwin()}
     jobFor(c.job,{cust:c.cust,desc:"Job work: "+c.lines.map(l=>(l.process?l.process+" on ":"")+l.desc).join(", "),jw:c.no,start:c.date});return}
   if(a!=null){const c=jwins.find(x=>String(x.no)===a);if(c)invFromJW(c)}
@@ -2744,7 +2760,7 @@ $("#jwbForm").addEventListener("click",e=>{const id=e.target.id;if(id==="btn-jwb
   const date=$("#jwb-date").value||today(),veh=$("#jwb-veh").value.trim();let ch=false;
   c.lines.forEach((l,i)=>{if(!(+l.rate>0)&&rt[i]>0){l.rate=rt[i];ch=true}});
   if(!qs.some(q=>q>0)){c.outs=c.outs||[];const o={n:c.outs.length+1,date,vehicle:veh,by:me.name,qty:qs,rej:rj};c.outs.push(o);saveJw();jwSB=null;renderJwin();
-    toast(`Challan ${jwoLbl(c,o)} saved. Nothing to bill: all of it was rejected.`);savePDF(docJwOut(c,o),pdfName("Job-work-return",jwoLbl(c,o),c.cust));return}
+    toast(`Challan ${jwoLbl(c,o)} saved. Nothing to bill: all of it was rejected.`);savePDF(docJwOut(c,o),jwFile(c,o));return}
   if(!has("inv.create")){toast("You can't make invoices. Use Send back only, and Accounts will bill it.");return}
   if(ch)saveJw();jwSB=null;renderJwSB();
   const L=c.lines.map((l,i)=>({jwi:i,...(String(l.job||"").trim()?{job:String(l.job).trim()}:{}),desc:`Job work: ${l.process||"processing"} on ${l.desc}`,hsn:l.hsn||"998898",qty:qs[i],unit:l.unit,rate:rt[i]||""})).filter(l=>l.qty>0);
@@ -2773,7 +2789,7 @@ function renderRgpForm(){
 }
 $("#btn-rgp-new").onclick=()=>{rgpMode="new";rgp={no:Math.max(300,...rgps.map(c=>c.no))+1,plant:defPlant(),date:today(),expected:addDays(today(),7),party:"",addr:"",gstin:"",purpose:"",vehicle:"",job:"",by:me.name,status:"Open",returns:[],lines:[{desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0}]};renderRgpForm();$("#rg-party").focus()};
 $("#rgpList").addEventListener("click",e=>{const i=e.target.dataset.rpdf,j=e.target.dataset.rret;
-  if(i!=null){const c=rgps[+i];savePDF(docChallan(c),pdfName("Returnable-challan","RC-"+c.no,c.party))}
+  if(i!=null){const c=rgps[+i];savePDF(docChallan(c),rcFile(c))}
   if(j!=null){rgpMode="ret";rgp=rgps[+j];renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"})}});
 $("#rgpForm").addEventListener("input",e=>{if(rgpMode!=="new"||!rgp)return;const t=e.target;
   if(t.id&&t.id.startsWith("rg-")){const k=t.id.slice(3);rgp[k]=t.value;if(k==="job")ljHint($("#rgpForm"),t.value);if(k==="party"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp){rgp.addr=sp.addr||"";rgp.gstin=sp.gstin||"";$("#rg-addr").value=rgp.addr;const hp=document.activeElement===t;renderRgpForm();if(hp){const n=$("#rg-party");n.focus();n.setSelectionRange(n.value.length,n.value.length)}}}
@@ -2788,7 +2804,7 @@ $("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
     if(!rgp.lines.length){toast("Add at least one item with qty");rgp.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0});renderRgpForm();return}
     if(!rgp.expected){toast("Enter the expected return date");return}
     if(rgp.expected<rgp.date){toast("Return date cannot be before the challan date");return}
-    const c=rgp;rgps.unshift(c);saveRgps();rgp=null;renderRgp();toast(`Challan RC-${c.no} saved`);savePDF(docChallan(c),pdfName("Returnable-challan","RC-"+c.no,c.party));return}
+    const c=rgp;rgps.unshift(c);saveRgps();rgp=null;renderRgp();toast(`Challan RC-${c.no} saved`);savePDF(docChallan(c),rcFile(c));return}
   if(id==="btn-r-ret"){const c=rgp;const qs=c.lines.map((l,i)=>Math.max(0,+$("#rr"+i).value||0));
     if(qs.some((q,i)=>q>(+c.lines[i].qty||0)-(+c.lines[i].ret||0)+0.0001)){toast("Received qty is more than what is still out");return}
     if(!qs.some(q=>q>0)){toast("Enter the qty received back");return}
@@ -2872,7 +2888,7 @@ $("#stk-q").oninput=()=>renderStock();
 $("#stkTable").addEventListener("change",e=>{const k=e.target.dataset.bin;if(k==null)return;bins[k]=e.target.value.trim();saveBins();toast("Location saved")});
 $("#stkTable").addEventListener("click",e=>{const k=e.target.dataset.ledger;if(k==null)return;ledgerK=k;renderLedger();$("#stkLedger").scrollIntoView({block:"start"})});
 $("#stkLedger").addEventListener("click",e=>{if(e.target.id==="btn-led-close"){ledgerK=null;renderLedger()}});
-$("#slipList").addEventListener("click",e=>{const i=e.target.dataset.spdf;if(i==null)return;const s=slips[+i];savePDF(docSlip(s),`${s.type==="Issue"?"Issue-slip":s.type==="Return"?"Return-slip":"Opening-stock"}-${SLIP[s.type].pre}${s.no}.pdf`)});
+$("#slipList").addEventListener("click",e=>{const i=e.target.dataset.spdf;if(i==null)return;const s=slips[+i];savePDF(docSlip(s),pdfDoc(s.type==="Issue"?"Issue-slip":s.type==="Return"?"Return-slip":"Opening-stock",SLIP[s.type].pre+s.no,s.to||s.by,pdfRef(s.job,s.remark,pdfLine(s.lines))))});
 $("#slipForm").addEventListener("input",e=>{if(!slip)return;const t=e.target;
   if(t.id&&t.id.startsWith("sl-")){const k=t.id.slice(3);slip[k]=t.value;if(k==="job"&&slip.type==="Return"){slip.lines=[blankSlipLine()];renderSlipForm();const j=$("#sl-job");j.focus();j.setSelectionRange(j.value.length,j.value.length)}return}
   const f=t.dataset.sl;if(!f||f==="k")return;const tr=t.closest("tr"),l=slip.lines[+tr.dataset.i];l[f]=["qty","rate"].includes(f)?t.value:t.value;
@@ -2894,7 +2910,7 @@ $("#slipForm").addEventListener("click",e=>{const id=e.target.id;
   if(s.type!=="Opening"){const over=Object.keys(need).find(k=>need[k]>slipAvail({k})+0.0001);if(over){const l=s.lines.find(x=>x.k===over);toast(s.type==="Issue"?`Only ${fmt0(slipAvail({k:over}))} ${l.unit} of ${l.desc} in stock`:`Only ${fmt0(slipAvail({k:over}))} ${l.unit} of ${l.desc} was issued to ${s.job}`);renderSlipForm();return}}
   s.lines.forEach(l=>{l.qty=+l.qty;l.rate=+l.rate||0;if(s.type==="Opening"&&l.loc){bins[l.k]=l.loc;saveBins()}});
   s.createdAt=new Date().toISOString();slips.unshift(s);saveSlips();slip=null;renderStock();
-  toast(`${SLIP[s.type].pre}${s.no} saved`);if(s.type!=="Opening")savePDF(docSlip(s),`${s.type==="Issue"?"Issue-slip":"Return-slip"}-${SLIP[s.type].pre}${s.no}.pdf`)});
+  toast(`${SLIP[s.type].pre}${s.no} saved`);if(s.type!=="Opening")savePDF(docSlip(s),pdfDoc(s.type==="Issue"?"Issue-slip":"Return-slip",SLIP[s.type].pre+s.no,s.to||s.by,pdfRef(s.job,s.remark,pdfLine(s.lines))))});
 function docSlip(s){const T=SLIP[s.type];const tot=s.lines.reduce((a,l)=>a+l.qty*l.rate,0);const pr=M.projects.find(x=>x.no===s.job);
   return docHead(T.title)+`<div class="two"><div><b>Job No.:</b> ${esc(s.job||"-")}${pr&&pr.desc?" · "+esc(pr.desc):""}<br><b>${s.type==="Issue"?"Issued to":s.type==="Return"?"Returned by":"Entered by"}:</b> ${esc(s.to||s.by)}${s.remark?`<br><b>Remark:</b> ${esc(s.remark)}`:""}</div><div class="kv"><b>Slip No.</b><span>${T.pre}${s.no}</span><b>Date</b><span>${dmy(s.date)}</span><b>Store</b><span>${esc(s.by)}</span></div></div>
   <table><thead><tr><th>Sr</th><th>Item</th><th>Location</th><th>Qty</th><th>Unit</th><th>Rate</th><th>Value</th></tr></thead><tbody>${s.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.desc)}</td><td>${esc(bins[l.k]||"")}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${fmt(l.rate)}</td><td class="r">${fmt(l.qty*l.rate)}</td></tr>`).join("")}
@@ -3395,7 +3411,7 @@ function renderCustSt(){const P=$("#custStPanel");if(!P)return;P.hidden=!(has("a
 $("#custStPanel").addEventListener("click",e=>{const t=e.target.closest("button,a");if(!t)return;
   if(t.dataset.cs!=null){csSel=csSel===t.dataset.cs?null:t.dataset.cs;renderCustSt();if(csSel)$("#custStPanel").scrollIntoView({block:"start"});return}
   if(t.dataset.csrem){csLog(t.dataset.csn,t.dataset.csrem==="wa"?"WhatsApp":"Email");setTimeout(renderCustSt,300);return}
-  if(t.id==="cs-pdf"&&csSel){const fr=$("#cs-from").value||csFrom,to=$("#cs-to").value||csTo;savePDF(docCustStatement(csSel,fr,to),pdfName("Statement",csSel,dmy(to)))}});
+  if(t.id==="cs-pdf"&&csSel){const fr=$("#cs-from").value||csFrom,to=$("#cs-to").value||csTo;savePDF(docCustStatement(csSel,fr,to),pdfName("Statement",pdfShort(csSel,40),dmy(fr),"to",dmy(to)))}});
 $("#custStPanel").addEventListener("input",e=>{if(e.target.id==="cs-q"){csQ=e.target.value;const pos=e.target.selectionStart;renderCustSt();const i=$("#cs-q");if(i){i.focus();try{i.setSelectionRange(pos,pos)}catch(x){}}}});
 $("#custStPanel").addEventListener("change",e=>{if(e.target.id==="cs-from"){csFrom=e.target.value||fyStartOf(today());renderCustSt()}if(e.target.id==="cs-to"){csTo=e.target.value||today();renderCustSt()}});
 
@@ -4025,7 +4041,7 @@ $("#dealForm").addEventListener("click",e=>{if(!dealCur)return;const id=e.target
   if(id==="dlf-add"){const w=$("#dlf-what").value.trim();if(!w){toast("Write what the follow-up is");return}
     fups.push({id:itId(),date:$("#dlf-date").value||today(),time:$("#dlf-time").value,deal:dealKey(d),cust:d.cust,what:w,by:d.owner||me.name,done:false});saveFups();renderSales();toast("Follow-up added");return}
   if(id==="dl-so"){const o=dealBy(dealKey(d));if(o)sdFromDeal(o);return}
-  if(id==="dl-pdf"){const o=dealBy(dealKey(d));savePDF(docQuote({...o,...d}),pdfName("Quotation",qtNo(d)+(+d.rev?"-R"+d.rev:""),d.cust));return}
+  if(id==="dl-pdf"){const o=dealBy(dealKey(d));savePDF(docQuote({...o,...d}),pdfDoc("Quotation",qtNo(d)+(+d.rev?"-R"+d.rev:""),d.cust,pdfRef(d.job,d.title,pdfLine(d.lines))));return}
   if(id==="dl-del"){const dk=dealKey(d),qn=qtNo(d);if(!confirm(`Delete enquiry ${qn} for ${d.cust}? This cannot be undone.`))return;deals=deals.filter(x=>dealKey(x)!==dk);fups=fups.filter(f=>String(f.deal)!==dk);saveDeals();saveFups();dealCur=null;renderSales();toast(`${qn} deleted`);return}
   if(id==="dl-save")saveDeal()});
 function saveDeal(){const d=dealCur;d.cust=String(d.cust||"").trim();d.title=String(d.title||"").trim();
@@ -4237,7 +4253,7 @@ function renderSDList(t){document.querySelectorAll(`[data-sdnew="${t}"]`).forEac
   $(`#${t}-list`).innerHTML=A.length?ltT(COLS,A.slice(0,limN("sd-"+t,200)).map(x=>({c:row(x)})))+limMore("sd-"+t,A.length,200,()=>renderSDList(t)):(A0.length?lfNone:`<div class="empty">None yet.</div>`)}
 ["so","dc","inv"].forEach(t=>{$(`#${t}-q`).oninput=()=>renderSDList(t);
   $(`#${t}-list`).addEventListener("click",e=>{const o=e.target.dataset.sdopen,p=e.target.dataset.sdpdf;const x=SD[t].arr().find(r=>sdId(t,r)===(o||p));if(!x)return;
-    if(o){sdOpen(t,x,false)}else savePDF(sdDoc(t,x),pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,x),x.cust))})});
+    if(o){sdOpen(t,x,false)}else savePDF(sdDoc(t,x),sdFile(t,x))})});
 function renderSD(t){renderSDList(t);renderSDForm();if(t==="so")renderGsTrack()}
 function renderSDForm(){["so","dc","inv"].forEach(t=>{const F=$(`#${t}-form`);if(!sdCur||sdCur.t!==t){F.hidden=true;F.innerHTML="";return}});if(!sdCur)return;
   const {t,rec:x,isNew}=sdCur,F=$(`#${t}-form`),ro=isNew?!has(t+".create"):!has(t+".edit");F.hidden=false;const link=t!=="so"&&x.so;
@@ -4292,7 +4308,7 @@ document.addEventListener("paste",e=>{const id=e.target&&e.target.id||"";if(/^sd
     const rd=e.target.closest("[data-rcdel]");if(rd){x.rcpts.splice(+rd.dataset.rcdel,1);renderSDForm();return}
     if(id==="sd-addline"){x.lines.push({desc:"",hsn:"84807100",qty:1,unit:"SET",rate:""});renderSDForm();$(`#sl${x.lines.length-1}d`).focus();return}
     if(e.target.dataset.sldel!=null){x.lines.splice(+e.target.dataset.sldel,1);renderSDForm();return}
-    if(id==="sd-pdf"){savePDF(sdDoc(t,x),pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,x),x.cust));return}
+    if(id==="sd-pdf"){savePDF(sdDoc(t,x),sdFile(t,x));return}
     if(id==="sd-mkcn"){ntFromInv(x);return}
     if(id==="sd-irn-gen"){gstGenIRN("inv",e.target);return}if(id==="sd-irn-cnl"){gstCancelIRN("inv",e.target);return}if(id==="sd-irn-clr"){gstClear("inv");return}
     if(id==="sd-ewb-irn"){gstEwbDlg(e.target);return}if(id==="sd-ewb-cnl"){gstCancelEwb(e.target);return}
@@ -4318,7 +4334,7 @@ function sdSaveCur(){const {t,rec:x,isNew}=sdCur;x.cust=String(x.cust||"").trim(
   if(t==="inv"&&isNew&&x.dc)x.dc.forEach(n=>{const d=dchallans.find(r=>String(r.no)===String(n));if(d)d.inv=sdId("inv",x)});
   if(t==="so"&&isNew&&x.deal){const d=dealBy(x.deal);if(d){d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made"});if(d.stage!=="Won"){d.stage="Won";d.closedAt=today()}saveDeals()}}
   sdSave(t);if(t==="inv")sdSave("dc");const saved=A.find(r=>sdId(t,r)===sdId(t,x));sdCur={t,rec:JSON.parse(JSON.stringify(saved)),isNew:false};renderSD(t);
-  toast(`${sdNo(t,saved)} saved`);if(isNew&&t!=="so")savePDF(sdDoc(t,saved),pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,saved),saved.cust))}
+  toast(`${sdNo(t,saved)} saved`);if(isNew&&t!=="so")savePDF(sdDoc(t,saved),sdFile(t,saved))}
 function sdDoc(t,x){if(t==="inv")return docTaxInvoice(x);const dD=t==="dc"?dmon:dmy;const c=custByName(x.cust)||{name:x.cust},cfg=salesCfg(),intra=isIntra(x.cust),mj=lnMulti(x);
   const to=`<div><b>${t==="inv"?"Bill to":"To"},</b><br><b>${esc(c.name)}</b><br>${esc(c.addr||c.city||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}${t==="inv"?`<br>Place of supply: ${c.gstin&&/^\d\d/.test(c.gstin)?c.gstin.slice(0,2):"27"}${intra?" Maharashtra":""}`:""}</div>`;
   const kv={so:[["Order No.",sdNo(t,x)],["Date",dD(x.date)],["Your PO No.",x.custPO||"-"],["PO date",x.custPODate?dD(x.custPODate):"-"],["Job No.",(mj?docJob(x):x.job)||"-"],["Delivery",x.due?dD(x.due):"-"]],
@@ -4567,7 +4583,7 @@ function renderNotes(t){{const pn=($(t==="dn"?"#dnList":"#cnList")||{}).closest;
     return`<div class="listrow"><b style="font-family:var(--mono)">${esc(ntNo(t,x))}<br><span class="note">${esc(plantName(x.plant))}</span></b><span class="wide">${esc(x.party)}${ref?" · "+esc(ref):""}<br><span class="note">${dmy(x.date)} · ${esc(x.reason)}</span></span><span>${t==="cn"?(x.irn?`<span class="chip calc">IRN</span>`:`<span class="chip sugg">IRN pending</span>`):x.reason==="Rejected at GRN"?`<span class="chip calc">For record</span>`:`<span class="chip sugg">Reduces payable</span>`}</span><span class="num">₹ ${fmt0(k.grand)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" type="button" data-ntopen="${esc(ntId(t,x))}">Open</button><button class="btn" type="button" data-ntpdf="${esc(ntId(t,x))}">PDF</button></span></div>`}).join("")+limMore("nt-"+t,A.length,100,()=>renderNotes(t))||`<div class="empty">None yet.</div>`;
   renderNoteForm()}
 ["dn","cn"].forEach(t=>{const L=$(t==="dn"?"#dnList":"#cnList");L.addEventListener("click",e=>{const o=e.target.dataset.ntopen,p=e.target.dataset.ntpdf;const x=NT[t].arr().find(r=>ntId(t,r)===(o||p));if(!x)return;
-  if(o){ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(x))};renderNoteForm();$(t==="dn"?"#dnForm":"#cnForm").scrollIntoView({block:"start"})}else savePDF(docNote(t,x),pdfName(NT[t].name.replace(/ /g,"-"),ntNo(t,x),x.party))})});
+  if(o){ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(x))};renderNoteForm();$(t==="dn"?"#dnForm":"#cnForm").scrollIntoView({block:"start"})}else savePDF(docNote(t,x),ntFile(t,x))})});
 $("#btn-dn-new").onclick=()=>{if(!has("dn.create")){toast("Only accounts can make debit notes");return}ntCur={t:"dn",isNew:true,rec:ntNew("dn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
 $("#btn-cn-new").onclick=()=>{if(!has("cn.create")){toast("You can view but not make credit notes");return}ntCur={t:"cn",isNew:true,rec:ntNew("cn",{plant:defPlant(),lines:[{desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18}]})};renderNoteForm()};
 function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"#cnForm");if(!ntCur||ntCur.t!==t){F.hidden=true;F.innerHTML=""}});if(!ntCur)return;
@@ -4594,7 +4610,7 @@ function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"
     if(id==="nt-close"){ntCur=null;renderNoteForm();return}
     if(id==="nt-addline"){x.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",rate:"",tax:18});renderNoteForm();return}
     if(e.target.dataset.nldel!=null){x.lines.splice(+e.target.dataset.nldel,1);renderNoteForm();return}
-    if(id==="nt-pdf"){savePDF(docNote(t,x),pdfName(NT[t].name.replace(/ /g,"-"),ntNo(t,x),x.party));return}
+    if(id==="nt-pdf"){savePDF(docNote(t,x),ntFile(t,x));return}
     if(id==="nt-irn-gen"){gstGenIRN("cn",e.target);return}if(id==="nt-irn-cnl"){gstCancelIRN("cn",e.target);return}if(id==="nt-irn-clr"){gstClear("cn");return}
     if(id==="nt-json"){einvExportMixed([],[x],`einvoice-${ntNo(t,x).replace(/\//g,"-")}.json`);return}
     if(id==="nt-del"){if(!confirm(`Delete ${ntNo(t,x)}?`))return;const A=NT[t].arr(),i=A.findIndex(r=>ntId(t,r)===ntId(t,x));if(i>=0)A.splice(i,1);store.set(NT[t].coll,A);ntCur=null;renderNotes(t);if(t==="dn")renderAcct();return}
@@ -4602,7 +4618,7 @@ function renderNoteForm(){["dn","cn"].forEach(t=>{const F=$(t==="dn"?"#dnForm":"
       x.lines=x.lines.filter(l=>String(l.desc||"").trim()&&+l.qty>0&&+l.rate>0);if(!x.lines.length){toast("Add at least one line with quantity and rate");renderNoteForm();return}
       delete x._rs;const A=NT[t].arr();x.updatedAt=new Date().toISOString();if(ntCur.isNew){if(t==="cn"){x.fy=fyOf(x.date);x.no=nextCN(x.fy)}else x.no=nextDN();x.createdAt=x.updatedAt;A.unshift(x)}else Object.assign(A.find(r=>ntId(t,r)===ntId(t,x)),x);
       store.set(NT[t].coll,A);const sv=A.find(r=>ntId(t,r)===ntId(t,x));ntCur={t,isNew:false,rec:JSON.parse(JSON.stringify(sv))};renderNotes(t);if(t==="dn"){renderAcct();renderStock&&0}
-      toast(`${ntNo(t,sv)} saved`);savePDF(docNote(t,sv),pdfName(NT[t].name.replace(/ /g,"-"),ntNo(t,sv),sv.party))}})});
+      toast(`${ntNo(t,sv)} saved`);savePDF(docNote(t,sv),ntFile(t,sv))}})});
 function docNote(t,x){const k=ntCalc(t,x),p=t==="dn"?(suppliers.find(s=>key(s.name)===key(x.party))||{name:x.party}):(custByName(x.party)||{name:x.party});
   const ref=t==="dn"?(x.grn?(()=>{const g=grns.find(r=>String(r.no)===String(x.grn));return g?[["Our GRN",`${g.no} · ${dmy(g.date)}`],["Your invoice",`${g.inv||"-"}${g.invDate?" · "+dmy(g.invDate):""}`],["Our PO",String(g.poNo)]]:[]})():[]):(x.inv?(()=>{const v=invoices.find(r=>ntInvId(r)===x.inv);return v?[["Against invoice",`${invNo(v)} · ${dmy(v.date)}`]]:[]})():[]);
 
@@ -5752,8 +5768,8 @@ $("#jobForm").addEventListener("click",e=>{if(!jobCur)return;const id=e.target.i
   if(id==="jb-addop"){j.ops.push({op:"",machine:"",who:"",plan:"",act:"",status:"Pending",start:"",end:"",remark:""});renderJobForm();$(`#jo${j.ops.length-1}o`).focus();return}
   if(id==="jb-route"){DEF_ROUTE.forEach(([op,m])=>{if(!j.ops.some(o=>key(o.op)===key(op)))j.ops.push({op,machine:machines().some(x=>x.name===m)?m:"",who:"",plan:"",act:"",status:"Pending",start:"",end:"",remark:""})});renderJobForm();toast("Standard route added. Remove what this job does not need and fill in plan hours.");return}
   if(e.target.dataset.jodel!=null){j.ops.splice(+e.target.dataset.jodel,1);renderJobForm();return}
-  if(id==="jb-pdf"){savePDF(docJobCard(j),`Job-card-${j.no}.pdf`);return}
-  if(e.target.dataset.qcpdf!=null){const r=j.qc[+e.target.dataset.qcpdf];savePDF(docQC(j,r),`${r.type.replace(/ /g,"-")}-${j.no}-${r.date}.pdf`);return}
+  if(id==="jb-pdf"){savePDF(docJobCard(j),pdfDoc("Job-card",j.no,j.cust,pdfShort(j.desc,30)));return}
+  if(e.target.dataset.qcpdf!=null){const r=j.qc[+e.target.dataset.qcpdf];savePDF(docQC(j,r),pdfDoc(r.type.replace(/ /g,"-"),j.no,j.cust,r.date));return}
   if(id==="qc-add"){const pts=$("#qc-pts").value.trim();if(!pts){toast("Write the points checked");return}j.qc=j.qc||[];j.qc.push({type:$("#qc-type").value,date:$("#qc-date").value||today(),res:$("#qc-res").value,pts,by:me.name});saveJob(true);return}
   if(id==="jb-save")saveJob(false)});
 function saveJob(quiet){const j=jobCur.rec;j.no=String(j.no||"").trim().toUpperCase();if(!j.no){toast("Fill in the Job No.");return}
