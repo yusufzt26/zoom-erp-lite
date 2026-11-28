@@ -1694,21 +1694,26 @@ function pmTotal(p,k,sup){return pmLines(p).reduce((a,{l,d})=>{const pr=pmRate(s
 function pmPick(p,k){const V=pmVendors(k);p.pmVen=p.pmVen||{};if(p.pmVen[k]&&!V.some(v=>key(v)===key(p.pmVen[k])))delete p.pmVen[k];
   if(p.pmVen[k]===undefined&&V.length){const t=V.map(v=>[v,pmTotal(p,k,v)]).filter(x=>x[1]>0).sort((a,b)=>a[1]-b[1]);if(t.length)return t[0][0]}return p.pmVen[k]||""}
 let pmOpen=false;
+const PM_F=[["mt","Thick.","Milling thickness"],["ml","Length","Milling length sides"],["mw","Width","Milling width sides"],["st","Thick.","Surface grinding"]];
 function renderPm(){const P=$("#poPm");if(!po||!pmOpen){P.hidden=true;return}P.hidden=false;const L=pmLines(po),ven={m:pmPick(po,"m"),s:pmPick(po,"s")};
   if(!L.length){P.innerHTML=`<div class="row"><b>Pre-machining</b><span style="flex:1"></span><button class="btn" type="button" data-pmclose>Close</button></div><div class="note">No plate on this PO has a finished size as L x B x H (mm). Open the raw size box on a line (+ raw size) and fill in "Fin".</div>`;return}
   const cb=(i,f,lab)=>`<td style="text-align:center"><input type="checkbox" data-pmi="${i}" data-pmf="${f}" aria-label="${lab}"${pmSel(po.lines[i])[f]?" checked":""} style="width:18px;height:18px"></td>`;
+  /* one-click ticks: a whole plate (row), one face for every plate (column), or everything */
+  const allCb=(kind,v,lab)=>{const S=kind==="pmrow"?PM_F.map(([f])=>pmSel(po.lines[v])[f]):kind==="pmcol"?L.map(x=>pmSel(x.l)[v]):L.flatMap(x=>PM_F.map(([f])=>pmSel(x.l)[f])),on=S.filter(Boolean).length;
+    return`<input type="checkbox" data-${kind}="${esc(v)}" aria-label="${esc(lab)}"${on===S.length?" checked":""}${on&&on<S.length?" data-pmmix":""} style="width:18px;height:18px">`};
   const price=(l,d,k)=>{const sup=ven[k];if(!sup)return`<span class="note">no vendor</span>`;const pr=pmRate(sup,k,d);if(pr==null)return`<span class="note" title="No ${pmSvcName(k).toLowerCase()} rate for ${esc(sup)} at this size">no rate</span>`;const P=pmParts(d,k,pmSel(l),pr);if(!P.length)return"–";
     return`<span title="${esc(P.map(x=>`${x.n}: ${x.a.toFixed(1)} cm² × ${pr} p = ₹${fmt(x.raw)}${x.min?" → minimum ₹"+fmt(x.amt):""}`).join("\n"))}">${P.some(x=>x.min)?'<span style="color:var(--warn,#b26b00)" title="A charge was raised to the minimum">*</span> ':""}${fmt(pmSum(P))}</span>`};
   const vsel=k=>{const V=pmVendors(k);return`<label class="f" style="flex:1 1 240px">${pmSvcName(k)} vendor<select data-pmven="${k}"><option value="">Not needed</option>${V.map(v=>{const t=pmTotal(po,k,v);return`<option value="${esc(v)}"${key(v)===key(ven[k])?" selected":""}>${esc(v)} · ₹${fmt(t)}</option>`}).join("")}</select></label>`};
   const tot=k=>ven[k]?pmTotal(po,k,ven[k]):0,made=(po.pmPOs||[]).filter(n=>saved.some(s=>String(s.no)===String(n)));
   P.innerHTML=`<div class="row"><b>Pre-machining for PO ${esc(po.no)}</b><span class="note">Tick what each plate needs. Priced on the finished size from the vendor rates in Rates &amp; costing, at least ₹${fmt0(pmMin())} a charge.</span><span style="flex:1"></span><button class="btn" type="button" data-pmclose>Close</button></div>
-  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th rowspan="2">Plate</th><th rowspan="2">Finished L × B × H</th><th class="num" rowspan="2">Pcs</th><th colspan="3" style="text-align:center">Milling</th><th style="text-align:center">Surface</th><th class="num" rowspan="2">Milling ₹ / pc</th><th class="num" rowspan="2">Grinding ₹ / pc</th></tr><tr><th>Thick.</th><th>Length</th><th>Width</th><th>Thick.</th></tr></thead>
-  <tbody>${L.map(({l,i,d})=>`<tr><td>${esc(pmName(l))}</td><td style="font-family:var(--mono);white-space:nowrap">${d.L} × ${d.B} × ${d.H}</td><td class="num">${fmt0(pmPcs(l))}</td>${cb(i,"mt","Milling thickness")}${cb(i,"ml","Milling length sides")}${cb(i,"mw","Milling width sides")}${cb(i,"st","Surface grinding")}<td class="num">${price(l,d,"m")}</td><td class="num">${price(l,d,"s")}</td></tr>`).join("")}
-  <tr><td colspan="7"><b>Total</b> <span class="note">before GST · * a charge raised to the minimum · hover a price to see the working</span></td><td class="num"><b>${fmt(tot("m"))}</b></td><td class="num"><b>${fmt(tot("s"))}</b></td></tr></tbody></table></div>
+  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th rowspan="2" style="text-align:center" title="Tick or untick every face of a plate in one click">All<br>${allCb("pmall","","Tick everything for all plates")}</th><th rowspan="2">Plate</th><th rowspan="2">Finished L × B × H</th><th class="num" rowspan="2">Pcs</th><th colspan="3" style="text-align:center">Milling</th><th style="text-align:center">Surface</th><th class="num" rowspan="2">Milling ₹ / pc</th><th class="num" rowspan="2">Grinding ₹ / pc</th></tr><tr>${PM_F.map(([f,h,lab])=>`<th style="text-align:center">${h}<br>${allCb("pmcol",f,lab+" for all plates")}</th>`).join("")}</tr></thead>
+  <tbody>${L.map(({l,i,d})=>`<tr><td style="text-align:center">${allCb("pmrow",i,"Tick everything for "+pmName(l))}</td><td>${esc(pmName(l))}</td><td style="font-family:var(--mono);white-space:nowrap">${d.L} × ${d.B} × ${d.H}</td><td class="num">${fmt0(pmPcs(l))}</td>${cb(i,"mt","Milling thickness")}${cb(i,"ml","Milling length sides")}${cb(i,"mw","Milling width sides")}${cb(i,"st","Surface grinding")}<td class="num">${price(l,d,"m")}</td><td class="num">${price(l,d,"s")}</td></tr>`).join("")}
+  <tr><td colspan="8"><b>Total</b> <span class="note">before GST · * a charge raised to the minimum · hover a price to see the working</span></td><td class="num"><b>${fmt(tot("m"))}</b></td><td class="num"><b>${fmt(tot("s"))}</b></td></tr></tbody></table></div>
   <div class="row">${vsel("m")}${vsel("s")}</div>
   ${!pmVendors("m").length&&!pmVendors("s").length?`<div class="note">No pre-machining rates yet. Add them in Purchase &gt; Rates &amp; costing &gt; Pre-machining rates.</div>`:""}
   ${made.length?`<div class="note">Already made from this PO: ${made.map(n=>`<button class="btn" type="button" data-pmopen="${esc(n)}" style="font-size:12px;padding:2px 8px">PO ${esc(n)}</button>`).join(" ")}</div>`:""}
-  <div class="row"><span style="flex:1"></span>${has("po.create")?`<button class="btn primary" type="button" data-pmmake>Make service PO${tot("m")>0&&tot("s")>0?"s":""}</button>`:""}</div>`}
+  <div class="row"><span style="flex:1"></span>${has("po.create")?`<button class="btn primary" type="button" data-pmmake>Make service PO${tot("m")>0&&tot("s")>0?"s":""}</button>`:""}</div>`;
+  P.querySelectorAll("[data-pmmix]").forEach(x=>x.indeterminate=true)}
 /* the service PO: one line per plate with only its final price */
 function pmMake(){const src=po,ven={m:pmPick(src,"m"),s:pmPick(src,"s")},made=[];
   PM_SVC.forEach(([k,svc])=>{const sup=ven[k];if(!sup)return;
@@ -1725,6 +1730,8 @@ function pmMake(){const src=po,ven={m:pmPick(src,"m"),s:pmPick(src,"s")},made=[]
 $("#btn-pm").onclick=()=>{pmOpen=!pmOpen;renderPm();if(pmOpen)$("#poPm").scrollIntoView({block:"nearest"})};
 $("#poPm").addEventListener("change",e=>{const t=e.target;if(!po)return;
   if(t.dataset.pmf){const l=po.lines[+t.dataset.pmi];pmSel(l)[t.dataset.pmf]=t.checked;store.set("po",po);renderPm();return}
+  if(t.dataset.pmrow!=null||t.dataset.pmcol!=null||t.dataset.pmall!=null){const on=t.checked,R=t.dataset.pmrow!=null?[po.lines[+t.dataset.pmrow]]:pmLines(po).map(x=>x.l),F=t.dataset.pmcol!=null?[t.dataset.pmcol]:PM_F.map(([f])=>f);
+    R.forEach(l=>F.forEach(f=>pmSel(l)[f]=on));store.set("po",po);renderPm();return}
   if(t.dataset.pmven){po.pmVen=po.pmVen||{};po.pmVen[t.dataset.pmven]=t.value;store.set("po",po);renderPm()}});
 $("#poPm").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.pmclose!=null){pmOpen=false;renderPm();return}
