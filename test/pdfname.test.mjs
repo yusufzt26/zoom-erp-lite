@@ -10,8 +10,8 @@ const ctx = { sorders: [{ no: 101, job: "ZT2350" }], dchallans: [{ no: 201, so: 
 const f = new Function(...Object.keys(ctx), src.slice(a, b) + "\nreturn {pdfName,pdfShort,pdfRef,pdfDoc,poFile,sdFile,ntFile,jwFile,rcFile,rqFile};")(...Object.values(ctx));
 const ok = (n) => { assert.ok(n.endsWith(".pdf")); assert.ok(n.length <= 124, n); assert.ok(!/[\\/:*?"<>|]/.test(n), n); assert.ok(!/[-. ]\.pdf$/.test(n), n); return n; };
 const eq = (got, want) => { console.log("  " + ok(got)); assert.equal(got, want); };
-eq(f.poFile({ no: 2069, sup: "KIRTI ALLOYS", job: "ZT2350", status: "Approved" }), "PO-2069-KIRTI ALLOYS-ZT2350.pdf");
-eq(f.poFile({ no: 2070, sup: "KIRTI ALLOYS", job: "", status: "Draft", lines: [{ desc: "EN31 round bar dia 60 x 120 long, hardened" }] }), "PO-2070-KIRTI ALLOYS-EN31 round bar dia 60 x 120-draft.pdf");
+eq(f.poFile({ no: 2069, sup: "KIRTI ALLOYS", ref: "ZT2350", status: "Approved" }), "PO-2069-KIRTI ALLOYS-ZT2350.pdf");
+eq(f.poFile({ no: 2070, sup: "KIRTI ALLOYS", ref: "", status: "Draft", lines: [{ desc: "EN31 round bar dia 60 x 120 long, hardened" }] }), "PO-2070-KIRTI ALLOYS-EN31 round bar dia 60 x 120-draft.pdf");
 eq(f.sdFile("inv", { no: "Z1647/26-27", cust: "Jyoti Plastics Pvt. Ltd.", job: "ZT2350" }), "Invoice-Z1647-26-27-Jyoti Plastics Pvt. Ltd.-ZT2350.pdf");
 eq(f.sdFile("dc", { no: 201, cust: "Jyoti Plastics", dc: [] , so: 101 }), "Delivery-challan-DC-201-Jyoti Plastics-ZT2350.pdf");
 eq(f.sdFile("so", { no: 102, cust: "Jyoti Plastics", lines: [{ desc: "Cap mould 4 cavity" }] }), "Sales-order-SO-102-Jyoti Plastics-Cap mould 4 cavity.pdf");

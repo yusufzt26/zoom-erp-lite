@@ -2532,13 +2532,15 @@ const pdfShort=(v,n)=>{const t=String(v??"").replace(/[\\/:*?"<>|\u0000-\u001f]+
 const pdfLine=L=>(L||[]).map(l=>l&&(typeof l==="string"?l:l.desc||l.item||l.name)).find(x=>String(x||"").trim())||"";
 const pdfRef=(job,...alt)=>{const j=String(job??"").trim();if(j)return pdfShort(j,30);const a=alt.find(x=>String(x??"").trim());return a?pdfShort(a,30):""};
 const pdfDoc=(type,no,party,ref,...more)=>pdfName(type,no,pdfShort(party,40),ref,...more);
-const sdJob=x=>{if(x.job)return x.job;const so=x.so!=null&&sorders.find(s=>String(s.no)===String(x.so));if(so&&so.job)return so.job;const d=(x.dc||[]).map(n=>dchallans.find(c=>String(c.no)===String(n))).find(c=>c&&sdJob(c));return d?sdJob(d):""};
+/* the project of a PO, challan, sales order or invoice (PO header keeps it in ref, the others in job) */
+const pdfPrj=x=>String(x.ref||x.job||"").trim();
+const sdJob=x=>{const j=pdfPrj(x);if(j)return j;const so=x.so!=null&&sorders.find(s=>String(s.no)===String(x.so));if(so&&so.job)return so.job;const d=(x.dc||[]).map(n=>dchallans.find(c=>String(c.no)===String(n))).find(c=>c&&sdJob(c));return d?sdJob(d):""};
 const ntJob=(t,x)=>{if(x.job)return x.job;if(t==="dn"&&x.grn){const g=grns.find(r=>String(r.no)===String(x.grn));return g?g.job||"":""}if(x.inv){const v=invoices.find(r=>ntInvId(r)===x.inv);return v?sdJob(v):""}return""};
-const poFile=p=>pdfDoc("PO",p.no,p.sup,pdfRef(p.job,pdfLine(p.lines)),p.status==="Approved"?"":String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase());
+const poFile=p=>pdfDoc("PO",p.no,p.sup,pdfRef(pdfPrj(p),pdfLine(p.lines)),p.status==="Approved"?"":String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase());
 const sdFile=(t,x)=>pdfDoc(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),sdNo(t,x),x.cust,pdfRef(sdJob(x),pdfLine(x.lines)));
 const ntFile=(t,x)=>pdfDoc(NT[t].name.replace(/ /g,"-"),ntNo(t,x),x.party,pdfRef(ntJob(t,x),x.reason,pdfLine(x.lines)));
-const jwFile=(c,o)=>pdfDoc("Job-work-return",jwoLbl(c,o),c.cust,pdfRef(c.job,pdfLine(c.lines)));
-const rcFile=c=>pdfDoc("Returnable-challan","RC-"+c.no,c.party,pdfRef(c.job,c.purpose,pdfLine(c.lines)));
+const jwFile=(c,o)=>pdfDoc("Job-work-return",jwoLbl(c,o),c.cust,pdfRef(pdfPrj(c),pdfLine(c.lines)));
+const rcFile=c=>pdfDoc("Returnable-challan","RC-"+c.no,c.party,pdfRef(pdfPrj(c),c.purpose,pdfLine(c.lines)));
 const rqFile=r=>pdfDoc("Purchase-request",r.no,r.dept||r.by,pdfRef(r.job,pdfLine((r.lines||[]).map(rqText))));
 async function savePDF(html,filename){
   if(!window.jspdf||!window.html2canvas){toast("PDF tools did not load. Check the connection and reload.");return}
