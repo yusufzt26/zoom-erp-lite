@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const src = readFileSync(new URL("../app.html", import.meta.url), "utf8");
 const k0 = src.indexOf("const key="), h0 = src.indexOf("const hdrJob="), h1 = src.indexOf("const jobMatch=");
-const f = new Function("esc", src.slice(k0, src.indexOf("\n", k0)) + "\n" + src.slice(h0, h1) + "\nreturn {hdrJob,lnJob,docJobs,docJob,lnMulti,byLineJob,ljCell};")(s => String(s ?? ""));
+const f = new Function("esc", "const KEYM=new Map();\n" + src.slice(k0, src.indexOf("\n", k0)) + "\n" + src.slice(h0, h1) + "\nreturn {hdrJob,lnJob,docJobs,docJob,lnMulti,byLineJob,ljCell};")(s => String(s ?? ""));
 const po = { ref: "ZT2349", sup: "S", lines: [{ qty: 2, rate: 100 }, { qty: 1, rate: 500, job: "ZT2350" }, { qty: 3, rate: 10, job: " zt2349 " }] };
 assert.equal(f.hdrJob(po), "ZT2349");
 assert.deepEqual(po.lines.map(l => f.lnJob(l, po)), ["ZT2349", "ZT2350", "zt2349"]);

@@ -9,7 +9,7 @@ const ctx = { sorders: [{ no: 101, job: "ZT2350" }], dchallans: [{ no: 201, so: 
   jwoLbl: (c, o) => "JWO-" + c.no + "-" + o.n, rqText: (l) => [l.item, l.desc].filter(Boolean).join(" - ") };
 /* the per-line project helpers (pdfPrj gives "Multiple" when lines carry different projects) */
 const k0 = src.indexOf("const key="), h0 = src.indexOf("const hdrJob="), h1 = src.indexOf("const docJob=");
-const helpers = src.slice(k0, src.indexOf("\n", k0)) + "\n" + src.slice(h0, h1);
+const helpers = "const KEYM=new Map();\n" + src.slice(k0, src.indexOf("\n", k0)) + "\n" + src.slice(h0, h1);
 const f = new Function(...Object.keys(ctx), helpers + "\n" + src.slice(a, b) + "\nreturn {pdfName,pdfShort,pdfRef,pdfDoc,poFile,sdFile,ntFile,jwFile,rcFile,rqFile};")(...Object.values(ctx));
 const ok = (n) => { assert.ok(n.endsWith(".pdf")); assert.ok(n.length <= 124, n); assert.ok(!/[\\/:*?"<>|]/.test(n), n); assert.ok(!/[-. ]\.pdf$/.test(n), n); return n; };
 const eq = (got, want) => { console.log("  " + ok(got)); assert.equal(got, want); };

@@ -6121,12 +6121,18 @@ function sendTo(name,kind,t){const P=sendParty(name,kind);if(!P)return{P:null,li
   return{P,mapped:false,list:em.length||ph?[{name:nm,email:em.join(", "),phone:ph,main:true}]:[]}}
 /* PDF as a file, without downloading it */
 async function pdfBlob(html){if(!window.jspdf||!window.html2canvas)throw userErr("PDF tools did not load. Check the connection and reload.");
-  const host=document.createElement("div");host.style.cssText="position:fixed;left:-10000px;top:0;width:794px";host.innerHTML=`<div class="paper" style="box-shadow:none;width:794px">${html}</div>`;document.body.appendChild(host);
-  try{const el=host.firstChild,need=Math.max(794,...[...el.querySelectorAll("table")].map(t=>t.scrollWidth+(el.scrollWidth-el.clientWidth)+60),el.scrollWidth);
+  /* html may be a list of documents (the three copies of a tax invoice): each one starts on a new page of the same PDF, as in savePDF */
+  const parts=Array.isArray(html)?html:[html];let pdf=null,host=null;
+  try{for(const part of parts){
+    host=document.createElement("div");host.style.cssText="position:fixed;left:-10000px;top:0;width:794px";host.innerHTML=`<div class="paper" style="box-shadow:none;width:794px">${part}</div>`;document.body.appendChild(host);
+    const el=host.firstChild,need=Math.max(794,...[...el.querySelectorAll("table")].map(t=>t.scrollWidth+(el.scrollWidth-el.clientWidth)+60),el.scrollWidth);
     const land=need>820,W=land?Math.max(1123,need):794;if(W!==794){host.style.width=W+"px";el.style.width=W+"px"}
-    const canvas=await html2canvas(el,{scale:2,backgroundColor:"#ffffff",useCORS:true,windowWidth:W+40});const pw=land?297:210,ph=land?210:297;
-    const pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:land?"landscape":"portrait"});const ih=canvas.height*pw/canvas.width;const img=canvas.toDataURL("image/jpeg",0.92);
-    let y=0;for(;;){pdf.addImage(img,"JPEG",0,-y,pw,ih);y+=ph;if(y>=ih-1)break;pdf.addPage()}return pdf.output("blob")}finally{host.remove()}}
+    const canvas=await html2canvas(el,{scale:2,backgroundColor:"#ffffff",useCORS:true,windowWidth:W+40});const pw=land?297:210,ph=land?210:297,ori=land?"landscape":"portrait";
+    if(!pdf)pdf=new window.jspdf.jsPDF({unit:"mm",format:"a4",orientation:ori});else pdf.addPage("a4",ori);
+    const ih=canvas.height*pw/canvas.width;const img=canvas.toDataURL("image/jpeg",0.92);
+    let y=0;for(;;){pdf.addImage(img,"JPEG",0,-y,pw,ih);y+=ph;if(y>=ih-1)break;pdf.addPage("a4",ori)}
+    host.remove();host=null}
+    return pdf.output("blob")}finally{if(host)host.remove()}}
 async function pdfSaveBlob(blob,filename){let dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null}catch(e){dl=null}
   if(dl){try{await dl.save({filename,data:blob});return true}catch(e){return false}}
   if(!inFrame){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();return true}return false}
@@ -6245,22 +6251,22 @@ const sendBtns=(kind,ref,small)=>`<button class="btn" type="button" data-sendm="
 const sdSign=()=>`\n\nRegards,\n${me?me.name:""}${me&&me.email?"\n"+me.email:""}\n${COMPANY.name}`;
 function sendSpec(kind,ref){
   if(kind==="po"){const p=ref==="cur"?po:saved.find(x=>String(x.no)===ref);if(!p)return null;const draft=p.status!=="Approved";
-    return{t:"po",name:"Purchase order",no:p.no,party:p.sup,kind:"sup",html:()=>docPO(p),filename:pdfName("PO",p.no,p.sup,draft?String(p.status||"Draft").replace(/\s+/g,"-").toLowerCase():""),
+    return{t:"po",name:"Purchase order",no:p.no,party:p.sup,kind:"sup",html:()=>docPO(p),filename:poFile(p),
       subject:`Purchase Order ${p.no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nPlease find attached our Purchase Order No. ${p.no} dated ${dmy(p.date)}${p.needBy?", delivery required by "+dmy(p.needBy):""}.\nKindly acknowledge the order and confirm the delivery date.`+sdSign(),
       onSent:p.status==="Approved"?(via,to)=>poMarkSent(p,via):null,onMark:p.status==="Approved"&&!p.sentAt?()=>poMarkSent(p,""):null}}
   if(kind==="sd"){const [t,id]=[ref.slice(0,ref.indexOf(":")),ref.slice(ref.indexOf(":")+1)];const x=(id==="cur"&&sdCur&&sdCur.t===t)?sdCur.rec:SD[t].arr().find(r=>sdId(t,r)===id);if(!x)return null;const no=sdNo(t,x),nm=t==="inv"?"Tax invoice":SD[t].name;
     const intro=t==="inv"?`Please find attached our Tax Invoice No. ${no} dated ${dmy(x.date)}${x.custPO?" against your PO "+x.custPO:""}, for ₹ ${fmt0(invTot(x))}.\nKindly arrange the payment as per the terms.`:t==="dc"?`Please find attached our Delivery Challan No. ${no} dated ${dmy(x.date)}${x.vehicle?" (vehicle "+x.vehicle+")":""}.\nKindly acknowledge receipt of the material.`:`Please find attached our order acknowledgement ${no} dated ${dmy(x.date)}${x.custPO?" for your PO "+x.custPO:""}.`;
-    return{t:t==="dc"?"ch":t,name:nm,no,party:x.cust,kind:"cust",html:()=>sdDoc(t,x),filename:pdfName(t==="inv"?"Invoice":SD[t].name.replace(/ /g,"-"),no,x.cust),subject:`${nm} ${no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\n${intro}`+sdSign()}}
+    return{t:t==="dc"?"ch":t,name:nm,no,party:x.cust,kind:"cust",html:()=>sdDoc(t,x),filename:sdFile(t,x),subject:`${nm} ${no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\n${intro}`+sdSign()}}
   if(kind==="nt"){const [t,id]=[ref.slice(0,2),ref.slice(3)];const x=(id==="cur"&&ntCur&&ntCur.t===t)?ntCur.rec:NT[t].arr().find(r=>ntId(t,r)===id);if(!x)return null;const no=ntNo(t,x),nm=NT[t].name;
-    return{t,name:nm,no,party:x.party,kind:t==="dn"?"sup":"cust",html:()=>docNote(t,x),filename:pdfName(nm.replace(/ /g,"-"),no,x.party),subject:`${nm} ${no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nPlease find attached our ${nm} No. ${no} dated ${dmy(x.date)}${x.reason?" ("+x.reason+")":""}.`+sdSign()}}
+    return{t,name:nm,no,party:x.party,kind:t==="dn"?"sup":"cust",html:()=>docNote(t,x),filename:ntFile(t,x),subject:`${nm} ${no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nPlease find attached our ${nm} No. ${no} dated ${dmy(x.date)}${x.reason?" ("+x.reason+")":""}.`+sdSign()}}
   if(kind==="qt"){const d0=ref==="cur"?dealCur:deals.find(x=>dealKey(x)===ref);if(!d0)return null;const o=dealBy(dealKey(d0)),d={...o,...d0},no=qtNo(d)+(+d.rev?"-R"+d.rev:"");
-    return{t:"qt",name:"Quotation",no,party:d.cust,kind:"cust",html:()=>docQuote(d),filename:pdfName("Quotation",no,d.cust),subject:`Quotation ${no}${d.title?" - "+d.title:""} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nThank you for your enquiry${d.ref?" ("+d.ref+")":""}. Please find attached our Quotation No. ${no}${d.title?" for "+d.title:""}.\nWe look forward to your order.`+sdSign()}}
+    return{t:"qt",name:"Quotation",no,party:d.cust,kind:"cust",html:()=>docQuote(d),filename:pdfDoc("Quotation",no,d.cust,pdfRef(d.job,d.title,pdfLine(d.lines))),subject:`Quotation ${no}${d.title?" - "+d.title:""} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nThank you for your enquiry${d.ref?" ("+d.ref+")":""}. Please find attached our Quotation No. ${no}${d.title?" for "+d.title:""}.\nWe look forward to your order.`+sdSign()}}
   if(kind==="rc"){const c=rgps.find(x=>String(x.no)===ref);if(!c)return null;
-    return{t:"ch",name:"Returnable challan",no:"RC-"+c.no,party:c.party,kind:"sup",html:()=>docChallan(c),filename:pdfName("Returnable-challan","RC-"+c.no,c.party),subject:`Returnable Challan RC-${c.no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nPlease find attached our Returnable Challan RC-${c.no} dated ${dmy(c.date)}${c.purpose?" for "+c.purpose:""}${c.expected?". Kindly return the material by "+dmy(c.expected):""}.`+sdSign()}}
+    return{t:"ch",name:"Returnable challan",no:"RC-"+c.no,party:c.party,kind:"sup",html:()=>docChallan(c),filename:rcFile(c),subject:`Returnable Challan RC-${c.no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nPlease find attached our Returnable Challan RC-${c.no} dated ${dmy(c.date)}${c.purpose?" for "+c.purpose:""}${c.expected?". Kindly return the material by "+dmy(c.expected):""}.`+sdSign()}}
   if(kind==="jw"){const c=jwins.find(x=>String(x.no)===ref),o=c&&(c.outs||[]).filter(x=>!x.old&&!x.inv&&!x.closed).pop();if(!o)return null;const no=jwoLbl(c,o);
-    return{t:"ch",name:"Job work challan",no,party:c.cust,kind:"cust",html:()=>docJwOut(c,o),filename:pdfName("Job-work-return",no,c.cust),subject:`Job work challan ${no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nPlease find attached our challan ${no} for the job work material sent back against your challan ${c.custDC||"-"}.`+sdSign()}}
+    return{t:"ch",name:"Job work challan",no,party:c.cust,kind:"cust",html:()=>docJwOut(c,o),filename:jwFile(c,o),subject:`Job work challan ${no} - ${COMPANY.name}`,text:`Dear Sir/Madam,\n\nPlease find attached our challan ${no} for the job work material sent back against your challan ${c.custDC||"-"}.`+sdSign()}}
   if(kind==="st"){const fr=($("#cs-from")||{}).value||csFrom,to=($("#cs-to")||{}).value||csTo;if(!ref)return null;
-    return{t:"st",name:"Statement",no:dmy(to),party:ref,kind:"cust",html:()=>docCustStatement(ref,fr,to),filename:pdfName("Statement",ref,dmy(to)),subject:`Statement of account - ${COMPANY.name}`,text:remText(ref)+"\n\nThe statement of account is attached.",onSent:(via)=>{try{csLog(ref,via==="WhatsApp"?"WhatsApp":"Email");setTimeout(renderCustSt,300)}catch(e){}}}}
+    return{t:"st",name:"Statement",no:dmy(to),party:ref,kind:"cust",html:()=>docCustStatement(ref,fr,to),filename:pdfName("Statement",pdfShort(ref,40),dmy(fr),"to",dmy(to)),subject:`Statement of account - ${COMPANY.name}`,text:remText(ref)+"\n\nThe statement of account is attached.",onSent:(via)=>{try{csLog(ref,via==="WhatsApp"?"WhatsApp":"Email");setTimeout(renderCustSt,300)}catch(e){}}}}
   return null}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-sendm],[data-sendw]");if(!b)return;e.preventDefault();e.stopPropagation();const v=b.dataset.sendm||b.dataset.sendw,i=v.indexOf("|");
   const s=sendSpec(v.slice(0,i),v.slice(i+1));if(!s){toast("Save the document first");return}docSend(s,b.dataset.sendm?"mail":"wa")},true);
