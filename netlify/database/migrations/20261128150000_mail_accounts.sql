@@ -1,8 +1,9 @@
 -- Sending documents (PO, invoice, challan, quotation...) by email from each person's own mailbox.
--- One row per person: their SMTP settings and app password (encrypted, never sent to the browser).
+-- One row per mailbox (a person's own address, or a department's such as purchase@): SMTP settings and app password
+-- (encrypted, never sent to the browser). Everyone whose email in Users & rights is that address sends from it.
 CREATE TABLE IF NOT EXISTS mail_accounts (
-  name TEXT PRIMARY KEY,
-  email TEXT NOT NULL,
+  email TEXT PRIMARY KEY,
+  set_by TEXT NOT NULL DEFAULT '',
   service TEXT NOT NULL DEFAULT '',
   host TEXT NOT NULL,
   port INT NOT NULL,

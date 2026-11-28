@@ -430,46 +430,59 @@ async function mailSealer() {
 const mxOf = async (email) => { const d = String(email).split("@")[1]; if (!d) return []; try { return (await Promise.race([dns.resolveMx(d), new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 3000))])).map((x) => x.exchange); } catch { return []; } };
 const smtpOf = (a, pass) => nodemailer.createTransport({ host: a.host, port: a.port, secure: a.secure, requireTLS: !a.secure, auth: { user: a.login, pass }, connectionTimeout: 9000, greetingTimeout: 9000, socketTimeout: 20000 });
 async function mailApi(me, m, req) {
-  const u = (await profile(me)) || {}; const myEmail = String(u.email || "").trim();
-  const row = async () => (await q("SELECT email,service,host,port,secure,login,pass_enc,verified_at,last_sent_at FROM mail_accounts WHERE name=$1", [me]))[0] || null;
-  const state = async () => { const a = await row(); const ok = !!a && !!myEmail && a.email.toLowerCase() === myEmail.toLowerCase();
-    return { email: myEmail, ready: ok, account: a ? { email: a.email, service: a.service, host: a.host, port: a.port, at: a.verified_at, lastSent: a.last_sent_at, savesSent: savesSent(a.host) } : null,
-      changed: !!a && !ok && !!myEmail, guess: myEmail ? guessService(myEmail, await mxOf(myEmail)) : "", services: SERVICE_LIST }; };
+  // one mailbox per email address (a person's own, or a department's like purchase@). Everyone whose email in Users & rights is that address sends from it.
+  const ms = await mastersDoc(); const users = ((ms && ms.users) || []).filter(Boolean);
+  const u = users.find((x) => x.name === me) || {}; const myEmail = String(u.email || "").trim(); const admin = await isAdmin(me);
+  const lc = (e) => String(e || "").trim().toLowerCase();
+  const row = async (e) => (e ? (await q("SELECT email,service,host,port,secure,login,pass_enc,set_by,verified_at,last_sent_at FROM mail_accounts WHERE email=$1", [lc(e)]))[0] || null : null);
+  const pub = (a) => a ? { email: a.email, service: a.service, host: a.host, port: a.port, setBy: a.set_by, at: a.verified_at, lastSent: a.last_sent_at, savesSent: savesSent(a.host) } : null;
+  const state = async () => { const a = await row(myEmail);
+    const out = { email: myEmail, ready: !!a, account: pub(a), admin, guess: myEmail ? guessService(myEmail, await mxOf(myEmail)) : "", services: SERVICE_LIST,
+      sharedWith: myEmail ? users.filter((x) => x.name !== me && lc(x.email) === lc(myEmail)).map((x) => x.name) : [] };
+    if (admin) { const set = new Map((await q("SELECT email,set_by,verified_at,last_sent_at FROM mail_accounts")).map((r) => [r.email, r])); const by = new Map();
+      for (const x of users) { const e = lc(x.email); if (!EMAIL_RE.test(e)) continue; if (!by.has(e)) by.set(e, []); by.get(e).push(x.name); }
+      out.mailboxes = [...by].map(([e, names]) => ({ email: e, users: names, ready: set.has(e), setBy: set.get(e)?.set_by || "", lastSent: set.get(e)?.last_sent_at || null })).sort((a, b) => b.users.length - a.users.length || a.email.localeCompare(b.email)); }
+    return out; };
   if (m === "GET") return json(await state());
   const b = await body(req); const action = String(b.action || "");
-  if (action === "remove") { await q("DELETE FROM mail_accounts WHERE name=$1", [me]); return json(await state()); }
+  // which mailbox: your own; the Admin may set up any address that is in Users & rights (e.g. purchase@ for the purchase team)
+  const target = () => { const e = lc(b.email || myEmail); if (e !== lc(myEmail) && !(admin && users.some((x) => lc(x.email) === e))) return null; return e; };
+  if (action === "remove") { const e = target(); if (e === null) return json({ error: "Only the Admin can change another mailbox" }, 403);
+    const a = await row(e); if (a && !admin && a.set_by !== me && lc(myEmail) !== e) return json({ error: "Only the Admin can remove it" }, 403);
+    await q("DELETE FROM mail_accounts WHERE email=$1", [e]); return json(await state()); }
   if (action === "save") {
-    if (!EMAIL_RE.test(myEmail)) return json({ error: "Your email is not in Users & rights yet. Ask the Admin to add it, then set up again." }, 400);
-    const pass = String(b.pass || "").replace(/\s+/g, b.keepSpaces ? " " : ""); if (pass.length < 4) return json({ error: "Paste your app password" }, 400);
-    const service = String(b.service ?? (guessService(myEmail, await mxOf(myEmail)))).slice(0, 20);
+    const e = target(); if (e === null) return json({ error: "Only the Admin can set up another mailbox" }, 403);
+    if (!EMAIL_RE.test(e)) return json({ error: "Your email is not in Users & rights yet. Ask the Admin to add it, then set up again." }, 400);
+    const pass = String(b.pass || "").replace(/\s+/g, ""); if (pass.length < 4) return json({ error: "Paste the app password" }, 400);
+    const service = String(b.service ?? (guessService(e, await mxOf(e)))).slice(0, 20);
     const custom = b.host ? { host: String(b.host).slice(0, 120), port: +b.port || 465 } : {};
     if (custom.host && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(custom.host)) return json({ error: "The SMTP server should look like mail.yourcompany.com" }, 400);
     if (custom.port && ![25, 465, 587, 2525].includes(custom.port)) return json({ error: "The port is usually 465 or 587" }, 400);
-    const login = String(b.login || myEmail).trim().slice(0, 200);
+    const login = String(b.login || e).trim().slice(0, 200);
     let last = null;
-    for (const c of smtpCandidates(myEmail, service, custom)) {
+    for (const c of smtpCandidates(e, service, custom)) {
       const a = { ...c, login };
       try { await smtpOf(a, pass).verify(); const enc = (await mailSealer()).seal(pass);
-        await q("INSERT INTO mail_accounts(name,email,service,host,port,secure,login,pass_enc,verified_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW()) ON CONFLICT (name) DO UPDATE SET email=EXCLUDED.email,service=EXCLUDED.service,host=EXCLUDED.host,port=EXCLUDED.port,secure=EXCLUDED.secure,login=EXCLUDED.login,pass_enc=EXCLUDED.pass_enc,verified_at=NOW(),updated_at=NOW()", [me, myEmail, service, a.host, a.port, a.secure, login, enc]);
-        if (b.test !== false) { try { await smtpOf(a, pass).sendMail({ from: fromLine(me, myEmail), to: myEmail, subject: "ZT-ERP LITE: your email is set up", text: `Hello ${me},\n\nDocuments you send from ZT-ERP LITE (POs, invoices, challans, quotations) will now go from ${myEmail}.\n\nZT-ERP LITE` }); } catch (e) { console.error("mail test", e && e.message); } }
+        await q("INSERT INTO mail_accounts(email,service,host,port,secure,login,pass_enc,set_by,verified_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW()) ON CONFLICT (email) DO UPDATE SET service=EXCLUDED.service,host=EXCLUDED.host,port=EXCLUDED.port,secure=EXCLUDED.secure,login=EXCLUDED.login,pass_enc=EXCLUDED.pass_enc,set_by=EXCLUDED.set_by,verified_at=NOW(),updated_at=NOW()", [e, service, a.host, a.port, a.secure, login, enc, me]);
+        if (b.test !== false) { try { await smtpOf(a, pass).sendMail({ from: fromLine(me, e), to: e, subject: "ZT-ERP LITE: this mailbox is set up", text: `Hello,\n\n${me} set up ${e} in ZT-ERP LITE. POs, invoices, challans and quotations sent from the ERP by ${users.filter((x) => lc(x.email) === e).map((x) => x.name).join(", ") || me} will now go from this address.\n\nZT-ERP LITE` }); } catch (err) { console.error("mail test", err && err.message); } }
         return json({ ok: true, ...(await state()) });
-      } catch (e) { last = e; if (/535|534|auth|credentials|password/i.test(String(e && (e.response || e.message)))) break; }
+      } catch (err) { last = err; if (/535|534|auth|credentials|password/i.test(String(err && (err.response || err.message)))) break; }
     }
     return json({ error: smtpWhy(last, service) }, 400);
   }
   if (action === "send") {
-    const a = await row();
-    if (!a) return json({ error: "Set up your email first (✉ My email at the top)", setup: true }, 400);
-    if (!myEmail || a.email.toLowerCase() !== myEmail.toLowerCase()) return json({ error: `Your email in Users & rights is now ${myEmail || "empty"}. Set up your email again.`, setup: true }, 400);
+    if (!EMAIL_RE.test(myEmail)) return json({ error: "Your email is not in Users & rights yet. Ask the Admin to add it.", setup: true }, 400);
+    const a = await row(myEmail);
+    if (!a) return json({ error: `${myEmail} is not set up for sending yet (✉ My email at the top)`, setup: true }, 400);
     const c = cleanSend(b); if (c.error) return json({ error: c.error }, 400);
-    let pass; try { pass = (await mailSealer()).open(a.pass_enc); } catch { return json({ error: "Your saved email password can no longer be read. Set up your email again.", setup: true }, 400); }
+    let pass; try { pass = (await mailSealer()).open(a.pass_enc); } catch { return json({ error: "The saved mailbox password can no longer be read. Set it up again.", setup: true }, 400); }
     const bcc = c.copyMe && !savesSent(a.host) ? [myEmail] : [];
-    const log = (ok, err) => q("INSERT INTO mail_log(name,from_email,to_list,cc_list,subject,doc_type,doc_no,party,ok,error) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [me, myEmail, c.to.join(", "), c.cc.join(", "), c.subject, c.doc.type, c.doc.no, c.doc.party, ok, err || null]).catch(() => {});
+    const log = (ok, err) => q("INSERT INTO mail_log(name,from_email,to_list,cc_list,subject,doc_type,doc_no,party,ok,error) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [me, a.email, c.to.join(", "), c.cc.join(", "), c.subject, c.doc.type, c.doc.no, c.doc.party, ok, err || null]).catch(() => {});
     try {
-      const info = await smtpOf(a, pass).sendMail({ from: fromLine(me, myEmail), replyTo: myEmail, to: c.to, cc: c.cc.length ? c.cc : undefined, bcc: bcc.length ? bcc : undefined, subject: c.subject, text: c.text,
+      const info = await smtpOf(a, pass).sendMail({ from: fromLine(me, a.email), replyTo: a.email, to: c.to, cc: c.cc.length ? c.cc : undefined, bcc: bcc.length ? bcc : undefined, subject: c.subject, text: c.text,
         attachments: c.files.map((f) => ({ filename: f.filename, content: Buffer.from(f.b64, "base64"), contentType: "application/pdf" })) });
-      await q("UPDATE mail_accounts SET last_sent_at=NOW() WHERE name=$1", [me]); await log(true);
-      return json({ ok: true, from: myEmail, to: c.to, cc: c.cc, id: info && info.messageId });
+      await q("UPDATE mail_accounts SET last_sent_at=NOW() WHERE email=$1", [a.email]); await log(true);
+      return json({ ok: true, from: a.email, to: c.to, cc: c.cc, id: info && info.messageId });
     } catch (e) { const why = smtpWhy(e, a.service); console.error("mail send", e && e.message); await log(false, why); return json({ error: why }, 502); }
   }
   if (action === "log") {
@@ -708,7 +721,7 @@ export default async (req, context) => {
         return json({ ok: true });
       }
       if (action === "disable") { if (n === me) return json({ error: "You cannot disable your own login" }, 400); await q("UPDATE logins SET active=FALSE WHERE name=$1", [n]); await q("DELETE FROM sessions WHERE name=$1", [n]); return json({ ok: true }); }
-      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE tg_links SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_subs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_prefs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE mail_accounts SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); return json({ ok: true }); }
+      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE tg_links SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_subs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_prefs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE mail_accounts SET set_by=$2 WHERE set_by=$1", [n, nn]).catch(() => {}); return json({ ok: true }); }
       return json({ error: "Unknown action" }, 400);
     }
     if (path === "scan-doc" && m === "POST") {
