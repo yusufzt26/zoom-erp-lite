@@ -146,6 +146,7 @@ input.cbx.prj,input.cbx.pl,input.cbx.dep,input.cbx.per{max-width:190px}.who inpu
 table.mt input.cbx{background-color:transparent;border-color:transparent;padding:5px 22px 5px 6px}.paper input.cbx{padding-right:16px;background-position:right 4px center}
 .cblist{position:fixed;z-index:10000;overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;font-size:14px}
 .cblist .cbo{padding:7px 10px;border-radius:5px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cblist .cbo b{font-weight:700;text-decoration:underline}
+.cblist .cbo .cbt,.cblist .cbo .cbs{display:block;overflow:hidden;text-overflow:ellipsis}.cblist .cbo .cbs{font-size:12px;color:var(--muted);margin-top:1px}.cblist .cbo.two{padding:6px 10px}.cblist .cbo.two+.cbo.two{border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
 .cblist .cbo.act{background:var(--sugg-bg)}.cblist .cbo.cur{font-weight:600}.cblist .cbo.dis{opacity:.45;cursor:default}
 .cblist .cbg{padding:6px 10px 2px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;opacity:.6}.cblist .cbnone{padding:8px 10px;opacity:.7}
 .ltbar .ltsum{margin-right:auto;align-self:center;font-size:14px;color:var(--muted)}.ltbar .ltsum b{color:var(--ink);font-family:var(--mono)}
@@ -3008,12 +3009,18 @@ function cbMake(s){if(CBX.has(s)||cbSkip(s))return;
 const cbKey=t=>String(t||"").toLowerCase().replace(/\s+/g," ").trim();
 function cbMatch(text,q){const t=cbKey(text);if(!q)return true;if(t.startsWith(q))return true;
   if(t.split(/[\s\-–—·,()\/:|]+/).some(w=>w&&w.startsWith(q)))return true;return q.length>=3&&t.includes(q)}
+/* an option may carry a second line (data-sub, shown under it) and extra words to search (data-q, not shown);
+   several words typed ("creative zt2350") must each match somewhere in the option */
+const cbOk=(o,t,q)=>{if(!q)return true;const all=[t,o.dataset.sub||"",o.dataset.q||""].join(" · ");if(cbMatch(t,q)||cbMatch(all,q))return true;
+  const W=q.split(" ").filter(Boolean);return W.length>1&&W.every(w=>cbMatch(all,w))};
 function cbFill(){const s=cbCur;if(!s)return;const c=CBX.get(s);const q=c.typing?cbKey(c.i.value):"";
   cbItems=[];let h="",grp=null;
-  for(const o of s.options){if(o.hidden)continue;const t=o.text.trim();if(q&&(!t||!cbMatch(t,q)))continue;
+  for(const o of s.options){if(o.hidden)continue;const t=o.text.trim();if(q&&(!t||!cbOk(o,t,q)))continue;
     const g=o.parentElement.tagName==="OPTGROUP"?o.parentElement.label:null;if(g!==grp){grp=g;if(g)h+=`<div class="cbg">${esc(g)}</div>`}
     const n=cbItems.length;cbItems.push(o);
-    h+=`<div class="cbo${o.disabled?" dis":""}${o.selected?" cur":""}" role="option" data-cbi="${n}" aria-selected="${o.selected}">${t?q?cbHi(t,q):esc(t):"&nbsp;"}</div>`}
+    const sub=o.dataset.sub;
+    h+=sub?`<div class="cbo two${o.disabled?" dis":""}${o.selected?" cur":""}" role="option" data-cbi="${n}" aria-selected="${o.selected}" title="${esc(t+"\n"+sub)}"><span class="cbt">${q?cbHi(t,q):esc(t)}</span><span class="cbs">${q?cbHi(sub,q):esc(sub)}</span></div>`
+      :`<div class="cbo${o.disabled?" dis":""}${o.selected?" cur":""}" role="option" data-cbi="${n}" aria-selected="${o.selected}">${t?q?cbHi(t,q):esc(t):"&nbsp;"}</div>`}
   cbL.innerHTML=h||`<div class="cbnone">No match for “${esc(c.i.value.trim())}”</div>`;
   cbAct=q?cbItems.findIndex(o=>!o.disabled):cbItems.findIndex(o=>o.selected);cbMark();cbPlace()}
 function cbHi(t,q){const k=t.toLowerCase();let at=k.startsWith(q)?0:-1;
@@ -4178,7 +4185,7 @@ function invStart(){const blank=()=>sdOpen("inv",sdNew("inv",{lines:[{desc:"",hs
     ${opt("po","From customer PO",PO.length?`Picks up the customer, PO No. and date, and the items on that PO. A sales order is made for it if there is none yet, so quantities billed are tracked (${PO.length} available)`:"No customer POs recorded on open orders or won quotations",PO.length)}
     <select id="inv-po" hidden>${PO.map(x=>`<option value="${esc(x.k)}">PO ${esc(x.po)}${x.pd?" dt "+dmy(x.pd):""} · ${esc(x.cust)} · ${esc(x.via)}</option>`).join("")}</select>
     ${opt("jw","Job work (customer material inward)",JW.length?`Bills job work on material received on the customer's challan (${JW.length} to bill)`:"No customer material inward waiting to be billed (record it in Store)",JW.length)}
-    <select id="inv-jw" hidden>${JW.map(c=>`<option value="${esc(c.no)}">${esc(jwLbl(c))} · ${esc(c.cust)} · challan ${esc(c.custDC)}${c.custDCDate?" dt "+dmy(c.custDCDate):""}</option>`).join("")}</select>
+    <select id="inv-jw" hidden>${JW.map(jwPickOpt).join("")}</select>
     ${opt("direct","Direct","Start a blank invoice and type in the customer and items",1)}
     <div class="row"><span style="flex:1"></span><button type="button" class="btn" id="inv-src-x">Cancel</button><button class="btn primary" id="inv-src-ok" disabled>Continue</button></div></form>`;
   document.body.appendChild(d);const q=x=>d.querySelector(x);
@@ -4188,6 +4195,15 @@ function invStart(){const blank=()=>sdOpen("inv",sdNew("inv",{lines:[{desc:"",hs
     if(v==="so"){const s=SO.find(x=>String(x.no)===q("#inv-so").value);if(s)sdFromSO("inv",s)}
     else if(v==="po"){const x=PO.find(x=>x.k===q("#inv-po").value);if(x)x.go()}
     else if(v==="jw"){const c=JW.find(x=>String(x.no)===q("#inv-jw").value);if(c)invFromJW(c)}else blank()}}
+/* job work inward in the New invoice picker: line 1 inward, customer, project; line 2 qty still to bill, what it is, their challan.
+   Search also finds every line's material and job work, the project and the customer PO. */
+function jwPickOpt(c){const P=jwPend(c),L=c.lines.map((l,i)=>({l,p:P[i]})).filter(x=>x.p>0),U=[...new Set(L.map(x=>String(x.l.unit||"").trim().toUpperCase()))];
+  const prj=c.job||c.oldRef||"",it=x=>String(x.l.desc||"").trim()+(x.l.process?` (${String(x.l.process).trim()})`:"");
+  const what=L.length?it(L[0])+(L.length>1?` +${L.length-1} more`:""):"";const tot=L.reduce((a,x)=>a+x.p,0);
+  const top=`${jwLbl(c)} · ${c.cust} · ${prj?"Project "+prj:"No project No."}`;
+  const sub=[`${fmt0(tot)}${U.length===1&&U[0]?" "+U[0]:""} to bill`,what,`challan ${c.custDC||"-"}${c.custDCDate?" dt "+dmy(c.custDCDate):""}`].filter(Boolean).join(" · ");
+  const sq=[...c.lines.map(l=>(l.desc||"")+" "+(l.process||"")),c.job,c.oldRef,c.custPO?"PO "+c.custPO:""].filter(Boolean).join(" · ");
+  return`<option value="${esc(c.no)}" data-sub="${esc(sub)}" data-q="${esc(sq)}">${esc(top)}</option>`}
 function invViaSO(d){if(!has("so.create")){invFromDeal(d);return}const x=sdNew("so",{plant:d.plant||defPlant(),cust:d.cust,deal:dealKey(d),custPO:d.custPO||"",custPODate:d.custPODate||"",job:d.job||"",gst:+d.gst||18,lines:(d.lines&&d.lines.length?d.lines:[{desc:d.title,hsn:"84807100",qty:1,unit:"SET",rate:+d.value||""}]).map(l=>({desc:l.desc,hsn:l.hsn||"",qty:+l.qty||1,unit:l.unit||"NOS",rate:+l.rate||""}))});
   x.updatedAt=x.createdAt=new Date().toISOString();x.by=me.name;sorders.unshift(x);store.set("sorders",sorders);d.so=x.no;d.log=d.log||[];d.log.push({at:x.updatedAt,by:me.name,text:"Sales order "+sdNo("so",x)+" made for customer PO "+(d.custPO||"")});saveDeals();
   toast(`Sales order ${sdNo("so",x)} made for PO ${d.custPO}, so billed quantities are tracked`);sdFromSO("inv",x)}
