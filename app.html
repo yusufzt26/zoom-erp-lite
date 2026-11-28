@@ -1008,7 +1008,7 @@ async function cloudRenumber(list){
     if(k==="deals"){const nk=dealKey(obj);fups.forEach(f=>{if(String(f.deal)===c.id)f.deal=nk});saveFups();sorders.forEach(r=>{if(String(r.deal)===c.id)r.deal=nk});store.set("sorders",sorders);if(dealCur&&dealKey(dealCur)===c.id){dealCur.no=obj.no;renderDealForm()}}
     cloud.set(k,arr);toast(`Number ${old} was just used by another user, so this was saved as ${obj.no}`)}
 }
-function cloudApply(r){const k=r.coll,S=SYNC[k];if(!S)return false;const kk=k+"\u0001"+r.id;if(cloud.pending.has(kk))return false;
+function cloudApply(r){const k=r.coll,S=SYNC[k];if(!S)return false;dropIdx(k);const kk=k+"\u0001"+r.id;if(cloud.pending.has(kk))return false;
   const sh=cloud.shadow[k]||(cloud.shadow[k]={});const s=r.deleted?undefined:JSON.stringify(r.data);if(sh[r.id]===s)return false;
   if(r.deleted)delete sh[r.id];else sh[r.id]=s;
   if(S.doc){if(r.deleted)return false;const m=cloud.cache[k];if(m&&k==="masters"){Object.keys(m).forEach(x=>delete m[x]);Object.assign(m,r.data);migRoles(m)}else if(k==="costing"&&typeof costing!=="undefined"){Object.keys(costing).forEach(x=>delete costing[x]);Object.assign(costing,r.data);costFix();cloud.cache[k]=costing}else cloud.cache[k]=r.data;return true}
@@ -1031,11 +1031,21 @@ function cloudStart(){if(!CLOUD)return;cloudLoad(BOOT.data);
   window.addEventListener("focus",()=>cloudPull());
   window.addEventListener("beforeunload",e=>{if(cloud.pending.size||cloud.busy){cloudFlush();e.preventDefault();e.returnValue=""}})}
 
-const store=CLOUD?{get(k,d){if(k==="me")return BOOT.me;return SYNC[k]?cloud.get(k,d):local.get(k,d)},set(k,v){if(k==="me")return;if(SYNC[k])cloud.set(k,v);else local.set(k,v)}}:local;
+const store0=CLOUD?{get(k,d){if(k==="me")return BOOT.me;return SYNC[k]?cloud.get(k,d):local.get(k,d)},set(k,v){if(k==="me")return;if(SYNC[k])cloud.set(k,v);else local.set(k,v)}}:local;
+const store={get:(k,d)=>store0.get(k,d),set(k,v){dropIdx(k);return store0.set(k,v)}};
 cloudStart();
-const fmt=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmt0=n=>(Math.round((+n||0)*100)/100).toLocaleString("en-IN",{maximumFractionDigits:2});
-const key=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();
+/* one number formatter each, made once (same result as toLocaleString, which makes a new one on every call) */
+const NF2=new Intl.NumberFormat("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}),NF0=new Intl.NumberFormat("en-IN",{maximumFractionDigits:2});
+const fmt=n=>NF2.format(Math.round((+n||0)*100)/100);
+const fmt0=n=>NF0.format(Math.round((+n||0)*100)/100);
+/* key(): names compared without case, spaces or punctuation. Called many thousands of times per screen, so each answer is remembered */
+const KEYM=new Map();
+const key=s=>{const t=String(s||"");if(t.length>160)return t.toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();let v=KEYM.get(t);if(v===undefined){v=t.toUpperCase().replace(/[^A-Z0-9]+/g," ").trim();if(KEYM.size>50000)KEYM.clear();KEYM.set(t,v)}return v};
+/* quick lookups (customer by name, GRNs of a PO ...): built once and reused until the list changes, the data is saved, or the current click/keystroke is done */
+const IDX={};
+function idx(name,arr,build){let c=IDX[name];if(c&&c.arr===arr&&c.n===arr.length)return c.v;c=IDX[name]={arr,n:arr.length,v:build(arr)};
+  if(!idx.q){idx.q=1;queueMicrotask(()=>{idx.q=0;for(const k in IDX)delete IDX[k]})}return c.v}
+const dropIdx=coll=>{for(const k in IDX)if(k.split(":")[0]===coll)delete IDX[k]};
 /* period filter on document lists */
 const PERIODS=[["all","All"],["d1","Today"],["wk","This week"],["tm","This month"],["lm","Last month"],["fy","This year (Apr-Mar)"],["ly","Last year (Apr-Mar)"],["cus","From – To dates"]];
 function perRange(v){const t=today(),y=+t.slice(0,4),m=+t.slice(5,7),p=n=>String(n).padStart(2,"0"),fy=m>=4?y:y-1;
@@ -1083,10 +1093,22 @@ const LIM={},LIMR={};const limN=(id,n)=>LIM[id]||n;
 const limMore=(id,total,n,fn)=>{LIMR[id]=fn;const s=limN(id,n);return total>s?`<div class="row" style="gap:8px;margin-top:6px"><span class="note">Showing the newest ${s} of ${total}. Search or pick a period to narrow it, or</span><button class="btn" type="button" data-limall="${id}">Show all ${total}</button></div>`:""};
 document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-limall]");if(!b)return;const id=b.dataset.limall;LIM[id]=1e9;const y=window.scrollY;if(LIMR[id])LIMR[id]();window.scrollTo(0,y)});
 const ltT=(cols0,rows0)=>{const o=ltOrd(cols0),cols=o.map(i=>cols0[i]),rows=rows0.map(r=>Object.assign({},r,{c:o.map(i=>r.c[i])}));return ltT0(cols,rows,ltFoot(cols,rows))};
-const ltT0=(cols,rows,F={})=>`<div class="ltbar">${F.sum||""}<button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`).join("")}</tbody>${F.foot||""}</table></div>`;
+/* long tables draw the newest LT_CAP rows at once; the rest wait in a <template> (not drawn) until "Show all" or Export to Excel.
+   "Show all" is remembered for that list until the page is reloaded. Totals always count every row. */
+const LT_CAP=200,LTALL=new Set();
+const ltT0=(cols,rows,F={})=>{const tr=r=>`<tr${r.a||""}>${r.c.map((x,i)=>`<td data-l="${cols[i][0]}"${cols[i][1]?` class="${cols[i][1]}"`:""}>${x??""}</td>`).join("")}</tr>`;
+  const id=cols.map(c=>c[0]).join("|"),cut=rows.length>LT_CAP+50&&!LTALL.has(id)&&!rows.slice(LT_CAP).some(r=>/aria-selected="true"/.test(r.a||""));
+  const head=cut?rows.slice(0,LT_CAP):rows;
+  return`<div class="ltbar">${F.sum||""}<button class="btn" type="button" data-ltx title="Download the rows shown, with the current filters, as an Excel file">Export to Excel</button></div><div class="tablebox"><table class="lt" data-ltid="${esc(id)}"><thead><tr>${cols.map(c=>`<th${c[1]?` class="${c[1]}"`:""}>${c[0]}</th>`).join("")}</tr></thead><tbody>${head.map(tr).join("")}${cut?`<template class="ltmore">${rows.slice(LT_CAP).map(tr).join("")}</template>`:""}</tbody>${F.foot||""}</table>${cut?`<div class="row ltmorebar" style="gap:8px;padding:8px"><span class="note">Showing the newest ${LT_CAP} of ${rows.length}. Search or pick a period to narrow it, or</span><button class="btn" type="button" data-ltall>Show all ${rows.length}</button></div>`:""}</div>`};
+/* put the waiting rows of a long table on screen */
+function ltExpand(T){const tp=T&&T.querySelector("tbody > template.ltmore");if(!tp)return;tp.replaceWith(tp.content);const bar=T.parentElement.querySelector(".ltmorebar");if(bar)bar.remove()}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ltall]");if(!b)return;const T=b.closest(".tablebox").querySelector("table.lt");if(!T)return;LTALL.add(T.dataset.ltid||"");b.disabled=true;b.textContent="Showing all…";setTimeout(()=>ltExpand(T),0)});
+/* search boxes: wait until typing pauses before redrawing the list, so each letter does not redraw thousands of rows */
+(()=>{const T=new WeakMap();document.addEventListener("input",e=>{const el=e.target;if(!e.isTrusted||!el||el.tagName!=="INPUT"||!/-q$/.test(el.id||""))return;
+  e.stopImmediatePropagation();clearTimeout(T.get(el));T.set(el,setTimeout(()=>{if(el.isConnected)el.dispatchEvent(new Event("input",{bubbles:true}))},200))},true)})();
 /* Export to Excel: takes the table under the button exactly as shown (filters applied), without the Actions column */
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-ltx]");if(!b)return;const T=b.parentElement.nextElementSibling?.querySelector("table.lt");if(!T)return;
-  if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}
+  if(!window.XLSX){toast("Excel tools did not load. Check the connection and reload.");return}ltExpand(T);
   const ths=[...T.querySelectorAll("thead th")],keep=ths.map(th=>!th.classList.contains("act"));
   const cell=td=>{const t=td.innerText.replace(/\s*\n+\s*/g," · ").trim();if(td.classList.contains("num")){const n=parseFloat(t.replace(/[₹,\s]/g,""));if(/^₹?[\d,.\s-]+$/.test(t)&&!isNaN(n))return n}
     const m=t.match(/^(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})$/);if(m&&MON3.includes(m[2]))return new Date(Date.UTC(+m[3],MON3.indexOf(m[2]),+m[1]));return t==="-"?"":t};
@@ -1100,8 +1122,8 @@ const XL_SKIP='#view-po,#view-est,[id$="Form"],[id$="-form"],.ltbar,.tablebox:ha
 const xlName=el=>((el.closest(".panel,section,.stack")||document).querySelector("h2.sec,h2,h3")?.textContent||"List").trim().replace(/\s+/g," ");
 function xlTargets(){const T=[];document.querySelectorAll(".tablebox:not(:has(table.lt))").forEach(b=>{const t=b.querySelector("table");if(t&&t.tBodies[0]&&t.tBodies[0].rows.length)T.push(b)});
   new Set([...document.querySelectorAll(".listrow")].map(r=>r.parentElement)).forEach(c=>T.push(c));return T.filter(x=>!x.closest(XL_SKIP))}
-function xlEnsure(){xlTargets().forEach(t=>{const pv=t.previousElementSibling;if(pv&&pv.classList.contains("xlbar"))return;t.insertAdjacentHTML("beforebegin",`<div class="ltbar xlbar"><button class="btn" type="button" data-xlx title="Download this list as shown as an Excel file">Export to Excel</button></div>`)});
-  document.querySelectorAll(".xlbar").forEach(b=>{const n=b.nextElementSibling;if(!n||!xlTargets().includes(n))b.remove()})}
+function xlEnsure(){const T=xlTargets(),S=new Set(T);T.forEach(t=>{const pv=t.previousElementSibling;if(pv&&pv.classList.contains("xlbar"))return;t.insertAdjacentHTML("beforebegin",`<div class="ltbar xlbar"><button class="btn" type="button" data-xlx title="Download this list as shown as an Excel file">Export to Excel</button></div>`)});
+  document.querySelectorAll(".xlbar").forEach(b=>{const n=b.nextElementSibling;if(!n||!S.has(n))b.remove()})}
 /* a cut-off cell in a list shows its full text on hover */
 document.addEventListener("mouseover",e=>{const c=e.target.closest&&e.target.closest("table.lt td,.listrow .wide");if(c&&!c.title&&c.scrollWidth>c.clientWidth+1)c.title=c.innerText.replace(/\s+/g," ").trim()});
 {let xt=0;new MutationObserver(()=>{clearTimeout(xt);xt=setTimeout(xlEnsure,120)}).observe(document.body,{childList:true,subtree:true})}
@@ -1705,13 +1727,13 @@ $("#btn-appr-yes").onclick=()=>{
 ["#apprList","#apprDone"].forEach(id=>$(id).addEventListener("click",e=>{poPdfClick(e);const i=e.target.dataset.open;if(i!=null){po=JSON.parse(JSON.stringify(saved[+i]));store.set("po",po);show("po")}}));
 $("#saved-q").addEventListener("input",renderSaved);
 /* bulk delete: Director and Admin can tick several POs on the PO list and delete them in one go */
-const delSel=new Set();let savedShown=[];
+const delSel=new Set();let savedShown=[];const shownSet=()=>idx("shown:set",savedShown,a=>new Set(a));
 const canBulkDel=()=>isRole("Director","Approver","Admin")&&has("po.delete");
-const poHasGrn=p=>grns.some(g=>String(g.poNo)===String(p.no));
-function delOk(){return saved.filter(s=>savedShown.includes(String(s.no))&&!poHasGrn(s))}
+const poHasGrn=p=>grnsOfPO(p.no).length>0;
+function delOk(){return saved.filter(s=>shownSet().has(String(s.no))&&!poHasGrn(s))}
 const poClosable=s=>s.status==="Approved"&&!s.closed;
-function closeOk(){return saved.filter(s=>savedShown.includes(String(s.no))&&poClosable(s))}
-function selOk(){return saved.filter(s=>savedShown.includes(String(s.no))&&(!poHasGrn(s)||poClosable(s)))}
+function closeOk(){return saved.filter(s=>shownSet().has(String(s.no))&&poClosable(s))}
+function selOk(){return saved.filter(s=>shownSet().has(String(s.no))&&(!poHasGrn(s)||poClosable(s)))}
 function delSelSync(){
   const ok=selOk(),ids=new Set(ok.map(s=>String(s.no)));[...delSel].forEach(n=>{if(!ids.has(n))delSel.delete(n)});
   const n=delSel.size,tot=ok.filter(s=>delSel.has(String(s.no))).reduce((a,s)=>a+(+s.total||0),0);
@@ -1955,8 +1977,10 @@ function renderEstReq(){
 /* ---------- store / GRN ---------- */
 const saveGRNs=()=>store.set("grns",grns);
 const lineNet=l=>(+l.rate||0)*(1-(+l.dis||0)/100);
-function acceptedSoFar(poNo,i){const P=saved.find(x=>String(x.no)===String(poNo)),o0=P&&P.lines[i]?+P.lines[i].oldRecv||0:0;
-  const og=P&&P.old?grns.filter(g=>g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0):0,o=Math.max(o0,og);return o+grns.filter(g=>!g.old&&String(g.poNo)===String(poNo)).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
+const poByNo=n=>idx("saved:no",saved,a=>{const m=new Map();a.forEach(x=>{const k=String(x.no);if(!m.has(k))m.set(k,x)});return m}).get(String(n));
+const grnsOfPO=n=>idx("grns:po",grns,a=>{const m=new Map();a.forEach(g=>{const k=String(g.poNo);let L=m.get(k);if(!L)m.set(k,L=[]);L.push(g)});return m}).get(String(n))||[];
+function acceptedSoFar(poNo,i){const P=poByNo(poNo),o0=P&&P.lines[i]?+P.lines[i].oldRecv||0:0,G=grnsOfPO(poNo);
+  const og=P&&P.old?G.filter(g=>g.old).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0):0,o=Math.max(o0,og);return o+G.filter(g=>!g.old).reduce((a,g)=>a+g.lines.filter(l=>l.i===i).reduce((b,l)=>b+(+l.recv||0)-(+l.rej||0),0),0)}
 function pendingLines(p){return p.lines.map((l,i)=>({l,i,acc:acceptedSoFar(p.no,i)})).filter(x=>(+x.l.qty||0)-x.acc>0.0001)}
 function grnFirst(){return !!grn&&serFirst("grn",grn.plant,fyOf(grn.date||today()))}
 function nextGRN(pl,fy){return serNext("grn",pl||"P1",fy)}
@@ -3867,7 +3891,7 @@ const seeAllSales=()=>has("sales.all");
 const salesOwners=()=>M.users.filter(u=>rightsOf(u).includes("page.sales")).map(u=>u.name);
 const myDeal=d=>seeAllSales()||d.owner===me.name||d.by===me.name;
 const myFup=f=>seeAllSales()||f.by===me.name;
-const custByName=n=>customers.find(c=>key(c.name)===key(n));
+const custByName=n=>idx("customers:key",customers,a=>{const m=new Map();a.forEach(c=>{const k=key(c&&c.name);if(!m.has(k))m.set(k,c)});return m}).get(key(n));
 let dealCur=null;
 function salesTiles(){const D=deals.filter(myDeal),t=today(),mo=t.slice(0,7),d90=addDays(t,-90);
   const open=D.filter(d=>!["Won","Lost"].includes(d.stage));const due=fups.filter(f=>!f.done&&myFup(f)&&f.date<=t);
