@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { gstCall, gstStatus } from "../gst/gsp.mjs";
 import { allotPartyCodes } from "../codes.mjs";
 import { tallyRecords, tallyDiff } from "../tally.mjs";
+import { gsRecords, gsDiff, gsScript, GS_MAX } from "../gsheet.mjs";
 import { ALERTS, eligible, wants, alertsFor, linkCode, maskToken, tokenOk, tg, userHas, telegramOn } from "../telegram.mjs";
 import { tgService } from "../tgsend.mjs";
 import { pushService } from "../pushsend.mjs";
@@ -212,18 +213,18 @@ async function restoreApi(me, m, url, req) {
 
 
 // ---------- Tally sync (read-only copy of Tally, sent by the sync program on the accounts PC) ----------
-async function syncKey(req) {
+async function syncKey(req, kind = "tally") {
   const k = String(req.headers.get("x-sync-key") || "").trim(); if (!k || k.length > 200) return null;
-  const r = await q("UPDATE sync_keys SET last_used_at=NOW(), last_pc=$2 WHERE key_hash=$1 AND NOT revoked RETURNING id,label", [sha(k), String(req.headers.get("x-sync-pc") || "").slice(0, 80)]);
+  const r = await q("UPDATE sync_keys SET last_used_at=NOW(), last_pc=$2 WHERE key_hash=$1 AND NOT revoked AND kind=$3 RETURNING id,label", [sha(k), String(req.headers.get("x-sync-pc") || "").slice(0, 80), kind]);
   return r[0] || null;
 }
 async function tallyPush(b, label) {
-  const { status, recs, okCos } = tallyRecords(b, label);
+  const { status, recs, okCos, purCos } = tallyRecords(b, label);
   const c = await pool().connect();
   try {
     await c.query("BEGIN"); await c.query("SELECT pg_advisory_xact_lock(hashtext('tally'))");
     const ex = (await c.query("SELECT id,data FROM records WHERE coll='tally' AND NOT deleted")).rows;
-    const { write, del } = tallyDiff(ex, recs, okCos);
+    const { write, del } = tallyDiff(ex, recs, okCos, purCos);
     const by = "Tally sync" + (status.pc ? " (" + status.pc + ")" : "");
     for (let i = 0; i < write.length; i += 2000) {
       await c.query(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by)
@@ -242,17 +243,56 @@ async function tallyPush(b, label) {
 }
 async function tallyKeyApi(me, m, req) {
   if (!(await isAdmin(me))) return json({ error: "Only the Admin can make or stop Tally sync keys" }, 403);
-  const list = async () => (await q("SELECT id,label,created_by,created_at,last_used_at,last_pc,revoked FROM sync_keys ORDER BY id DESC LIMIT 50")).map((r) => ({ ...r, id: Number(r.id) }));
+  const list = async () => (await q("SELECT id,label,created_by,created_at,last_used_at,last_pc,revoked FROM sync_keys WHERE kind='tally' ORDER BY id DESC LIMIT 50")).map((r) => ({ ...r, id: Number(r.id) }));
   if (m === "GET") return json({ keys: await list() });
   const b = await body(req); const action = String(b.action || "");
   if (action === "new") {
-    const n = await q("SELECT COUNT(*)::int AS n FROM sync_keys WHERE NOT revoked"); if (n[0].n >= 5) return json({ error: "There are already 5 working keys. Stop one you do not use first." }, 400);
+    const n = await q("SELECT COUNT(*)::int AS n FROM sync_keys WHERE NOT revoked AND kind='tally'"); if (n[0].n >= 5) return json({ error: "There are already 5 working keys. Stop one you do not use first." }, 400);
     const label = String(b.label || "").trim().slice(0, 80) || "Accounts PC";
     const secret = randomBytes(24).toString("base64url");
     await q("INSERT INTO sync_keys(key_hash,label,created_by) VALUES($1,$2,$3)", [sha(secret), label, me]);
     return json({ ok: true, secret, keys: await list() });
   }
-  if (action === "revoke") { await q("UPDATE sync_keys SET revoked=TRUE WHERE id=$1", [Number(b.id) || 0]); return json({ ok: true, keys: await list() }); }
+  if (action === "revoke") { await q("UPDATE sync_keys SET revoked=TRUE WHERE id=$1 AND kind='tally'", [Number(b.id) || 0]); return json({ ok: true, keys: await list() }); }
+  return json({ error: "Unknown action" }, 400);
+}
+
+// ---------- Google Sheet link (read-only copy of a Google Sheet, sent by an Apps Script inside the sheet with a link key) ----------
+async function gsheetPush(b, label) {
+  const { recs, status } = gsRecords(b, label);
+  if (!status.tabs.length) return json({ error: "No tabs were sent" }, 400);
+  const c = await pool().connect();
+  try {
+    await c.query("BEGIN"); await c.query("SELECT pg_advisory_xact_lock(hashtext('gsheet'))");
+    const ex = (await c.query("SELECT id,data FROM records WHERE coll='gsheet' AND NOT deleted")).rows;
+    const prev = (ex.find((r) => r.id === "status") || {}).data;
+    const d = gsDiff(ex.filter((r) => r.id !== "status"), recs, prev);
+    const by = "Google Sheet link";
+    if (d.write.length) await c.query(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by)
+      SELECT 'gsheet',x.id,x.data,FALSE,nextval('rev_seq'),currval('rev_seq'),$2 FROM jsonb_to_recordset($1::jsonb) AS x(id text,data jsonb)
+      ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by`), [JSON.stringify(d.write), by]);
+    if (d.del.length) await c.query(HIST("UPDATE records SET data=NULL,deleted=TRUE,rev=nextval('rev_seq'),updated_at=NOW(),updated_by=$2 WHERE coll='gsheet' AND id=ANY($1::text[])"), [d.del, by]);
+    if (d.status) { status.changedAt = d.write.length || d.del.length || !prev ? status.at : prev.changedAt || status.at;
+      await c.query(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by) VALUES('gsheet','status',$1,FALSE,nextval('rev_seq'),currval('rev_seq'),$2)
+      ON CONFLICT (coll,id) DO UPDATE SET data=EXCLUDED.data,deleted=FALSE,rev=EXCLUDED.rev,updated_at=NOW(),updated_by=EXCLUDED.updated_by`), [JSON.stringify(status), by]); }
+    await c.query("COMMIT");
+    return json({ ok: true, changed: d.write.length, removed: d.del.length });
+  } catch (e) { await c.query("ROLLBACK").catch(() => {}); throw e; } finally { c.release(); }
+}
+async function gsheetKeyApi(me, m, req, url) {
+  if (!(await isAdmin(me))) return json({ error: "Only the Admin can link a Google Sheet" }, 403);
+  const list = async () => (await q("SELECT id,label,created_by,created_at,last_used_at,revoked FROM sync_keys WHERE kind='gsheet' ORDER BY id DESC LIMIT 20")).map((r) => ({ ...r, id: Number(r.id) }));
+  if (m === "GET") return json({ keys: await list() });
+  const b = await body(req); const action = String(b.action || "");
+  if (action === "new") {
+    const n = await q("SELECT COUNT(*)::int AS n FROM sync_keys WHERE NOT revoked AND kind='gsheet'"); if (n[0].n >= 3) return json({ error: "There are already 3 working sheet keys. Stop one you do not use first." }, 400);
+    const label = String(b.label || "").trim().slice(0, 80) || "Sales order sheet";
+    const secret = randomBytes(24).toString("base64url");
+    await q("INSERT INTO sync_keys(key_hash,label,created_by,kind) VALUES($1,$2,$3,'gsheet')", [sha(secret), label, me]);
+    const site = (process.env.URL || url.origin).replace(/\/$/, "");
+    return json({ ok: true, secret, script: gsScript(site, secret), keys: await list() });
+  }
+  if (action === "revoke") { await q("UPDATE sync_keys SET revoked=TRUE WHERE id=$1 AND kind='gsheet'", [Number(b.id) || 0]); return json({ ok: true, keys: await list() }); }
   return json({ error: "Unknown action" }, 400);
 }
 
@@ -479,6 +519,14 @@ export default async (req, context) => {
       return json(await tallyPush(b, k.label));
     }
 
+    if (path === "gsheet/push" && m === "POST") {
+      if (Number(req.headers.get("content-length") || 0) > GS_MAX.bytes) return json({ error: "The sheet is too big to send (over 5 MB). Hide tabs the ERP does not need." }, 413);
+      const k = await syncKey(req, "gsheet");
+      if (!k) { await new Promise((s) => setTimeout(s, 600)); return json({ error: "This sheet key is not valid (wrong, or stopped by the Admin). Make a new one in ZT-ERP LITE > Import old data > Google Sheet link." }, 401); }
+      const b = await body(req); if (!b || !Array.isArray(b.tabs)) return json({ error: "Bad request" }, 400);
+      return await gsheetPush(b, k.label);
+    }
+
     // Telegram calls this with its own secret header (set when the Admin saved the bot token)
     if (path === "telegram/hook" && m === "POST" && telegramOn()) { try { return await tgHook(req); } catch (e) { console.error("tg hook", e && e.message); return json({ ok: true }); } }
 
@@ -622,6 +670,7 @@ export default async (req, context) => {
     }
 
     if (path === "tally/key" && (m === "GET" || m === "POST")) return await tallyKeyApi(me, m, req);
+    if (path === "gsheet/key" && (m === "GET" || m === "POST")) return await gsheetKeyApi(me, m, req, url);
     if (path === "telegram" && (m === "GET" || m === "POST")) return await telegramApi(me, m, req, url);
     if (path === "push" && (m === "GET" || m === "POST")) return await pushApi(me, m, req, url);
 

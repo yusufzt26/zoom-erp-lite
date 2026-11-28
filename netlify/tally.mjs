@@ -15,15 +15,16 @@ export function stable(v) {
   return JSON.stringify(v ?? null);
 }
 
-export const LIMITS = { companies: 10, bills: 30000, ledgers: 20000, vch: 30000 };
+export const LIMITS = { companies: 10, bills: 30000, ledgers: 20000, vch: 30000, pur: 120 };
 
-// payload from the sync program -> { status, recs: Map(id -> data), okCos: Set(company) }
+// payload from the sync program -> { status, recs: Map(id -> data), okCos: Set(company), purCos: Set(company whose purchases were read) }
+// Purchases ("p" records) are monthly totals of Tally purchase vouchers ("pur") and debit notes ("dn"); amt with GST, net before GST.
 export function tallyRecords(b, keyLabel, now = new Date()) {
   const cos = Array.isArray(b && b.companies) ? b.companies.slice(0, LIMITS.companies) : [];
-  const recs = new Map(); const okCos = new Set(); const sum = [];
+  const recs = new Map(); const okCos = new Set(); const purCos = new Set(); const sum = [];
   for (const c of cos) {
     const co = S(c && c.name); if (!co) continue;
-    const ok = !!c.ok; const st = { name: co, ok, error: ok ? "" : S(c.error, 300) || "Could not read this company", bills: 0, ledgers: 0, vch: 0, cust: 0, sup: 0, flip: !!c.flip };
+    const ok = !!c.ok; const st = { name: co, ok, error: ok ? "" : S(c.error, 300) || "Could not read this company", bills: 0, ledgers: 0, vch: 0, pur: 0, purOk: false, purErr: "", cust: 0, sup: 0, flip: !!c.flip };
     if (ok) {
       okCos.add(co);
       for (const x of (Array.isArray(c.ledgers) ? c.ledgers : []).slice(0, LIMITS.ledgers)) {
@@ -49,23 +50,33 @@ export function tallyRecords(b, keyLabel, now = new Date()) {
         recs.set(id, { id, t: "v", co, type, vtype: S(x.vt, 60), date, no, ledger, amt: N(x.amt), narr: S(x.nar, 200) });
         st.vch++;
       }
+      if (c.purOk && Array.isArray(c.pur)) {
+        purCos.add(co); st.purOk = true;
+        for (const x of c.pur.slice(0, LIMITS.pur)) {
+          const m = /^\d{4}-\d{2}$/.test(String(x && x.m || "")) ? x.m : "", type = x && (x.t === "pur" || x.t === "dn") ? x.t : ""; if (!m || !type) continue;
+          const id = "p:" + h(co, type, m);
+          recs.set(id, { id, t: "p", co, type, m, amt: N(x.amt), net: N(x.net), n: Math.max(0, Math.round(+x.n || 0)) });
+          if (type === "pur") st.pur = N(st.pur + N(x.amt));
+        }
+      } else st.purErr = S(c.purErr, 300);
     }
     sum.push(st);
   }
   const status = { id: "status", t: "s", at: now.toISOString(), agentAt: S(b && b.at, 40), pc: S(b && b.pc, 80), user: S(b && b.user, 80), v: S(b && b.v, 20), key: S(keyLabel, 80),
-    from: D(b && b.from), tally: S(b && b.tally, 120), error: S(b && b.error, 300), companies: sum };
-  return { status, recs, okCos };
+    from: D(b && b.from), purFrom: D(b && b.purFrom), tally: S(b && b.tally, 120), error: S(b && b.error, 300), companies: sum };
+  return { status, recs, okCos, purCos };
 }
 
 // existing rows [{id,data}] + new records -> rows to write and ids to delete.
-// Records of a company that could not be read this time are left as they were.
-export function tallyDiff(existing, recs, okCos) {
+// Records of a company that could not be read this time are left as they were; so are its purchase totals when
+// its purchases were not read (an older sync program, or Tally refused that part).
+export function tallyDiff(existing, recs, okCos, purCos = new Set()) {
   const have = new Map(existing.map((r) => [r.id, r.data]));
   const write = []; const del = [];
   for (const [id, d] of recs) { const o = have.get(id); if (!o || stable(o) !== stable(d)) write.push({ id, data: d }); }
   for (const [id, d] of have) {
     if (id === "status" || recs.has(id)) continue;
-    if (d && okCos.has(d.co)) del.push(id);
+    if (d && okCos.has(d.co) && (d.t !== "p" || purCos.has(d.co))) del.push(id);
   }
   return { write, del };
 }
