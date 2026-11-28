@@ -684,6 +684,8 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
     <button class="btn" id="btn-save">Save draft</button>
     <button class="btn primary" id="btn-send">Send for approval</button>
     <button class="btn primary" id="btn-vendor" hidden>Send to vendor</button>
+    <button class="btn" id="btn-pm" hidden title="Price milling and surface grinding of the plates on this PO and make the service POs">Pre-machining</button>
+    <button class="btn" id="btn-pm-rc" hidden title="Make the returnable challan for the plates going out on this service PO">Returnable challan</button>
     <button class="btn" id="btn-po-del" style="color:var(--danger);border-color:var(--danger)" hidden>Delete PO</button>
   </div>
   <div id="poDelete" class="panel stack noprint" hidden>
@@ -700,6 +702,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
     <div class="row"><label class="f" style="flex:1 1 220px">Supplier email<input id="pv-email" type="email" placeholder="supplier@company.com"></label><label class="f" style="flex:1 1 180px">WhatsApp number<input id="pv-phone" inputmode="tel" placeholder="10-digit mobile"></label></div>
     <div class="row"><span style="flex:1"></span><button class="btn" id="btn-pv-cancel">Cancel</button><button class="btn" id="btn-pv-mark">Already sent, just mark it</button><button class="btn" id="btn-pv-wa">WhatsApp</button><button class="btn primary" id="btn-pv-mail">Email</button></div>
   </div>
+  <div id="poPm" class="panel stack noprint" hidden></div>
   <div id="poReview" class="panel stack noprint" hidden>
     <label class="f">Review comment<textarea id="po-comment" rows="2" placeholder="Notes for the purchaser. Needed when sending back."></textarea></label>
     <div class="row"><span class="note" id="sigNote"></span><span style="flex:1"></span><button class="btn" id="btn-po-back">Send back for correction</button><button class="btn primary" id="btn-approve">Approve and sign</button></div>
@@ -729,7 +732,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
     <div id="costBody" class="stack"></div>
   </div>
 </section>
-<datalist id="gradeList"></datalist>
+<datalist id="gradeList"></datalist><datalist id="pmSvcList"><option value="Milling"><option value="Surface grinding"></datalist>
 
 <!-- SAVED -->
 <section id="view-saved" class="panel stack" hidden>
@@ -1584,6 +1587,7 @@ function poControls(){
   else B.hidden=true;
   {const F=$("#poFlow");if(!po)F.hidden=true;else{const[fs,fw]=poStage(po);F.hidden=false;F.innerHTML=flowHTML(fs,fw,po.reqNo?0:2)}}
   {const V=$("#btn-vendor");V.hidden=!(po&&st==="Approved"&&has("po.create"));V.textContent=po&&po.sentAt?"Send to vendor again":"Send to vendor";V.className=po&&po.sentAt?"btn":"btn primary";if(V.hidden)$("#poVendor").hidden=true}
+  $("#btn-pm").hidden=!(po&&!po.pmOf&&has("po.create")&&pmLines(po).length);$("#btn-pm").textContent=pmOpen?"Hide pre-machining":"Pre-machining";$("#btn-pm-rc").hidden=!(po&&po.pmOf&&st==="Approved"&&has("rgp.manage")&&pmChallanLines(po).length);renderPm();
   if(po&&!editable){$("#paper").querySelectorAll("input,textarea").forEach(el=>el.disabled=true);$("#paper").querySelectorAll("button").forEach(el=>el.hidden=true)}
 }
 function renderTotals(){
@@ -1685,6 +1689,82 @@ function learnFromPO(){
   bindHeader();
 }
 $("#btn-print").hidden=true;$("#btn-print").onclick=()=>window.print();
+
+/* ---------- pre-machining: milling and surface grinding of raw plates, priced from the vendor rate card ----------
+   Same sum as the purchaser's sheet (ZT-2373): on the FINISHED size L × B × H (mm), milling = thickness L×B + length sides L×H×2
+   + width sides B×H×2, surface grinding = L×B, each area in cm² × paise ÷ 100, and any one charge below the minimum (₹100) is raised to it.
+   The service PO shows only the final price per plate. */
+const PM_SVC=[["m","Milling"],["s","Surface grinding"]];
+const pmSvcName=k=>k==="s"?"Surface grinding":"Milling";
+const pmSvcOf=t=>/grind|surface/i.test(String(t||""))?"s":/mill|pre/i.test(String(t||""))?"m":"";
+const pmMin=()=>{const v=costing.calc&&costing.calc.pmMin;return v===""||v==null?100:Math.max(0,+v||0)};
+/* L, B, H of a plate from its finished size; rounds and incomplete sizes are left out */
+function pmDims(l){const f=String(l.fin||"").trim();if(!f||szRound(f))return null;const n=szNums(f);if(n.length<3||n.slice(0,3).some(v=>!(v>0)))return null;return{L:n[0],B:n[1],H:n[2]}}
+const pmPcs=l=>poKgUnit(l)?(+l.pcs||1):(+l.qty||0);
+const pmName=l=>poDesc(l)||String(l.desc||"").split(" · ")[0]||"Plate";
+/* vendors with rates for a service; the smallest "up to" slab that fits L×B, else a blank (any size) row */
+const pmVendors=k=>[...new Set(costing.pm.filter(x=>pmSvcOf(x.svc)===k&&+x.rate>0&&String(x.sup||"").trim()).map(x=>String(x.sup).trim()))];
+function pmRate(sup,k,d){const a=d.L*d.B/100,R=costing.pm.filter(x=>pmSvcOf(x.svc)===k&&key(x.sup)===key(sup)&&+x.rate>0);
+  const sl=R.filter(x=>+x.upto>0&&a<=+x.upto+1e-9).sort((x,y)=>+x.upto-+y.upto)[0];if(sl)return+sl.rate;const any=R.find(x=>!(+x.upto>0));return any?+any.rate:null}
+/* per-plate charges for one line: [{n:"Thickness",a:cm²,amt}] */
+function pmParts(d,k,sel,paise){if(!d||paise==null)return[];const r=paise/100,mn=pmMin(),it=(on,mm2,n)=>{if(!on)return null;const a=mm2/100,raw=a*r;return{n,a,raw,amt:Math.max(raw,mn),min:raw<mn}};
+  return(k==="s"?[it(sel.st,d.L*d.B,"Thickness")]:[it(sel.mt,d.L*d.B,"Thickness"),it(sel.ml,d.L*d.H*2,"Length sides"),it(sel.mw,d.B*d.H*2,"Width sides")]).filter(Boolean)}
+const pmSum=P=>P.reduce((a,x)=>a+x.amt,0);
+const pmR2=v=>Math.round((+v||0)*100)/100;
+const pmSel=l=>l.pm||(l.pm={mt:true,ml:true,mw:true,st:false}); /* milling ticked by default, grinding only when the purchaser ticks it */
+const pmLines=p=>(p.lines||[]).map((l,i)=>({l,i,d:pmDims(l)})).filter(x=>x.d&&poRawOn(x.l)&&pmPcs(x.l)>0);
+function pmTotal(p,k,sup){return pmLines(p).reduce((a,{l,d})=>{const pr=pmRate(sup,k,d);return a+(pr==null?0:pmSum(pmParts(d,k,pmSel(l),pr))*pmPcs(l))},0)}
+function pmPick(p,k){const V=pmVendors(k);p.pmVen=p.pmVen||{};if(p.pmVen[k]&&!V.some(v=>key(v)===key(p.pmVen[k])))delete p.pmVen[k];
+  if(p.pmVen[k]===undefined&&V.length){const t=V.map(v=>[v,pmTotal(p,k,v)]).filter(x=>x[1]>0).sort((a,b)=>a[1]-b[1]);if(t.length)return t[0][0]}return p.pmVen[k]||""}
+let pmOpen=false;
+const PM_F=[["mt","Thick.","Milling thickness"],["ml","Length","Milling length sides"],["mw","Width","Milling width sides"],["st","Thick.","Surface grinding"]];
+function renderPm(){const P=$("#poPm");if(!po||!pmOpen){P.hidden=true;return}P.hidden=false;const L=pmLines(po),ven={m:pmPick(po,"m"),s:pmPick(po,"s")};
+  if(!L.length){P.innerHTML=`<div class="row"><b>Pre-machining</b><span style="flex:1"></span><button class="btn" type="button" data-pmclose>Close</button></div><div class="note">No plate on this PO has a finished size as L x B x H (mm). Open the raw size box on a line (+ raw size) and fill in "Fin".</div>`;return}
+  const cb=(i,f,lab)=>`<td style="text-align:center"><input type="checkbox" data-pmi="${i}" data-pmf="${f}" aria-label="${lab}"${pmSel(po.lines[i])[f]?" checked":""} style="width:18px;height:18px"></td>`;
+  /* one-click ticks: a whole plate (row), one face for every plate (column), or everything */
+  const allCb=(kind,v,lab)=>{const S=kind==="pmrow"?PM_F.map(([f])=>pmSel(po.lines[v])[f]):kind==="pmcol"?L.map(x=>pmSel(x.l)[v]):L.flatMap(x=>PM_F.map(([f])=>pmSel(x.l)[f])),on=S.filter(Boolean).length;
+    return`<input type="checkbox" data-${kind}="${esc(v)}" aria-label="${esc(lab)}"${on===S.length?" checked":""}${on&&on<S.length?" data-pmmix":""} style="width:18px;height:18px">`};
+  const price=(l,d,k)=>{const sup=ven[k];if(!sup)return`<span class="note">no vendor</span>`;const pr=pmRate(sup,k,d);if(pr==null)return`<span class="note" title="No ${pmSvcName(k).toLowerCase()} rate for ${esc(sup)} at this size">no rate</span>`;const P=pmParts(d,k,pmSel(l),pr);if(!P.length)return"–";
+    return`<span title="${esc(P.map(x=>`${x.n}: ${x.a.toFixed(1)} cm² × ${pr} p = ₹${fmt(x.raw)}${x.min?" → minimum ₹"+fmt(x.amt):""}`).join("\n"))}">${P.some(x=>x.min)?'<span style="color:var(--warn,#b26b00)" title="A charge was raised to the minimum">*</span> ':""}${fmt(pmSum(P))}</span>`};
+  const vsel=k=>{const V=pmVendors(k);return`<label class="f" style="flex:1 1 240px">${pmSvcName(k)} vendor<select data-pmven="${k}"><option value="">Not needed</option>${V.map(v=>{const t=pmTotal(po,k,v);return`<option value="${esc(v)}"${key(v)===key(ven[k])?" selected":""}>${esc(v)} · ₹${fmt(t)}</option>`}).join("")}</select></label>`};
+  const tot=k=>ven[k]?pmTotal(po,k,ven[k]):0,made=(po.pmPOs||[]).filter(n=>saved.some(s=>String(s.no)===String(n)));
+  P.innerHTML=`<div class="row"><b>Pre-machining for PO ${esc(po.no)}</b><span class="note">Tick what each plate needs. Priced on the finished size from the vendor rates in Rates &amp; costing, at least ₹${fmt0(pmMin())} a charge.</span><span style="flex:1"></span><button class="btn" type="button" data-pmclose>Close</button></div>
+  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr><th rowspan="2" style="text-align:center" title="Tick or untick every face of a plate in one click">All<br>${allCb("pmall","","Tick everything for all plates")}</th><th rowspan="2">Plate</th><th rowspan="2">Finished L × B × H</th><th class="num" rowspan="2">Pcs</th><th colspan="3" style="text-align:center">Milling</th><th style="text-align:center">Surface</th><th class="num" rowspan="2">Milling ₹ / pc</th><th class="num" rowspan="2">Grinding ₹ / pc</th></tr><tr>${PM_F.map(([f,h,lab])=>`<th style="text-align:center">${h}<br>${allCb("pmcol",f,lab+" for all plates")}</th>`).join("")}</tr></thead>
+  <tbody>${L.map(({l,i,d})=>`<tr><td style="text-align:center">${allCb("pmrow",i,"Tick everything for "+pmName(l))}</td><td>${esc(pmName(l))}</td><td style="font-family:var(--mono);white-space:nowrap">${d.L} × ${d.B} × ${d.H}</td><td class="num">${fmt0(pmPcs(l))}</td>${cb(i,"mt","Milling thickness")}${cb(i,"ml","Milling length sides")}${cb(i,"mw","Milling width sides")}${cb(i,"st","Surface grinding")}<td class="num">${price(l,d,"m")}</td><td class="num">${price(l,d,"s")}</td></tr>`).join("")}
+  <tr><td colspan="8"><b>Total</b> <span class="note">before GST · * a charge raised to the minimum · hover a price to see the working</span></td><td class="num"><b>${fmt(tot("m"))}</b></td><td class="num"><b>${fmt(tot("s"))}</b></td></tr></tbody></table></div>
+  <div class="row">${vsel("m")}${vsel("s")}</div>
+  ${!pmVendors("m").length&&!pmVendors("s").length?`<div class="note">No pre-machining rates yet. Add them in Purchase &gt; Rates &amp; costing &gt; Pre-machining rates.</div>`:""}
+  ${made.length?`<div class="note">Already made from this PO: ${made.map(n=>`<button class="btn" type="button" data-pmopen="${esc(n)}" style="font-size:12px;padding:2px 8px">PO ${esc(n)}</button>`).join(" ")}</div>`:""}
+  <div class="row"><span style="flex:1"></span>${has("po.create")?`<button class="btn primary" type="button" data-pmmake>Make service PO${tot("m")>0&&tot("s")>0?"s":""}</button>`:""}</div>`;
+  P.querySelectorAll("[data-pmmix]").forEach(x=>x.indeterminate=true)}
+/* the service PO: one line per plate with only its final price */
+function pmMake(){const src=po,ven={m:pmPick(src,"m"),s:pmPick(src,"s")},made=[];
+  PM_SVC.forEach(([k,svc])=>{const sup=ven[k];if(!sup)return;
+    const lines=pmLines(src).map(({l,d})=>{const pr=pmRate(sup,k,d);if(pr==null)return null;const per=pmR2(pmSum(pmParts(d,k,pmSel(l),pr)));if(!(per>0))return null;const pcs=pmPcs(l),name=pmName(l),spec=`${svc} of ${name}, finished size ${d.L}×${d.B}×${d.H}`;
+      return{desc:spec,item:"",spec,hsn:"998898",tax:18,qty:pcs,unit:"NOS",rate:per,dis:0,pm:{k,name,fin:`${d.L} x ${d.B} x ${d.H}`,raw:String(l.raw||"").trim(),grade:poGrade(l),hsn:l.hsn||"",val:pcs>0?pmR2((+l.qty||0)*(+l.rate||0)/pcs):0}}}).filter(Boolean);
+    if(!lines.length)return;const sp=supOf(sup)||{name:sup,addr:"",state:"27"};
+    const p={no:nextPONo(src.plant||defPlant()),date:today(),sup:sp.name,supAddr:sp.addr||"",ref:src.ref||"",refDate:src.refDate||"",attn:"",venCode:sp.gstin||"",terms:sp.terms||src.terms||"60 Days",transport:"",validity:"",
+      reqNo:"",needBy:src.needBy||"",plant:src.plant||defPlant(),deliv:src.deliv||plantAddr(src.plant||defPlant()),gstmode:sp.state&&sp.state!=="27"?"inter":"intra",remark:`${svc} for raw material PO ${src.no}`,pmOf:String(src.no),pmSvc:svc,lines,status:"Draft",
+      history:[{by:me.name,action:`Made from PO ${src.no} (pre-machining)`,at:new Date().toISOString(),comment:""}]};
+    const sub=lines.reduce((a,l)=>a+l.qty*l.rate,0);p.total=Math.round(sub*1.18);p.savedAt=new Date().toISOString();saved.unshift(p);made.push(p.no)});
+  if(!made.length){toast("Nothing to make: tick what the plates need and pick a vendor with rates");return}
+  src.pmPOs=[...(src.pmPOs||[]),...made];const si=saved.findIndex(s=>String(s.no)===String(src.no));if(si>=0)saved[si].pmPOs=src.pmPOs.slice();store.set("saved",saved);store.set("po",po);
+  renderPm();toast(`Draft service PO${made.length>1?"s":""} ${made.join(" and ")} made. Open ${made.length>1?"each":"it"} to check, then send for approval.`)}
+$("#btn-pm").onclick=()=>{pmOpen=!pmOpen;renderPm();if(pmOpen)$("#poPm").scrollIntoView({block:"nearest"})};
+$("#poPm").addEventListener("change",e=>{const t=e.target;if(!po)return;
+  if(t.dataset.pmf){const l=po.lines[+t.dataset.pmi];pmSel(l)[t.dataset.pmf]=t.checked;store.set("po",po);renderPm();return}
+  if(t.dataset.pmrow!=null||t.dataset.pmcol!=null||t.dataset.pmall!=null){const on=t.checked,R=t.dataset.pmrow!=null?[po.lines[+t.dataset.pmrow]]:pmLines(po).map(x=>x.l),F=t.dataset.pmcol!=null?[t.dataset.pmcol]:PM_F.map(([f])=>f);
+    R.forEach(l=>F.forEach(f=>pmSel(l)[f]=on));store.set("po",po);renderPm();return}
+  if(t.dataset.pmven){po.pmVen=po.pmVen||{};po.pmVen[t.dataset.pmven]=t.value;store.set("po",po);renderPm()}});
+$("#poPm").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.pmclose!=null){pmOpen=false;renderPm();return}
+  if(b.dataset.pmmake!=null){if(!has("po.create"))return;if(!b.dataset.sure&&(po.pmPOs||[]).some(n=>saved.some(s=>String(s.no)===String(n)))){b.dataset.sure="1";b.textContent="Service POs already made. Click again to make more";return}pmMake();return}
+  if(b.dataset.pmopen){const s=saved.find(x=>String(x.no)===b.dataset.pmopen);if(s){po=JSON.parse(JSON.stringify(s));store.set("po",po);pmOpen=false;renderPO()}}});
+/* returnable challan for the plates going out on an approved service PO */
+function pmChallanLines(p){return(p.lines||[]).filter(l=>l.pm).map(l=>({desc:`${l.pm.name}${l.pm.grade?", "+l.pm.grade:""}${l.pm.raw?", raw size "+l.pm.raw:""}`,hsn:l.pm.hsn||"",qty:+l.qty||0,unit:"NOS",value:l.pm.val?pmR2(l.pm.val*(+l.qty||0)):"",remark:`For ${String(p.pmSvc||pmSvcName(l.pm.k)).toLowerCase()} to ${l.pm.fin}`,ret:0}))}
+$("#btn-pm-rc").onclick=()=>{if(!po||!po.pmOf||!has("rgp.manage"))return;const p=po,sp=supOf(p.sup)||{};
+  rgpMode="new";rgpEditNo=null;rgp={no:rgpNextNo(),plant:p.plant||defPlant(),date:today(),expected:addDays(today(),7),party:p.sup,addr:sp.addr||p.supAddr||"",gstin:sp.gstin||"",purpose:p.pmSvc||"Pre-machining",vehicle:"",job:p.ref||"",po:String(p.no),by:me.name,status:"Open",returns:[],lines:pmChallanLines(p)};
+  show("grn");renderRgpForm();const F=$("#rgpForm");if(F)F.scrollIntoView({block:"start"});toast("Check the challan, fill in the vehicle, then save")};
 
 /* ---------- saved / rates ---------- */
 function renderSaved(){
@@ -2047,15 +2127,18 @@ const COST_LISTS={
   ops:{t:"Operation rates",key:"op",cols:[["Operation","op","t"],["Unit (hr, mm, kg, nos)","unit","t"],["Rate ₹","rate","n"],["Usual vendor","sup","s"]]},
   bop:{t:"BOP price list",key:"",cols:[["Type","type","t"],["Size","size","t"],["Length","len","t"],["Brand","brand","t"],["Price ₹","price","n"],["Supplier","sup","s"]]},
   tool:{t:"Tool catalogue",key:"",cols:[["Tool type","type","t"],["Dia / size","size","t"],["Length","len","t"],["Brand","brand","t"],["Price ₹","price","n"],["Supplier","sup","s"]]},
-  cons:{t:"Consumables",key:"name",cols:[["Item","name","t"],["Unit","unit","t"],["Rate ₹","rate","n"],["Usual supplier","sup","s"]]}};
+  cons:{t:"Consumables",key:"name",cols:[["Item","name","t"],["Unit","unit","t"],["Rate ₹","rate","n"],["Usual supplier","sup","s"]]},
+  pm:{t:"Pre-machining rates",key:"",cols:[["Vendor","sup","s"],["Service (Milling / Surface grinding)","svc","t"],["Block size up to cm² (L × B, blank = any size)","upto","n"],["Rate paise / cm²","rate","n"]]}};
 function costDefault(){const g=(n,d)=>({g:n,den:d,allow:7,rate:"",sup:"",upd:"",by:""}),o=(n,u)=>({op:n,unit:u,rate:"",sup:"",upd:"",by:""});
   return{grades:[g("P20",7.85),g("2738",7.85),g("H13",7.8),g("D2",7.7),g("SS 420 / Stavax",7.75),g("EN8",7.85),g("EN24",7.85),g("EN31",7.81),g("MS",7.85),g("Al 6061",2.7),g("Al 7075",2.81),g("Copper",8.96),g("BeCu",8.25),g("Brass",8.5)],
     ops:[o("VMC machining","hr"),o("CNC turning","hr"),o("Wire cut","mm"),o("EDM","hr"),o("Surface grinding","hr"),o("Drilling / tapping","nos"),o("Vacuum hardening","kg"),o("Nitriding","kg"),o("Blackodizing","kg"),o("Polishing","hr")],
     bop:[],tool:[],cons:[],calc:{round:5,oh:10},
     tpl:{"Core / cavity insert":[["VMC machining",0],["Wire cut",0],["Vacuum hardening",0],["Surface grinding",0]],"Plate":[["VMC machining",0],["Surface grinding",0]],"Turned pin / bush":[["CNC turning",0],["Vacuum hardening",0],["Blackodizing",0]]},
     hist:[]}}
+/* pre-machining of raw plates: Purohit's rates from the ZT-2373 sheet, changeable in Rates & costing */
+const PM_SEED=()=>[{sup:"Purohit",svc:"Milling",upto:"",rate:30,upd:"",by:""},{sup:"Purohit",svc:"Surface grinding",upto:"",rate:80,upd:"",by:""}];
 let costing=store.get("costing",null);if(!costing||!Array.isArray(costing.grades))costing=costDefault();
-function costFix(){const D=costDefault();if(!Array.isArray(costing.grades))costing.grades=D.grades;if(!Array.isArray(costing.ops))costing.ops=D.ops;["bop","tool","cons","hist"].forEach(k=>{if(!Array.isArray(costing[k]))costing[k]=[]});costing.calc=costing.calc||{round:5,oh:10};costing.tpl=costing.tpl||{}}
+function costFix(){const D=costDefault();if(!Array.isArray(costing.grades))costing.grades=D.grades;if(!Array.isArray(costing.ops))costing.ops=D.ops;["bop","tool","cons","hist"].forEach(k=>{if(!Array.isArray(costing[k]))costing[k]=[]});if(!Array.isArray(costing.pm))costing.pm=PM_SEED();costing.calc=costing.calc||{round:5,oh:10};if(costing.calc.pmMin==null)costing.calc.pmMin=100;costing.tpl=costing.tpl||{}}
 costFix();
 const saveCosting=()=>store.set("costing",costing);
 const canCost=()=>has("po.create")||isRole("Admin");
@@ -2065,7 +2148,7 @@ const opOf=o=>costing.ops.find(x=>key(x.op)===key(o||""));
 const STALE_DAYS=90;
 const costStale=x=>!x.upd||(new Date(today())-new Date(x.upd))/864e5>STALE_DAYS;
 function costLog(what,o,n){costing.hist.push({at:new Date().toISOString(),by:me?me.name:"",what,o:o??"",n:n??"",from:"PO "+nextPONo(defPlant())});if(costing.hist.length>2000)costing.hist=costing.hist.slice(-2000)}
-const costName=(L,x)=>L==="grades"?x.g:L==="ops"?x.op:L==="cons"?x.name:[x.type,x.size,x.len].filter(Boolean).join(" ");
+const costName=(L,x)=>L==="grades"?x.g:L==="ops"?x.op:L==="cons"?x.name:L==="pm"?[x.sup,x.svc,x.upto?"up to "+x.upto+" cm²":""].filter(Boolean).join(" "):[x.type,x.size,x.len].filter(Boolean).join(" ");
 let costTab="grades";
 function renderCost(){
   const B=$("#costBody");if(!B)return;const A=document.activeElement,fk=A&&A.closest&&A.closest("#costBody [data-ci]")&&A.dataset.cf?[A.closest("[data-ci]").dataset.ci,A.dataset.cf]:null;
@@ -2083,12 +2166,13 @@ function renderCost(){
     ${ed?`<form class="row" id="tplNew"><input id="tpl-name" placeholder="New template name, e.g. Slider" style="max-width:280px"><button class="btn" type="submit">Add template</button></form>`:""}`;return}
   const D=COST_LISTS[costTab],L=costing[costTab],old=L.filter(costStale).length;
   B.innerHTML=`<div class="row">${ed?`<button class="btn" type="button" data-cadd>Add row</button>`:""}<button class="btn" type="button" data-cxout>Download to Excel</button>${ed?`<button class="btn" type="button" data-cxin>Import updated Excel</button><input type="file" id="cost-file" accept=".xlsx,.xls,.csv" hidden>`:""}<span style="flex:1"></span>${L.length?(old?`<span class="chip st-Back">${old} not updated in ${STALE_DAYS} days</span>`:`<span class="chip st-Approved">All updated in the last ${STALE_DAYS} days</span>`):""}</div>
-  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr>${D.cols.map(c=>`<th${c[2]==="n"?' class="num"':""}>${esc(c[0])}</th>`).join("")}<th>Updated</th><th></th></tr></thead><tbody>${L.map((x,i)=>`<tr data-ci="${i}">${D.cols.map(([h,f,ty])=>`<td${ty==="n"?' class="num"':""}><input data-cf="${f}"${ty==="n"?' type="number" step="any" min="0" style="width:100px"':ty==="s"?' list="suppliers" style="min-width:170px"':f==="type"||f==="name"?' data-ac="desc" autocomplete="off" style="min-width:110px"':f==="g"?' list="gradeList" style="min-width:110px"':' style="min-width:110px"'} value="${esc(x[f])}" aria-label="${esc(h)}"${ed?"":" disabled"}></td>`).join("")}<td class="note" style="white-space:nowrap">${x.upd?dmy(x.upd):"Not set"}${costStale(x)?` <span class="chip st-Back">old</span>`:""}${x.by?`<br>${esc(x.by)}`:""}</td><td>${ed?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove row">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="${D.cols.length+2}" class="empty">Nothing here yet. Add rows, or import an Excel sheet with these column headings.</td></tr>`}</tbody></table></div>
+  <div class="tablebox"><table class="est" style="min-width:760px"><thead><tr>${D.cols.map(c=>`<th${c[2]==="n"?' class="num"':""}>${esc(c[0])}</th>`).join("")}<th>Updated</th><th></th></tr></thead><tbody>${L.map((x,i)=>`<tr data-ci="${i}">${D.cols.map(([h,f,ty])=>`<td${ty==="n"?' class="num"':""}><input data-cf="${f}"${ty==="n"?' type="number" step="any" min="0" style="width:100px"':ty==="s"?' list="suppliers" style="min-width:170px"':f==="svc"?' list="pmSvcList" style="min-width:150px"':f==="type"||f==="name"?' data-ac="desc" autocomplete="off" style="min-width:110px"':f==="g"?' list="gradeList" style="min-width:110px"':' style="min-width:110px"'} value="${esc(x[f])}" aria-label="${esc(h)}"${ed?"":" disabled"}></td>`).join("")}<td class="note" style="white-space:nowrap">${x.upd?dmy(x.upd):"Not set"}${costStale(x)?` <span class="chip st-Back">old</span>`:""}${x.by?`<br>${esc(x.by)}`:""}</td><td>${ed?`<button class="x" type="button" data-cdel="${i}" aria-label="Remove row">×</button>`:""}</td></tr>`).join("")||`<tr><td colspan="${D.cols.length+2}" class="empty">Nothing here yet. Add rows, or import an Excel sheet with these column headings.</td></tr>`}</tbody></table></div>
+  ${costTab==="pm"?`<div class="row"><label class="f" style="max-width:260px">Minimum ₹ per charge<input type="number" min="0" step="10" data-calc="pmMin" value="${esc(costing.calc.pmMin)}"${ed?"":" disabled"}></label><span class="note" style="flex:1 1 320px">Worked on the finished size. Milling: thickness L × B, length sides L × H × 2, width sides B × H × 2. Surface grinding: L × B. Each is area in cm² × paise ÷ 100, and any charge below the minimum is raised to it. The smallest "up to" slab that fits the block's L × B is used; a blank slab covers any size.</span></div>`:""}
   <div class="note">A changed rate applies from ${esc("PO "+nextPONo(defPlant()))} onwards. POs already made or approved keep their own rates.</div>`;
   const fi=$("#cost-file");if(fi)fi.onchange=costImport}
 $("#costTabs").addEventListener("click",e=>{const b=e.target.closest("[data-ctab]");if(b){costTab=b.dataset.ctab;renderCost()}});
 $("#costBody").addEventListener("change",e=>{if(!canCost())return;const t=e.target;
-  if(t.dataset.calc){const o=costing.calc[t.dataset.calc],n=+t.value||0;if(o===n)return;costing.calc[t.dataset.calc]=n;costLog(t.dataset.calc==="oh"?"Overhead %":"Raw size rounding mm",o,n);saveCosting();renderCost();toast("Saved");return}
+  if(t.dataset.calc){const o=costing.calc[t.dataset.calc],n=+t.value||0;if(o===n)return;costing.calc[t.dataset.calc]=n;costLog(t.dataset.calc==="oh"?"Overhead %":t.dataset.calc==="pmMin"?"Pre-machining minimum ₹":"Raw size rounding mm",o,n);saveCosting();renderCost();toast("Saved");return}
   const tp=t.closest("[data-tp]");if(tp&&t.dataset.tf){const T=costing.tpl[tp.dataset.tp][+tp.dataset.j];if(t.dataset.tf==="op")T[0]=t.value;else T[1]=+t.value||0;saveCosting();toast("Template saved");return}
   const tr=t.closest("[data-ci]");if(!tr||!t.dataset.cf)return;const L=costing[costTab],x=L[+tr.dataset.ci],f=t.dataset.cf,ty=(COST_LISTS[costTab].cols.find(c=>c[1]===f)||[])[2];
   const n=ty==="n"?(t.value===""?"":+t.value):t.value.trim(),o=x[f];if(String(o??"")===String(n))return;
@@ -2111,7 +2195,7 @@ async function costImport(e){const f=e.target.files[0];e.target.value="";if(!f||
   try{const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
     const D=COST_LISTS[costTab],hi=rows.findIndex(r=>r.some(c=>D.cols.some(([h])=>key(c)===key(h)||key(h).startsWith(key(c))&&String(c).trim().length>2)));if(hi<0){toast(`No heading row found. Use the headings: ${D.cols.map(c=>c[0]).join(", ")}`);return}
     const map=D.cols.map(([h])=>rows[hi].findIndex(c=>key(c)===key(h)||(String(c).trim().length>2&&key(h).startsWith(key(c)))));
-    const L=costing[costTab],idOf=x=>key(D.key?x[D.key]:[x.type,x.size,x.len].join(" "));let add=0,upd=0;
+    const L=costing[costTab],idOf=x=>key(D.key?x[D.key]:costTab==="pm"?[x.sup,x.svc,x.upto].join(" "):[x.type,x.size,x.len].join(" "));let add=0,upd=0;
     rows.slice(hi+1).forEach(r=>{const v={};D.cols.forEach(([,f,ty],k)=>{if(map[k]<0)return;let c=r[map[k]];if(ty==="n")c=c===""?"":itNum(c);else c=String(c).trim();v[f]=c});if(!idOf(v))return;
       let x=L.find(y=>idOf(y)===idOf(v));const ch=[];
       if(!x){x={upd:"",by:""};D.cols.forEach(([,f])=>x[f]="");if(costTab==="grades"){x.allow=RAW_ALLOW;x.den=7.85}L.push(x);add++}
@@ -2896,7 +2980,7 @@ $("#rgpList").addEventListener("click",e=>{const t=e.target.closest("button");if
   if(j!=null){rgpMode="ret";rgpEditNo=null;rgp=rgps[+j];renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"})}});
 $("#rgpForm").addEventListener("input",e=>{if((rgpMode!=="new"&&rgpMode!=="edit")||!rgp)return;const t=e.target;
   if(t.id&&t.id.startsWith("rg-")){const k=t.id.slice(3);rgp[k]=t.value;if(k==="job")ljHint($("#rgpForm"),t.value);if(k==="party"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp){rgp.addr=sp.addr||"";rgp.gstin=sp.gstin||"";$("#rg-addr").value=rgp.addr;const hp=document.activeElement===t;renderRgpForm();if(hp){const n=$("#rg-party");n.focus();n.setSelectionRange(n.value.length,n.value.length)}}}
-    if(k==="po"&&t.value){const p=saved.find(x=>String(x.no)===t.value);if(p&&!rgp.job&&docJob(p)){rgp.job=docJob(p);$("#rg-job").value=rgp.job;ljHint($("#rgpForm"),rgp.job)}}}
+    if(k==="po"&&t.value){const p=saved.find(x=>String(x.no)===t.value);if(p&&!rgp.job&&docJob(p)){rgp.job=docJob(p);$("#rg-job").value=rgp.job;ljHint($("#rgpForm"),rgp.job)}if(p&&p.pmOf&&!rgp.lines.some(l=>String(l.desc||"").trim())){rgp.lines=pmChallanLines(p);if(!rgp.purpose)rgp.purpose=p.pmSvc||"Pre-machining";renderRgpForm()}}}
   else if(t.dataset.rl){const l=rgp.lines[+t.closest("tr").dataset.i];l[t.dataset.rl]=["qty","value"].includes(t.dataset.rl)?+t.value:t.value}});
 $("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
   if(id==="btn-r-cancel"){rgp=null;rgpEditNo=null;renderRgpForm();return}
