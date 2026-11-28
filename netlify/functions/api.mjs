@@ -11,6 +11,8 @@ import { ALERTS, eligible, wants, alertsFor, linkCode, maskToken, tokenOk, tg, u
 import { tgService } from "../tgsend.mjs";
 import { pushService } from "../pushsend.mjs";
 import { subOk, deviceName, pushPayload } from "../push.mjs";
+import { guessService, smtpCandidates, savesSent, sealer, cleanSend, fromLine, smtpWhy, EMAIL_RE, SERVICE_LIST } from "../mail.mjs";
+import { promises as dns } from "node:dns";
 
 const COLLS = new Set(["reqs", "saved", "grns", "pays", "rgps", "slips", "deletedPOs", "suppliers", "rates", "bins", "masters", "costing", "items", "customers", "deals", "fups", "sorders", "dchallans", "invoices", "jobs", "dnotes", "cnotes", "obills", "bank", "jwins", "tallymap"]);
 const SESSION_DAYS = 30;
@@ -414,6 +416,69 @@ async function telegramApi(me, m, req, url) {
 
 // ---------- Phone pop-up notifications (free Web Push from the installed app; same alerts as Telegram) ----------
 const PUSH = () => pushService(q);
+// ---------- email from each person's own mailbox (Users & rights email). One-time setup: their app password ----------
+let mailSeal = null;
+async function mailSealer() {
+  if (mailSeal) return mailSeal;
+  let sec = process.env.MAIL_SECRET || "";
+  if (!sec) {
+    const r = await q("SELECT v FROM mail_settings WHERE k='key'");
+    if (r[0]) sec = r[0].v; else { const k = randomBytes(32).toString("hex"); await q("INSERT INTO mail_settings(k,v) VALUES('key',$1) ON CONFLICT (k) DO NOTHING", [k]); sec = (await q("SELECT v FROM mail_settings WHERE k='key'"))[0].v; }
+  }
+  return (mailSeal = sealer(sec));
+}
+const mxOf = async (email) => { const d = String(email).split("@")[1]; if (!d) return []; try { return (await Promise.race([dns.resolveMx(d), new Promise((_, j) => setTimeout(() => j(new Error("timeout")), 3000))])).map((x) => x.exchange); } catch { return []; } };
+const smtpOf = (a, pass) => nodemailer.createTransport({ host: a.host, port: a.port, secure: a.secure, requireTLS: !a.secure, auth: { user: a.login, pass }, connectionTimeout: 9000, greetingTimeout: 9000, socketTimeout: 20000 });
+async function mailApi(me, m, req) {
+  const u = (await profile(me)) || {}; const myEmail = String(u.email || "").trim();
+  const row = async () => (await q("SELECT email,service,host,port,secure,login,pass_enc,verified_at,last_sent_at FROM mail_accounts WHERE name=$1", [me]))[0] || null;
+  const state = async () => { const a = await row(); const ok = !!a && !!myEmail && a.email.toLowerCase() === myEmail.toLowerCase();
+    return { email: myEmail, ready: ok, account: a ? { email: a.email, service: a.service, host: a.host, port: a.port, at: a.verified_at, lastSent: a.last_sent_at, savesSent: savesSent(a.host) } : null,
+      changed: !!a && !ok && !!myEmail, guess: myEmail ? guessService(myEmail, await mxOf(myEmail)) : "", services: SERVICE_LIST }; };
+  if (m === "GET") return json(await state());
+  const b = await body(req); const action = String(b.action || "");
+  if (action === "remove") { await q("DELETE FROM mail_accounts WHERE name=$1", [me]); return json(await state()); }
+  if (action === "save") {
+    if (!EMAIL_RE.test(myEmail)) return json({ error: "Your email is not in Users & rights yet. Ask the Admin to add it, then set up again." }, 400);
+    const pass = String(b.pass || "").replace(/\s+/g, b.keepSpaces ? " " : ""); if (pass.length < 4) return json({ error: "Paste your app password" }, 400);
+    const service = String(b.service ?? (guessService(myEmail, await mxOf(myEmail)))).slice(0, 20);
+    const custom = b.host ? { host: String(b.host).slice(0, 120), port: +b.port || 465 } : {};
+    if (custom.host && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(custom.host)) return json({ error: "The SMTP server should look like mail.yourcompany.com" }, 400);
+    if (custom.port && ![25, 465, 587, 2525].includes(custom.port)) return json({ error: "The port is usually 465 or 587" }, 400);
+    const login = String(b.login || myEmail).trim().slice(0, 200);
+    let last = null;
+    for (const c of smtpCandidates(myEmail, service, custom)) {
+      const a = { ...c, login };
+      try { await smtpOf(a, pass).verify(); const enc = (await mailSealer()).seal(pass);
+        await q("INSERT INTO mail_accounts(name,email,service,host,port,secure,login,pass_enc,verified_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW()) ON CONFLICT (name) DO UPDATE SET email=EXCLUDED.email,service=EXCLUDED.service,host=EXCLUDED.host,port=EXCLUDED.port,secure=EXCLUDED.secure,login=EXCLUDED.login,pass_enc=EXCLUDED.pass_enc,verified_at=NOW(),updated_at=NOW()", [me, myEmail, service, a.host, a.port, a.secure, login, enc]);
+        if (b.test !== false) { try { await smtpOf(a, pass).sendMail({ from: fromLine(me, myEmail), to: myEmail, subject: "ZT-ERP LITE: your email is set up", text: `Hello ${me},\n\nDocuments you send from ZT-ERP LITE (POs, invoices, challans, quotations) will now go from ${myEmail}.\n\nZT-ERP LITE` }); } catch (e) { console.error("mail test", e && e.message); } }
+        return json({ ok: true, ...(await state()) });
+      } catch (e) { last = e; if (/535|534|auth|credentials|password/i.test(String(e && (e.response || e.message)))) break; }
+    }
+    return json({ error: smtpWhy(last, service) }, 400);
+  }
+  if (action === "send") {
+    const a = await row();
+    if (!a) return json({ error: "Set up your email first (✉ My email at the top)", setup: true }, 400);
+    if (!myEmail || a.email.toLowerCase() !== myEmail.toLowerCase()) return json({ error: `Your email in Users & rights is now ${myEmail || "empty"}. Set up your email again.`, setup: true }, 400);
+    const c = cleanSend(b); if (c.error) return json({ error: c.error }, 400);
+    let pass; try { pass = (await mailSealer()).open(a.pass_enc); } catch { return json({ error: "Your saved email password can no longer be read. Set up your email again.", setup: true }, 400); }
+    const bcc = c.copyMe && !savesSent(a.host) ? [myEmail] : [];
+    const log = (ok, err) => q("INSERT INTO mail_log(name,from_email,to_list,cc_list,subject,doc_type,doc_no,party,ok,error) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [me, myEmail, c.to.join(", "), c.cc.join(", "), c.subject, c.doc.type, c.doc.no, c.doc.party, ok, err || null]).catch(() => {});
+    try {
+      const info = await smtpOf(a, pass).sendMail({ from: fromLine(me, myEmail), replyTo: myEmail, to: c.to, cc: c.cc.length ? c.cc : undefined, bcc: bcc.length ? bcc : undefined, subject: c.subject, text: c.text,
+        attachments: c.files.map((f) => ({ filename: f.filename, content: Buffer.from(f.b64, "base64"), contentType: "application/pdf" })) });
+      await q("UPDATE mail_accounts SET last_sent_at=NOW() WHERE name=$1", [me]); await log(true);
+      return json({ ok: true, from: myEmail, to: c.to, cc: c.cc, id: info && info.messageId });
+    } catch (e) { const why = smtpWhy(e, a.service); console.error("mail send", e && e.message); await log(false, why); return json({ error: why }, 502); }
+  }
+  if (action === "log") {
+    const t = String(b.type || "").slice(0, 20), n = String(b.no || "").slice(0, 60);
+    return json({ sent: await q("SELECT name,from_email,to_list,cc_list,ok,at FROM mail_log WHERE doc_type=$1 AND doc_no=$2 ORDER BY at DESC LIMIT 20", [t, n]) });
+  }
+  return json({ error: "Unknown action" }, 400);
+}
+
 async function pushApi(me, m, req, url) {
   const P = PUSH(); const admin = await isAdmin(me); const ms = await mastersDoc(); const u = ((ms && ms.users) || []).find((x) => x && x.name === me) || { name: me, role: admin ? "Admin" : "" };
   const state = async () => {
@@ -643,7 +708,7 @@ export default async (req, context) => {
         return json({ ok: true });
       }
       if (action === "disable") { if (n === me) return json({ error: "You cannot disable your own login" }, 400); await q("UPDATE logins SET active=FALSE WHERE name=$1", [n]); await q("DELETE FROM sessions WHERE name=$1", [n]); return json({ ok: true }); }
-      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE tg_links SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_subs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_prefs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); return json({ ok: true }); }
+      if (action === "rename") { const nn = normName(newName); if (!nn) return json({ error: "New name missing" }, 400); await q("UPDATE logins SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE sessions SET name=$2 WHERE name=$1", [n, nn]); await q("UPDATE tg_links SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_subs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE push_prefs SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); await q("UPDATE mail_accounts SET name=$2 WHERE name=$1", [n, nn]).catch(() => {}); return json({ ok: true }); }
       return json({ error: "Unknown action" }, 400);
     }
     if (path === "scan-doc" && m === "POST") {
@@ -673,6 +738,7 @@ export default async (req, context) => {
     if (path === "gsheet/key" && (m === "GET" || m === "POST")) return await gsheetKeyApi(me, m, req, url);
     if (path === "telegram" && (m === "GET" || m === "POST")) return await telegramApi(me, m, req, url);
     if (path === "push" && (m === "GET" || m === "POST")) return await pushApi(me, m, req, url);
+    if (path === "mail" && (m === "GET" || m === "POST")) return await mailApi(me, m, req);
 
     if (path === "restore" && (m === "GET" || m === "POST")) {
       try { return await restoreApi(me, m, url, req); } catch (e) { if (e.status) return json({ error: e.message }, e.status); throw e; }
