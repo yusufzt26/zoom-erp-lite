@@ -1461,8 +1461,14 @@ function okNo(v){return /^\d{1,7}$/.test(String(v??"").trim())&&+v>0}
 const SER={po:{w:4,tag:"",n:"PO"},grn:{w:5,tag:"",n:"GRN"},so:{w:4,tag:"SO/",n:"Sales order"},dc:{w:4,tag:"DC/",n:"Delivery challan"}};
 function serL(pl){const P=plantBy(pl||"P1")||{};return String(P.pre||"").replace(/[^A-Za-z0-9]/g,"")||(pl==="P2"?"J":"Z")}
 function serRe(k,pl,fy){const e=x=>String(x).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return new RegExp("^"+e(serL(pl))+"\\s*/\\s*"+e(SER[k].tag)+"(\\d+)\\s*/\\s*"+e(fy)+"$","i")}
-function serList(k){return k==="po"?saved.map(x=>x.no).concat(store.get("deletedPOs",[]).map(d=>d.no)):k==="grn"?grns.map(g=>g.no):k==="so"?sorders.map(x=>x.no):dchallans.map(x=>x.no)}
-function serMax(k,pl,fy){const re=serRe(k,pl,fy);let m=null;serList(k).forEach(n=>{const r=String(n??"").trim().match(re);if(r)m=Math.max(m||0,+r[1])});return m}
+/* a deleted PO frees its number when it was the last one: the next PO takes it again, so the series has no hole at the end.
+   A number deleted from the middle (later POs still exist) is not filled, so a number never moves back in the series; the Deleted-PO log shows it.
+   When every PO of a series has been deleted, the series restarts from the lowest deleted number, so a typed first number is kept. */
+function serList(k){return k==="po"?saved.map(x=>x.no):k==="grn"?grns.map(g=>g.no):k==="so"?sorders.map(x=>x.no):dchallans.map(x=>x.no)}
+function serHi(list,re){let m=null;list.forEach(n=>{const r=String(n??"").trim().match(re);if(r)m=Math.max(m||0,+r[1])});return m}
+function serMax(k,pl,fy){const re=serRe(k,pl,fy);let m=serHi(serList(k),re);
+  if(m==null&&k==="po"){let lo=null;store.get("deletedPOs",[]).forEach(d=>{const r=String(d.no??"").trim().match(re);if(r)lo=lo==null?+r[1]:Math.min(lo,+r[1])});if(lo!=null)m=lo-1}
+  return m}
 function serFmt(k,pl,fy,n){return `${serL(pl)}/${SER[k].tag}${String(n).padStart(SER[k].w,"0")}/${fy}`}
 function serFirst(k,pl,fy){return serMax(k,pl||"P1",fy||fyOf(today()))==null}
 function serNext(k,pl,fy){pl=pl||"P1";fy=fy||fyOf(today());return serFmt(k,pl,fy,(serMax(k,pl,fy)||0)+1)}
