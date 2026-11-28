@@ -426,6 +426,140 @@ func (t *tallyClient) Vouchers(company string, from, to time.Time) ([]Vch, error
 	return out, nil
 }
 
+// GST ledgers (under Duties & Taxes), so a purchase voucher's amount can be split into before-GST and GST
+var gstName = regexp.MustCompile(`(?i)\b(c|s|i|ut)?gst\b|cgst|sgst|igst|utgst|\bcess\b`)
+
+func (t *tallyClient) gstLedgers(company string) (map[string]bool, error) {
+	r, err := t.post(collectionReq("ZTTaxLed", company, time.Time{}, time.Time{},
+		`<COLLECTION NAME="ZTTaxLed" ISMODIFY="No"><TYPE>Ledger</TYPE><CHILDOF>$$GroupDutiesTaxes</CHILDOF><BELONGSTO>Yes</BELONGSTO><FETCH>Name,TaxType,GSTDutyHead</FETCH></COLLECTION>`))
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	r.walk(func(n *node) {
+		if n.Name != "LEDGER" {
+			return
+		}
+		name := strings.TrimSpace(n.Attr["NAME"])
+		if name == "" {
+			name = n.val("NAME")
+		}
+		tt := strings.ToUpper(n.val("TAXTYPE"))
+		if name != "" && (tt == "GST" || n.val("GSTDUTYHEAD") != "" || (tt == "" && gstName.MatchString(name))) {
+			out[name] = true
+		}
+	})
+	return out, nil
+}
+
+// Purchases (or debit notes) of one month, as Tally has them: Amt with GST, Net before GST, N vouchers
+type PurMonth struct {
+	M   string  `json:"m"`
+	T   string  `json:"t"`
+	Amt float64 `json:"amt"`
+	Net float64 `json:"net"`
+	N   int     `json:"n"`
+}
+
+// Purchase vouchers ("pur") and debit notes ("dn") between two dates, added up by month.
+// With GST = the party's amount on the voucher; GST = the GST ledger lines; before GST = the difference.
+func (t *tallyClient) Purchases(company string, from, to time.Time) ([]PurMonth, error) {
+	gst, err := t.gstLedgers(company)
+	if err != nil {
+		return nil, err
+	}
+	fromS, toS := from.Format("2006-01-02"), to.Format("2006-01-02")
+	tot := map[string]*PurMonth{}
+	for _, v := range []struct{ t, fn string }{{"pur", "$$IsPurchase"}, {"dn", "$$IsDebitNote"}} {
+		r, err := t.post(collectionReq("ZTPur", company, from, to,
+			`<COLLECTION NAME="ZTPur" ISMODIFY="No"><TYPE>Voucher</TYPE><FETCH>GUID,Date,VoucherTypeName,PartyLedgerName,Amount,AllLedgerEntries.LedgerName,AllLedgerEntries.Amount,AllLedgerEntries.IsPartyLedger</FETCH><FILTER>ZTPurF</FILTER></COLLECTION>`+
+				`<SYSTEM TYPE="Formulae" NAME="ZTPurF">`+v.fn+`:$VoucherTypeName AND NOT $IsCancelled AND NOT $IsOptional</SYSTEM>`))
+		if err != nil {
+			return nil, err
+		}
+		seen := map[string]bool{}
+		r.walk(func(n *node) {
+			if n.Name != "VOUCHER" {
+				return
+			}
+			d := isoDate(n.val("DATE"))
+			if d == "" || d < fromS || d > toS {
+				return
+			}
+			if g := n.val("GUID"); g != "" {
+				if seen[g] {
+					return
+				}
+				seen[g] = true
+			}
+			party := n.val("PARTYLEDGERNAME")
+			var lines []*node
+			for _, k := range n.Kids {
+				if k.Name == "ALLLEDGERENTRIES.LIST" {
+					lines = append(lines, k)
+				}
+			}
+			if len(lines) == 0 {
+				for _, k := range n.Kids {
+					if k.Name == "LEDGERENTRIES.LIST" {
+						lines = append(lines, k)
+					}
+				}
+			}
+			var gross, tax, other float64
+			hasParty := false
+			for _, l := range lines {
+				name, a := l.val("LEDGERNAME"), amount(l.val("AMOUNT"))
+				switch {
+				case yes(l.val("ISPARTYLEDGER")) || (party != "" && name == party):
+					if !hasParty {
+						gross, hasParty = math.Abs(a), true
+					}
+				case gst[name]:
+					tax += a
+				default:
+					other += a
+				}
+			}
+			if !hasParty {
+				gross = math.Abs(amount(n.val("AMOUNT")))
+				if gross == 0 {
+					gross = math.Abs(tax + other)
+				}
+			}
+			tax = math.Abs(tax)
+			if tax > gross {
+				tax = 0
+			}
+			k := v.t + d[:7]
+			o := tot[k]
+			if o == nil {
+				o = &PurMonth{M: d[:7], T: v.t}
+				tot[k] = o
+			}
+			o.Amt += gross
+			o.Net += gross - tax
+			o.N++
+		})
+	}
+	out := []PurMonth{}
+	for _, o := range tot {
+		o.Amt, o.Net = math.Round(o.Amt*100)/100, math.Round(o.Net*100)/100
+		out = append(out, *o)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].T+out[i].M < out[j].T+out[j].M })
+	return out, nil
+}
+
+// First day purchases are read from: 1 April of last financial year, so this year and last year can both be shown
+func purFrom(now time.Time) time.Time {
+	y := now.Year() - 1
+	if now.Month() < 4 {
+		y--
+	}
+	return time.Date(y, 4, 1, 0, 0, 0, 0, now.Location())
+}
+
 // If ledger balances come out with the opposite sign to the bills (a Tally setting or version difference), turn them round.
 func fixLedgerSign(L []Ledger, B []Bill) bool {
 	by := map[string]float64{}
@@ -461,13 +595,16 @@ func fixLedgerSign(L []Ledger, B []Bill) bool {
 }
 
 type Company struct {
-	Name    string   `json:"name"`
-	OK      bool     `json:"ok"`
-	Error   string   `json:"error,omitempty"`
-	Flip    bool     `json:"flip,omitempty"`
-	Ledgers []Ledger `json:"ledgers"`
-	Bills   []Bill   `json:"bills"`
-	Vch     []Vch    `json:"vch"`
+	Name    string     `json:"name"`
+	OK      bool       `json:"ok"`
+	Error   string     `json:"error,omitempty"`
+	Flip    bool       `json:"flip,omitempty"`
+	Ledgers []Ledger   `json:"ledgers"`
+	Bills   []Bill     `json:"bills"`
+	Vch     []Vch      `json:"vch"`
+	Pur     []PurMonth `json:"pur"`
+	PurOK   bool       `json:"purOk"`
+	PurErr  string     `json:"purErr,omitempty"`
 }
 
 // Read one company: ledgers, bills, receipts and payments. Any part failing marks the company not read, so the ERP keeps its last data.
@@ -492,6 +629,12 @@ func (t *tallyClient) ReadCompany(name string, now time.Time, days int) Company 
 	if err != nil {
 		c.Error = err.Error()
 		return c
+	}
+	// purchases are extra: if Tally cannot give them, the rest still goes and the ERP keeps the purchase figures it had
+	if P, err := t.Purchases(name, purFrom(now), now); err != nil {
+		c.PurErr = err.Error()
+	} else {
+		c.Pur, c.PurOK = P, true
 	}
 	c.Flip = fixLedgerSign(L, B)
 	sort.Slice(B, func(i, j int) bool { return B[i].L < B[j].L })

@@ -4734,6 +4734,16 @@ function tlData(){const S=tlStatus(),m=tlMap(),A=tlAll();const sig=(S&&S.at)+"|"
 const tlDue=(kind,before)=>tlData().B.filter(b=>b.kind===kind&&inPlant(b)&&(!before||(b.date&&b.date<before))).reduce((a,b)=>a+(+b.due||0),0);
 /* Tally receipts ("rcpt") or payments ("pay") for the plant picked in the header; a Tally company not set to a plant counts as Plant 1 */
 const tlVch=type=>{const m=tlMap();return tlData().V.filter(v=>v.type===type&&inPlant({plant:m.co[v.co]||""}))};
+/* first day Tally sent purchase totals for ("" when Tally is off, or the sync program is older than 1.1 and does not send them) */
+const tlPurFrom=()=>{const s=tlOn()&&tlStatus();return(s&&s.purFrom)||""};
+/* purchases by month for the plant picked in the header; g = with GST, n = before GST.
+   With Tally sending purchase totals: Tally purchase vouchers less debit notes, so the figure matches Tally.
+   Otherwise (and for months before Tally's data starts): booked GRNs in the ERP. */
+function purMonths(MS){const pf=tlPurFrom(),pm=pf.slice(0,7),m=tlMap(),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts"),P=pf?tlAll().filter(x=>x&&x.t==="p"&&inPlant({plant:m.co[x.co]||""})):[];
+  return MS.map(k=>{let g=0,n=0;if(pf&&k>=pm){P.forEach(x=>{if(x.m===k){const sg=x.type==="dn"?-1:1;g+=sg*(+x.amt||0);n+=sg*(+x.net||0)}});return{g,n,tl:true}}
+    GR.forEach(r=>{if(m7(r.bookedAt||r.date)===k){const c=grnCalc(r);g+=c.total;n+=c.sub}});return{g,n,tl:false}})}
+/* where the purchase figures come from, for the line under a tile or chart */
+const purSrc=()=>tlPurFrom()?"Tally purchases less debit notes":"Booked GRNs";
 /* first day Tally sent receipts and payments for (the sync program sends the last 90 days) */
 const tlVchFrom=()=>{const s=tlStatus();return(s&&s.from)||addDays(today(),-90)};
 /* customer ("cust") or supplier ("sup") bills in Tally by age, days from the bill date: 0-30, 31-60, 61-90, over 90, and amounts with no bill date (on account) */
@@ -4793,7 +4803,8 @@ function renderTally(){const P=$("#tallyPanel");if(!P)return;const D=tlData(),S=
   <div class="note">A small program on the accounts PC reads Tally every 5 minutes and sends the unpaid bills, party balances, receipts and payments here. It <b>only reads</b>: nothing is ever written into Tally, and Tally stays the books of accounts. Each Tally ledger is linked once to its ERP customer or supplier; ledgers that cannot be linked for sure wait under <b>Needs linking</b>. Nothing is guessed.</div>`;
   let st="";if(S){const cs=D.cos;
     st=`<div class="note">Last update ${esc(ltDT(S.at))} (${esc(tlAgo(S.at))}) from <b>${esc(S.pc||"accounts PC")}</b>${S.v?" · program "+esc(S.v):""}.${tlStale()?` <b style="color:var(--danger)">No update for a while: check that the accounts PC is on, someone is logged in, Tally is open and the company is loaded.</b>`:""}${S.error?` <b style="color:var(--danger)">${esc(S.error)}</b>`:""}</div>
-    ${cs.length?`<div class="tablebox"><table class="mt" style="min-width:640px"><thead><tr><th>Tally company</th><th>Read</th><th class="num">Bills</th><th class="num">Ledgers</th><th class="num">Receipts &amp; payments</th><th>Plant for its bills</th></tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${c.ok?`<span class="chip calc">OK</span>`:`<span class="chip st-Back" title="${esc(c.error)}">${esc(c.error||"Not read")}</span>`}</td><td class="num">${fmt0(c.bills||0)}</td><td class="num">${fmt0(c.ledgers||0)}</td><td class="num">${fmt0(c.vch||0)}</td><td>${ed?`<select data-tlco="${esc(c.name)}" style="width:auto;max-width:360px">${plOpt(m.co[c.name])}</select>`:esc(m.co[c.name]?plantName(m.co[c.name]):"By bill number")}</td></tr>`).join("")}</tbody></table></div>`:""}
+    ${S.purFrom?`<div class="note">Purchase vouchers less debit notes from ${esc(dmy(S.purFrom))} come from Tally, so the dashboard Purchases figures match Tally.</div>`:`<div class="note" style="color:var(--danger)"><b>Dashboard Purchases still use booked GRNs.</b> Put the new ZT-Tally-Sync.exe (version 1.1) on the accounts PC and open it once (choose Sync now) so Tally's purchase totals come in and the dashboard matches Tally.</div>`}
+    ${cs.length?`<div class="tablebox"><table class="mt" style="min-width:640px"><thead><tr><th>Tally company</th><th>Read</th><th class="num">Bills</th><th class="num">Ledgers</th><th class="num">Receipts &amp; payments</th><th>Purchases</th><th>Plant for its bills</th></tr></thead><tbody>${cs.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${c.ok?`<span class="chip calc">OK</span>`:`<span class="chip st-Back" title="${esc(c.error)}">${esc(c.error||"Not read")}</span>`}</td><td class="num">${fmt0(c.bills||0)}</td><td class="num">${fmt0(c.ledgers||0)}</td><td class="num">${fmt0(c.vch||0)}</td><td>${c.purOk?`<span class="chip calc">OK</span>`:c.ok&&c.purErr?`<span class="chip st-Back" title="${esc(c.purErr)}">Not read</span>`:`<span class="note">-</span>`}</td><td>${ed?`<select data-tlco="${esc(c.name)}" style="width:auto;max-width:360px">${plOpt(m.co[c.name])}</select>`:esc(m.co[c.name]?plantName(m.co[c.name]):"By bill number")}</td></tr>`).join("")}</tbody></table></div>`:""}
     <label class="row" style="gap:8px;align-items:center;cursor:${ed?"pointer":"default"}"><input type="checkbox" id="tl-use" style="width:18px;height:18px"${m.use!==false?" checked":""}${ed?"":" disabled"}> Use Tally for the <b>To collect</b> and <b>To pay</b> figures on Home and Dashboard (instead of ERP invoices, GRNs and old ERP bills)</label>`}
   const tc=tlDue("cust"),tp=tlDue("sup"),cm=today().slice(0,7),inP=x=>inPlant(x);
   const rc=D.V.filter(v=>v.type==="rcpt"&&(v.date||"").slice(0,7)===cm).reduce((a,v)=>a+(+v.amt||0),0),py=D.V.filter(v=>v.type==="pay"&&(v.date||"").slice(0,7)===cm).reduce((a,v)=>a+(+v.amt||0),0);
@@ -5868,9 +5879,9 @@ function dashMine(U){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today(),c
 
 /* ---------- company overview ---------- */
 /* company money figures for the plant picked in the header (all plants when none) */
-function dashMoney(MS){const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
-  const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]),purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
-  const salesB=byMonth(MS,INV,x=>x.date,x=>invCalc(x).ass).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).ass)[i]),purchB=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).sub);
+function dashMoney(MS){const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant);
+  const PM=purMonths(MS),sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]),purch=PM.map(x=>x.g);
+  const salesB=byMonth(MS,INV,x=>x.date,x=>invCalc(x).ass).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).ass)[i]),purchB=PM.map(x=>x.n);
   /* with Tally linked, Collected comes from Tally receipts, the same source as To collect */
   const R=[];if(tlOn())tlVch("rcpt").forEach(v=>R.push({date:v.date,amt:+v.amt||0}));else{invoices.filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.filter(inPlant).forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})))}
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s)));
@@ -5884,8 +5895,8 @@ function dashPlants(MS){const PL=plants(),X=PL.map(p=>({p,d:withPlant(p.id,()=>d
 function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today();
   const INV=invoices.filter(x=>inPlant(x)&&!x.cancelled),CN=cnotes.filter(inPlant),GR=grns.filter(g=>inPlant(g)&&g.status!=="With accounts");
   const sales=byMonth(MS,INV,x=>x.date,invTot).map((v,i)=>v-byMonth(MS,CN,n=>n.date,n=>ntCalc("cn",n).grand)[i]);
-  const purch=byMonth(MS,GR,g=>g.bookedAt||g.date,g=>grnCalc(g).total);
-  const salesB=sum(INV.filter(x=>inP(x.date)).map(x=>invCalc(x).ass))-sum(CN.filter(n=>inP(n.date)).map(n=>ntCalc("cn",n).ass)),purchB=sum(GR.filter(g=>inP(g.bookedAt||g.date)).map(g=>grnCalc(g).sub));
+  const PM=purMonths(MS),purch=PM.map(x=>x.g);
+  const salesB=sum(INV.filter(x=>inP(x.date)).map(x=>invCalc(x).ass))-sum(CN.filter(n=>inP(n.date)).map(n=>ntCalc("cn",n).ass)),purchB=sum(PM.map(x=>x.n));
   const R=[];invoices.concat(obills.filter(o=>o.kind==="cust")).filter(inPlant).forEach(v=>rcptsOf(v).forEach(r=>R.push(r)));sorders.forEach(s=>(s.adv||[]).forEach(a=>R.push({date:a.date,amt:a.amt})));
   const TL=tlOn(),tlFrom=TL?tlVchFrom():"";
   /* with Tally linked, money in and out comes from Tally receipts and payments, the same source as To collect / To pay */
@@ -5893,10 +5904,10 @@ function dashCompany(){const MS=dashMonths(),inP=d=>MS.includes(m7(d)),t=today()
   const recv=TL?tlDue("cust"):invoices.filter(inPlant).reduce((a,v)=>a+invDue(v),0)+obCustDue(),payb=TL?tlDue("sup"):curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0),stv=stockItems().reduce((a,i)=>a+i.value,0);
   const openSO=sorders.filter(s=>inPlant(s)&&["Open","Part dispatched"].includes(soStatus(s))),J=jobs.filter(j=>j.status!=="Completed"),lateJ=J.filter(j=>j.due&&j.due<t);
   const go=v=>can(v)?v:"";
-  let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales",`With GST (${moneyTxt(salesB)} before GST)`,false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases",`With GST (${moneyTxt(purchB)} before GST)`,false,go("acct"))}${tile(moneyTxt(sum(coll)),"Collected",TL?"Tally receipts since "+dmy(tlFrom):"Customer receipts and advances",false,go(TL&&can("tally")?"tally":"inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors",TL?"Tally payments since "+dmy(tlFrom):"Payments made",false,go(TL&&can("tally")?"tally":"acct"))}
+  let h=`<div class="cards dtiles">${tile(moneyTxt(sum(sales)),"Sales",`With GST (${moneyTxt(salesB)} before GST)`,false,go("inv"))}${tile(moneyTxt(sum(purch)),"Purchases",`With GST (${moneyTxt(purchB)} before GST)${tlPurFrom()?" · from Tally, less debit notes":""}`,false,go(tlPurFrom()&&can("tally")?"tally":"acct"))}${tile(moneyTxt(sum(coll)),"Collected",TL?"Tally receipts since "+dmy(tlFrom):"Customer receipts and advances",false,go(TL&&can("tally")?"tally":"inv"))}${tile(moneyTxt(sum(paid)),"Paid to vendors",TL?"Tally payments since "+dmy(tlFrom):"Payments made",false,go(TL&&can("tally")?"tally":"acct"))}
     ${tile(moneyTxt(recv),"To collect now",TL?"From Tally":"All open invoices",recv>0,go(TL&&can("tally")?"tally":"inv"))}${tile(moneyTxt(payb),"To pay now",TL?"From Tally":"Booked, not yet paid",false,go(TL&&can("tally")?"tally":"acct"))}${tile(fmt0(openSO.length),"Orders to dispatch",moneyTxt(sum(openSO.map(sdSub)))+" order value",false,go("so"))}${tile(fmt0(J.length),"Jobs on the floor",lateJ.length+" past due date",lateJ.length>0,go("prod"))}${tile(moneyTxt(stv),"Stock value","At average purchase rate",false,go("stock"))}</div>`;
   const ch=[],BP=splitPlants()?dashPlants(MS):null;if(BP){h+=BP.table;ch.push(...BP.charts)}else
-  ch.push(chartBox("Sales and purchases by month","Sales = invoices less credit notes · Purchases = booked GRNs · incl. GST",vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
+  ch.push(chartBox("Sales and purchases by month",`Sales = invoices less credit notes · Purchases = ${purSrc().replace(/^T/,"t").replace(/^B/,"b")} · incl. GST`,vBars(MS,[{name:"Sales",c:"var(--s1)",vals:sales},{name:"Purchases",c:"var(--s2)",vals:purch}],{money:true}),true));
   ch.push(chartBox("Money in and out by month",TL?`Tally receipts vs payments, from ${dmy(tlFrom)} (Tally sends the last 90 days)`:"Customer receipts vs vendor payments",vBars(MS,[{name:"Collected",c:"var(--s3)",vals:coll},{name:"Paid",c:"var(--s2)",vals:paid}],{money:true}),true));
   /* money to collect and to pay by age: Tally bills when linked, else open ERP invoices / unpaid booked GRNs and opening bills */
   const ageOf=L=>{const b=[0,0,0,0];L.forEach(([d,v])=>{const a=Math.round((new Date(t)-new Date(d))/864e5);b[a<=30?0:a<=60?1:a<=90?2:3]+=v});return b};
@@ -5980,14 +5991,16 @@ function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS
   const salesIn=f=>sum(INV.filter(x=>f(x.date)).map(sOf))-sum(CN.filter(n=>f(n.date)).map(cOf));
   const gOf=x=>{const c=invCalc(x);return c.ass+c.cg+c.sg+c.ig},gcOf=n=>{const c=ntCalc("cn",n);return c.ass+c.tax},pgOf=g=>{const c=grnCalc(g);return c.sub+c.tax};
   const salesInG=f=>sum(INV.filter(x=>f(x.date)).map(gOf))-sum(CN.filter(n=>f(n.date)).map(gcOf));
-  const sales12=MS.map(k=>salesIn(d=>m7(d)===k)),purch12=MS.map(k=>sum(GR.filter(g=>m7(gd(g))===k).map(pOf)));
+  const fyM=[];for(let k=fs.slice(0,7);k<=cm;k=new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7),1)).toISOString().slice(0,7))fyM.push(k);
+  const PK=[...new Set(MS.concat(fyM))].sort(),PV=purMonths(PK),pAt=k=>PV[PK.indexOf(k)]||{g:0,n:0};
+  const sales12=MS.map(k=>salesIn(d=>m7(d)===k)),purch12=MS.map(k=>pAt(k).n);
   const o60=addDays(t,-60),TL=tlOn(),recv=TL?tlDue("cust"):INV.reduce((a,v)=>a+invDue(v),0)+obCustDue(),old=TL?tlDue("cust",o60):INV.filter(v=>v.date<o60).reduce((a,v)=>a+invDue(v),0)+obills.filter(o=>o.kind==="cust"&&inPlant(o)&&o.date<o60).reduce((a,o)=>a+Math.max(0,obBal(o)),0);
   const payb=TL?tlDue("sup"):curPlant?plantDue()+obSupDue():vendSummary().reduce((a,v)=>a+v.booked-v.paid,0);
   const SI=stockItems(),zero=new Set(SI.filter(i=>i.bal<=0.0001).map(i=>i.k));lowStock().forEach(r=>zero.add(key(r.it.name)));
   const wk=weekMon(),J=jobs.filter(j=>j.status!=="Completed"),OPS=jobs.flatMap(j=>(j.ops||[]).filter(o=>o.status==="Done"&&d10(o.end)>=wk));
   return{t,cm,pm,fs,MS,INV,GR,sales12,purch12,
-    salesM:salesIn(d=>m7(d)===cm),salesPM:salesIn(d=>m7(d)===pm),salesFY:salesIn(d=>d>=fs&&d<=t),purFY:sum(GR.filter(g=>gd(g)>=fs).map(pOf)),purM:sum(GR.filter(g=>m7(gd(g))===cm).map(pOf)),
-    salesMG:salesInG(d=>m7(d)===cm),salesFYG:salesInG(d=>d>=fs&&d<=t),purFYG:sum(GR.filter(g=>gd(g)>=fs).map(pgOf)),purMG:sum(GR.filter(g=>m7(gd(g))===cm).map(pgOf)),
+    salesM:salesIn(d=>m7(d)===cm),salesPM:salesIn(d=>m7(d)===pm),salesFY:salesIn(d=>d>=fs&&d<=t),purFY:sum(fyM.map(k=>pAt(k).n)),purM:pAt(cm).n,
+    salesMG:salesInG(d=>m7(d)===cm),salesFYG:salesInG(d=>d>=fs&&d<=t),purFYG:sum(fyM.map(k=>pAt(k).g)),purMG:pAt(cm).g,
     recv,recvP:recv,old,payb,paybP:TL?payb:plantDue()+obSupDue(),TL,obC:TL||obills.some(o=>o.kind==="cust"),obS:TL||obills.some(o=>o.kind==="sup"),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
 function homeTabs(){return[["ov","🏢","Overview",true],["sal","📈","Sales",["sales","so","dc","inv","cn"].some(can)],["pur","🛒","Purchase",["req","buy","po","saved","appr"].some(can)],["store","📦","Store",["grn","stock"].some(can)],["prod","🏭","Production",can("prod")]].filter(x=>x[3])}
 const HQA=[["inv","🧾","New sales invoice","From a customer order","inv"],["prod","🏭","Production","Job cards, log what's made"],["stock","📊","Stock entry","Opening, issue, return"],["inv","💰","Payment received","From a customer"],["so","📥","New sales order","From a customer PO","so"],
@@ -6008,13 +6021,13 @@ function renderHome(){
   if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",gst:gstTxt(D.salesM,D.salesMG),split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",gst:gstTxt(D.salesFY,D.salesFYG),split:hSplit("salesFY")}));
     K.push(kpi("To collect",kpiL(D.recv),D.old>0.5?`${kpiL(D.old)} older than 60 days${D.TL?" · "+tlHint():""}`:obHint("cust",D)||"from customers",{go:obGo("cust",D)||"inv",tone:D.recv>0.5?"warn":"",split:hSplit("recvP",D.recv)}))}
   if(can("acct"))K.push(kpi("To pay",kpiL(D.payb),obHint("sup",D)||"to vendors",{go:obGo("sup",D)||"acct",split:hSplit("paybP",D.payb)}));
-  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purFY,D.purFYG),split:hSplit("purFY")}));
+  if(can("acct")||can("saved"))K.push(kpi("Purchases this year",kpiL(D.purFY),tlPurFrom()?"from Tally, before GST":"before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purFY,D.purFYG),split:hSplit("purFY")}));
   if(can("stock"))K.push(kpi("Stock alerts",fmt0(D.alerts),"items at zero or below minimum",{go:"stock",tone:D.alerts?"warn":""}));
   if(can("prod"))K.push(kpi("Production this week",D.ops.length?fmt0(Math.round(D.hrs*10)/10)+" h":"—",D.ops.length?`${D.ops.length} operation${D.ops.length>1?"s":""} done · ${D.J.length} jobs open`:D.J.length?`${D.J.length} jobs open, nothing logged yet`:"no job cards yet",{go:"prod",tone:D.late.length?"warn":""}));
   $("#homeKpi").innerHTML=K.join("");$("#homeKpi").hidden=!K.length;
   const showChart=can("inv")||can("acct");$("#homeChart").hidden=!showChart;
   if(showChart){const ser=X=>{const S=[];if(can("inv"))S.push({name:"Sales",c:"var(--s1)",vals:X.sales12});if(can("acct")||can("saved"))S.push({name:"Purchases",c:"var(--s4)",vals:X.purch12});return S};
-    const S=ser(D),ttl=`${S.length>1?"Sales vs purchases":S[0].name}, last 12 months`,nt=`Before GST. Sales are invoices less credit notes; purchases are booked GRNs.`;
+    const S=ser(D),ttl=`${S.length>1?"Sales vs purchases":S[0].name}, last 12 months`,nt=`Before GST. Sales are invoices less credit notes; purchases are ${tlPurFrom()?"Tally purchases less debit notes":"booked GRNs"}.`;
     if(HP){const mx=niceMax(Math.max(1000,...HP.flatMap(x=>ser(x.D).flatMap(s=>s.vals))));
       $("#homeChart").innerHTML=`<h3>${ttl}, by plant</h3><div class="note">${nt} Both plants on the same scale.</div><div class="hpcharts">${HP.map(x=>`<div class="hpchart"><b>${esc(x.p.name)}</b>${vBars(D.MS,ser(x.D),{money:true,max:mx})}</div>`).join("")}</div>`}
     else $("#homeChart").innerHTML=`<h3>${ttl}</h3><div class="note">${nt.slice(0,-1)}${curPlant?" · "+esc(plantName(curPlant))+" only":""}.</div>`+vBars(D.MS,S,{money:true})}
@@ -6049,9 +6062,9 @@ function homeTabHtml(k,D){const t=today(),K=[];let h="";
     K.push(kpi("Requests waiting",fmt0(st("Submitted")+st("Checked")),"with department head or approver",{go:"req"}),kpi("Lines to buy",fmt0(pendToOrder().length),"approved, not on a PO yet",{go:can("buy")?"buy":"req",tone:pendToOrder().length?"warn":""}),
       kpi("POs for approval",fmt0(P.filter(p=>p.status==="Pending approval").length),"waiting to be signed",{go:can("appr")?"appr":"saved"}),kpi("Material due",fmt0(P.filter(p=>p.status==="Approved"&&!p.closed).length),"approved POs still open",{go:"saved"}),
       kpi("Late from supplier",fmt0(P.filter(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved").length),"past the required date",{go:"saved",tone:P.some(p=>!p.closed&&p.needBy&&p.needBy<t&&p.status==="Approved")?"warn":""}));
-    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),"booked GRNs, before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purM,D.purMG),split:hSplit("purM")}),kpi("Purchases this year",kpiL(D.purFY),"before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purFY,D.purFYG),split:hSplit("purFY")}));
+    if(can("acct")||can("saved"))K.push(kpi("Purchases this month",kpiL(D.purM),purSrc()+", before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purM,D.purMG),split:hSplit("purM")}),kpi("Purchases this year",kpiL(D.purFY),tlPurFrom()?"from Tally, before GST":"before GST",{go:can("acct")?"acct":"saved",gst:gstTxt(D.purFY,D.purFYG),split:hSplit("purFY")}));
     h+=`<div class="kpis">${K.join("")}</div>`;
-    if(can("acct")||can("saved"))h+=`<div class="panel dchart"><h3>Purchases, last 12 months</h3><div class="note">Booked GRNs, before GST</div>${hBars12("purch12","Purchases","var(--s4)",D)}</div>`;
+    if(can("acct")||can("saved"))h+=`<div class="panel dchart"><h3>Purchases, last 12 months</h3><div class="note">${purSrc()}, before GST</div>${hBars12("purch12","Purchases","var(--s4)",D)}</div>`;
     h+=homeList("POs waiting for approval",[["PO"],["Supplier"],["Date","dt"],["Value","num"]],P.filter(p=>p.status==="Pending approval").slice(0,8).map(p=>[esc(p.no),esc(p.sup||""),dmy(p.date),fmt0(Math.round(+p.total||0))]),"Nothing is waiting for approval.",can("appr")?"appr":"saved")}
   if(k==="store"){const due=saved.filter(p=>inPlant(p)&&p.status==="Approved"&&!p.closed&&pendingLines(p).length),G=grns.filter(inPlant),L=lowStock();
     K.push(kpi("POs waiting for material",fmt0(due.length),"create a GRN when it arrives",{go:"grn"}),kpi("GRNs this month",fmt0(G.filter(g=>m7(g.date)===D.cm).length),`${G.filter(g=>g.date===t).length} today`,{go:"grn"}),kpi("GRNs with accounts",fmt0(G.filter(g=>g.status==="With accounts").length),"not yet booked",{go:"grn"}));

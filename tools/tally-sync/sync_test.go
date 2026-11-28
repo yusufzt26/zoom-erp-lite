@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf16"
 )
 
@@ -47,6 +48,28 @@ func fakeTally(t *testing.T, reqs *[]string) *httptest.Server {
 			<VOUCHER><DATE>20250101</DATE><GUID>too-old</GUID><AMOUNT>1</AMOUNT></VOUCHER></COLLECTION></DATA></BODY></ENVELOPE>`)
 		case strings.Contains(q, "$$IsPayment"):
 			io.WriteString(w, `<ENVELOPE><BODY><DATA><COLLECTION><VOUCHER><DATE>20261118</DATE><GUID>g-2</GUID><VOUCHERNUMBER>220</VOUCHERNUMBER><VOUCHERTYPENAME>Bank Payment</VOUCHERTYPENAME><PARTYLEDGERNAME>Kirti Alloys</PARTYLEDGERNAME><AMOUNT>-30000.00</AMOUNT></VOUCHER></COLLECTION></DATA></BODY></ENVELOPE>`)
+		case strings.Contains(q, "ZTTaxLed"):
+			io.WriteString(w, `<ENVELOPE><BODY><DATA><COLLECTION><LEDGER NAME="Input CGST 9%"><TAXTYPE>GST</TAXTYPE><GSTDUTYHEAD>Central Tax</GSTDUTYHEAD></LEDGER><LEDGER NAME="Input SGST 9%"><TAXTYPE>GST</TAXTYPE></LEDGER><LEDGER NAME="IGST Input"></LEDGER><LEDGER NAME="TDS on Contract"><TAXTYPE>TDS</TAXTYPE></LEDGER></COLLECTION></DATA></BODY></ENVELOPE>`)
+		case strings.Contains(q, "$$IsPurchase"):
+			// item invoice with CGST+SGST, an accounting voucher with IGST, and one from last year (too old)
+			io.WriteString(w, `<ENVELOPE><BODY><DATA><COLLECTION>
+			<VOUCHER VCHTYPE="Purchase"><DATE>20261105</DATE><GUID>p-1</GUID><PARTYLEDGERNAME>Kirti Alloys</PARTYLEDGERNAME><AMOUNT>-118000.00</AMOUNT>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Kirti Alloys</LEDGERNAME><ISPARTYLEDGER>Yes</ISPARTYLEDGER><AMOUNT>118000.00</AMOUNT></ALLLEDGERENTRIES.LIST>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Purchase GST 18%</LEDGERNAME><AMOUNT>-100000.00</AMOUNT></ALLLEDGERENTRIES.LIST>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Input CGST 9%</LEDGERNAME><AMOUNT>-9000.00</AMOUNT></ALLLEDGERENTRIES.LIST>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Input SGST 9%</LEDGERNAME><AMOUNT>-9000.00</AMOUNT></ALLLEDGERENTRIES.LIST></VOUCHER>
+			<VOUCHER><DATE>20261020</DATE><GUID>p-2</GUID><PARTYLEDGERNAME>Ravi Steels</PARTYLEDGERNAME>
+			<LEDGERENTRIES.LIST><LEDGERNAME>Ravi Steels</LEDGERNAME><AMOUNT>59000.00</AMOUNT></LEDGERENTRIES.LIST>
+			<LEDGERENTRIES.LIST><LEDGERNAME>Purchase Interstate</LEDGERNAME><AMOUNT>-50000.00</AMOUNT></LEDGERENTRIES.LIST>
+			<LEDGERENTRIES.LIST><LEDGERNAME>IGST Input</LEDGERNAME><AMOUNT>-9000.00</AMOUNT></LEDGERENTRIES.LIST></VOUCHER>
+			<VOUCHER><DATE>20240101</DATE><GUID>p-old</GUID><AMOUNT>-5</AMOUNT></VOUCHER>
+			</COLLECTION></DATA></BODY></ENVELOPE>`)
+		case strings.Contains(q, "$$IsDebitNote"):
+			io.WriteString(w, `<ENVELOPE><BODY><DATA><COLLECTION><VOUCHER><DATE>20261110</DATE><GUID>d-1</GUID><PARTYLEDGERNAME>Kirti Alloys</PARTYLEDGERNAME>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Kirti Alloys</LEDGERNAME><ISPARTYLEDGER>Yes</ISPARTYLEDGER><AMOUNT>-11800.00</AMOUNT></ALLLEDGERENTRIES.LIST>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Purchase GST 18%</LEDGERNAME><AMOUNT>10000.00</AMOUNT></ALLLEDGERENTRIES.LIST>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Input CGST 9%</LEDGERNAME><AMOUNT>900.00</AMOUNT></ALLLEDGERENTRIES.LIST>
+			<ALLLEDGERENTRIES.LIST><LEDGERNAME>Input SGST 9%</LEDGERNAME><AMOUNT>900.00</AMOUNT></ALLLEDGERENTRIES.LIST></VOUCHER></COLLECTION></DATA></BODY></ENVELOPE>`)
 		default:
 			io.WriteString(w, `<RESPONSE><LINEERROR>Unknown request</LINEERROR></RESPONSE>`)
 		}
@@ -101,6 +124,13 @@ func TestSync(t *testing.T) {
 	if len(co.Vch) != 2 || co.Vch[0].T != "rcpt" || co.Vch[0].Amt != 50000 || co.Vch[1].T != "pay" || co.Vch[1].Amt != 30000 || co.Vch[1].Vt != "Bank Payment" {
 		t.Fatalf("vouchers %+v", co.Vch)
 	}
+	want := []PurMonth{{M: "2026-11", T: "dn", Amt: 11800, Net: 10000, N: 1}, {M: "2026-10", T: "pur", Amt: 59000, Net: 50000, N: 1}, {M: "2026-11", T: "pur", Amt: 118000, Net: 100000, N: 1}}
+	if !co.PurOK || len(co.Pur) != 3 || co.Pur[0] != want[0] || co.Pur[1] != want[1] || co.Pur[2] != want[2] {
+		t.Fatalf("purchases %+v", co.Pur)
+	}
+	if got.PurFrom == "" || got.PurFrom > "2026-04-01" {
+		t.Fatalf("purFrom %q", got.PurFrom)
+	}
 	for _, q := range reqs {
 		if !strings.Contains(q, "Export") {
 			t.Fatalf("not an export request: %s", q)
@@ -135,6 +165,15 @@ func TestSignFix(t *testing.T) {
 	}
 	if fixLedgerSign(L, B) {
 		t.Fatal("must not flip back")
+	}
+}
+
+func TestPurFrom(t *testing.T) {
+	for in, want := range map[string]string{"2026-11-28": "2025-04-01", "2027-03-31": "2025-04-01", "2027-04-01": "2026-04-01"} {
+		d, _ := time.Parse("2006-01-02", in)
+		if s := purFrom(d).Format("2006-01-02"); s != want {
+			t.Errorf("purFrom(%s)=%s", in, s)
+		}
 	}
 }
 

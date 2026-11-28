@@ -218,12 +218,12 @@ async function syncKey(req) {
   return r[0] || null;
 }
 async function tallyPush(b, label) {
-  const { status, recs, okCos } = tallyRecords(b, label);
+  const { status, recs, okCos, purCos } = tallyRecords(b, label);
   const c = await pool().connect();
   try {
     await c.query("BEGIN"); await c.query("SELECT pg_advisory_xact_lock(hashtext('tally'))");
     const ex = (await c.query("SELECT id,data FROM records WHERE coll='tally' AND NOT deleted")).rows;
-    const { write, del } = tallyDiff(ex, recs, okCos);
+    const { write, del } = tallyDiff(ex, recs, okCos, purCos);
     const by = "Tally sync" + (status.pc ? " (" + status.pc + ")" : "");
     for (let i = 0; i < write.length; i += 2000) {
       await c.query(HIST(`INSERT INTO records(coll,id,data,deleted,rev,created_rev,updated_by)
