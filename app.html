@@ -736,6 +736,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 
 <!-- STORE / GRN -->
 <section id="view-grn" class="stack" hidden>
+  <div class="panel row" id="grnRgpBar" hidden style="gap:8px"><span class="note" style="flex:1;min-width:200px">Sending material out for job work, repair or trial? Make a returnable challan.</span><button class="btn" type="button" id="btn-rgp-jump">Returnable challans <span id="rgp-open-n"></span></button><button class="btn primary" type="button" id="btn-rgp-new-top">+ New returnable challan</button></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Approved POs waiting for material</h2><input class="lq" id="gpo-q" placeholder="Search PO, supplier, item, job" style="max-width:240px"><select class="prj" id="prj-gpo" aria-label="Project" style="width:auto"></select><select class="per" id="per-gpo" aria-label="Period" style="width:auto"></select></div>
     <div class="note">Select a PO when material arrives. The GRN is filled in from the PO lines; enter what was actually received and any rejections.</div>
     <div class="row" id="gpoBulk" hidden><label class="row" style="gap:6px;cursor:pointer"><input type="checkbox" id="gpo-all" style="width:18px;height:18px"> Select all shown</label><span class="note" id="gpo-seln">Tick POs whose material already came in (for example in the old ERP) to close them.</span><span style="flex:1"></span><button class="btn" id="btn-gpo-close" disabled>Mark fully received</button></div>
@@ -743,7 +744,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
     <div id="grnPOs"></div></div>
   <div class="panel stack" id="grnForm" hidden></div>
   <div class="panel stack"><div class="row"><h2 class="sec">GRNs created</h2><input class="lq" id="grn-q" placeholder="Search GRN, PO, supplier, invoice" style="max-width:240px"><select class="prj" id="prj-grn" aria-label="Project" style="width:auto"></select><select class="per" id="per-grn" aria-label="Period" style="width:auto"></select></div><div id="grnList"></div></div>
-  <div class="panel stack"><div class="row"><h2 class="sec">Returnable challans</h2><span class="note">Material sent out for job work, repair or trial. Stays open until all of it is received back.</span><span style="flex:1"></span><button class="btn primary" id="btn-rgp-new">New returnable challan</button></div>
+  <div class="panel stack" id="rgpSec"><div class="row"><h2 class="sec">Returnable challans</h2><span class="note">Material sent out for job work, repair or trial. Stays open until all of it is received back.</span><span style="flex:1"></span><button class="btn primary" id="btn-rgp-new">+ New returnable challan</button></div>
     <div id="rgpList"></div></div>
   <div class="panel stack" id="rgpForm" hidden></div>
   <div class="panel stack"><div class="row"><h2 class="sec">Job work inward (customer material)</h2><span class="note">Material a customer sends in on their challan for job work. Bill it from Tax invoices &gt; New invoice &gt; Job work.</span><span style="flex:1"></span><button class="btn primary" id="btn-jw-new">New job work inward</button></div>
@@ -753,7 +754,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
 </section>
 
 <section id="view-jw" class="stack" hidden>
-  <div class="panel stack"><div class="row"><h2 class="sec">Job work desk</h2><span class="note">Customer material that came in for job work: record it, send it back with the invoice, and see what is still to bill.</span><span style="flex:1"></span><button class="btn" type="button" id="btn-jwd-rates">Rate card</button><button class="btn primary" type="button" id="btn-jwd-new">New inward</button></div>
+  <div class="panel stack"><div class="row"><h2 class="sec">Job work desk</h2><span class="note">Customer material that came in for job work: record it, send it back with the invoice, and see what is still to bill.</span><span style="flex:1"></span><button class="btn" type="button" id="btn-jwd-rgp" title="Send material out to a vendor for job work, repair or trial">+ Returnable challan (to vendor)</button><button class="btn" type="button" id="btn-jwd-rates">Rate card</button><button class="btn primary" type="button" id="btn-jwd-new">New inward</button></div>
     <div class="cards" id="jwdCards"></div>
     <div class="row" style="gap:8px"><input class="lq" id="jwd-q" placeholder="Search customer, challan, part, job" style="max-width:280px"><span style="flex:1"></span><button class="btn" type="button" id="btn-jwd-close" hidden title="Close the inwards in this list without a challan or invoice">Close shown</button></div></div>
   <div class="panel stack" id="jwdRates" hidden></div>
@@ -1263,11 +1264,11 @@ function setHdrCur(v){const el=$("#hdrCur"),b=$("#tab-"+v);if(el)el.textContent=
 const MNAV=[["",[["home","🏠","Home"],["dash","📊","Dashboard"]]],
   ["Sales",[["sales","💬","RFQ & quotations"],["so","📥","Sales orders"],["dc","🚚","Delivery challans"],["inv","🧾","Sales invoices"],["cn","↩️","Credit notes"]]],
   ["Purchase",[["req","📝","Purchase requests"],["buy","🧾","Pre-estimate"],["po","🛒","Purchase orders"],["saved","📋","PO list"],["appr","✅","PO approvals"],["rmast","📐","Rates & costing"],["rates","🏷️","Rate list"]]],
-  ["Stock & accounts",[["grn","📦","Goods receipts (GRN)"],["jw","🔧","Job work desk"],["stock","📊","Stock & issue"],["prod","🏭","Production"],["acct","💰","Accounts"],["tally","🔗","Tally sync"],["rep","📈","Reports"]]],
+  ["Stock & accounts",[["grn","📦","Goods receipts (GRN)"],["rgp","📤","Returnable challans"],["jw","🔧","Job work desk"],["stock","📊","Stock & issue"],["prod","🏭","Production"],["acct","💰","Accounts"],["tally","🔗","Tally sync"],["rep","📈","Reports"]]],
   ["Masters",[["mast","🗂️","Masters"],["users","👥","Users & rights"],["imp","📥","Import old data"],["undo","⏪","Restore data"]]]];
-function renderMnav(){const cur=views.find(x=>!$("#view-"+x).hidden);const mn=$("#mnav");mn.innerHTML=MNAV.map(([h,L])=>{const vis=L.filter(([v])=>{const b=$("#tab-"+v);return b&&!b.hidden&&can(v)});if(!vis.length)return"";
-  return (h?`<div class="mh">${esc(h)}</div>`:"")+vis.map(([v,ic,t])=>{const bd=$("#tab-"+v).querySelector(".badge");return `<button type="button" data-mv="${v}"${v===cur?' aria-current="true"':""}><span class="mi" aria-hidden="true">${ic}</span>${esc(t)}${bd?`<span class="badge">${esc(bd.textContent)}</span>`:""}</button>`}).join("")}).join("");document.body.classList.toggle("has-sb",!!me&&!!mn.children.length)}
-$("#mnav").addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(b){setMenu(false);show(b.dataset.mv)}});
+function renderMnav(){const cur=views.find(x=>!$("#view-"+x).hidden);const mn=$("#mnav");mn.innerHTML=MNAV.map(([h,L])=>{const vis=L.filter(([v])=>{if(v==="rgp")return can("grn")&&!$("#tab-grn").hidden;const b=$("#tab-"+v);return b&&!b.hidden&&can(v)});if(!vis.length)return"";
+  return (h?`<div class="mh">${esc(h)}</div>`:"")+vis.map(([v,ic,t])=>{const bd=v==="rgp"?null:$("#tab-"+v).querySelector(".badge");return `<button type="button" data-mv="${v}"${v===cur?' aria-current="true"':""}><span class="mi" aria-hidden="true">${ic}</span>${esc(t)}${bd?`<span class="badge">${esc(bd.textContent)}</span>`:""}</button>`}).join("")}).join("");document.body.classList.toggle("has-sb",!!me&&!!mn.children.length)}
+$("#mnav").addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(b){setMenu(false);if(b.dataset.mv==="rgp"){rgpGoList();return}show(b.dataset.mv)}});
 function setMenu(o,fromBack){if(o)renderMnav();const was=document.body.classList.contains("menu-open");if(o===was)return;document.body.classList.toggle("menu-open",o);$("#menuBtn").setAttribute("aria-expanded",o?"true":"false");
   try{if(o)history.pushState({ztMenu:1},"");else if(!fromBack&&history.state&&history.state.ztMenu)history.back()}catch(e){}}
 window.addEventListener("popstate",()=>setMenu(false,true)); /* phone Back button closes the menu instead of leaving the app */
@@ -2535,7 +2536,7 @@ function docPO(p){
 }
 function docChallan(c){const mj=lnMulti(c);
   return docHead("RETURNABLE DELIVERY CHALLAN",`<p class="small" style="text-align:center;margin:0 0 4px">Material sent for ${esc(c.purpose||"job work")} and to be returned. Not for sale.</p>`)+
-  `<div class="two"><div><b>To: ${esc(c.party)}</b><br>${esc(c.addr||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>RC-${c.no}</span><b>Date</b><span>${dmy(c.date)}</span><b>Return by</b><span>${dmy(c.expected)}</span><b>Vehicle</b><span>${esc(c.vehicle)}</span><b>Job No.</b><span>${esc(mj?docJob(c):c.job)}</span>${c.po?`<b>Our PO</b><span>${esc(c.po)}</span>`:""}<b>Status</b><span>${esc(c.status)}</span></div></div>
+  `<div class="two"><div><b>To: ${esc(c.party)}</b><br>${esc(c.addr||"").replace(/\n/g,"<br>")}${c.gstin?`<br>GSTIN: ${esc(c.gstin)}`:""}</div><div class="kv"><b>Challan No.</b><span>RC-${c.no}</span><b>Date</b><span>${dmy(c.date)}</span><b>Return by</b><span>${dmy(c.expected)}</span><b>Vehicle</b><span>${esc(c.vehicle)}</span><b>Job No.</b><span>${esc(mj?docJob(c):c.job)}</span>${c.po?`<b>Our PO</b><span>${esc(c.po)}</span>`:""}<b>Status</b><span>${esc(c.status)}</span>${(c.edits||[]).length?`<b>Revised</b><span>${dmy(String(c.edits[c.edits.length-1].at).slice(0,10))}</span>`:""}</div></div>
   <table><thead><tr><th>Sr</th>${mj?"<th>Project</th>":""}<th>Description</th><th>HSN</th><th>Qty sent</th><th>Unit</th><th>Approx. value</th><th>Returned</th><th>Remark</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${i+1}</td>${mj?`<td style="white-space:nowrap">${esc(lnJob(l,c))}</td>`:""}<td>${esc(l.desc)}</td><td>${esc(l.hsn)}</td><td class="r">${fmt0(l.qty)}</td><td>${esc(l.unit)}</td><td class="r">${l.value?fmt(l.value):""}</td><td class="r">${fmt0(l.ret||0)}</td><td>${esc(l.remark)}</td></tr>`).join("")}
   <tr><td colspan="${mj?6:5}" class="r"><b>Total approx. value</b></td><td class="r"><b>${fmt(c.lines.reduce((a,l)=>a+(+l.value||0),0))}</b></td><td colspan="2"></td></tr></tbody></table>
   ${(c.returns||[]).length?`<p class="small"><b>Received back:</b> ${c.returns.map(r=>`${dmy(r.date)} (DC ${esc(r.dc||"-")})`).join(", ")}</p>`:""}
@@ -2708,7 +2709,7 @@ function jwClose(c,note){const P=jwOutPend(c),B=jwPend(c);c.outs=c.outs||[];
   c.lines.forEach((l,i)=>{const left=Math.max(0,(+l.qty||0)-jwBill(c,i)-jwRejQ(c,i));if(left>0.0001&&!jwInternal(c))l.oldBilled=+((+l.oldBilled||0)+Math.max(0,jwOkOut(c,i)-jwBill(c,i))).toFixed(3)});
   c.closedAt=today();c.closedBy=me.name;c.closedNote=note}
 let jwdShown=[];
-function renderJwDesk(){const P=$("#jwdList");if(!P||$("#view-jw").hidden)return;$("#btn-jwd-new").hidden=!has("rgp.manage");
+function renderJwDesk(){const P=$("#jwdList");if(!P||$("#view-jw").hidden)return;$("#btn-jwd-new").hidden=!has("rgp.manage");$("#btn-jwd-rgp").hidden=!has("rgp.manage");
   const all=jwins.filter(inPlant),withQ=c=>jwOutPend(c).reduce((a,b)=>a+b,0),W=all.filter(c=>withQ(c)>0.0001),O=W.filter(c=>jwAge(c)>30),U=all.filter(c=>jwSentUnbilled(c)>0.0001);
   const tb=all.reduce((a,c)=>a+jwPend(c).reduce((b,q,i)=>b+q*(+c.lines[i].rate||jwRateFor(c.cust,c.lines[i].process)||0),0),0);
   $("#jwdCards").innerHTML=[["with",W.length,"Inwards with material here",fmt0(W.reduce((a,c)=>a+withQ(c),0))+" pcs with us"],["old",O.length,"With us over 30 days","Finish, send back or follow up",O.length>0],["unb",U.length,"Sent back, not billed","Make the invoice",U.length>0],["bill","₹"+fmt0(Math.round(tb)),"Still to bill","At inward or rate card rates, before GST"],["all",all.length,"All inwards","Including billed ones"]]
@@ -2758,9 +2759,29 @@ $("#jwbForm").addEventListener("click",e=>{const id=e.target.id;if(id==="btn-jwb
   toast("Check the invoice and press Save. Saving it also records the material as sent back.")});
 let rgps=store.get("rgps",[]);const saveRgps=()=>store.set("rgps",rgps);let rgp=null,rgpMode="new";
 const rgpPend=c=>c.lines.reduce((a,l)=>a+Math.max(0,(+l.qty||0)-(+l.ret||0)),0);
+/* a challan can be corrected (party, dates, lines...) until any material is received back against it; every change is kept in c.edits */
+const rgpEditable=c=>!!c&&c.status!=="Closed"&&!(c.returns||[]).length&&c.lines.every(l=>!(+l.ret));
+const rgpNextNo=()=>Math.max(300,...rgps.map(c=>+c.no||0))+1;
+const rgpLine=()=>({desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0});
+let rgpEditNo=null;
+function rgpOpenNew(){if(!has("rgp.manage"))return;if($("#view-grn").hidden)show("grn");
+  rgpMode="new";rgpEditNo=null;rgp={no:rgpNextNo(),plant:defPlant(),date:today(),expected:addDays(today(),7),party:"",addr:"",gstin:"",purpose:"",vehicle:"",job:"",by:me.name,status:"Open",returns:[],lines:[rgpLine()]};
+  renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"});$("#rg-party").focus()}
+function rgpOpenEdit(c){if(!has("rgp.edit")&&!has("rgp.manage"))return;if(!rgpEditable(c)){toast(`RC-${c.no} cannot be edited: material has already been received back against it`);return}
+  rgpMode="edit";rgpEditNo=c.no;rgp=JSON.parse(JSON.stringify(c));if(!rgp.lines.length)rgp.lines.push(rgpLine());renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"});$("#rg-party").focus()}
+function rgpGoList(){if(!can("grn"))return;show("grn");const el=$("#rgpSec");if(el)el.scrollIntoView({block:"start"})}
+function rgpDiff(a,b){const out=[],v=x=>String(x==null?"":x).trim();
+  [["plant","Plant",x=>{const p=plants().find(q=>q.id===x);return p?(p.short||p.name):x}],["party","Send to"],["addr","Address"],["purpose","Purpose"],["date","Challan date",dmy],["expected","Return by",dmy],["vehicle","Vehicle"],["job","Job No."],["po","Service PO"]].forEach(([k,t,f])=>{
+    if(v(a[k])!==v(b[k]))out.push(`${t}: ${v(a[k])?(f?f(a[k]):v(a[k])):"(blank)"} → ${v(b[k])?(f?f(b[k]):v(b[k])):"(blank)"}`)});
+  const ls=l=>`${v(l.desc)} · ${fmt0(+l.qty||0)} ${v(l.unit)}${v(l.hsn)?" · HSN "+v(l.hsn):""}${+l.value?" · ₹"+fmt(+l.value):""}${v(l.remark)?" · "+v(l.remark):""}${v(l.job)?" · Project "+v(l.job):""}`;
+  const n=Math.max(a.lines.length,b.lines.length);
+  for(let i=0;i<n;i++){const x=a.lines[i],y=b.lines[i];if(x&&!y)out.push(`Line ${i+1} removed: ${ls(x)}`);else if(!x&&y)out.push(`Line ${i+1} added: ${ls(y)}`);else if(ls(x)!==ls(y))out.push(`Line ${i+1}: ${ls(x)} → ${ls(y)}`)}
+  return out}
+const rgpLogHtml=c=>(c.edits||[]).length?`<details class="note"><summary>Edit log (${c.edits.length})</summary>${c.edits.slice().reverse().map(e=>`<div style="margin:4px 0"><b>${dmy(String(e.at).slice(0,10))} ${new Date(e.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})} · ${esc(e.by||"")}</b><br>${e.ch.map(esc).join("<br>")}</div>`).join("")}</details>`:"";
 function renderRgp(){
-  $("#btn-rgp-new").hidden=!has("rgp.manage");
-  $("#rgpList").innerHTML=rgps.length?byNew(rgps).map((c,_j,_a,i=rgps.indexOf(c))=>{const late=c.status!=="Closed"&&c.expected&&c.expected<today();return`<div class="listrow"><b style="font-family:var(--mono)">RC-${c.no}</b><span class="wide">${esc(c.party)} · ${esc(c.purpose||"")}${c.po?" · PO "+esc(c.po):""}${docJob(c)?" · Job "+esc(docJob(c)):""} · <span class="note">sent ${dmy(c.date)} · return by <span style="${late?"color:var(--danger);font-weight:600":""}">${dmy(c.expected)}${late?" (overdue)":""}</span> · ${fmt0(rgpPend(c))} pending</span></span><span>${stChip(c.status)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" data-rpdf="${i}">PDF</button>${c.status!=="Closed"&&has("rgp.manage")?`<button class="btn primary" data-rret="${i}">Receive back</button>`:""}</span></div>`}).join(""):`<div class="empty">No returnable challans yet.</div>`;
+  const mk=has("rgp.manage"),ed=has("rgp.edit")||mk,open=rgps.filter(c=>c.status!=="Closed").length;
+  $("#btn-rgp-new").hidden=!mk;$("#btn-rgp-new-top").hidden=!mk;$("#grnRgpBar").hidden=!can("grn");$("#rgp-open-n").textContent=open?`(${open} open)`:"";
+  $("#rgpList").innerHTML=rgps.length?byNew(rgps).map((c,_j,_a,i=rgps.indexOf(c))=>{const late=c.status!=="Closed"&&c.expected&&c.expected<today(),le=(c.edits||[]).slice(-1)[0];return`<div class="listrow"><b style="font-family:var(--mono)">RC-${c.no}</b><span class="wide">${esc(c.party)} · ${esc(c.purpose||"")}${c.po?" · PO "+esc(c.po):""}${docJob(c)?" · Job "+esc(docJob(c)):""} · <span class="note">sent ${dmy(c.date)} · return by <span style="${late?"color:var(--danger);font-weight:600":""}">${dmy(c.expected)}${late?" (overdue)":""}</span> · ${fmt0(rgpPend(c))} pending${le?` · edited ${c.edits.length>1?c.edits.length+" times, last ":""}by ${esc(le.by||"")} on ${dmy(String(le.at).slice(0,10))}`:""}</span>${rgpLogHtml(c)}</span><span>${stChip(c.status)}</span><span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn" data-rview="${i}">View</button><button class="btn" data-rpdf="${i}">PDF</button>${ed&&rgpEditable(c)?`<button class="btn" data-redit="${i}" title="Correct this challan. Possible until material is received back.">Edit</button>`:""}${c.status!=="Closed"&&mk?`<button class="btn primary" data-rret="${i}">Receive back</button>`:""}</span></div>`}).join(""):`<div class="empty">No returnable challans yet. Click <b>+ New returnable challan</b> to send material out.</div>`;
   renderRgpForm();
 }
 function renderRgpForm(){
@@ -2770,31 +2791,69 @@ function renderRgpForm(){
     <div class="grid-fields"><label class="f">Received date<input id="rr-date" type="date" value="${today()}"></label><label class="f">Their challan no.<input id="rr-dc"></label></div>
     <div class="tablebox"><table class="est" style="min-width:560px"><thead><tr><th>Description</th><th class="num">Sent</th><th class="num">Already back</th><th class="num">Received now</th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr><td>${esc(l.desc)}</td><td class="num">${fmt0(l.qty)}</td><td class="num">${fmt0(l.ret||0)}</td><td class="num"><input id="rr${i}" class="qty" type="number" step="any" min="0" value="${Math.max(0,(+l.qty||0)-(+l.ret||0))}" data-max="${Math.max(0,(+l.qty||0)-(+l.ret||0))}"></td></tr>`).join("")}</tbody></table></div>
     <div class="row"><span style="flex:1"></span><button class="btn primary" id="btn-r-ret">Save receipt</button></div>`;return}
-  const c=rgp;
-  F.innerHTML=`<div class="row"><h2 class="sec">New returnable challan · RC-${c.no}</h2><span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
+  const c=rgp,ed=rgpMode==="edit",orig=ed?rgps.find(x=>x.no===rgpEditNo):null;
+  F.innerHTML=`<div class="row"><h2 class="sec">${ed?"Edit returnable challan":"New returnable challan"} · RC-${c.no}</h2>${ed?`<span class="note">Changes are kept in the edit log. You can edit until material is received back.</span>`:""}<span style="flex:1"></span><button class="btn" id="btn-r-cancel">Cancel</button></div>
   <div class="grid-fields"><label class="f">Plant<select id="rg-plant">${plantOpts(c.plant)}</select></label><label class="f">Send to<input id="rg-party" list="suppliers" value="${esc(c.party)}" placeholder="Supplier or party"></label><label class="f">Purpose<input id="rg-purpose" value="${esc(c.purpose)}" placeholder="Hardening, repair, trial..."></label><label class="f">Challan date<input id="rg-date" type="date" value="${c.date}"></label><label class="f">Expected return by<input id="rg-expected" type="date" value="${c.expected}"></label><label class="f">Vehicle / transport<input id="rg-vehicle" value="${esc(c.vehicle)}"></label><label class="f">Job No.<input id="rg-job" list="projects" value="${esc(c.job)}"></label><label class="f">Against service PO<select id="rg-po"><option value="">No PO</option>${byNew(saved.filter(p=>p.status==="Approved"&&(!c.party||key(p.sup)===key(c.party)))).map(p=>`<option value="${esc(p.no)}"${String(c.po||"")===String(p.no)?" selected":""}>PO ${esc(p.no)} · ${esc(p.sup)}${p.ref?" · "+esc(p.ref):""}</option>`).join("")}</select></label></div>
   <label class="f">Party address<textarea id="rg-addr" rows="2">${esc(c.addr)}</textarea></label>
   <div class="tablebox"><table class="est" style="min-width:720px"><thead><tr><th>Sr</th><th>Description</th><th>HSN</th><th class="num">Qty</th><th>Unit</th><th class="num">Approx. value</th><th>Remark</th><th title="Project / Job No. of the line, when one challan carries parts of several projects. Blank = Job No. at the top">Project</th><th></th></tr></thead><tbody>${c.lines.map((l,i)=>`<tr data-i="${i}"><td>${i+1}</td><td><input id="rgl${i}-d" data-rl="desc" value="${esc(l.desc)}"></td><td><input id="rgl${i}-h" data-rl="hsn" value="${esc(l.hsn)}" style="width:90px"></td><td class="num"><input id="rgl${i}-q" class="qty" data-rl="qty" type="number" step="any" value="${l.qty}"></td><td><input id="rgl${i}-u" data-rl="unit" value="${esc(l.unit)}" style="width:60px"></td><td class="num"><input id="rgl${i}-v" class="rate" data-rl="value" type="number" step="0.01" value="${l.value||""}"></td><td><input id="rgl${i}-r" data-rl="remark" value="${esc(l.remark)}"></td><td>${ljCell(l,c,`id="rgl${i}-j" data-rl="job"`)}</td><td><button class="x" data-rdel="${i}" aria-label="Remove line">×</button></td></tr>`).join("")}</tbody></table></div>
-  <div class="row"><button class="btn" id="btn-r-line">Add line</button><span style="flex:1"></span><button class="btn primary" id="btn-r-save">Save and download PDF</button></div>`;
+  <div class="row"><button class="btn" id="btn-r-line">Add line</button><span style="flex:1"></span><span class="note">You will see the challan before it is saved.</span><button class="btn primary" id="btn-r-save">Preview challan</button></div>
+  ${orig?rgpLogHtml(orig):""}`;
 }
-$("#btn-rgp-new").onclick=()=>{rgpMode="new";rgp={no:Math.max(300,...rgps.map(c=>c.no))+1,plant:defPlant(),date:today(),expected:addDays(today(),7),party:"",addr:"",gstin:"",purpose:"",vehicle:"",job:"",by:me.name,status:"Open",returns:[],lines:[{desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0}]};renderRgpForm();$("#rg-party").focus()};
-$("#rgpList").addEventListener("click",e=>{const i=e.target.dataset.rpdf,j=e.target.dataset.rret;
+/* check the form; drops empty lines. Returns true when the challan can be previewed */
+function rgpCheck(){rgp.lines=rgp.lines.filter(l=>String(l.desc||"").trim()&&+l.qty>0);
+  const bad=m=>{toast(m);if(!rgp.lines.length)rgp.lines.push(rgpLine());renderRgpForm();return false};
+  if(!String(rgp.party||"").trim())return bad("Enter who the material is going to");
+  if(!rgp.lines.length)return bad("Add at least one item with qty");
+  if(!rgp.expected)return bad("Enter the expected return date");
+  if(rgp.expected<rgp.date)return bad("Return date cannot be before the challan date");
+  renderRgpForm();return true}
+/* show the challan exactly as it will print; "Back to correct" keeps the form open, Save stores it and downloads the PDF */
+function rgpPreview(){
+  const c=rgp,ed=rgpMode==="edit",orig=ed?rgps.find(x=>x.no===rgpEditNo):null,ch=orig?rgpDiff(orig,c):[];
+  if(ed&&!ch.length){toast("Nothing has changed on this challan");return}
+  const d=document.createElement("div");d.className="modal";d.id="rgpPrev";d.setAttribute("role","dialog");d.setAttribute("aria-label","Returnable challan preview");
+  const save=ed?"Save changes and download PDF":"Save and download PDF",btns=`<button class="btn" type="button" data-pv="back">Back to correct</button><button class="btn primary" type="button" data-pv="save">${save}</button>`;
+  d.innerHTML=`<div class="panel stack" style="max-width:880px;width:100%;max-height:94vh;overflow:auto">
+    <div class="row"><h2 class="sec">Preview: returnable challan RC-${c.no}${ed?" (edited)":""}</h2><span style="flex:1"></span>${btns}</div>
+    <div class="note">This is how the challan will print for ${esc(c.party)}. If anything is wrong (party, items, qty, dates), click <b>Back to correct</b>. Nothing is saved until you click <b>${save}</b>.${ed?"":" The challan number can move up by one if someone else saves a challan before you."}</div>
+    ${ch.length?`<div class="banner stack"><b>Changes that will go in the edit log</b><span class="note">${ch.map(esc).join("<br>")}</span></div>`:""}
+    <div class="paperbox"><div class="paper">${docChallan(c)}</div></div>
+    <div class="row"><span style="flex:1"></span>${btns}</div></div>`;
+  const close=()=>{d.remove();document.removeEventListener("keydown",esc_)},esc_=e=>{if(e.key==="Escape")close()};
+  d.addEventListener("click",e=>{if(e.target===d){close();return}const b=e.target.closest("button");if(!b)return;
+    if(b.dataset.pv==="back"){close();const n=$("#rg-party");if(n)n.focus();return}
+    if(b.dataset.pv==="save"){close();rgpCommit()}});
+  document.addEventListener("keydown",esc_);document.body.appendChild(d);d.querySelector('[data-pv="save"]').focus()}
+function rgpCommit(){const c=rgp;if(!c)return;
+  if(rgpMode==="edit"){const i=rgps.findIndex(x=>x.no===rgpEditNo),o=rgps[i];
+    if(i<0){toast("This challan is no longer in the list");return}
+    if(!rgpEditable(o)){toast(`RC-${o.no} was received back meanwhile, so it cannot be changed`);rgp=null;renderRgp();return}
+    const ch=rgpDiff(o,c);if(!ch.length){rgp=null;renderRgp();return}
+    c.returns=o.returns||[];c.status=o.status;c.edits=(o.edits||[]).concat([{at:new Date().toISOString(),by:me.name,ch}]);rgps[i]=c;saveRgps();rgp=null;rgpEditNo=null;renderRgp();
+    toast(`Challan RC-${c.no} updated`);savePDF(docChallan(c),rcFile(c));return}
+  if(rgps.some(x=>x.no===c.no))c.no=rgpNextNo();
+  c.createdAt=new Date().toISOString();rgps.unshift(c);saveRgps();rgp=null;renderRgp();toast(`Challan RC-${c.no} saved`);savePDF(docChallan(c),rcFile(c))}
+function rgpView(c){const d=document.createElement("div");d.className="modal";d.setAttribute("role","dialog");d.setAttribute("aria-label","Returnable challan RC-"+c.no);
+  d.innerHTML=`<div class="panel stack" style="max-width:880px;width:100%;max-height:94vh;overflow:auto"><div class="row"><h2 class="sec">RC-${c.no} · ${esc(c.party)}</h2><span style="flex:1"></span><button class="btn" type="button" data-v="pdf">Download PDF</button><button class="btn primary" type="button" data-v="close">Close</button></div>${rgpLogHtml(c)}<div class="paperbox"><div class="paper">${docChallan(c)}</div></div></div>`;
+  const close=()=>{d.remove();document.removeEventListener("keydown",esc_)},esc_=e=>{if(e.key==="Escape")close()};
+  d.addEventListener("click",e=>{if(e.target===d){close();return}const b=e.target.closest("button");if(!b)return;if(b.dataset.v==="close")close();if(b.dataset.v==="pdf")savePDF(docChallan(c),rcFile(c))});
+  document.addEventListener("keydown",esc_);document.body.appendChild(d)}
+$("#btn-rgp-new").onclick=rgpOpenNew;$("#btn-rgp-new-top").onclick=rgpOpenNew;$("#btn-jwd-rgp").onclick=rgpOpenNew;
+$("#btn-rgp-jump").onclick=()=>$("#rgpSec").scrollIntoView({block:"start"});
+$("#rgpList").addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const i=t.dataset.rpdf,j=t.dataset.rret,k=t.dataset.redit,v=t.dataset.rview;
+  if(v!=null){rgpView(rgps[+v]);return}
   if(i!=null){const c=rgps[+i];savePDF(docChallan(c),rcFile(c))}
-  if(j!=null){rgpMode="ret";rgp=rgps[+j];renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"})}});
-$("#rgpForm").addEventListener("input",e=>{if(rgpMode!=="new"||!rgp)return;const t=e.target;
+  if(k!=null){rgpOpenEdit(rgps[+k]);return}
+  if(j!=null){rgpMode="ret";rgpEditNo=null;rgp=rgps[+j];renderRgpForm();$("#rgpForm").scrollIntoView({block:"start"})}});
+$("#rgpForm").addEventListener("input",e=>{if((rgpMode!=="new"&&rgpMode!=="edit")||!rgp)return;const t=e.target;
   if(t.id&&t.id.startsWith("rg-")){const k=t.id.slice(3);rgp[k]=t.value;if(k==="job")ljHint($("#rgpForm"),t.value);if(k==="party"){const sp=suppliers.find(x=>key(x.name)===key(t.value));if(sp){rgp.addr=sp.addr||"";rgp.gstin=sp.gstin||"";$("#rg-addr").value=rgp.addr;const hp=document.activeElement===t;renderRgpForm();if(hp){const n=$("#rg-party");n.focus();n.setSelectionRange(n.value.length,n.value.length)}}}
     if(k==="po"&&t.value){const p=saved.find(x=>String(x.no)===t.value);if(p&&!rgp.job&&docJob(p)){rgp.job=docJob(p);$("#rg-job").value=rgp.job;ljHint($("#rgpForm"),rgp.job)}}}
   else if(t.dataset.rl){const l=rgp.lines[+t.closest("tr").dataset.i];l[t.dataset.rl]=["qty","value"].includes(t.dataset.rl)?+t.value:t.value}});
 $("#rgpForm").addEventListener("click",e=>{const id=e.target.id;
-  if(id==="btn-r-cancel"){rgp=null;renderRgpForm();return}
+  if(id==="btn-r-cancel"){rgp=null;rgpEditNo=null;renderRgpForm();return}
   if(e.target.dataset.rdel!=null){rgp.lines.splice(+e.target.dataset.rdel,1);renderRgpForm();return}
-  if(id==="btn-r-line"){rgp.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0});renderRgpForm();return}
-  if(id==="btn-r-save"){rgp.lines=rgp.lines.filter(l=>l.desc.trim()&&+l.qty>0);
-    if(!rgp.party.trim()){toast("Enter who the material is going to");renderRgpForm();return}
-    if(!rgp.lines.length){toast("Add at least one item with qty");rgp.lines.push({desc:"",hsn:"",qty:1,unit:"NOS",value:"",remark:"",ret:0});renderRgpForm();return}
-    if(!rgp.expected){toast("Enter the expected return date");return}
-    if(rgp.expected<rgp.date){toast("Return date cannot be before the challan date");return}
-    const c=rgp;rgps.unshift(c);saveRgps();rgp=null;renderRgp();toast(`Challan RC-${c.no} saved`);savePDF(docChallan(c),rcFile(c));return}
+  if(id==="btn-r-line"){rgp.lines.push(rgpLine());renderRgpForm();return}
+  if(id==="btn-r-save"){if(rgpCheck())rgpPreview();return}
   if(id==="btn-r-ret"){const c=rgp;const qs=c.lines.map((l,i)=>Math.max(0,+$("#rr"+i).value||0));
     if(qs.some((q,i)=>q>(+c.lines[i].qty||0)-(+c.lines[i].ret||0)+0.0001)){toast("Received qty is more than what is still out");return}
     if(!qs.some(q=>q>0)){toast("Enter the qty received back");return}
@@ -6271,7 +6330,7 @@ function homeData(){const t=today(),cm=t.slice(0,7),pm=prevMon(),fs=fyStart(),MS
     recv,recvP:recv,old,payb,paybP:TL?payb:plantDue()+obSupDue(),TL,obC:TL||obills.some(o=>o.kind==="cust"),obS:TL||obills.some(o=>o.kind==="sup"),alerts:zero.size,stv:SI.reduce((a,i)=>a+i.value,0),J,late:J.filter(j=>j.due&&j.due<t),ops:OPS,hrs:sum(OPS.map(o=>o.act))}}
 function homeTabs(){return[["ov","🏢","Overview",true],["sal","📈","Sales",["sales","so","dc","inv","cn"].some(can)],["pur","🛒","Purchase",["req","buy","po","saved","appr"].some(can)],["store","📦","Store",["grn","stock"].some(can)],["prod","🏭","Production",can("prod")]].filter(x=>x[3])}
 const HQA=[["inv","🧾","New sales invoice","From a customer order","inv"],["prod","🏭","Production","Job cards, log what's made"],["stock","📊","Stock entry","Opening, issue, return"],["inv","💰","Payment received","From a customer"],["so","📥","New sales order","From a customer PO","so"],
-  ["grn","📦","Receive material","GRN against a PO"],["req","📝","New request","Ask for material or a service"],["appr","✅","Approve POs","Review and sign"],["po","🛒","Purchase order","From a pre-estimate"],["acct","💳","Bills & payments","Book bills, pay vendors"],["sales","💬","Quotation","RFQ and quote a customer"],["mast","➕","New product","Item code is automatic"]];
+  ["grn","📦","Receive material","GRN against a PO"],["grn","📤","Returnable challan","Send material out for job work","rgp"],["req","📝","New request","Ask for material or a service"],["appr","✅","Approve POs","Review and sign"],["po","🛒","Purchase order","From a pre-estimate"],["acct","💳","Bills & payments","Book bills, pay vendors"],["sales","💬","Quotation","RFQ and quote a customer"],["mast","➕","New product","Item code is automatic"]];
 function renderHome(){
   renderBackup();renderPend();
   $("#homeHello").textContent=`Welcome, ${me.name}`;$("#homeDate").textContent=`${me.role}${me.dept?" · "+me.dept:""} · ${dmy(today())}`;
@@ -6282,7 +6341,7 @@ function renderHome(){
   const PL=plants();$("#homePlant").hidden=PL.length<2||!!lockedPlant();$("#homePlant").innerHTML=[["","Both plants"]].concat(PL.map(p=>[p.id,p.short||p.name])).map(([id,l])=>`<button type="button" data-hpl="${id}" aria-pressed="${id===curPlant}">${esc(l)}</button>`).join("");
   HP=splitPlants()?PL.map(p=>({p,D:withPlant(p.id,homeData)})):null;
   if(homeTab!=="ov"){$("#homeTabBody").innerHTML=homeTabHtml(homeTab,D);return}
-  const seen=new Set(),QA=HQA.filter(([v,,t])=>{if(!can(v)||seen.has(t))return false;seen.add(t);return true}).slice(0,7);
+  const seen=new Set(),QA=HQA.filter(([v,,t,,nw])=>{if(!can(v)||seen.has(t)||(nw==="rgp"&&!has("rgp.manage")))return false;seen.add(t);return true}).slice(0,8);
   $("#homeQuick").innerHTML=QA.map(([v,ic,t,d,nw],i)=>`<button type="button" class="qact" data-qa="${i}" data-go="${v}"${nw?` data-new="${nw}"`:""}><b><i aria-hidden="true">${ic}</i>${esc(t)}</b><span>${esc(d)}</span></button>`).join("");
   const K=[];
   if(can("inv")){K.push(kpi("Sales this month",kpiL(D.salesM),trendTxt(D.salesM,D.salesPM),{go:"inv",gst:gstTxt(D.salesM,D.salesMG),split:hSplit("salesM")}));K.push(kpi("Sales this year (FY)",kpiL(D.salesFY),`${dmy(D.fs)} to today, before GST`,{go:"inv",gst:gstTxt(D.salesFY,D.salesFYG),split:hSplit("salesFY")}));
@@ -6339,6 +6398,8 @@ function homeTabHtml(k,D){const t=today(),K=[];let h="";
     if(has("rgp.manage"))K.push(kpi("Returnable challans out",fmt0(rgps.filter(c=>c.status!=="Closed").length),`${rgps.filter(c=>c.status!=="Closed"&&c.expected&&c.expected<t).length} overdue`,{go:"grn"}));
     h+=`<div class="kpis">${K.join("")}</div>`;
     h+=homeList("POs waiting for material",[["PO"],["Supplier"],["Required by","dt"],["Lines pending","num"]],due.slice(0,8).map(p=>[esc(p.no),esc(p.sup||""),p.needBy?dmy(p.needBy):"-",pendingLines(p).length]),"No material is due.","grn");
+    if(has("rgp.manage")||has("rgp.view")){const O=rgps.filter(c=>inPlant(c)&&c.status!=="Closed");h+=`<div class="row" style="gap:8px">${has("rgp.manage")?`<button type="button" class="btn primary" data-go="grn" data-new="rgp">+ New returnable challan</button>`:""}<span class="note">Material going out to a vendor for job work, repair or trial.</span></div>`;
+      h+=homeList("Returnable challans still out",[["Challan"],["Sent to"],["Purpose"],["Return by","dt"],["Pending","num"]],byNew(O).slice(0,8).map(c=>[`RC-${esc(c.no)}`,esc(c.party||""),esc(c.purpose||""),c.expected?`<span${c.expected<t?' style="color:var(--danger);font-weight:600"':""}>${dmy(c.expected)}</span>`:"-",fmt0(rgpPend(c))]),"No material is out on returnable challans.","grn")}
     if(can("stock"))h+=homeList("Items to reorder",[["Item"],["In stock","num"],["Minimum","num"],["Order","num"]],L.slice(0,10).map(r=>[esc(r.it.name),fmt0(r.bal),fmt0(r.min),fmt0(r.order)]),"No item is below its minimum stock.","stock")}
   if(k==="prod"){h+=`<div class="kpis">${prodTiles().map(w=>kpi(w.t,esc(String(w.n)),esc(w.d),{go:"prod",tone:w.warn?"warn":""})).join("")}${kpi("Logged this week",D.ops.length?fmt0(Math.round(D.hrs*10)/10)+" h":"—",D.ops.length+" operations done",{go:"prod"})}</div>`;
     h+=homeList("Open jobs by due date",[["Job"],["Customer"],["Status"],["Due","dt"],["Done","num"]],D.J.slice().sort((a,b)=>(a.due||"9").localeCompare(b.due||"9")).slice(0,10).map(j=>[esc(j.no),esc(j.cust||""),stChip(j.status),j.due?`<span${j.due<t?' style="color:var(--danger);font-weight:600"':""}>${dmy(j.due)}</span>`:"-",jobPct(j)+"%"]),"No open job cards.","prod")}
@@ -6346,7 +6407,7 @@ function homeTabHtml(k,D){const t=today(),K=[];let h="";
 $("#homeTabs").addEventListener("click",e=>{const b=e.target.closest("[data-htab]");if(!b)return;homeTab=b.dataset.htab;try{localStorage.setItem("zpo:homeTab",homeTab)}catch(err){}renderHome()});
 $("#homeTabs").addEventListener("keydown",e=>{if(!["ArrowLeft","ArrowRight"].includes(e.key))return;const B=[...$("#homeTabs").querySelectorAll("[data-htab]")],i=B.findIndex(b=>b.dataset.htab===homeTab),n=B[(i+(e.key==="ArrowRight"?1:B.length-1))%B.length];if(n){n.click();$(`#homeTabs [data-htab="${n.dataset.htab}"]`).focus()}});
 $("#view-home").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(!b||!can(b.dataset.go))return;show(b.dataset.go);
-  const nw=b.dataset.new;if(nw&&has(nw+".create")){const nb=document.querySelector(`[data-sdnew="${nw}"]`);if(nb&&!nb.hidden)nb.click()}});
+  const nw=b.dataset.new;if(nw==="rgp"){rgpOpenNew();return}if(nw&&has(nw+".create")){const nb=document.querySelector(`[data-sdnew="${nw}"]`);if(nb&&!nb.hidden)nb.click()}});
 
 bindHeader();renderEst();setMe(store.get("me","Admin"));renderMasters();
 }
