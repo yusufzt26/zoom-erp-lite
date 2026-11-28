@@ -1688,7 +1688,7 @@ function pmParts(d,k,sel,paise){if(!d||paise==null)return[];const r=paise/100,mn
   return(k==="s"?[it(sel.st,d.L*d.B,"Thickness")]:[it(sel.mt,d.L*d.B,"Thickness"),it(sel.ml,d.L*d.H*2,"Length sides"),it(sel.mw,d.B*d.H*2,"Width sides")]).filter(Boolean)}
 const pmSum=P=>P.reduce((a,x)=>a+x.amt,0);
 const pmR2=v=>Math.round((+v||0)*100)/100;
-const pmSel=l=>l.pm||(l.pm={mt:true,ml:true,mw:true,st:true});
+const pmSel=l=>l.pm||(l.pm={mt:true,ml:true,mw:true,st:false}); /* milling ticked by default, grinding only when the purchaser ticks it */
 const pmLines=p=>(p.lines||[]).map((l,i)=>({l,i,d:pmDims(l)})).filter(x=>x.d&&poRawOn(x.l)&&pmPcs(x.l)>0);
 function pmTotal(p,k,sup){return pmLines(p).reduce((a,{l,d})=>{const pr=pmRate(sup,k,d);return a+(pr==null?0:pmSum(pmParts(d,k,pmSel(l),pr))*pmPcs(l))},0)}
 function pmPick(p,k){const V=pmVendors(k);p.pmVen=p.pmVen||{};if(p.pmVen[k]&&!V.some(v=>key(v)===key(p.pmVen[k])))delete p.pmVen[k];
