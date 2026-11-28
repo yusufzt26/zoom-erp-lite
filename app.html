@@ -64,6 +64,11 @@ input,select,textarea{font:inherit;font-size:14px;color:var(--ink);background:va
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .note{font-size:12.5px;color:var(--muted)}
 #buyBody input:not([type=checkbox]){border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:5px 7px}
+#buyBody tr.bgrp td{background:color-mix(in srgb,var(--accent) 7%,var(--panel));border-top:2px solid var(--line);cursor:pointer;padding-top:9px;padding-bottom:9px}
+#buyBody tr.bgrp:hover td{background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
+#buyBody tr.bgrp .bgt{font:inherit;border:0;background:none;color:var(--accent);cursor:pointer;padding:0 6px 0 0;font-size:13px;width:20px}
+#buyBody tr.bgrp .bgh{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap}
+#buyBody tr.bgl td:first-child{border-left:3px solid color-mix(in srgb,var(--accent) 45%,transparent)}
 .hintcell{outline:1px dashed var(--warn)!important}
 .badcell{outline:2px solid var(--danger)!important;background:color-mix(in srgb,var(--danger) 10%,transparent)!important}
 .example{background:var(--sugg-bg);color:var(--sugg);border-radius:6px;padding:8px 12px;font-size:13px}
@@ -697,7 +702,7 @@ setTimeout(function(){var b=document.body;if(b&&!b.classList.contains("ready")&&
     <div class="row"><h2 class="sec">Pre-estimate</h2><span class="note" id="buy-n"></span><span style="flex:1"></span><input id="buy-q" placeholder="Search request, job, item or supplier" style="max-width:300px"></div>
     <div class="dseg" style="flex-wrap:wrap;align-self:flex-start" id="buyTabs" role="group" aria-label="Purchase type"></div>
     <div id="buyDone" class="banner" hidden></div>
-    <div class="row"><label style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="buy-all" style="width:auto;margin:0"> Tick all lines in this tab</label></div>
+    <div class="row"><label style="display:inline-flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="buy-all" style="width:auto;margin:0"> Tick all lines in this tab</label><span style="flex:1"></span><span class="note">Group by</span><div class="dseg" id="buyGrp" role="group" aria-label="Group lines by"><button type="button" data-bgrp="req">Request</button><button type="button" data-bgrp="sup">Supplier</button><button type="button" data-bgrp="none">No grouping</button></div><button class="btn" type="button" id="btn-buy-fold">Collapse all</button></div>
     <div class="tablebox"><table class="est" style="min-width:980px"><thead id="buyHead"></thead><tbody id="buyBody"></tbody></table></div>
     <div class="note" id="buyNote"></div>
     <label class="f" style="max-width:760px">Notes for the PO (terms and conditions)<textarea id="buy-notes" rows="2" placeholder="Any comment for the supplier. It goes into the Notes row of the terms on each PO made here, and you can still change it on the PO." style="font:inherit;resize:vertical"></textarea></label>
@@ -2089,6 +2094,10 @@ async function costImport(e){const f=e.target.files[0];e.target.value="";if(!f||
 /* ---------- Buy sheet: every approved request line not yet on a PO, one tab per purchase type, one PO per supplier ---------- */
 /* supplier, rate, qty, grade, allowance, operations and tick per line are a working draft kept in this browser (key "reqNo:line") */
 let buyDraft=store.get("buy",{}),buyQ="",buyTab="",buyOpen=new Set();
+/* lines are shown in groups (one per request, or one per supplier) that open and close; the choice and open/closed state stay in this browser */
+let buyGrp=store.get("buyGrp","req"),buyFold=store.get("buyFold",{});
+const buyGKey=b=>buyGrp==="sup"?"s:"+(key(b.c.sup)||"~"):"r:"+b.x.r.no;
+const buyGOpen=(k,n)=>!!key(buyQ)||(k in buyFold?buyFold[k]:n<=4);
 const saveBuy=()=>store.set("buy",buyDraft);
 let buyNotes=store.get("buyNotes","");$("#buy-notes").value=buyNotes;$("#buy-notes").oninput=e=>{buyNotes=e.target.value;store.set("buyNotes",buyNotes)};
 const BUY_TABS=["Raw material","Child parts","BOP","Consumables","Tools & cutters","Others"];
@@ -2126,33 +2135,51 @@ function openBuy(r){buyQ=r?String(r.no):"";if(r)buyTab=buyCat(r);show("buy")}
 const bMatch=(b,q)=>!q||key([b.x.r.no,b.x.r.job,b.x.name,b.spec,b.c.sup,b.x.r.by,b.x.r.dept].join(" ")).includes(q);
 const autoSt=on=>on?"background:color-mix(in srgb,#ffe600 28%,transparent)":"";
 function renderBuy(){
-  if(!$("#view-buy"))return;const A=document.activeElement,fk=A&&A.closest&&A.closest("#buyBody")?[A.closest("[data-bk]").dataset.bk,A.dataset.bf]:null;$("#buy-q").value=buyQ;fillGradeList();
+  if(!$("#view-buy"))return;const A=document.activeElement,fk=A&&A.closest&&A.closest("#buyBody [data-bk]")?[A.closest("[data-bk]").dataset.bk,A.dataset.bf]:null,gk=A&&A.closest&&A.closest("#buyBody tr.bgrp")?[A.closest("tr.bgrp").dataset.bg,A.dataset.bgon!=null]:null;$("#buy-q").value=buyQ;fillGradeList();
   const all=buyRows(),q=key(buyQ);if(!BUY_TABS.includes(buyTab))buyTab=(BUY_TABS.find(t=>all.some(b=>b.cat===t))||BUY_TABS[0]);
   $("#buyTabs").innerHTML=BUY_TABS.map((t,i)=>{const n=all.filter(b=>b.cat===t).length;return`<button type="button" data-btab="${esc(t)}" aria-pressed="${t===buyTab}">${i+1}. ${esc(t)}${n?` (${n})`:""}</button>`}).join("");
   const L=all.filter(b=>b.cat===buyTab&&bMatch(b,q)),reqN=new Set(all.map(b=>b.x.r.no)).size;
   $("#buy-n").textContent=all.length?`${all.length} line${all.length>1?"s":""} from ${reqN} request${reqN>1?"s":""}`:"";
   const t=today(),ck=b=>`<td><input type="checkbox" data-bf="on"${b.on?" checked":""} aria-label="Buy ${esc(b.x.name)} now"></td>`,
-    rq=b=>{const r=b.x.r,late=r.need&&r.need<t;return`<td><b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?` · ${esc(r.job)}`:""}<br><span class="note"${late?' style="color:var(--danger)"':""}>${r.need?"Need by "+dmy(r.need):""}</span>${b.x.onPO>0.0001?`<br><span class="chip st-Back" title="Already on ${esc(b.x.pos.map(n=>"PO "+n).join(", "))}">Balance ${q3(b.x.toOrder)} of ${q3(b.x.qty)} ${esc(b.x.unit)} · ${esc(b.x.pos.map(n=>"PO "+n).join(", "))}</span>`:""}</td>`},
+    bal=b=>b.x.onPO>0.0001?`<br><span class="chip st-Back" title="Already on ${esc(b.x.pos.map(n=>"PO "+n).join(", "))}">Balance ${q3(b.x.toOrder)} of ${q3(b.x.qty)} ${esc(b.x.unit)} · ${esc(b.x.pos.map(n=>"PO "+n).join(", "))}</span>`:"",
+    byReq=buyGrp==="req",RQH=byReq?"":"<th>Request</th>",
+    rq=b=>{if(byReq)return"";const r=b.x.r,late=r.need&&r.need<t;return`<td><b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?` · ${esc(r.job)}`:""}<br><span class="note"${late?' style="color:var(--danger)"':""}>${r.need?"Need by "+dmy(r.need):""}</span>${bal(b)}</td>`},
+    nm=b=>esc(b.x.name)+(byReq?bal(b):""),
     inp=(f,v,w,auto,ty="number",ph="")=>`<input data-bf="${f}"${ty==="number"?' type="number" step="any" min="0"':""}${f==="sup"?' list="suppliers"':""}${f==="grade"?' list="gradeList"':""} value="${esc(v)}" placeholder="${esc(ph)}" style="width:${w};${autoSt(auto)}" aria-label="${esc(f)}">`,
-    amt=v=>`<td class="num" data-bamt>${v?fmt(v):"-"}</td>`,none=n=>`<tr><td colspan="${n}" class="empty">${all.length&&!L.length&&q?"No line matches that search.":"Nothing to buy here. Approved request lines of this type appear until they are on a PO."}</td></tr>`;
-  let head="",body="",note="";
-  if(buyTab==="Raw material"){head=`<th></th><th>Request</th><th>Part</th><th>Grade</th><th>Finished size</th><th class="num">Allow mm</th><th>Raw size to order</th><th class="num">kg / pc</th><th class="num">Pcs</th><th class="num">Total kg</th><th class="num">₹ / kg</th><th>Supplier</th><th class="num">Amount</th>`;
-    body=L.map(b=>{const c=b.c;return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${esc(b.x.name)}</td><td>${inp("grade",c.grade,"90px",c.auto.grade&&!!c.grade,"text")}</td><td class="note">${esc(c.fin)||"<span style=\"color:var(--danger)\">no size</span>"}</td><td class="num">${inp("allow",c.allow,"60px",c.auto.allow)}</td><td>${inp("raw",c.raw,"150px",c.auto.raw,"text")}</td><td class="num">${fmtKg(c.wpc)}</td><td class="num">${inp("qty",c.qty,"60px",false)}</td><td class="num"><b>${fmtKg(c.wpc*c.qty)}</b></td><td class="num">${inp("rate",c.rate,"80px",c.auto.rate&&c.rate!=="")}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td>${amt(c.amt)}</tr>`}).join("")||none(13);
+    amt=v=>`<td class="num" data-bamt>${v?fmt(v):"-"}</td>`,none=n=>`<tr><td colspan="${n-(byReq?1:0)}" class="empty">${all.length&&!L.length&&q?"No line matches that search.":"Nothing to buy here. Approved request lines of this type appear until they are on a PO."}</td></tr>`;
+  let head="",body="",note="",row=null,nc=0;
+  if(buyTab==="Raw material"){head=`<th></th>${RQH}<th>Part</th><th>Grade</th><th>Finished size</th><th class="num">Allow mm</th><th>Raw size to order</th><th class="num">kg / pc</th><th class="num">Pcs</th><th class="num">Total kg</th><th class="num">₹ / kg</th><th>Supplier</th><th class="num">Amount</th>`;
+    nc=13;row=b=>{const c=b.c;return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${nm(b)}</td><td>${inp("grade",c.grade,"90px",c.auto.grade&&!!c.grade,"text")}</td><td class="note">${esc(c.fin)||"<span style=\"color:var(--danger)\">no size</span>"}</td><td class="num">${inp("allow",c.allow,"60px",c.auto.allow)}</td><td>${inp("raw",c.raw,"150px",c.auto.raw,"text")}</td><td class="num">${fmtKg(c.wpc)}</td><td class="num">${inp("qty",c.qty,"60px",false)}</td><td class="num"><b>${fmtKg(c.wpc*c.qty)}</b></td><td class="num">${inp("rate",c.rate,"80px",c.auto.rate&&c.rate!=="")}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td>${amt(c.amt)}</tr>`};
     note=`Raw size = finished size + allowance on each dimension, rounded up to ${+costing.calc.round||0} mm. The PO is made in kg with the finished size, raw size, grade and pieces on each line. Grades, densities and ₹/kg are in Rates &amp; costing.`}
-  else if(buyTab==="Child parts"){head=`<th></th><th>Request</th><th>Part</th><th>Grade · finished size</th><th class="num">Qty</th><th>Unit</th><th class="num">Estimate / pc</th><th>Supplier</th><th class="num">Rate / pc</th><th class="num">Amount</th>`;
-    body=L.map(b=>{const c=b.c;return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${esc(b.x.name)}</td><td class="note">${esc([c.grade,c.fin].filter(Boolean).join(" · "))}</td><td class="num">${inp("qty",c.qty,"60px",false)}</td><td>${esc(b.x.unit)}</td><td class="num note">${c.est>0?fmt(c.est):"-"}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td><td class="num">${inp("rate",c.rate,"90px",c.auto.rate&&c.rate!=="")}</td>${amt(c.amt)}</tr>`}).join("")||none(10);
+  else if(buyTab==="Child parts"){head=`<th></th>${RQH}<th>Part</th><th>Grade · finished size</th><th class="num">Qty</th><th>Unit</th><th class="num">Estimate / pc</th><th>Supplier</th><th class="num">Rate / pc</th><th class="num">Amount</th>`;
+    nc=10;row=b=>{const c=b.c;return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${nm(b)}</td><td class="note">${esc([c.grade,c.fin].filter(Boolean).join(" · "))}</td><td class="num">${inp("qty",c.qty,"60px",false)}</td><td>${esc(b.x.unit)}</td><td class="num note">${c.est>0?fmt(c.est):"-"}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td><td class="num">${inp("rate",c.rate,"90px",c.auto.rate&&c.rate!=="")}</td>${amt(c.amt)}</tr>`};
     note=`Estimate / pc comes from the operation rates in Rates &amp; costing, as a guide. Rate and supplier come from the last PO for the same part.`}
   else{const pl=buyTab==="BOP"||buyTab==="Tools & cutters";
-    head=`<th></th><th>Request</th><th>Description</th>${pl?`<th>${buyTab==="BOP"?"Size":"Dia / size"}</th><th>Length</th><th>Price</th>`:""}<th class="num">Qty</th><th>Unit</th><th>Supplier</th><th class="num">Rate</th><th class="num">Amount</th>`;
-    body=L.map(b=>{const c=b.c,lst=buyTab==="BOP"?"bop":"tool";return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${esc(b.x.name)}${!pl&&b.spec?`<br><span class="note">${esc(b.spec)}</span>`:""}</td>
+    head=`<th></th>${RQH}<th>Description</th>${pl?`<th>${buyTab==="BOP"?"Size":"Dia / size"}</th><th>Length</th><th>Price</th>`:""}<th class="num">Qty</th><th>Unit</th><th>Supplier</th><th class="num">Rate</th><th class="num">Amount</th>`;
+    nc=pl?11:8;row=b=>{const c=b.c,lst=buyTab==="BOP"?"bop":"tool";return`<tr data-bk="${esc(b.k)}"${b.on?"":' style="opacity:.55"'}>${ck(b)}${rq(b)}<td>${nm(b)}${!pl&&b.spec?`<br><span class="note">${esc(b.spec)}</span>`:""}</td>
       ${pl?`<td>${esc(lineX(b.x.l,"Size"))}</td><td>${esc(lineX(b.x.l,"L"))}</td><td>${c.m?`<span class="chip st-Approved">Price list${c.m.brand?" · "+esc(c.m.brand):""}</span>`:`<span class="chip st-Back">Not in list</span>${+c.rate>0&&canCost()?` <button class="linkbtn" type="button" data-bsave="${lst}">Save to list</button>`:""}`}</td>`:""}
-      <td class="num">${inp("qty",c.qty,"70px",false)}</td><td>${esc(b.x.unit)}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td><td class="num">${inp("rate",c.rate,"90px",c.auto.rate&&c.rate!=="")}</td>${amt(c.amt)}</tr>`}).join("")||none(pl?11:8);
+      <td class="num">${inp("qty",c.qty,"70px",false)}</td><td>${esc(b.x.unit)}</td><td>${inp("sup",c.sup,"100%",c.auto.sup&&!!c.sup,"text","Pick supplier")}</td><td class="num">${inp("rate",c.rate,"90px",c.auto.rate&&c.rate!=="")}</td>${amt(c.amt)}</tr>`};
     note=pl?`Lines are matched on description (type) + ${buyTab==="BOP"?"size":"dia / size"} + length against the ${buyTab==="BOP"?"BOP price list":"tool catalogue"} in Rates &amp; costing. A price typed for an unmatched line can be saved to the list for next time.`:`Rate and supplier come from the last PO for the same item${buyTab==="Consumables"?", or from the consumables list in Rates &amp; costing":""}.`}
-  $("#buyHead").innerHTML=`<tr>${head}</tr>`;$("#buyBody").innerHTML=body;$("#buyNote").innerHTML=note+` Yellow = filled in from the masters or the last PO; change any of it.`;
+  body=L.length?buyGroups(L,row,nc-(byReq?1:0),t):none(nc);
+  $("#buyGrp").querySelectorAll("[data-bgrp]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.bgrp===buyGrp)));
+  {const G=buyGrp==="none"?[]:[...new Set(L.map(buyGKey))],op=G.filter(k=>buyGOpen(k,G.length)).length,F=$("#btn-buy-fold");F.hidden=!G.length||!!key(buyQ);F.textContent=op?"Collapse all":"Expand all";F.dataset.open=op?"1":""}
+  $("#buyHead").innerHTML=`<tr>${head}</tr>`;$("#buyBody").innerHTML=body;$("#buyBody").querySelectorAll("[data-mixed]").forEach(x=>x.indeterminate=true);$("#buyNote").innerHTML=note+` Yellow = filled in from the masters or the last PO; change any of it.`;
   $("#buy-all").checked=L.length>0&&L.every(b=>b.on);$("#buy-all").closest("label").hidden=!L.length;
   buyTotals(all);
   if(fk&&fk[1]){const el=[...$("#buyBody").querySelectorAll("[data-bk]")].find(t=>t.dataset.bk===fk[0]);const f=el&&el.querySelector(`[data-bf="${fk[1]}"]`);if(f&&document.activeElement!==f){gSel&&(gSel.keep=true);f.focus();if(f.tagName==="INPUT")try{f.select()}catch(_){}}}
+  if(gk){const h=[...$("#buyBody").querySelectorAll("tr.bgrp")].find(x=>x.dataset.bg===gk[0]),f=h&&h.querySelector(gk[1]?"[data-bgon]":"[data-btog]");if(f)f.focus()}
   if(typeof gPaint==="function")gPaint()}
+/* the line rows under a header per request (or supplier): tick box for the whole group, project, who asked, need-by, line count and total; click the header to open or close it */
+function buyGroups(L,row,nc,t){if(buyGrp==="none")return L.map(row).join("");
+  const M=new Map();L.forEach(b=>{const k=buyGKey(b);if(!M.has(k))M.set(k,[]);M.get(k).push(b)});
+  const need=B=>B.map(b=>b.x.r.need).filter(Boolean).sort()[0]||"9999";
+  const G=[...M.entries()].sort((a,b)=>buyGrp==="sup"?(a[0]==="s:~")-(b[0]==="s:~")||key(a[1][0].c.sup).localeCompare(key(b[1][0].c.sup)):need(a[1]).localeCompare(need(b[1]))||String(a[1][0].x.r.no).localeCompare(String(b[1][0].x.r.no),undefined,{numeric:true}));
+  return G.map(([k,B])=>{const open=buyGOpen(k,G.length),on=B.filter(b=>b.on).length,ready=B.filter(b=>b.on&&b.c.ok).length,sum=B.reduce((a,b)=>a+(+b.c.amt||0),0),r=B[0].x.r,n=B.length;
+    let who;if(buyGrp==="sup"){const s=String(B[0].c.sup||"").trim(),rq=new Set(B.map(b=>b.x.r.no)).size,nd=need(B);
+      who=`<b>${s?esc(s):'<span style="color:var(--danger)">No supplier yet</span>'}</b><span class="note">${rq} request${rq>1?"s":""}${nd!=="9999"?` · first need by <span${nd<t?' style="color:var(--danger)"':""}>${dmy(nd)}</span>`:""}</span>`}
+    else{const late=r.need&&r.need<t;who=`<b style="font-family:var(--mono)">${esc(r.no)}</b>${r.job?`<b>${esc(r.job)}</b>`:""}<span class="note">${esc([r.by,r.dept].filter(Boolean).join(" · "))}</span>${r.need?`<span class="note"${late?' style="color:var(--danger);font-weight:600"':""}>Need by ${dmy(r.need)}${late?" (late)":""}</span>`:""}`}
+    const head=`<tr class="bgrp" data-bg="${esc(k)}"><td><input type="checkbox" data-bgon="${esc(k)}"${on===n?" checked":""}${on&&on<n?" data-mixed":""} aria-label="Tick all ${n} lines"></td><td colspan="${nc-2}"><div class="bgh"><button type="button" class="bgt" data-btog="${esc(k)}" aria-expanded="${open}" aria-label="${open?"Close":"Open"}">${open?"▾":"▸"}</button>${who}<span class="note">${n} line${n>1?"s":""}${on?` · ${on} ticked`:""}${ready&&ready<on?` · ${ready} ready`:""}</span></div></td><td class="num"><b>${sum?fmt(sum):"-"}</b></td></tr>`;
+    return head+(open?B.map(b=>row(b).replace("<tr ",'<tr class="bgl" ')).join(""):"")}).join("")}
 function buyLines(all){const out=[];(all||buyRows()).filter(b=>b.on&&b.c.ok).forEach(b=>{const c=b.c;
   out.push({b,sup:c.sup,amt:c.amt})});return out}
 function buyTotals(all){all=all||buyRows();const on=all.filter(b=>b.on),ready=on.filter(b=>b.c.ok),bad=on.filter(b=>!b.c.ok),out=buyLines(all);
@@ -2164,7 +2191,10 @@ $("#buyTabs").addEventListener("click",e=>{const b=e.target.closest("[data-btab]
 $("#buy-q").addEventListener("input",e=>{buyQ=e.target.value;renderBuy()});
 const bDraft=k=>buyDraft[k]=buyDraft[k]||{};
 const bOps=(k,b)=>{const d=bDraft(k);if(!d.ops)d.ops=b.c.ops.map(p=>({op:p.op,q:p.autoQ?null:p.q,rate:p.autoR?null:p.rate,sup:p.autoS?null:p.sup}));return d.ops};
-$("#buyBody").addEventListener("change",e=>{const t=e.target,tr=t.closest("[data-bk]");if(!tr)return;const k=tr.dataset.bk,d=bDraft(k),f=t.dataset.bf;
+$("#buyGrp").addEventListener("click",e=>{const b=e.target.closest("[data-bgrp]");if(!b)return;buyGrp=b.dataset.bgrp;store.set("buyGrp",buyGrp);renderBuy()});
+$("#btn-buy-fold").onclick=e=>{const close=!!e.target.dataset.open,q=key(buyQ);new Set(buyRows().filter(b=>b.cat===buyTab&&bMatch(b,q)).map(buyGKey)).forEach(k=>buyFold[k]=!close);store.set("buyFold",buyFold);renderBuy()};
+$("#buyBody").addEventListener("change",e=>{const t=e.target;if(t.dataset.bgon!=null){const q=key(buyQ);buyRows().filter(b=>b.cat===buyTab&&bMatch(b,q)&&buyGKey(b)===t.dataset.bgon).forEach(b=>{bDraft(b.k).on=t.checked});saveBuy();renderBuy();return}
+  const tr=t.closest("[data-bk]");if(!tr)return;const k=tr.dataset.bk,d=bDraft(k),f=t.dataset.bf;
   if(f==="on"){d.on=t.checked}
   else if(f==="tpl"){if(d.on==null)d.on=true;d.tpl=t.value;delete d.ops}
   else if(f){if(d.on==null)d.on=true;d[f]=["sup","grade","raw"].includes(f)?t.value:(t.value===""?null:+t.value);if(f==="grade"){delete d.allow;delete d.raw;delete d.rate;delete d.sup}if(f==="allow")delete d.raw;if(f==="raw"&&!t.value.trim())delete d.raw}
@@ -2172,7 +2202,8 @@ $("#buyBody").addEventListener("change",e=>{const t=e.target,tr=t.closest("[data
   else return;
   /* redraw after the cursor has moved (arrow, Enter, Tab, paste), so it stays where it went */
   saveBuy();clearTimeout(renderBuy.t);renderBuy.t=setTimeout(renderBuy,0)});
-$("#buyBody").addEventListener("click",e=>{const btn=e.target.closest("button");if(!btn)return;const tr=btn.closest("[data-bk]"),k=tr&&tr.dataset.bk;
+$("#buyBody").addEventListener("click",e=>{const g=e.target.closest("tr.bgrp");if(g){if(e.target.closest("input"))return;const k=g.dataset.bg,n=$("#buyBody").querySelectorAll("tr.bgrp").length;buyFold[k]=!buyGOpen(k,n);store.set("buyFold",buyFold);renderBuy();return}
+  const btn=e.target.closest("button");if(!btn)return;const tr=btn.closest("[data-bk]"),k=tr&&tr.dataset.bk;
   if(btn.dataset.bops){buyOpen.has(btn.dataset.bops)?buyOpen.delete(btn.dataset.bops):buyOpen.add(btn.dataset.bops);renderBuy();return}
   const b=k&&buyRows().find(x=>x.k===k);if(!b)return;
   if(btn.dataset.oadd!=null){bOps(k,b).push({op:costing.ops[0]?costing.ops[0].op:"",q:null,rate:null,sup:null});saveBuy();renderBuy();return}
@@ -2907,7 +2938,7 @@ const GRIDS=[
   {is:tb=>!!tb.closest("#rgpForm"),q:()=>$("#rgpForm tbody"),add:()=>{const b=$("#btn-r-line");if(!b)return false;b.click();return true}},
   {is:tb=>!!tb.closest("#slipForm"),q:()=>$("#slipForm tbody"),add:()=>{const b=$("#btn-sl-line");if(!b)return false;b.click();return true}}];
 const gCells=tr=>[...tr.querySelectorAll("input:not([type=file]):not([type=checkbox]),select")];
-const gRows=tb=>tb?[...tb.children].filter(tr=>tr.querySelector("input,select")):[];
+const gRows=tb=>tb?[...tb.children].filter(tr=>!tr.classList.contains("bgrp")&&tr.querySelector("input,select")):[];
 function gPos(el){if(!el||!el.matches||!el.matches("input,select"))return null;const tb=el.closest("tbody");if(!tb)return null;const g=GRIDS.find(x=>x.is(tb));if(!g)return null;
   const tr=el.closest("tr"),r=gRows(tb).indexOf(tr),c=gCells(tr).indexOf(el);return r<0||c<0?null:{g,tb,r,c}}
 const gCell=(g,r,c)=>{const tr=gRows(g.q())[r];return tr?gCells(tr)[c]||null:null};
