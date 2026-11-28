@@ -5165,7 +5165,7 @@ async function oqsImport(f,kind){if(!window.XLSX){toast("Excel tools did not loa
       const L={desc,hsn:String(g("hsn")??"").trim(),qty:r2(qty),unit:String(g("unit")??"").trim().toUpperCase()||"NOS",rate:Math.abs(obNum(g("rate"))),tax:ohGst(g("gst"))};
       if(!q){L.dis=Math.abs(obNum(g("dis")));L.qt=String(g("qt")??"").trim();L.oldBilled=r2(Math.min(qty,Math.abs(obNum(g("billed")))));L.oldSent=r2(Math.max(L.oldBilled,Math.min(qty,Math.abs(obNum(g("sent"))))))}
       H.lines.push(L)});
-    const have=new Set(q?deals.map(d=>key(dealKey(d))):sorders.map(x=>key(x.no))),out=[],dup=[];
+    const have=new Set(q?deals.map(d=>key(dealKey(d))):sorders.filter(x=>!x.gs).map(x=>key(x.no))),out=[],dup=[];
     G.forEach(H=>{if(!H.date){bad.push(`${H.no}: date missing or not readable`);return}if(!H.cust){bad.push(`${H.no}: no customer`);return}
       if(have.has(key(H.no))){dup.push(H.no);return}H.plant=ohPlant(H.plant,H.no);
       H.value=Math.round(H.lines.reduce((a,l)=>a+l.qty*l.rate*(1-(l.dis||0)/100),0));
@@ -5204,11 +5204,12 @@ function oqsSave(){if(!oqsPv)return;const q=oqsPv.kind==="oqt",at=new Date().toI
       else if(oqsPv.closeOld&&oqsStale(H)){Object.assign(d,{stage:"Lost",closedAt:H.date,lostWhy:"Other",lostNote:"Closed at import: no sales order for it in the old ERP"});lost++}
       deals.push(d);have.add(key(H.no));n++});
     saveDeals()}
-  else{const have=new Set(sorders.map(x=>key(x.no)));
+  else{const have=new Set(sorders.filter(x=>!x.gs).map(x=>key(x.no)));
     oqsPv.recs.forEach(H=>{if(have.has(key(H.no)))return;const o=oldJob(H.job);
       const s={no:H.no,old:true,plant:H.plant,date:H.date,cust:cust(H),deal:H.qts[0]||"",qts:H.qts,custPO:H.custPO||"",custPODate:H.custPODate||"",job:o.job,oldRef:o.oldRef,due:"",gst:H.gst,terms:"",
         lines:H.lines.map(l=>({desc:l.desc,hsn:l.hsn,qty:l.qty,unit:l.unit,rate:l.rate,dis:l.dis||"",qt:l.qt,oldSent:l.oldSent,oldBilled:l.oldBilled})),by:"Old ERP",createdAt:H.date+"T00:00:00.000Z",updatedAt:at,importedAt:at,importFile:fname};
-      sorders.push(s);have.add(key(H.no));n++;
+      /* a sales order made earlier from the Google Sheet with the same number is replaced by the old ERP's (it has the customer PO, quotation and billing) */
+      const gi=sorders.findIndex(x=>x.gs&&key(x.no)===key(H.no));if(gi>=0)sorders.splice(gi,1,s);else sorders.push(s);have.add(key(H.no));n++;
       H.qts.forEach(k=>{const d=dealBy(k);if(d){winDeal(d,s,`Sales order ${s.no} from the old ERP linked`);lk++}})});
     sdSave("so");if(lk)saveDeals()}
   if(addC)saveCusts();toast(`${n} old ${q?"quotations":"sales orders"} imported${q?` (${won} Won${lost?`, ${lost} closed as Lost`:""})`:""}${lk?`, ${lk} ${q?"linked to sales orders already in the app":"quotations linked"}`:""}${addC?`, ${addC} customers added`:""}.`);oqsPv=null;renderOqs()}
@@ -5288,8 +5289,12 @@ function gsApply(quiet){const C=gsCfg();if(!C.on||!me||!has("so.create")||!gsRec
     else if(cur.gs){const keep={closed:cur.closed,closedAt:cur.closedAt,closedNote:cur.closedNote,createdAt:cur.createdAt,importedAt:cur.importedAt};
       cur.lines=G.rec.lines.map((l,i)=>{const o=cur.lines[i]||{};return Object.assign({},l,{oldSent:Math.max(l.oldSent,+o.oldSent||0),oldBilled:Math.max(l.oldBilled,+o.oldBilled||0)})});
       Object.assign(cur,G.rec,{lines:cur.lines},keep,{gs:{h:G.h,at},by:"Google Sheet",updatedAt:at,importFile:"Google Sheet"});Object.keys(keep).forEach(k=>keep[k]===undefined&&delete cur[k]);u++}});
-  if(n||u){sdSave("so");if(!quiet||n)toast(`Google Sheet: ${n} sales order${n===1?"":"s"} added${u?`, ${u} updated`:""}`);if(!$("#view-so").hidden)renderSD("so")}
-  else if(!quiet)toast("Google Sheet: sales orders already match the sheet");return n+u}
+  /* never two orders for one mould: a sheet-made order whose moulds are all now on another ERP sales order (made in the ERP or imported later) is removed, unless a challan or invoice was already made from it */
+  const byJob=new Set();sorders.forEach(s=>{if(!s.gs)gsJobs(s.job).forEach(z=>byJob.add(z))});let rm=0;
+  for(let i=sorders.length-1;i>=0;i--){const s=sorders[i];if(!s.gs)continue;const z=gsJobs(s.job);if(!z.length||!z.every(x=>byJob.has(x)))continue;
+    if(dchallans.some(d=>String(d.so)===String(s.no))||invoices.some(v=>String(v.so)===String(s.no)))continue;sorders.splice(i,1);rm++}
+  if(n||u||rm){sdSave("so");if(!quiet||n||rm)toast(`Google Sheet: ${n} sales order${n===1?"":"s"} added${u?`, ${u} updated`:""}${rm?`, ${rm} removed because the mould is now on another sales order`:""}`);if(!$("#view-so").hidden)renderSD("so")}
+  else if(!quiet)toast("Google Sheet: sales orders already match the sheet");return n+u+rm}
 let gsTimer=null;function gsAuto(){clearTimeout(gsTimer);gsTimer=setTimeout(()=>{try{gsApply(true)}catch(e){console.error("gsheet",e)}},1500)}
 /* tracking block for a sales order (all its job numbers) or a job card */
 function gsBlock(jobs){const L=[...new Set(jobs)].map(gsMould).filter(Boolean);if(!L.length)return"";const st=gsStatus();
